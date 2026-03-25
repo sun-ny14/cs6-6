@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>창신초 6-6 용사 본부</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <style>
+        body { background-color: #1a1a2e; color: white; font-family: 'Malgun Gothic', sans-serif; text-align: center; padding: 20px; }
+        .section { background: #16213e; padding: 20px; border: 2px solid #4ecca3; border-radius: 15px; margin-bottom: 20px; }
+        .card { width: 220px; padding: 15px; border: 2px solid #4ecca3; background: #16213e; border-radius: 20px; display: inline-block; margin: 10px; vertical-align: top; }
+        button { cursor: pointer; padding: 8px 12px; border-radius: 5px; border: none; font-weight: bold; }
+        .btn-check { background: #e94560; color: white; padding: 15px; font-size: 1.1em; width: 100%; max-width: 300px; margin-bottom: 15px; }
+        input { padding: 8px; border-radius: 5px; border: none; }
+    </style>
+</head>
+<body>
+
+    <h1>🛡️ 창신초 6-6 실시간 본부</h1>
+
+    <div class="section">
+        <button class="btn-check" onclick="checkAttendance()">⚔️ QR 등교 체크인</button>
+        
+        <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 10px;">
+            <p style="font-size: 0.8em; color: #888;">[관리자 구역]</p>
+            <input type="text" id="dailyPw" placeholder="오늘의 비밀번호 설정" style="width: 150px;">
+            <input type="text" id="nameInput" placeholder="신규 용사 이름" style="width: 100px;">
+            <button onclick="addStudent()" style="background:#4ecca3;">용사 소환</button>
+        </div>
+    </div>
+
+    <div id="student-list"></div>
+
+    <script>
+        // 선생님의 Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyDwdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+            authDomain: "cs6-6class.firebaseapp.com",
+            projectId: "cs6-6class",
+            storageBucket: "cs6-6class.firebasestorage.app",
+            messagingSenderId: "644235499537",
+            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0",
+            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/" //
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // [핵심] 비밀번호 실시간 연동
+        db.ref('todayPw').on('value', (snap) => {
+            if(snap.exists()) document.getElementById('dailyPw').value = snap.val();
+        });
+
+        // 비밀번호 설정 기능 (선생님 태블릿에서 입력 시 실시간 저장)
+        document.getElementById('dailyPw').addEventListener('change', (e) => {
+            db.ref('todayPw').set(e.target.value);
+        });
+
+        db.ref('students').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const listArea = document.getElementById('student-list');
+            listArea.innerHTML = "";
+            if(!data) return;
+
+            Object.keys(data).forEach(id => {
+                const s = data[id];
+                listArea.innerHTML += `
+                    <div class="card">
+                        <h3>${s.name}</h3>
+                        <div style="font-size: 1.5em; color: #4ecca3;">LV. ${s.lv}</div>
+                        <div style="color: #ffd700; font-weight: bold;">💰 ${s.point} P</div>
+                        <div style="font-size: 11px; margin-top: 10px; color: #aaa;">${s.lastCheck || '미등교'}</div>
+                        <button onclick="deleteStudent('${id}')" style="background: none; color: #555; font-size: 10px; text-decoration: underline;">삭제</button>
+                    </div>
+                `;
+            });
+        });
+
+        function addStudent() {
+            const name = document.getElementById('nameInput').value;
+            if(!name) return alert("이름을 입력하세요!");
+            db.ref('students/' + Date.now()).set({ name, lv: 1, point: 100, lastCheck: "" });
+            document.getElementById('nameInput').value = "";
+        }
+
+        function checkAttendance() {
+            // 1. 비밀번호 먼저 확인
+            const inputPw = prompt("칠판에 적힌 오늘의 등교 비밀번호를 입력하세요!");
+            
+            db.ref('todayPw').once('value', (snap) => {
+                const correctPw = snap.val();
+                if (inputPw !== correctPw) {
+                    return alert("비밀번호가 틀렸습니다! 칠판을 확인하세요.");
+                }
+
+                // 2. 비밀번호가 맞으면 이름 확인
+                const name = prompt("본인의 이름을 입력하세요.");
+                if(!name) return;
+
+                db.ref('students').once('value', snapshot => {
+                    const data = snapshot.val();
+                    let tid = data ? Object.keys(data).find(id => data[id].name === name) : null;
+                    if(!tid) return alert("용사를 찾을 수 없습니다.");
+
+                    const now = new Date();
+                    const h = now.getHours(); const m = now.getMinutes();
+                    let msg = (h > 8 || (h === 8 && m > 40)) ? "⚠️ 지각" : "✅ 정상등교";
+                    
+                    db.ref('students/'+tid).update({ lastCheck: msg + ` (${h}:${m})` });
+                    alert(name + " 용사님, 등교 확인되었습니다!");
+                });
+            });
+        }
+
+        function deleteStudent(id) {
+            if(confirm("삭제하시겠습니까?")) db.ref('students/' + id).remove();
+        }
+    </script>
+</body>
+</html>
