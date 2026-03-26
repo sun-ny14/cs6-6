@@ -3,65 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>6-6 용사 본부 RPG</title>
+    <title>6-6 용사 본부 시스템</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
-        :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; }
-        body { font-family: 'Pretendard', sans-serif; margin: 0; background: #ecf0f1; color: #333; }
+        :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; }
+        body { font-family: 'Pretendard', sans-serif; margin: 0; background: #f4f7f6; color: #333; padding-bottom: 50px; }
         #login-screen { display: flex; justify-content: center; align-items: center; height: 100vh; background: var(--dark); }
-        .login-card { background: white; padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 80%; max-width: 320px; }
         #main-app { display: none; }
-        .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; }
-        .tab-menu button { flex: 1; padding: 15px; border: none; background: none; color: white; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
-        .tab-menu button.active { background: #34495e; border-bottom: 4px solid var(--primary); }
-        .tab-content { display: none; padding: 20px; max-width: 600px; margin: auto; animation: fadeIn 0.3s; }
+        .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; overflow-x: auto; white-space: nowrap; }
+        .tab-menu button { flex: 1; min-width: 70px; padding: 15px 5px; border: none; background: none; color: #95a5a6; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
+        .tab-menu button.active { color: white; border-bottom: 4px solid var(--gold); }
+        .tab-content { display: none; padding: 15px; max-width: 800px; margin: auto; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
-        input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 1rem; }
-        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:active { transform: scale(0.98); }
-        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
-        #admin-only { display: none; border: 2px solid #e74c3c; padding: 10px; border-radius: 10px; margin-top: 10px; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .avatar { font-size: 3rem; margin-bottom: 10px; display: block; }
+        input, textarea, button, select { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 8px 0; }
+        .admin-box { border: 2px solid var(--red); padding: 10px; border-radius: 8px; margin-bottom: 15px; background: #fff5f5; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
     <div id="login-screen">
-        <div class="login-card">
+        <div style="background:white; padding:30px; border-radius:15px; text-align:center;">
             <h1>🏰 6-6 용사 본부</h1>
-            <button onclick="handleLogin()" style="background: white; color: #444; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <img src="https://www.google.com/favicon.ico" width="18"> Google 로그인
-            </button>
+            <button onclick="handleLogin()">Google 로그인</button>
         </div>
     </div>
 
     <div id="main-app">
         <nav class="tab-menu">
-            <button id="btn-main" class="active" onclick="showTab('main')">🏰 정보</button>
+            <button id="btn-main" class="active" onclick="showTab('main')">🤺 용사</button>
+            <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-            <button id="btn-admin" onclick="showTab('admin')" style="display:none;">🛡️ 관리</button>
+            <button id="btn-manage" onclick="showTab('manage')" style="display:none;">🛠️ 용사관리</button>
+            <button id="btn-admin" onclick="showTab('admin')" style="display:none;">🛡️ 교사전용</button>
         </nav>
         
+        <!-- [탭 1] 학생 정보 탭 -->
         <section id="tab-main" class="tab-content active">
-            <div class="card"><h2 id="display-name">용사 로딩 중...</h2><div id="display-stats">LV.1 | 0P</div></div>
-            <div class="card"><h3>📜 용사 랭킹</h3><div id="all-user-list"></div></div>
+            <div class="card">
+                <span id="my-avatar" class="avatar">🐣</span>
+                <h2 id="display-name">로딩 중...</h2>
+                <div id="display-stats" style="font-size:1.1rem;">LV.1 | EXP: 0 | 0P</div>
+            </div>
+            <div class="card"><h3>🏆 용사 랭킹</h3><div id="all-user-list"></div></div>
         </section>
 
+        <!-- [탭 2] 학급 상점 탭 -->
+        <section id="tab-shop" class="tab-content">
+            <div class="card"><h2>🛍️ 학급 상점</h2><div id="shop-list"></div></div>
+            <div id="admin-order-zone" style="display:none;">
+                <div class="card"><h3>📋 구매 승인 대기 (교사용)</h3><div id="order-request-list"></div></div>
+            </div>
+        </section>
+
+        <!-- [탭 3] 출결 전용 탭 -->
         <section id="tab-checkin" class="tab-content">
-            <div class="card"><h2>⚔️ 오늘의 암호</h2><p style="font-size:0.8rem; color:gray;">선생님이 정해주신 암호를 입력하세요.</p><input type="text" id="checkin-pass" placeholder="암호 입력"><button onclick="submitCheckIn()">소환!</button></div>
+            <div class="card">
+                <h2>⚔️ 등교 확인</h2>
+                <p id="checkin-time-info" style="color:var(--red); font-weight:bold;"></p>
+                <input type="text" id="checkin-pass" placeholder="오늘의 암호를 입력하세요">
+                <button onclick="submitCheckIn()">용사 소환 (등교)</button>
+            </div>
+            <div id="admin-checkin-view" style="display:none;">
+                <div class="card"><h3>📅 오늘 등교 명단</h3><div id="today-checkin-list"></div></div>
+            </div>
         </section>
 
+        <!-- [탭 4] 용사 관리 탭 (일괄 처리) -->
+        <section id="tab-manage" class="tab-content">
+            <div class="admin-box">
+                <h3>⚖️ 포인트/능력치 일괄 조정</h3>
+                <input type="number" id="mass-amount" placeholder="조정할 수치 (예: 5 또는 -5)">
+                <div style="display:flex; gap:5px;">
+                    <button onclick="massUpdate('points')" style="background:var(--primary);">포인트 일괄</button>
+                    <button onclick="massUpdate('exp')" style="background:var(--purple);">경험치 일괄</button>
+                </div>
+            </div>
+            <div class="card"><h3>👥 개별 용사 관리</h3><div id="admin-user-list"></div></div>
+        </section>
+
+        <!-- [탭 5] 교사 전용 관리 탭 (설정) -->
         <section id="tab-admin" class="tab-content">
             <div class="card">
-                <h3>👥 학생 일괄 등록</h3>
-                <p style="font-size:0.8rem; color:gray; text-align:left;">형식: 이름,이메일 (한 줄에 한 명씩)<br>예: 홍길동,hero@gmail.com</p>
-                <textarea id="bulk-data" rows="5" placeholder="홍길동,abc@gmail.com&#10;성춘향,def@gmail.com"></textarea>
-                <button onclick="bulkRegister()" style="background:var(--green);">대량 소환 시작</button>
+                <h3>⚙️ 등교 설정</h3>
+                오늘의 암호: <input type="text" id="conf-pass">
+                지각 마감 시간: <input type="time" id="conf-time">
+                <button onclick="saveSystemSettings()" style="background:var(--dark);">설정 저장</button>
             </div>
-            <div class="card"><h3>⚙️ 시스템 관리</h3><input type="text" id="new-today-pass" placeholder="새 암호 입력"><button onclick="updateTodayPass()">암호 변경</button></div>
+            <div class="card">
+                <h3>🎁 물품 등록</h3>
+                <input type="text" id="item-name" placeholder="물건 이름">
+                <input type="number" id="item-price" placeholder="가격(P)">
+                <button onclick="addItem()" style="background:var(--purple);">상점 등록</button>
+            </div>
+            <div class="card">
+                <h3>🆕 학생 등록</h3>
+                <textarea id="bulk-data" rows="3" placeholder="이름,이메일 (한 줄에 한 명씩)"></textarea>
+                <button onclick="bulkRegister()" style="background:var(--green);">일괄 소환</button>
+            </div>
         </section>
     </div>
 
@@ -75,91 +120,172 @@
             messagingSenderId: "644235499537",
             appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
         };
-
         const adminEmail = "ksosuny@cberi.go.kr"; 
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        let myHeroName = "";
-        let isAdmin = false;
+        let myName = ""; let isAdmin = false;
+
+        // 아바타 진화 로직
+        function getAvatar(lv) {
+            if(lv >= 20) return "🐲"; if(lv >= 15) return "⚔️"; if(lv >= 10) return "🛡️"; if(lv >= 5) return "🐥"; return "🐣";
+        }
 
         auth.onAuthStateChanged((user) => {
             if (user) {
-                const emailKey = user.email.replace(/\./g, ',');
                 isAdmin = (user.email === adminEmail);
-                
-                db.ref('userEmails/' + emailKey).once('value', (snap) => {
+                const eKey = user.email.replace(/\./g, ',');
+                db.ref('userEmails/' + eKey).once('value', (snap) => {
                     if (snap.exists() || isAdmin) {
-                        myHeroName = snap.exists() ? snap.val() : "총사령관(관리자)";
-                        if (isAdmin) document.getElementById('btn-admin').style.display = 'block';
-                        startSession(user.email);
-                    } else {
-                        alert("등록되지 않은 용사입니다. 선생님께 문의하세요!");
-                        auth.signOut();
-                    }
+                        myName = snap.val() || "총사령관";
+                        if(isAdmin) { 
+                            document.querySelectorAll('#btn-manage, #btn-admin, #admin-order-zone, #admin-checkin-view').forEach(el => el.style.display = 'block');
+                        }
+                        startApp();
+                    } else { alert("미등록 용사입니다."); auth.signOut(); }
                 });
-            } else {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('main-app').style.display = 'none';
-            }
+            } else { document.getElementById('login-screen').style.display='flex'; document.getElementById('main-app').style.display='none'; }
         });
 
-        function handleLogin() { auth.signInWithPopup(provider).catch(e => alert("보안 차단됨: 시크릿 창을 이용하세요!")); }
+        function handleLogin() { auth.signInWithPopup(provider); }
 
-        function startSession(email) {
+        function startApp() {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
-            
-            // 내 정보 불러오기
-            db.ref('users/' + myHeroName).on('value', (snap) => {
-                const d = snap.val();
-                if(d) {
-                    document.getElementById('display-name').innerText = `🛡️ ${myHeroName}`;
-                    document.getElementById('display-stats').innerText = `LV.${d.lv} | ${d.points}P`;
-                } else if(isAdmin) {
-                    document.getElementById('display-name').innerText = "🏰 관리자 모드";
-                    document.getElementById('display-stats').innerText = "시스템 정상 가동 중";
-                }
+
+            // 내 정보 및 아바타 업데이트
+            db.ref('users/' + myName).on('value', (snap) => {
+                const u = snap.val(); if(!u) return;
+                document.getElementById('my-avatar').innerText = getAvatar(u.lv);
+                document.getElementById('display-name').innerText = `🛡️ ${myName}`;
+                document.getElementById('display-stats').innerText = `LV.${u.lv} | EXP: ${u.exp} | ${u.points}P`;
             });
 
-            // 전체 랭킹 불러오기
-            db.ref('users').orderByChild('points').on('value', (snap) => {
-                let html = "";
-                snap.forEach((child) => {
-                    const u = child.val();
-                    html = `<div class="user-item"><span>LV.${u.lv} ${u.name}</span><strong>${u.points}P</strong></div>` + html;
+            // 실시간 랭킹 및 관리자용 리스트
+            db.ref('users').on('value', (snap) => {
+                let rH = ""; let aH = "";
+                snap.forEach(c => {
+                    const u = c.val();
+                    rH = `<div class="flex-between"><span>${getAvatar(u.lv)} ${u.name} (LV.${u.lv})</span><strong>${u.points}P</strong></div>` + rH;
+                    aH += `<div class="flex-between"><span>${u.name} (LV.${u.lv}/P:${u.points})</span><button onclick="deleteUser('${u.name}')" style="width:auto; padding:3px 8px; background:var(--red);">삭제</button></div>`;
                 });
-                document.getElementById('all-user-list').innerHTML = html;
+                document.getElementById('all-user-list').innerHTML = rH;
+                document.getElementById('admin-user-list').innerHTML = aH;
+            });
+
+            // 상점 및 구매 요청
+            db.ref('shop').on('value', (snap) => {
+                let sH = ""; snap.forEach(c => {
+                    const i = c.val(); sH += `<div class="flex-between"><span>${i.name} (${i.price}P)</span><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto; background:var(--purple);">구매</button></div>`;
+                });
+                document.getElementById('shop-list').innerHTML = sH || "비어있음";
+            });
+
+            db.ref('orders').on('value', (snap) => {
+                let oH = ""; snap.forEach(c => {
+                    const o = c.val(); if(o.status === '대기') {
+                        oH += `<div class="flex-between"><span>${o.user}: ${o.item}</span><button onclick="completeOrder('${c.key}')" style="width:auto; background:var(--green);">사용완료</button></div>`;
+                    }
+                });
+                document.getElementById('order-request-list').innerHTML = oH || "대기 없음";
+            });
+
+            // 등교 기록 및 설정 로드
+            db.ref('settings').on('value', (snap) => {
+                const s = snap.val(); if(!s) return;
+                document.getElementById('checkin-time-info').innerText = `등교 마감 시간: ${s.limitTime}`;
+                document.getElementById('conf-pass').value = s.password;
+                document.getElementById('conf-time').value = s.limitTime;
+            });
+
+            const today = new Date().toISOString().slice(0, 10);
+            db.ref('checkins/' + today).on('value', (snap) => {
+                let cH = ""; snap.forEach(c => {
+                    const v = c.val(); cH += `<div class="flex-between"><span>${v.name}</span><small>${v.time} (${v.status})</small></div>`;
+                });
+                document.getElementById('today-checkin-list').innerHTML = cH || "아직 등교자 없음";
             });
         }
 
-        // 일괄 등록 함수
+        // --- 기능 함수들 ---
+
+        function submitCheckIn() {
+            const input = document.getElementById('checkin-pass').value;
+            db.ref('settings').once('value', (snap) => {
+                const s = snap.val();
+                if(input !== s.password) { alert("암호가 틀렸습니다!"); return; }
+                
+                const now = new Date();
+                const timeStr = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
+                const today = now.toISOString().slice(0, 10);
+                let status = "정상";
+                
+                if(timeStr > s.limitTime) {
+                    status = "지각(-1P)";
+                    db.ref('users/' + myName).once('value', (usnap) => {
+                        const u = usnap.val();
+                        db.ref('users/' + myName).update({ points: (u.points || 0) - 1 });
+                    });
+                }
+                
+                db.ref(`checkins/${today}/${myName}`).set({ name: myName, time: timeStr, status: status });
+                alert(`등교 완료! (${status})`);
+            });
+        }
+
+        function buyItem(id, name, price) {
+            db.ref('users/' + myName).once('value', (snap) => {
+                const u = snap.val();
+                if(u.points < price) { alert("포인트 부족!"); return; }
+                db.ref('orders').push({ user: myName, item: name, status: '대기' });
+                db.ref('users/' + myName).update({ points: u.points - price });
+                alert("구매 요청 완료! 선생님께 승인을 받으세요.");
+            });
+        }
+
+        function completeOrder(id) { db.ref('orders/' + id).update({ status: '완료' }); }
+
+        function saveSystemSettings() {
+            db.ref('settings').update({
+                password: document.getElementById('conf-pass').value,
+                limitTime: document.getElementById('conf-time').value
+            });
+            alert("설정 저장됨!");
+        }
+
+        function massUpdate(field) {
+            const amt = parseInt(document.getElementById('mass-amount').value);
+            if(isNaN(amt)) return;
+            db.ref('users').once('value', (snap) => {
+                snap.forEach(c => {
+                    const current = c.val()[field] || 0;
+                    db.ref('users/' + c.key).update({ [field]: current + amt });
+                });
+                alert(`전체 용사 ${field} ${amt} 조정 완료!`);
+            });
+        }
+
+        function addItem() {
+            const name = document.getElementById('item-name').value;
+            const price = parseInt(document.getElementById('item-price').value);
+            if(name && price) db.ref('shop').push({ name, price });
+        }
+
         function bulkRegister() {
-            const data = document.getElementById('bulk-data').value.trim();
-            if(!data) return;
-            const lines = data.split('\n');
-            let count = 0;
-            lines.forEach(line => {
-                const [name, email] = line.split(',').map(s => s.trim());
-                if(name && email) {
-                    const eKey = email.replace(/\./g, ',');
-                    db.ref('userEmails/' + eKey).set(name);
-                    db.ref('users/' + name).update({ name: name, points: 0, exp: 0, lv: 1 });
-                    count++;
+            const data = document.getElementById('bulk-data').value.trim().split('\n');
+            data.forEach(line => {
+                const [n, e] = line.split(',').map(s => s.trim());
+                if(n && e) {
+                    db.ref('userEmails/' + e.replace(/\./g, ',')).set(n);
+                    db.ref('users/' + n).set({ name: n, points: 0, exp: 0, lv: 1 });
                 }
             });
-            alert(`${count}명의 용사가 소환되었습니다!`);
-            document.getElementById('bulk-data').value = "";
+            alert("일괄 등록 완료!");
         }
 
-        function updateTodayPass() {
-            const newPass = document.getElementById('new-today-pass').value;
-            db.ref('todayPassword').set(newPass);
-            alert(`오늘의 암호가 [${newPass}]로 변경되었습니다.`);
-        }
+        function deleteUser(n) { if(confirm(n + " 삭제?")) db.ref('users/'+n).remove(); }
 
         function showTab(t) {
             document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
