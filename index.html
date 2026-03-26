@@ -4,66 +4,80 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>창신초 6-6 실시간 본부</title>
+    <!-- Firebase 라이브러리 불러오기 -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --red: #e74c3c; }
         body { font-family: 'Pretendard', sans-serif; margin: 0; background: #ecf0f1; color: #333; padding-bottom: 50px; }
+        
+        /* 상단 탭 메뉴 */
         .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; }
         .tab-menu button { flex: 1; padding: 15px; border: none; background: none; color: white; font-weight: bold; cursor: pointer; }
         .tab-menu button.active { background: #34495e; border-bottom: 4px solid var(--primary); }
+
+        /* 공통 스타일 */
         .tab-content { display: none; padding: 20px; max-width: 600px; margin: auto; }
         .tab-content.active { display: block; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
         input, button { width: 85%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 1rem; }
         button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        
+        /* 아이템 & 리스트 스타일 */
         .item-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 10px; background: #fff; }
         .price-tag { color: var(--red); font-weight: bold; margin-right: 10px; }
-        .admin-item-list { text-align: left; font-size: 0.9rem; }
+        .user-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+        .admin-item-list { text-align: left; font-size: 0.9rem; margin-top: 10px; }
     </style>
 </head>
 <body>
 
+    <!-- 탭 메뉴 내비게이션 -->
     <nav class="tab-menu">
         <button id="btn-main" class="active" onclick="showTab('main')">🏰 등교</button>
         <button id="btn-shop" onclick="showTab('shop')">💰 상점</button>
         <button id="btn-admin" onclick="showTab('admin')">🛡️ 관리</button>
     </nav>
 
+    <!-- 1. 등교 탭 -->
     <section id="tab-main" class="tab-content active">
         <div class="card">
-            <h2>⚔️ 용사 소환소</h2>
+            <h2>⚔️ 6-6 용사 소환소</h2>
+            <p>오늘의 비밀번호와 이름을 입력하세요.</p>
             <input type="text" id="checkin-pass" placeholder="오늘의 비밀번호">
             <input type="text" id="user-name" placeholder="번호 성함 (예: 1번 김용사)">
             <button onclick="handleCheckIn()">등교 완료</button>
         </div>
         <div class="card">
-            <h3>📜 현재 용사 현황</h3>
-            <div id="user-list">불러오는 중...</div>
+            <h3>📜 실시간 용사 명단</h3>
+            <div id="user-list">용사들을 불러오는 중...</div>
         </div>
     </section>
 
+    <!-- 2. 상점 탭 -->
     <section id="tab-shop" class="tab-content">
         <div class="card">
             <h2>💰 비밀 상점</h2>
-            <p>본인의 이름을 먼저 입력하고 구매하세요!</p>
+            <p>이름을 먼저 입력하고 아이템을 구매하세요!</p>
             <input type="text" id="buyer-name" placeholder="구매자 이름 (번호 성함)">
             <hr>
             <div id="shop-items-display">상점에 물건이 없습니다.</div>
         </div>
     </section>
 
+    <!-- 3. 관리자 탭 -->
     <section id="tab-admin" class="tab-content">
         <div id="admin-auth" class="card">
-            <h2>🛡️ 관리자 인증</h2>
+            <h2>🛡️ 총사령관 인증</h2>
             <input type="password" id="admin-pass-input" placeholder="관리자 암호">
             <button onclick="checkAdminPass()">접속</button>
         </div>
+        
         <div id="admin-controls" style="display:none;">
             <div class="card">
-                <h3>🎁 아이템 추가/삭제</h3>
-                <input type="text" id="new-item-name" placeholder="아이템 이름 (예: 숙제 면제권)">
-                <input type="number" id="new-item-price" placeholder="가격 (숫자만)">
+                <h3>🎁 아이템 관리</h3>
+                <input type="text" id="new-item-name" placeholder="아이템 이름">
+                <input type="number" id="new-item-price" placeholder="가격 (숫자)">
                 <button onclick="addItem()">아이템 등록</button>
                 <div id="admin-item-list" class="admin-item-list"></div>
             </div>
@@ -77,25 +91,22 @@
     </section>
 
     <script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyDwdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
-        authDomain: "cs6-6class.firebaseapp.com", // 수정됨
-        projectId: "cs6-6class",
-        storageBucket: "cs6-6class.firebasestorage.app",
-        messagingSenderId: "644235499537",
-        appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0",
-        databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/" // 수정됨
-    };
-    
-    // Firebase 초기화
-    if (!firebase.apps.length) {
+        // [수정완료] Firebase 설정 - 구글 검색 주소를 완전히 제거했습니다.
+        const firebaseConfig = {
+            apiKey: "AIzaSyDwdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+            authDomain: "cs6-6class.firebaseapp.com",
+            projectId: "cs6-6class",
+            storageBucket: "cs6-6class.firebasestorage.app",
+            messagingSenderId: "644235499537",
+            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0",
+            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/"
+        };
+
+        // 초기화
         firebase.initializeApp(firebaseConfig);
-    }
-    const db = firebase.database();
+        const db = firebase.database();
 
-    // --- 이하 로직 동일 (중복 방지를 위해 생략하지만, 실제 파일에는 위쪽 전체 코드를 쓰세요) ---
-</script>
-
+        // 탭 전환
         function showTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active'));
@@ -103,6 +114,7 @@
             document.getElementById('btn-' + tabName).classList.add('active');
         }
 
+        // 관리자 인증 (암호: 6600)
         function checkAdminPass() {
             if(document.getElementById('admin-pass-input').value === "6600") {
                 document.getElementById('admin-auth').style.display = 'none';
@@ -110,62 +122,34 @@
             } else { alert("암호 오류!"); }
         }
 
-        // 등교 처리
+        // 등교 기능
         function handleCheckIn() {
             const name = document.getElementById('user-name').value;
             const inputPass = document.getElementById('checkin-pass').value;
             if(!name) return alert("이름을 입력하세요!");
 
             db.ref('todayPassword').once('value', (snap) => {
-                if(inputPass !== (snap.val() || "1234")) return alert("비밀번호가 틀렸습니다!");
+                const correctPass = snap.val() || "1234";
+                if(inputPass !== correctPass) return alert("비밀번호가 틀렸습니다!");
+                
                 const now = new Date();
                 const isLate = (now.getHours() > 8 || (now.getHours() === 8 && now.getMinutes() >= 40));
+                
                 db.ref('users/' + name).transaction((curr) => {
                     return { name: name, points: (curr ? curr.points : 0) + (isLate ? -10 : 10), last: now.toLocaleString() };
                 });
-                alert(name + " 완료! " + (isLate ? "-10P(지각)" : "+10P(정시)"));
+                alert(name + " 용사님, " + (isLate ? "지각입니다! (-10P)" : "정시 등교! (+10P)"));
             });
         }
 
-        // 아이템 추가 (관리자)
-        function addItem() {
-            const name = document.getElementById('new-item-name').value;
-            const price = parseInt(document.getElementById('new-item-price').value);
-            if(!name || !price) return alert("정보를 모두 입력하세요!");
-            db.ref('shopItems').push({ name, price });
-            document.getElementById('new-item-name').value = '';
-            document.getElementById('new-item-price').value = '';
-        }
-
-        // 아이템 삭제 (관리자)
-        function deleteItem(id) {
-            if(confirm("이 아이템을 삭제할까요?")) db.ref('shopItems/' + id).remove();
-        }
-
-        // 아이템 구매 (아이들)
-        function buyItem(id, itemName, price) {
-            const buyer = document.getElementById('buyer-name').value;
-            if(!buyer) return alert("구매자 이름을 먼저 입력하세요!");
-
-            db.ref('users/' + buyer).once('value', (snap) => {
-                const user = snap.val();
-                if(!user || user.points < price) return alert("포인트가 부족합니다! (현재: " + (user ? user.points : 0) + "P)");
-                
-                if(confirm(itemName + "을(를) 구매하시겠습니까? " + price + "P가 차감됩니다.")) {
-                    db.ref('users/' + buyer + '/points').set(user.points - price);
-                    alert("구매 성공! 선생님께 말씀드리고 아이템을 사용하세요.");
-                }
-            });
-        }
-
-        // 실시간 업데이트 (리스트 & 상점)
+        // 실시간 데이터 업데이트 (명단 & 상점)
         db.ref('users').on('value', (snap) => {
-            let html = ""; snap.forEach(child => {
+            let html = "";
+            snap.forEach(child => {
                 const u = child.val();
-                html += `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;">
-                        <span>${u.name}</span><strong>${u.points}P</strong></div>`;
+                html += `<div class="user-item"><span>${u.name}</span><strong>${u.points}P</strong></div>`;
             });
-            document.getElementById('user-list').innerHTML = html;
+            document.getElementById('user-list').innerHTML = html || "아직 등교한 용사가 없습니다.";
         });
 
         db.ref('shopItems').on('value', (snap) => {
@@ -181,12 +165,40 @@
             document.getElementById('admin-item-list').innerHTML = adminHtml;
         });
 
+        // 상점 기능
+        function addItem() {
+            const name = document.getElementById('new-item-name').value;
+            const price = parseInt(document.getElementById('new-item-price').value);
+            if(!name || !price) return alert("아이템 정보를 입력하세요!");
+            db.ref('shopItems').push({ name, price });
+            document.getElementById('new-item-name').value = '';
+            document.getElementById('new-item-price').value = '';
+        }
+
+        function deleteItem(id) {
+            if(confirm("정말 삭제할까요?")) db.ref('shopItems/' + id).remove();
+        }
+
+        function buyItem(id, itemName, price) {
+            const buyer = document.getElementById('buyer-name').value;
+            if(!buyer) return alert("이름을 먼저 입력해주세요!");
+
+            db.ref('users/' + buyer).once('value', (snap) => {
+                const user = snap.val();
+                if(!user || user.points < price) return alert("포인트가 부족합니다!");
+                if(confirm(itemName + "을 구매하시겠습니까?")) {
+                    db.ref('users/' + buyer + '/points').set(user.points - price);
+                    alert("구매 완료!");
+                }
+            });
+        }
+
         function setTodayPassword() {
-            db.ref('todayPassword').set(document.getElementById('new-today-pass').value).then(() => alert("변경됨!"));
+            db.ref('todayPassword').set(document.getElementById('new-today-pass').value).then(() => alert("비밀번호 변경 완료!"));
         }
 
         function resetAllPoints() {
-            if(confirm("모든 용사의 포인트를 0으로 초기화할까요?")) db.ref('users').remove();
+            if(confirm("모든 데이터를 초기화하시겠습니까?")) db.ref('users').remove();
         }
     </script>
 </body>
