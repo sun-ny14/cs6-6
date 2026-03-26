@@ -1,58 +1,263 @@
-// ... (기존 설정 부분은 동일) ...
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6-6 용사 본부</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; --bg: #ecf0f1; }
+        body { font-family: 'Pretendard', sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 50px; }
+        
+        /* 로그인 화면 개선 */
+        #login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: var(--dark); padding: 20px; box-sizing: border-box; }
+        .login-box { background: white; padding: 40px 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 100%; max-width: 350px; }
+        .login-box h1 { margin: 0 0 20px 0; font-size: 1.8rem; word-break: keep-all; }
+        
+        #main-app { display: none; }
+        .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; overflow-x: auto; }
+        .tab-menu button { flex: 1; min-width: 70px; padding: 15px 5px; border: none; background: none; color: #95a5a6; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+        .tab-menu button.active { color: white; border-bottom: 4px solid var(--gold); }
+        .tab-content { display: none; padding: 15px; max-width: 1000px; margin: auto; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        
+        /* 용사 카드 및 성장바 */
+        .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 15px; }
+        .hero-card { background: white; border-radius: 12px; padding: 15px 10px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 2px solid transparent; }
+        .hero-card.me { border-color: var(--gold); background: #fffdf2; transform: scale(1.02); }
+        .card-avatar { font-size: 3rem; margin-bottom: 8px; display: block; }
+        .card-lv { font-size: 0.75rem; background: var(--dark); color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+        .exp-bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+        .exp-bar-fill { height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.5s; }
+        
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        input, button, textarea, select { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        
+        /* 팝업 오버레이 */
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
+        .popup-box { background: white; padding: 25px; border-radius: 20px; width: 85%; max-width: 400px; text-align: center; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
 
-function submitCheckIn() {
-    const pw = document.getElementById('checkin-pass').value;
-    db.ref('settings').once('value', snap => {
-        const s = snap.val();
-        if(pw !== s.password) return alert("암호가 틀렸습니다! 다시 확인하세요.");
+    <div id="common-overlay" class="overlay">
+        <div class="popup-box">
+            <h2 id="pop-title">알림</h2>
+            <div id="pop-content" style="margin-bottom: 20px; white-space: pre-wrap; font-size: 1.1rem;">내용</div>
+            <button onclick="closePopup()" style="background:var(--green); font-size: 1.1rem; padding: 12px;">확인</button>
+        </div>
+    </div>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h1>🏰<br>6-6 용사 본부</h1>
+            <p style="color:#666; margin-bottom:20px;">용사여, 로그인하여 접속하라!</p>
+            <button onclick="handleLogin()">Google 로그인</button>
+        </div>
+    </div>
+
+    <div id="main-app">
+        <nav class="tab-menu">
+            <button id="btn-main" class="active" onclick="showTab('main')">🤺 용사들</button>
+            <button id="btn-jobs" onclick="showTab('jobs')">💼 직업</button>
+            <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
+            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+            <button id="btn-admin" onclick="showTab('admin')" style="display:none;">🛡️ 관리</button>
+        </nav>
         
-        const now = new Date();
-        const curTime = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
+        <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
+
+        <section id="tab-jobs" class="tab-content">
+            <div class="card"><h2>💼 직업 도감</h2><div id="job-list-display"></div></div>
+            <div id="admin-job-mgr" class="card" style="display:none; border:2px solid var(--purple);">
+                <h3>🆕 직업 등록</h3>
+                <input type="text" id="job-name-in" placeholder="직업명"><textarea id="job-desc-in" placeholder="설명"></textarea>
+                <button onclick="addJob()">도감 등록</button>
+            </div>
+        </section>
+
+        <section id="tab-shop" class="tab-content"><div class="card"><h2>🛍️ 상점</h2><div id="shop-list"></div></div></section>
         
-        // 1. 마감 시간 체크
-        if(curTime > s.closeTime) {
-            return openPopup("🚫 소환 실패", "등교 마감 시간이 지났습니다. 사령관님께 보고하세요!");
+        <section id="tab-checkin" class="tab-content">
+            <div class="card">
+                <h2>⚔️ 등교 확인</h2>
+                <div id="checkin-guide" style="margin-bottom:10px; font-weight:bold; color:var(--dark);"></div>
+                <input type="text" id="checkin-pass" placeholder="오늘의 암호">
+                <button onclick="submitCheckIn()" style="padding:15px; font-size:1.1rem;">본부 소환!</button>
+            </div>
+        </section>
+
+        <section id="tab-admin" class="tab-content">
+            <div class="card"><h3>🎁 랜덤 선물 목록</h3><textarea id="conf-gifts" placeholder="선물 이름을 줄바꿈으로 구분"></textarea><button onclick="saveGifts()" style="background:var(--purple);">선물 저장</button></div>
+            <div class="card"><h3>⚖️ 점수 부여</h3><div id="mass-score-board"></div><button onclick="applyMassScores()">일괄 반영</button></div>
+            <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine"></textarea><button onclick="saveSettings()">저장</button></div>
+            <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
+            <div class="card"><h3>🆕 학생 등록</h3><textarea id="bulk-in" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
+        </section>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+            authDomain: "cs6-6class.firebaseapp.com",
+            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
+            projectId: "cs6-6class",
+            storageBucket: "cs6-6class.firebasestorage.app",
+            messagingSenderId: "644235499537",
+            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
+        };
+        const adminEmail = "ksosuny@cberi.go.kr";
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        let myName = "", isAdmin = false, jobData = {}, routineItems = [], giftList = [], rIdx = 0;
+
+        function getAvatar(lv) {
+            if(lv >= 30) return "👑"; if(lv >= 20) return "🐲"; if(lv >= 15) return "⚔️"; if(lv >= 10) return "🛡️"; if(lv >= 5) return "🐥"; return "🐣";
         }
 
-        // 2. 지각 여부 판정 및 포인트 차감
-        let statusMsg = "✨ 정상 등교 완료!";
-        let penalty = 0;
-
-        if(curTime > s.lateTime) {
-            penalty = 10; // 💡 지각 벌금 (원하시는 금액으로 수정 가능)
-            statusMsg = `⚠️ 지각입니다! (${curTime})\n벌금 ${penalty}P가 차감되었습니다.`;
-        }
-
-        // 3. DB 업데이트 (포인트 차감)
-        db.ref('users/' + myName).once('value', userSnap => {
-            const u = userSnap.val();
-            const newPoints = (u.points || 0) - penalty;
-            db.ref('users/' + myName).update({ points: newPoints });
-
-            // 4. 루틴 시작 또는 완료 알림
-            rIdx = 0;
-            if(routineItems.length > 0) {
-                // 루틴이 있으면 첫 번째 루틴과 함께 상태 표시
-                openPopup(statusMsg, `[아침 루틴 시작]\n1단계: ${routineItems[0]}`, true);
-            } else {
-                openPopup("🎊 소환 완료", statusMsg);
-            }
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                isAdmin = (user.email === adminEmail);
+                const eKey = user.email.replace(/\./g, ',');
+                db.ref('userEmails/' + eKey).once('value', (snap) => {
+                    if (snap.exists() || isAdmin) {
+                        myName = snap.val() || "총사령관";
+                        if(isAdmin) { document.getElementById('btn-admin').style.display='block'; document.getElementById('admin-job-mgr').style.display='block'; }
+                        startApp();
+                    } else { alert("미등록 사용자"); auth.signOut(); }
+                });
+            } else { document.getElementById('login-screen').style.display='flex'; document.getElementById('main-app').style.display='none'; }
         });
-    });
-}
 
-// 팝업 닫기/다음 루틴 로직도 보강
-function closePopup() {
-    if(window.routineActive) {
-        rIdx++;
-        if(rIdx < routineItems.length) {
-            document.getElementById('pop-content').innerText = `다음 루틴: ${routineItems[rIdx]}`;
-        } else {
-            document.getElementById('common-overlay').style.display = 'none';
-            window.routineActive = false;
-            alert("오늘의 모든 루틴을 마쳤습니다. 이제 전투(공부)를 시작하십시오!");
+        function handleLogin() { auth.signInWithPopup(provider); }
+
+        function startApp() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+
+            db.ref('settings').on('value', snap => {
+                const s = snap.val() || {};
+                document.getElementById('conf-pass').value = s.password || "";
+                document.getElementById('conf-late').value = s.lateTime || "08:40";
+                document.getElementById('conf-close').value = s.closeTime || "09:00";
+                document.getElementById('conf-routine').value = s.routineText || "";
+                document.getElementById('conf-gifts').value = (s.giftList || []).join('\n');
+                giftList = s.giftList || [];
+                routineItems = (s.routineText || "").split('\n').filter(t => t.trim() !== "");
+                document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime} | ⚠️ 지각: ~${s.closeTime}`;
+            });
+
+            db.ref('jobs').on('value', snap => {
+                jobData = snap.val() || {};
+                let jH = ""; window.jobOpts = "<option value=''>직업 없음</option>";
+                for(let k in jobData) {
+                    jH += `<div class="card"><strong>◈ ${jobData[k].name} ◈</strong><p style="font-size:0.9rem; color:#666;">${jobData[k].desc}</p>${isAdmin ? `<button onclick="db.ref('jobs/${k}').remove()" style="background:red; width:auto; padding:2px 8px;">삭제</button>` : ''}</div>`;
+                    window.jobOpts += `<option value="${jobData[k].name}">${jobData[k].name}</option>`;
+                }
+                document.getElementById('job-list-display').innerHTML = jH || "도감이 비어있습니다.";
+            });
+
+            db.ref('users').on('value', snap => {
+                let gH = "", mH = "", aH = "";
+                snap.forEach(c => {
+                    const u = c.val();
+                    gH += `<div class="hero-card ${u.name===myName?'me':''}">
+                        <span class="card-lv">LV.${u.lv}</span><span class="card-avatar">${getAvatar(u.lv)}</span>
+                        <div style="font-weight:bold;">${u.name}</div><div style="color:var(--primary); font-size:0.75rem;">${u.job||'평민'}</div>
+                        <div class="exp-bar-bg"><div class="exp-bar-fill" style="width:${u.exp}%"></div></div>
+                        <div style="font-size:0.8rem; margin-top:5px;">💰 ${u.points}P / ${u.exp}%</div>
+                    </div>`;
+                    mH += `<div class="list-item"><span>${u.name}</span><div><input type="number" class="m-exp" data-name="${u.name}" placeholder="EXP" style="width:60px;"><input type="number" class="m-pts" data-name="${u.name}" placeholder="P" style="width:60px;"></div></div>`;
+                    aH += `<div class="list-item"><span>${u.name}</span><div style="display:flex; gap:5px;"><select onchange="db.ref('users/${u.name}').update({job:this.value})">${window.jobOpts.replace(`value="${u.job}"`, `value="${u.job}" selected`)}</select><button onclick="deleteHero('${u.name}','${u.email}')" style="width:auto; background:red;">❌</button></div></div>`;
+                });
+                document.getElementById('hero-grid').innerHTML = gH;
+                document.getElementById('mass-score-board').innerHTML = mH;
+                document.getElementById('student-admin-list').innerHTML = aH;
+            });
+
+            db.ref('shop').on('value', snap => {
+                let sH = "";
+                snap.forEach(c => {
+                    const i = c.val();
+                    sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><button onclick="buyItem('${i.name}',${i.price})" style="width:auto;">구매</button></div>`;
+                });
+                document.getElementById('shop-list').innerHTML = sH || "준비중...";
+            });
         }
-    } else {
-        document.getElementById('common-overlay').style.display = 'none';
-    }
-}
+
+        function submitCheckIn() {
+            const pw = document.getElementById('checkin-pass').value;
+            db.ref('settings').once('value', snap => {
+                const s = snap.val();
+                if(pw !== s.password) return alert("암호 오류!");
+                const now = new Date();
+                const curT = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
+                if(curT > s.closeTime) return openPopup("🚫 소환 실패", "마감 시간이 지났습니다!");
+
+                let msg = "✨ 정상 등교 완료!", penalty = 0;
+                if(curT > s.lateTime) { penalty = 10; msg = `⚠️ 지각입니다! (${curT})\n벌금 ${penalty}P 차감 완료.`; }
+
+                db.ref('users/' + myName).once('value', uSnap => {
+                    const u = uSnap.val();
+                    db.ref('users/' + myName).update({ points: (u.points || 0) - penalty });
+                    rIdx = 0;
+                    if(routineItems.length > 0) openPopup(msg, `[아침 루틴]\n1단계: ${routineItems[0]}`, true);
+                    else openPopup("🎊 소환 완료", msg);
+                });
+            });
+        }
+
+        function applyMassScores() {
+            document.querySelectorAll('.m-exp').forEach((e, i) => {
+                const n = e.dataset.name, ae = parseInt(e.value)||0, ap = parseInt(document.querySelectorAll('.m-pts')[i].value)||0;
+                if(ae || ap) db.ref('users/'+n).once('value', sn => {
+                    const u = sn.val();
+                    let nE = (u.exp||0)+ae, nL = (u.lv||1), nP = (u.points||0)+ap, levelUps = 0;
+                    while(nE >= 100) { nL++; nE -= 100; levelUps++; }
+                    db.ref('users/'+n).update({exp:nE, lv:nL, points:nP});
+                    if(levelUps > 0 && n === myName) {
+                        const winGift = giftList.length > 0 ? giftList[Math.floor(Math.random()*giftList.length)] : "보상 없음";
+                        openPopup("🎊 레벨 업!", `레벨이 ${levelUps}단계 상승!\n🎁 보상: ${winGift}`);
+                    }
+                });
+                e.value = ""; document.querySelectorAll('.m-pts')[i].value = "";
+            });
+            alert("처리 완료!");
+        }
+
+        function saveGifts() {
+            const list = document.getElementById('conf-gifts').value.split('\n').map(t=>t.trim()).filter(t=>t!=="");
+            db.ref('settings').update({giftList: list}).then(()=>alert("선물 저장!"));
+        }
+
+        function addJob() {
+            const n = document.getElementById('job-name-in').value, d = document.getElementById('job-desc-in').value;
+            if(n && d) db.ref('jobs').push({name:n, desc:d}).then(() => { alert("도감 등록 완료!"); document.getElementById('job-name-in').value=""; document.getElementById('job-desc-in').value=""; });
+        }
+
+        function saveSettings() {
+            db.ref('settings').update({password:document.getElementById('conf-pass').value, lateTime:document.getElementById('conf-late').value, closeTime:document.getElementById('conf-close').value, routineText:document.getElementById('conf-routine').value}).then(()=>alert("설정 저장!"));
+        }
+
+        function deleteHero(n, e) { if(confirm(n+" 용사를 제명하시겠습니까?")) { db.ref('users/'+n).remove(); if(e) db.ref('userEmails/'+e.replace(/\./g,',')).remove(); } }
+        function openPopup(t, c, isR = false) { document.getElementById('pop-title').innerText=t; document.getElementById('pop-content').innerText=c; document.getElementById('common-overlay').style.display='flex'; window.routineActive = isR; }
+        function closePopup() {
+            if(window.routineActive) {
+                rIdx++;
+                if(rIdx < routineItems.length) { document.getElementById('pop-content').innerText = `다음 루틴: ${routineItems[rIdx]}`; }
+                else { document.getElementById('common-overlay').style.display = 'none'; window.routineActive = false; alert("소환 완료!"); }
+            } else { document.getElementById('common-overlay').style.display = 'none'; }
+        }
+        function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
+        function bulkReg() { document.getElementById('bulk-in').value.trim().split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1}); } }); alert("일괄 등록 완료!"); }
+    </script>
+</body>
+</html>
