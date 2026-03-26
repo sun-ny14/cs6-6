@@ -4,35 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>6-6 용사 본부 RPG</title>
+    <!-- 라이브러리 로딩 순서 최적화 -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --red: #e74c3c; --green: #2ecc71; }
-        body { font-family: 'Pretendard', sans-serif; margin: 0; background: #ecf0f1; color: #333; }
+        body { font-family: 'Pretendard', -apple-system, sans-serif; margin: 0; background: #ecf0f1; color: #333; -webkit-tap-highlight-color: transparent; }
         #login-screen { display: flex; justify-content: center; align-items: center; height: 100vh; background: var(--dark); }
-        .login-card { background: white; padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .login-card { background: white; padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 80%; max-width: 350px; }
         #main-app { display: none; }
-        .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; }
-        .tab-menu button { flex: 1; padding: 15px; border: none; background: none; color: white; font-weight: bold; cursor: pointer; }
+        .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .tab-menu button { flex: 1; padding: 15px 5px; border: none; background: none; color: white; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
         .tab-menu button.active { background: #34495e; border-bottom: 4px solid var(--primary); }
-        .tab-content { display: none; padding: 20px; max-width: 600px; margin: auto; animation: fadeIn 0.4s; }
+        .tab-content { display: none; padding: 20px; max-width: 600px; margin: auto; animation: fadeIn 0.3s ease-out; }
         .tab-content.active { display: block; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
-        input, button, select { width: 90%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 1rem; }
-        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        input, button, select { width: 95%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 1rem; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.98); opacity: 0.9; }
         .user-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
         .exp-bar { background: #eee; height: 10px; border-radius: 5px; margin-top: 10px; overflow: hidden; }
-        .exp-fill { background: var(--green); height: 100%; transition: 0.5s; width: 0%; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .exp-fill { background: var(--green); height: 100%; transition: 0.8s ease-in-out; width: 0%; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
     <div id="login-screen">
         <div class="login-card">
-            <h1>🏰 6-6 용사 본부</h1>
-            <p>우리 반 구글 계정으로 입장하세요.</p>
+            <h1 style="margin-bottom: 10px;">🏰 6-6 용사 본부</h1>
+            <p style="color: #666; margin-bottom: 30px;">우리 반 구글 계정으로 입장하세요.</p>
             <button onclick="handleLogin()" style="background: white; color: #444; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 10px; margin: auto;">
                 <img src="https://www.google.com/favicon.ico" width="18"> Google 로그인
             </button>
@@ -41,7 +43,7 @@
 
     <div id="main-app">
         <nav class="tab-menu">
-            <button id="btn-main" class="active" onclick="showTab('main')">🏰 내 정보</button>
+            <button id="btn-main" class="active" onclick="showTab('main')">🏰 정보</button>
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
             <button id="btn-shop" onclick="showTab('shop')">💰 상점</button>
             <button id="btn-admin" onclick="showTab('admin')">🛡️ 관리</button>
@@ -49,13 +51,13 @@
 
         <section id="tab-main" class="tab-content active">
             <div class="card" id="user-profile">
-                <h2 id="display-name">용사 로딩 중...</h2>
-                <div id="display-stats">LV.1 | 0P</div>
+                <h2 id="display-name" style="margin: 0;">용사 로딩 중...</h2>
+                <div id="display-stats" style="font-weight: bold; color: var(--primary); margin: 5px 0;">LV.1 | 0P</div>
                 <div class="exp-bar"><div id="exp-fill" class="exp-fill"></div></div>
-                <p id="display-exp" style="font-size: 0.8rem; color: #666;"></p>
+                <p id="display-exp" style="font-size: 0.8rem; color: #666; margin-top: 5px;"></p>
             </div>
             <div class="card">
-                <h3>📜 우리 반 용사 현황</h3>
+                <h3 style="margin-top: 0;">📜 실시간 용사 랭킹</h3>
                 <div id="all-user-list"></div>
             </div>
         </section>
@@ -63,7 +65,8 @@
         <section id="tab-checkin" class="tab-content">
             <div class="card">
                 <h2>⚔️ 오늘의 소환 확인</h2>
-                <input type="text" id="checkin-pass" placeholder="오늘의 비밀번호">
+                <p style="color: #666;">선생님이 알려주신 암호를 입력하세요.</p>
+                <input type="text" id="checkin-pass" placeholder="오늘의 비밀번호" autocomplete="off">
                 <button onclick="submitCheckIn()">소환 완료</button>
             </div>
         </section>
@@ -78,52 +81,48 @@
         <section id="tab-admin" class="tab-content">
             <div id="admin-auth-box" class="card">
                 <h3>🛡️ 관리자 인증</h3>
-                <p>일반 학생은 접근할 수 없습니다.</p>
                 <input type="password" id="admin-key" placeholder="수동 관리자 암호">
                 <button onclick="accessAdmin()">인증</button>
             </div>
             <div id="admin-panel" style="display:none;">
-                <div class="card" style="background: #fff9e6;">
-                    <h3 style="color: #d35400;">👑 마스터 권한 활성화됨</h3>
-                    <p>선생님 계정으로 자동 인증되었습니다.</p>
+                <div class="card" style="background: #fff9e6; border: 2px solid var(--gold);">
+                    <h3 style="color: #d35400; margin: 0;">👑 마스터 권한 접속됨</h3>
                 </div>
                 <div class="card">
-                    <h3>👥 학생 이메일 등록</h3>
-                    <input type="text" id="reg-name" placeholder="이름 (예: 1번 김용사)">
-                    <input type="email" id="reg-email" placeholder="구글 이메일">
-                    <button onclick="registerUser()">용사 등록</button>
+                    <h3>👥 학생 등록 (이메일 필수)</h3>
+                    <input type="text" id="reg-name" placeholder="학생 이름 (번호 포함 권장)">
+                    <input type="email" id="reg-email" placeholder="학생 구글 이메일 주소">
+                    <button onclick="registerUser()">신규 용사 등록</button>
                 </div>
                 <div class="card">
-                    <h3>🎁 아이템 등록</h3>
-                    <input type="text" id="item-name" placeholder="아이템명">
-                    <input type="number" id="item-price" placeholder="가격(P)">
-                    <input type="number" id="item-lv" placeholder="해금 레벨">
-                    <button onclick="createItem()">상점 등록</button>
+                    <h3>🎁 아이템 관리</h3>
+                    <input type="text" id="item-name" placeholder="상품명">
+                    <input type="number" id="item-price" placeholder="판매가 (P)">
+                    <input type="number" id="item-lv" placeholder="필요 레벨">
+                    <button onclick="createItem()" style="background: var(--green);">아이템 추가</button>
                 </div>
                 <div class="card">
-                    <h3>⚙️ 시스템</h3>
-                    <input type="text" id="new-today-pass" placeholder="등교 비밀번호 변경">
-                    <button onclick="updateTodayPass()">저장</button>
-                    <button onclick="auth.signOut(); location.reload();" style="background:gray;">로그아웃</button>
+                    <h3>⚙️ 시스템 설정</h3>
+                    <input type="text" id="new-today-pass" placeholder="오늘의 등교 비번 설정">
+                    <button onclick="updateTodayPass()">비밀번호 저장</button>
+                    <button onclick="auth.signOut(); location.reload();" style="background: #95a5a6; margin-top: 20px;">로그아웃</button>
                 </div>
             </div>
         </section>
     </div>
 
     <script>
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-       const firebaseConfig = {
-             apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
-             authDomain: "cs6-6class.firebaseapp.com",
-             databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com",
-             projectId: "cs6-6class",
-             storageBucket: "cs6-6class.firebasestorage.app",
-             messagingSenderId: "644235499537",
-             appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0",
-             measurementId: "G-ZDYF9VQEV7"
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+            authDomain: "cs6-6class.firebaseapp.com",
+            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", // 끝에 / 추가로 안정성 확보
+            projectId: "cs6-6class",
+            storageBucket: "cs6-6class.firebasestorage.app",
+            messagingSenderId: "644235499537",
+            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0",
+            measurementId: "G-ZDYF9VQEV7"
         };
 
-        // [중요] 여기에 선생님의 실제 구글 이메일 주소를 입력하세요!
         const adminEmail = "ksosuny@cberi.go.kr"; 
 
         firebase.initializeApp(firebaseConfig);
@@ -134,63 +133,39 @@
         let myHeroName = null;
         let myData = null;
 
-        function handleLogin() {
-            auth.signInWithPopup(provider).then((res) => {
-                const emailKey = res.user.email.replace(/\./g, ',');
+        // 페이지 로드 시 로그인 상태 유지 확인 (로딩 속도 개선)
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                const emailKey = user.email.replace(/\./g, ',');
                 db.ref('userEmails/' + emailKey).once('value', (snap) => {
-                    if (snap.exists() || res.user.email === adminEmail) {
+                    if (snap.exists() || user.email === adminEmail) {
                         myHeroName = snap.val() || "총사령관(관리자)";
-                        initApp(res.user.email);
-                    } else {
-                        alert("등록되지 않은 사용자입니다.");
-                        auth.signOut();
+                        initApp(user.email);
                     }
                 });
-            });
+            }
+        });
+
+        function handleLogin() {
+            auth.signInWithPopup(provider).catch(err => alert("로그인 오류: " + err.message));
         }
 
         function initApp(userEmail) {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
             
-            // 선생님 계정이면 관리자 패널 자동 해제
             if (userEmail === adminEmail) {
                 document.getElementById('admin-auth-box').style.display = 'none';
                 document.getElementById('admin-panel').style.display = 'block';
             }
 
+            // 데이터 실시간 동기화
             db.ref('users/' + myHeroName).on('value', (snap) => {
                 myData = snap.val();
                 if(myData) renderMyInfo();
             });
-            db.ref('users').on('value', (snap) => renderAllUsers(snap.val()));
+            db.ref('users').orderByChild('exp').limitToLast(50).on('value', (snap) => renderAllUsers(snap.val()));
             db.ref('shopItems').on('value', (snap) => renderShop(snap.val()));
-        }
-
-        function submitCheckIn() {
-            const pass = document.getElementById('checkin-pass').value;
-            db.ref('todayPassword').once('value', (snap) => {
-                if (pass !== snap.val()) return alert("비밀번호가 다릅니다!");
-                const now = new Date();
-                const isLate = (now.getHours() > 8 || (now.getHours() === 8 && now.getMinutes() >= 40));
-                db.ref('users/' + myHeroName).transaction((u) => {
-                    if (!u) return u;
-                    u.points += (isLate ? -10 : 10);
-                    u.exp += 20;
-                    if (u.exp >= u.lv * 100) u.lv += 1;
-                    return u;
-                });
-                alert("등교 완료!");
-            });
-        }
-
-        function buyItem(id, name, price, minLv) {
-            if (myData.lv < minLv) return alert("레벨이 부족합니다!");
-            if (myData.points < price) return alert("포인트가 부족합니다!");
-            if (confirm(name + "을 구매하시겠습니까?")) {
-                db.ref('users/' + myHeroName + '/points').set(myData.points - price);
-                alert("구매 완료!");
-            }
         }
 
         function renderMyInfo() {
@@ -198,14 +173,19 @@
             document.getElementById('display-stats').innerText = `LV.${myData.lv} | ${myData.points}P`;
             const progress = (myData.exp % 100); 
             document.getElementById('exp-fill').style.width = progress + "%";
-            document.getElementById('display-exp').innerText = `경험치: ${progress}/100`;
+            document.getElementById('display-exp').innerText = `NEXT LV: ${progress}/100`;
         }
 
         function renderAllUsers(data) {
+            if(!data) return;
+            let list = [];
+            for(let id in data) list.push(data[id]);
+            list.sort((a,b) => b.exp - a.exp); // 경험치 순 정렬
+
             let html = "";
-            for (let id in data) {
-                html += `<div class="user-item"><span>LV.${data[id].lv} ${data[id].name}</span><strong>${data[id].points}P</strong></div>`;
-            }
+            list.forEach(user => {
+                html += `<div class="user-item"><span>LV.${user.lv} ${user.name}</span><strong>${user.points}P</strong></div>`;
+            });
             document.getElementById('all-user-list').innerHTML = html;
         }
 
@@ -214,38 +194,81 @@
             for (let id in data) {
                 const item = data[id];
                 html += `<div class="user-item">
-                    <span>${item.name} <small>(LV.${item.lv}+)</small></span>
-                    <button style="width:auto; padding:5px 10px;" onclick="buyItem('${id}','${item.name}',${item.price},${item.lv})">${item.price}P</button>
+                    <span style="text-align:left;">${item.name}<br><small style="color:blue;">LV.${item.lv} 이상</small></span>
+                    <button style="width:auto; padding:8px 15px;" onclick="buyItem('${id}','${item.name}',${item.price},${item.lv})">${item.price}P</button>
                 </div>`;
             }
-            document.getElementById('shop-display').innerHTML = html || "상점 준비 중";
+            document.getElementById('shop-display').innerHTML = html || "상점에서 물건을 등록해주세요.";
+        }
+
+        function submitCheckIn() {
+            const pass = document.getElementById('checkin-pass').value;
+            if(!pass) return alert("암호를 입력하세요!");
+            
+            db.ref('todayPassword').once('value', (snap) => {
+                if (pass !== snap.val()) return alert("비밀번호가 다릅니다!");
+                
+                const now = new Date();
+                const isLate = (now.getHours() > 8 || (now.getHours() === 8 && now.getMinutes() >= 40));
+                
+                db.ref('users/' + myHeroName).transaction((u) => {
+                    if (u) {
+                        u.points += (isLate ? -5 : 10);
+                        u.exp += 20;
+                        u.lv = Math.floor(u.exp / 100) + 1;
+                    }
+                    return u;
+                });
+                alert(isLate ? "지각이지만 소환 완료! (포인트 차감)" : "정시 등교 성공! (10P 획득)");
+                document.getElementById('checkin-pass').value = "";
+            });
+        }
+
+        function buyItem(id, name, price, minLv) {
+            if (myData.lv < minLv) return alert("레벨이 부족합니다!");
+            if (myData.points < price) return alert("포인트가 부족합니다!");
+            if (confirm(`[${name}]을 구매하시겠습니까?`)) {
+                db.ref('users/' + myHeroName + '/points').set(myData.points - price);
+                alert("구매 요청 완료! 선생님께 말씀드리고 아이템을 받으세요.");
+            }
         }
 
         function registerUser() {
             const name = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value.replace(/\./g, ',');
+            const email = document.getElementById('reg-email').value.trim().toLowerCase().replace(/\./g, ',');
+            if(!name || !email) return alert("이름과 이메일을 모두 입력하세요.");
+            
             db.ref('userEmails/' + email).set(name);
             db.ref('users/' + name).set({ name: name, points: 0, exp: 0, lv: 1 });
-            alert(name + " 등록 완료!");
+            alert(`${name} 용사 등록 성공!`);
+            document.getElementById('reg-name').value = "";
+            document.getElementById('reg-email').value = "";
         }
 
         function createItem() {
             const name = document.getElementById('item-name').value;
             const price = parseInt(document.getElementById('item-price').value);
             const lv = parseInt(document.getElementById('item-lv').value);
+            if(!name || isNaN(price)) return alert("정보를 정확히 입력하세요.");
+            
             db.ref('shopItems').push({ name, price, lv });
-            alert("아이템 등록 완료!");
+            alert("상점 등록 완료!");
+            document.getElementById('item-name').value = "";
+            document.getElementById('item-price').value = "";
         }
 
         function updateTodayPass() {
-            db.ref('todayPassword').set(document.getElementById('new-today-pass').value);
-            alert("변경 완료!");
+            const newPass = document.getElementById('new-today-pass').value;
+            db.ref('todayPassword').set(newPass);
+            alert("오늘의 암호가 변경되었습니다.");
         }
 
         function accessAdmin() {
             if (document.getElementById('admin-key').value === "6600") {
                 document.getElementById('admin-auth-box').style.display = 'none';
                 document.getElementById('admin-panel').style.display = 'block';
+            } else {
+                alert("비밀번호가 틀렸습니다.");
             }
         }
 
