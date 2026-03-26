@@ -2,37 +2,81 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>창신초 6-6 용사 본부</title>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>창신초 6-6 실시간 본부</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
-        body { background-color: #1a1a2e; color: white; font-family: 'Malgun Gothic', sans-serif; text-align: center; padding: 20px; }
-        .section { background: #16213e; padding: 20px; border: 2px solid #4ecca3; border-radius: 15px; margin-bottom: 20px; }
-        .card { width: 220px; padding: 15px; border: 2px solid #4ecca3; background: #16213e; border-radius: 20px; display: inline-block; margin: 10px; vertical-align: top; }
-        button { cursor: pointer; padding: 8px 12px; border-radius: 5px; border: none; font-weight: bold; }
-        .btn-check { background: #e94560; color: white; padding: 15px; font-size: 1.1em; width: 100%; max-width: 300px; margin-bottom: 15px; }
-        input { padding: 8px; border-radius: 5px; border: none; }
+        :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --red: #e74c3c; }
+        body { font-family: 'Pretendard', sans-serif; margin: 0; background: #ecf0f1; color: #333; padding-bottom: 50px; }
+        .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; }
+        .tab-menu button { flex: 1; padding: 15px; border: none; background: none; color: white; font-weight: bold; cursor: pointer; }
+        .tab-menu button.active { background: #34495e; border-bottom: 4px solid var(--primary); }
+        .tab-content { display: none; padding: 20px; max-width: 600px; margin: auto; }
+        .tab-content.active { display: block; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
+        input, button { width: 85%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 1rem; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        .item-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 10px; background: #fff; }
+        .price-tag { color: var(--red); font-weight: bold; margin-right: 10px; }
+        .admin-item-list { text-align: left; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
-    <h1>🛡️ 창신초 6-6 실시간 본부</h1>
+    <nav class="tab-menu">
+        <button id="btn-main" class="active" onclick="showTab('main')">🏰 등교</button>
+        <button id="btn-shop" onclick="showTab('shop')">💰 상점</button>
+        <button id="btn-admin" onclick="showTab('admin')">🛡️ 관리</button>
+    </nav>
 
-    <div class="section">
-        <button class="btn-check" onclick="checkAttendance()">⚔️ QR 등교 체크인</button>
-        
-        <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 10px;">
-            <p style="font-size: 0.8em; color: #888;">[관리자 구역]</p>
-            <input type="text" id="dailyPw" placeholder="오늘의 비밀번호 설정" style="width: 150px;">
-            <input type="text" id="nameInput" placeholder="신규 용사 이름" style="width: 100px;">
-            <button onclick="addStudent()" style="background:#4ecca3;">용사 소환</button>
+    <section id="tab-main" class="tab-content active">
+        <div class="card">
+            <h2>⚔️ 용사 소환소</h2>
+            <input type="text" id="checkin-pass" placeholder="오늘의 비밀번호">
+            <input type="text" id="user-name" placeholder="번호 성함 (예: 1번 김용사)">
+            <button onclick="handleCheckIn()">등교 완료</button>
         </div>
-    </div>
+        <div class="card">
+            <h3>📜 현재 용사 현황</h3>
+            <div id="user-list">불러오는 중...</div>
+        </div>
+    </section>
 
-    <div id="student-list"></div>
+    <section id="tab-shop" class="tab-content">
+        <div class="card">
+            <h2>💰 비밀 상점</h2>
+            <p>본인의 이름을 먼저 입력하고 구매하세요!</p>
+            <input type="text" id="buyer-name" placeholder="구매자 이름 (번호 성함)">
+            <hr>
+            <div id="shop-items-display">상점에 물건이 없습니다.</div>
+        </div>
+    </section>
+
+    <section id="tab-admin" class="tab-content">
+        <div id="admin-auth" class="card">
+            <h2>🛡️ 관리자 인증</h2>
+            <input type="password" id="admin-pass-input" placeholder="관리자 암호">
+            <button onclick="checkAdminPass()">접속</button>
+        </div>
+        <div id="admin-controls" style="display:none;">
+            <div class="card">
+                <h3>🎁 아이템 추가/삭제</h3>
+                <input type="text" id="new-item-name" placeholder="아이템 이름 (예: 숙제 면제권)">
+                <input type="number" id="new-item-price" placeholder="가격 (숫자만)">
+                <button onclick="addItem()">아이템 등록</button>
+                <div id="admin-item-list" class="admin-item-list"></div>
+            </div>
+            <div class="card">
+                <h3>⚙️ 시스템 설정</h3>
+                <input type="text" id="new-today-pass" placeholder="오늘의 비밀번호 설정">
+                <button onclick="setTodayPassword()">비밀번호 변경</button>
+                <button style="background:var(--red); margin-top:20px;" onclick="resetAllPoints()">전체 포인트 리셋</button>
+            </div>
+        </div>
+    </section>
 
     <script>
-        // 선생님의 Firebase 설정
         const firebaseConfig = {
             apiKey: "AIzaSyDwdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
             authDomain: "cs6-6class.firebaseapp.com",
@@ -40,81 +84,48 @@
             storageBucket: "cs6-6class.firebasestorage.app",
             messagingSenderId: "644235499537",
             appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0",
-            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/" //
+            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // [핵심] 비밀번호 실시간 연동
-        db.ref('todayPw').on('value', (snap) => {
-            if(snap.exists()) document.getElementById('dailyPw').value = snap.val();
-        });
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.getElementById('btn-' + tabName).classList.add('active');
+        }
 
-        // 비밀번호 설정 기능 (선생님 태블릿에서 입력 시 실시간 저장)
-        document.getElementById('dailyPw').addEventListener('change', (e) => {
-            db.ref('todayPw').set(e.target.value);
-        });
+        function checkAdminPass() {
+            if(document.getElementById('admin-pass-input').value === "6600") {
+                document.getElementById('admin-auth').style.display = 'none';
+                document.getElementById('admin-controls').style.display = 'block';
+            } else { alert("암호 오류!"); }
+        }
 
-        db.ref('students').on('value', (snapshot) => {
-            const data = snapshot.val();
-            const listArea = document.getElementById('student-list');
-            listArea.innerHTML = "";
-            if(!data) return;
-
-            Object.keys(data).forEach(id => {
-                const s = data[id];
-                listArea.innerHTML += `
-                    <div class="card">
-                        <h3>${s.name}</h3>
-                        <div style="font-size: 1.5em; color: #4ecca3;">LV. ${s.lv}</div>
-                        <div style="color: #ffd700; font-weight: bold;">💰 ${s.point} P</div>
-                        <div style="font-size: 11px; margin-top: 10px; color: #aaa;">${s.lastCheck || '미등교'}</div>
-                        <button onclick="deleteStudent('${id}')" style="background: none; color: #555; font-size: 10px; text-decoration: underline;">삭제</button>
-                    </div>
-                `;
-            });
-        });
-
-        function addStudent() {
-            const name = document.getElementById('nameInput').value;
+        // 등교 처리
+        function handleCheckIn() {
+            const name = document.getElementById('user-name').value;
+            const inputPass = document.getElementById('checkin-pass').value;
             if(!name) return alert("이름을 입력하세요!");
-            db.ref('students/' + Date.now()).set({ name, lv: 1, point: 100, lastCheck: "" });
-            document.getElementById('nameInput').value = "";
-        }
 
-        function checkAttendance() {
-            // 1. 비밀번호 먼저 확인
-            const inputPw = prompt("칠판에 적힌 오늘의 등교 비밀번호를 입력하세요!");
-            
-            db.ref('todayPw').once('value', (snap) => {
-                const correctPw = snap.val();
-                if (inputPw !== correctPw) {
-                    return alert("비밀번호가 틀렸습니다! 칠판을 확인하세요.");
-                }
-
-                // 2. 비밀번호가 맞으면 이름 확인
-                const name = prompt("본인의 이름을 입력하세요.");
-                if(!name) return;
-
-                db.ref('students').once('value', snapshot => {
-                    const data = snapshot.val();
-                    let tid = data ? Object.keys(data).find(id => data[id].name === name) : null;
-                    if(!tid) return alert("용사를 찾을 수 없습니다.");
-
-                    const now = new Date();
-                    const h = now.getHours(); const m = now.getMinutes();
-                    let msg = (h > 8 || (h === 8 && m > 40)) ? "⚠️ 지각" : "✅ 정상등교";
-                    
-                    db.ref('students/'+tid).update({ lastCheck: msg + ` (${h}:${m})` });
-                    alert(name + " 용사님, 등교 확인되었습니다!");
+            db.ref('todayPassword').once('value', (snap) => {
+                if(inputPass !== (snap.val() || "1234")) return alert("비밀번호가 틀렸습니다!");
+                const now = new Date();
+                const isLate = (now.getHours() > 8 || (now.getHours() === 8 && now.getMinutes() >= 40));
+                db.ref('users/' + name).transaction((curr) => {
+                    return { name: name, points: (curr ? curr.points : 0) + (isLate ? -10 : 10), last: now.toLocaleString() };
                 });
+                alert(name + " 완료! " + (isLate ? "-10P(지각)" : "+10P(정시)"));
             });
         }
 
-        function deleteStudent(id) {
-            if(confirm("삭제하시겠습니까?")) db.ref('students/' + id).remove();
+        // 아이템 추가 (관리자)
+        function addItem() {
+            const name = document.getElementById('new-item-name').value;
+            const price = parseInt(document.getElementById('new-item-price').value);
+            if(!name || !price) return alert("정보를 모두 입력하세요!");
+            db.ref('shopItems').push({ name, price });
+            document.getElementById('new-item-name').value = '';
+            document.getElementById('new-item-price').value = '';
         }
-    </script>
-</body>
-</html>
