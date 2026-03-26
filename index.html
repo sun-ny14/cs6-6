@@ -151,13 +151,7 @@
                         <div style="font-size:0.8rem; margin-top:5px;">💰 ${u.points}P / ${u.exp}%</div>
                     </div>`;
                     mH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><div><input type="number" class="m-exp" data-name="${u.name}" placeholder="EXP" style="width:60px;"><input type="number" class="m-pts" data-name="${u.name}" placeholder="P" style="width:60px;"></div></div>`;
-                    aH += `<div class="list-item">
-                        <input type="number" value="${u.no||''}" onchange="db.ref('users/${u.name}').update({no:this.value})" style="width:40px; margin:0;" placeholder="N">
-                        <span style="flex:1; font-weight:bold; font-size:0.9rem;">${u.name}</span>
-                        <button onclick="renameHero('${u.name}', '${u.email}')" style="width:auto; background:var(--primary); padding:4px 8px; font-size:0.75rem;">이름수정</button>
-                        <select onchange="db.ref('users/${u.name}').update({job:this.value})" style="width:90px; padding:5px;">${window.jobOpts.replace(`value="${u.job}"`, `value="${u.job}" selected`)}</select>
-                        <button onclick="deleteHero('${u.name}','${u.email}')" style="background:red; width:auto; padding:5px 8px;">❌</button>
-                    </div>`;
+                    aH += `<div class="list-item" style="padding: 12px 10px;"><div style="width: 75px; flex-shrink: 0;"><input type="number" value="${u.no||''}" onchange="db.ref('users/${u.name}').update({no:this.value})" style="width: 100%; margin:0; text-align: center; height: 35px;" placeholder="번호"></div><span style="flex:1; font-weight:bold; font-size:1rem; margin-left:15px;">${u.name}</span><button onclick="renameHero('${u.name}', '${u.email}')" style="width:auto; background:var(--primary); padding:8px 12px; font-size:0.85rem; margin-right:5px;">이름수정</button><select onchange="db.ref('users/${u.name}').update({job:this.value})" style="width:110px; padding:8px;">${window.jobOpts.replace(`value="${u.job}"`, `value="${u.job}" selected`)}</select><button onclick="deleteHero('${u.name}','${u.email}')" style="background:var(--red); width:auto; padding:8px 12px; margin-left:5px;">❌</button></div>`;
                 });
                 document.getElementById('hero-grid').innerHTML = gH;
                 document.getElementById('mass-score-board').innerHTML = mH;
