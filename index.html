@@ -56,7 +56,7 @@
     <div id="login-screen">
         <div class="login-box">
             <h1>🏰<br>6-6 용사 본부</h1>
-            <p style="color:#666; margin-bottom:20px;">용사여, 로그인하여 접속하라!</p>
+            <p style="color:#666; margin-bottom:20px;">6-6 용사여, 구글 아이디로 로그인하여 접속하라!</p>
             <button onclick="handleLogin()">Google 로그인</button>
         </div>
     </div>
@@ -81,7 +81,27 @@
             </div>
         </section>
 
-        <section id="tab-shop" class="tab-content"><div class="card"><h2>🛍️ 상점</h2><div id="shop-list"></div></div></section>
+       <section id="tab-shop" class="tab-content">
+            <!-- 관리자 전용: 물품 등록 창 -->
+            <div id="admin-shop-mgr" class="card" style="display:none; border:2px solid var(--purple);">
+                <h3>📦 [보급창고] 물품 등록</h3>
+                <input type="text" id="item-name-in" placeholder="상품명 (예: 숙제 면제권)">
+                <input type="number" id="item-price-in" placeholder="가격 (P)">
+                <button onclick="addItem()" style="background:var(--purple);">상점에 진열하기</button>
+            </div>
+
+            <!-- 공통: 물품 리스트 -->
+            <div class="card">
+                <h2>🛍️ 용사 보급소</h2>
+                <div id="shop-list"></div>
+            </div>
+
+            <!-- 관리자 전용: 구매/사용 처리 목록 -->
+            <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);">
+                <h3>📜 용사들의 구매/사용 요청</h3>
+                <div id="order-list"></div>
+            </div>
+        </section>
         
         <section id="tab-checkin" class="tab-content">
             <div class="card">
