@@ -109,15 +109,30 @@
         function getAvatar(lv) { if(lv >= 30) return "👑"; if(lv >= 20) return "🐲"; if(lv >= 15) return "⚔️"; if(lv >= 10) return "🛡️"; if(lv >= 5) return "🐥"; return "🐣"; }
 
         auth.onAuthStateChanged((user) => {
-            if (user) {
-                isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
-                const eKey = user.email.replace(/\./g, ',');
-                db.ref('userEmails/' + eKey).once('value', (snap) => {
-                    if (snap.exists() || isAdmin) { myName = snap.val() || "총사령관"; startApp(); }
-                    else { alert("미등록 계정: " + user.email); auth.signOut(); }
-                });
-            } else { document.getElementById('login-screen').style.display='flex'; document.getElementById('main-app').style.display='none'; }
+    if (user) {
+        isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
+        const eKey = user.email.replace(/\./g, ',');
+        
+        db.ref('userEmails/' + eKey).once('value', (snap) => {
+            if (snap.exists() || isAdmin) {
+                myName = snap.val() || "총사령관";
+                
+                // [수정 포인트] 로그인이 확인되면 즉시 화면 전환!
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                
+                startApp(); // 그 다음 앱 기능 시작
+            } else {
+                alert("미등록 계정: " + user.email);
+                auth.signOut();
+            }
         });
+    } else {
+        // 로그아웃 상태일 때
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('main-app').style.display = 'none';
+    }
+});
 
         function handleLogin() { auth.signInWithPopup(provider).catch(err => alert("로그인 오류: " + err.message)); }
 
