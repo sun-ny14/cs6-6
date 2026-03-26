@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>6-6 용사 본부 RPG</title>
-    <!-- 라이브러리 로딩 방식 최적화 -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -15,14 +14,16 @@
         .login-card { background: white; padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 80%; max-width: 320px; }
         #main-app { display: none; }
         .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; }
-        .tab-menu button { flex: 1; padding: 15px; border: none; background: none; color: white; font-weight: bold; cursor: pointer; }
+        .tab-menu button { flex: 1; padding: 15px; border: none; background: none; color: white; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
         .tab-menu button.active { background: #34495e; border-bottom: 4px solid var(--primary); }
         .tab-content { display: none; padding: 20px; max-width: 600px; margin: auto; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
-        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 1rem; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
         .user-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        #admin-only { display: none; border: 2px solid #e74c3c; padding: 10px; border-radius: 10px; margin-top: 10px; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
@@ -41,102 +42,16 @@
         <nav class="tab-menu">
             <button id="btn-main" class="active" onclick="showTab('main')">🏰 정보</button>
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-            <button id="btn-admin" onclick="showTab('admin')">🛡️ 관리</button>
+            <button id="btn-admin" onclick="showTab('admin')" style="display:none;">🛡️ 관리</button>
         </nav>
+        
         <section id="tab-main" class="tab-content active">
-            <div class="card"><h2 id="display-name">로딩 중...</h2><div id="display-stats">LV.1 | 0P</div></div>
+            <div class="card"><h2 id="display-name">용사 로딩 중...</h2><div id="display-stats">LV.1 | 0P</div></div>
             <div class="card"><h3>📜 용사 랭킹</h3><div id="all-user-list"></div></div>
         </section>
+
         <section id="tab-checkin" class="tab-content">
-            <div class="card"><h2>⚔️ 오늘의 암호</h2><input type="text" id="checkin-pass"><button onclick="submitCheckIn()">소환!</button></div>
+            <div class="card"><h2>⚔️ 오늘의 암호</h2><p style="font-size:0.8rem; color:gray;">선생님이 정해주신 암호를 입력하세요.</p><input type="text" id="checkin-pass" placeholder="암호 입력"><button onclick="submitCheckIn()">소환!</button></div>
         </section>
+
         <section id="tab-admin" class="tab-content">
-            <div id="admin-panel">
-                <div class="card"><h3>👥 학생 등록</h3><input type="text" id="reg-name" placeholder="이름"><input type="email" id="reg-email" placeholder="이메일"><button onclick="registerUser()">등록</button></div>
-                <div class="card"><h3>⚙️ 시스템</h3><input type="text" id="new-today-pass" placeholder="새 암호"><button onclick="updateTodayPass()">암호 변경</button></div>
-            </div>
-        </section>
-    </div>
-
-    <script>
-        // 선생님의 Firebase 정보 (여기에 오타가 있으면 안 됩니다!)
-        const firebaseConfig = {
-            apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
-            authDomain: "cs6-6class.firebaseapp.com",
-            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
-            projectId: "cs6-6class",
-            storageBucket: "cs6-6class.firebasestorage.app",
-            messagingSenderId: "644235499537",
-            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
-        };
-
-        const adminEmail = "ksosuny@cberi.go.kr"; 
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const auth = firebase.auth();
-        const provider = new firebase.auth.GoogleAuthProvider();
-
-        let myHeroName = null;
-
-        // 로그인 상태 감시 (로딩 속도 핵심)
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                const emailKey = user.email.replace(/\./g, ',');
-                db.ref('userEmails/' + emailKey).once('value', (snap) => {
-                    if (snap.exists() || user.email === adminEmail) {
-                        myHeroName = snap.val() || "총사령관";
-                        initApp(user.email);
-                    } else {
-                        alert("등록되지 않은 사용자입니다.");
-                        auth.signOut();
-                    }
-                });
-            }
-        });
-
-        function handleLogin() { auth.signInWithPopup(provider); }
-
-        function initApp(userEmail) {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
-            
-            db.ref('users/' + myHeroName).on('value', (snap) => {
-                const d = snap.val();
-                if(d) {
-                    document.getElementById('display-name').innerText = myHeroName;
-                    document.getElementById('display-stats').innerText = `LV.${d.lv} | ${d.points}P`;
-                }
-            });
-            db.ref('users').on('value', (snap) => {
-                const data = snap.val();
-                let html = "";
-                for(let id in data) {
-                    html += `<div class="user-item"><span>LV.${data[id].lv} ${data[id].name}</span><strong>${data[id].points}P</strong></div>`;
-                }
-                document.getElementById('all-user-list').innerHTML = html;
-            });
-        }
-
-        function registerUser() {
-            const name = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value.replace(/\./g, ',');
-            db.ref('userEmails/' + email).set(name);
-            db.ref('users/' + name).set({ name: name, points: 0, exp: 0, lv: 1 });
-            alert("등록 완료!");
-        }
-
-        function updateTodayPass() {
-            db.ref('todayPassword').set(document.getElementById('new-today-pass').value);
-            alert("암호 변경 완료!");
-        }
-
-        function showTab(t) {
-            document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active'));
-            document.getElementById('tab-' + t).classList.add('active');
-            document.getElementById('btn-' + t).classList.add('active');
-        }
-    </script>
-</body>
-</html>
