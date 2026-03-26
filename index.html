@@ -59,6 +59,7 @@
             <button id="btn-jobs" onclick="showTab('jobs')">💼 직업</button>
             <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+            <button id="id="btn-points" onclick="showTab('points')">💰 포인트</button>
             <button id="btn-admin" onclick="showTab('admin')" style="display:none;">🛡️ 관리</button>
         </nav>
         
@@ -66,7 +67,18 @@
         <section id="tab-jobs" class="tab-content"><div id="admin-job-mgr" class="card" style="display:none; border:2px solid var(--purple);"><h3>🆕 직업 등록</h3><input type="text" id="job-name-in" placeholder="직업명"><textarea id="job-desc-in" placeholder="설명"></textarea><button onclick="addJob()">도감 등록</button></div><div class="card"><h2>💼 직업 도감</h2><div id="job-list-display"></div></div></section>
         <section id="tab-shop" class="tab-content"><div id="admin-shop-mgr" class="card" style="display:none; border:2px solid var(--purple);"><h3>📦 물품 등록</h3><input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격 (P)"><button onclick="addItem()" style="background:var(--purple);">진열하기</button></div><div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div><div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 요청 목록</h3><div id="order-list"></div></div></section>
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="margin-bottom:10px; font-weight:bold;"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호"><button onclick="submitCheckIn()" style="padding:15px; font-size:1.1rem;">본부 소환!</button></div></section>
-
+        <section id="tab-points" class="tab-content">
+    <div id="admin-point-mgr" class="card" style="display:none; border:2px solid var(--gold);">
+        <h3>⚖️ 포인트 전령 (관리자)</h3>
+        <input type="text" id="point-reason-bulk" placeholder="지급 사유 (예: 발표왕, 청소)">
+        <div id="point-bulk-list" style="max-height: 300px; overflow-y: auto; margin: 10px 0; border: 1px solid #eee;"></div>
+        <button onclick="applyPointsBulk()" style="background:var(--gold); color:var(--dark);">⚡ 선택 항목 일괄 적용</button>
+    </div>
+    <div class="card">
+        <h3>📜 포인트 연대기</h3>
+        <div id="point-history-list" style="font-size: 0.9rem; max-height: 400px; overflow-y: auto;"></div>
+    </div>
+</section>
         <section id="tab-admin" class="tab-content">
             <div class="card"><h3>⚖️ 점수 부여</h3><div id="mass-score-board"></div><button onclick="applyMassScores()">일괄 반영</button></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine"></textarea><button onclick="saveSettings()">저장</button></div>
@@ -142,7 +154,12 @@
                 users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
 
                 let gH = "", mH = "", aH = "";
-                users.forEach(u => {
+                let pBulkH = ""; // 포인트 일괄 지급용 바구니 추가
+                users.forEach(u => {// 포인트 탭의 관리자 목록 생성
+pBulkH += `<div class="list-item">
+    <span>${u.no||'?'}. ${u.name}</span>
+    <input type="number" class="bulk-p-input" data-name="${u.name}" placeholder="P" style="width:65px; margin:0; text-align:center;">
+</div>;`
                     gH += `<div class="hero-card ${u.name===myName?'me':''}">
                         <span class="card-no">${u.no ? 'No.'+u.no : ''}</span>
                         <span class="card-lv">LV.${u.lv}</span><span class="card-avatar">${getAvatar(u.lv)}</span>
@@ -156,6 +173,7 @@
                 document.getElementById('mass-score-board').innerHTML = mH;
                 document.getElementById('student-admin-list').innerHTML = aH;
             });
+                document.getElementById('point-bulk-list').innerHTML = pBulkH;
 
             db.ref('shop').on('value', snap => {
                 let sH = ""; snap.forEach(c => { const i = c.val(); sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:5px;"><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}</div></div>`; });
@@ -229,6 +247,49 @@
         }
         function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
         function bulkReg() { document.getElementById('bulk-in').value.trim().split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); } }); alert("완료!"); }
+        // 1. 포인트 실시간 기록 및 점수 반영 함수
+function updatePoint(targetName, amount, reason) {
+    const timestamp = new Date().toLocaleString();
+    db.ref('pointLogs').push({ name: targetName, amount: amount, reason: reason, time: timestamp });
+    db.ref('users/' + targetName).once('value', snap => {
+        const u = snap.val();
+        if (u) db.ref('users/' + targetName).update({ points: (u.points || 0) + amount });
+    });
+}
+
+// 2. 관리자용 일괄 적용 버튼 기능
+function applyPointsBulk() {
+    const reason = document.getElementById('point-reason-bulk').value;
+    if(!reason) return alert("지급 사유를 입력해주세요! (예: 발표왕)");
+    const inputs = document.querySelectorAll('.bulk-p-input');
+    let count = 0;
+    inputs.forEach(input => {
+        const val = parseInt(input.value);
+        if(val && val !== 0) {
+            updatePoint(input.dataset.name, val, reason);
+            input.value = ""; // 입력창 초기화
+            count++;
+        }
+    });
+    document.getElementById('point-reason-bulk').value = "";
+    alert(`${count}명의 용사에게 포인트를 하사했습니다!`);
+}
+
+// 3. 포인트 누가기록 표시 및 본인 기록 필터링
+db.ref('pointLogs').orderByChild('time').limitToLast(50).on('value', snap => {
+    let html = ""; let logs = []; snap.forEach(c => { logs.push(c.val()); });
+    logs.reverse().forEach(log => {
+        if (isAdmin || log.name === myName) {
+            const color = log.amount > 0 ? "var(--green)" : "var(--red)";
+            html += `<div class="list-item" style="border-left: 5px solid ${color}; margin-bottom: 5px; padding-left: 10px;">
+                <div style="flex:1;"><strong>${log.name}</strong> <span style="color:${color}; font-weight:bold;">${log.amount>0?'+':''}${log.amount}P</span><br>
+                <small style="color:#888;">${log.reason}</small></div>
+                <div style="font-size:0.7rem; color:#bbb; min-width:60px; text-align:right;">${log.time.split(' ').slice(1,4).join(' ')}</div></div>`;
+        }
+    });
+    document.getElementById('point-history-list').innerHTML = html || "아직 기록된 역사가 없습니다.";
+}); 
+    
     </script>
 </body>
 </html>
