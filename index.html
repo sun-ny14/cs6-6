@@ -77,17 +77,24 @@
     </section>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDwdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
-            authDomain: "cs6-6class.firebaseapp.com",
-            projectId: "cs6-6class",
-            storageBucket: "cs6-6class.firebasestorage.app",
-            messagingSenderId: "644235499537",
-            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0",
-            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyDwdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+        authDomain: "cs6-6class.firebaseapp.com", // 수정됨
+        projectId: "cs6-6class",
+        storageBucket: "cs6-6class.firebasestorage.app",
+        messagingSenderId: "644235499537",
+        appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0",
+        databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/" // 수정됨
+    };
+    
+    // Firebase 초기화
+    if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+    }
+    const db = firebase.database();
+
+    // --- 이하 로직 동일 (중복 방지를 위해 생략하지만, 실제 파일에는 위쪽 전체 코드를 쓰세요) ---
+</script>
 
         function showTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -129,3 +136,58 @@
             document.getElementById('new-item-name').value = '';
             document.getElementById('new-item-price').value = '';
         }
+
+        // 아이템 삭제 (관리자)
+        function deleteItem(id) {
+            if(confirm("이 아이템을 삭제할까요?")) db.ref('shopItems/' + id).remove();
+        }
+
+        // 아이템 구매 (아이들)
+        function buyItem(id, itemName, price) {
+            const buyer = document.getElementById('buyer-name').value;
+            if(!buyer) return alert("구매자 이름을 먼저 입력하세요!");
+
+            db.ref('users/' + buyer).once('value', (snap) => {
+                const user = snap.val();
+                if(!user || user.points < price) return alert("포인트가 부족합니다! (현재: " + (user ? user.points : 0) + "P)");
+                
+                if(confirm(itemName + "을(를) 구매하시겠습니까? " + price + "P가 차감됩니다.")) {
+                    db.ref('users/' + buyer + '/points').set(user.points - price);
+                    alert("구매 성공! 선생님께 말씀드리고 아이템을 사용하세요.");
+                }
+            });
+        }
+
+        // 실시간 업데이트 (리스트 & 상점)
+        db.ref('users').on('value', (snap) => {
+            let html = ""; snap.forEach(child => {
+                const u = child.val();
+                html += `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;">
+                        <span>${u.name}</span><strong>${u.points}P</strong></div>`;
+            });
+            document.getElementById('user-list').innerHTML = html;
+        });
+
+        db.ref('shopItems').on('value', (snap) => {
+            let shopHtml = ""; let adminHtml = "";
+            snap.forEach(child => {
+                const item = child.val(); const id = child.key;
+                shopHtml += `<div class="item-card"><span>${item.name}</span>
+                            <div><span class="price-tag">${item.price}P</span>
+                            <button style="width:auto; padding:5px 10px;" onclick="buyItem('${id}', '${item.name}', ${item.price})">구매</button></div></div>`;
+                adminHtml += `<p>· ${item.name} (${item.price}P) <button style="width:auto; background:gray; padding:2px 5px;" onclick="deleteItem('${id}')">삭제</button></p>`;
+            });
+            document.getElementById('shop-items-display').innerHTML = shopHtml || "상점이 비어있습니다.";
+            document.getElementById('admin-item-list').innerHTML = adminHtml;
+        });
+
+        function setTodayPassword() {
+            db.ref('todayPassword').set(document.getElementById('new-today-pass').value).then(() => alert("변경됨!"));
+        }
+
+        function resetAllPoints() {
+            if(confirm("모든 용사의 포인트를 0으로 초기화할까요?")) db.ref('users').remove();
+        }
+    </script>
+</body>
+</html>
