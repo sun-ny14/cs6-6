@@ -127,13 +127,19 @@
 
         auth.onAuthStateChanged((user) => {
             if (user) {
-                isAdmin = (user.email === adminEmail);
+                // 1. 관리자 이메일인지 체크 (대소문자 구분 없애기 위해 toLowerCase() 추가)
+                isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
+                
                 const eKey = user.email.replace(/\./g, ',');
                 db.ref('userEmails/' + eKey).once('value', (snap) => {
-                    if (snap.exists() || isAdmin) {
-                        myName = snap.val() || "총사령관";
+                    // 관리자거나 등록된 이메일이면 통과
+                    if (isAdmin || snap.exists()) {
+                        myName = isAdmin ? "총사령관" : (snap.val() || "용사");
                         startApp();
-                    } else { alert("미등록 사용자"); auth.signOut(); }
+                    } else {
+                        alert("등록되지 않은 계정입니다: " + user.email);
+                        auth.signOut();
+                    }
                 });
             } else {
                 document.getElementById('login-screen').style.display='flex';
