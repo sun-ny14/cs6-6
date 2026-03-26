@@ -163,6 +163,90 @@
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
 
+            // 관리자 권한 확인 및 상점 관리창 활성화
+            if (isAdmin) {
+                document.getElementById('admin-shop-mgr').style.display = 'block';
+                document.getElementById('admin-order-mgr').style.display = 'block';
+                document.getElementById('btn-admin').style.display = 'block';
+                document.getElementById('admin-job-mgr').style.display = 'block';
+            }
+
+            // 시스템 설정 로드
+            db.ref('settings').on('value', snap => {
+                const s = snap.val() || {};
+                document.getElementById('conf-pass').value = s.password || "";
+                document.getElementById('conf-late').value = s.lateTime || "08:40";
+                document.getElementById('conf-close').value = s.closeTime || "09:00";
+                document.getElementById('conf-routine').value = s.routineText || "";
+                document.getElementById('conf-gifts').value = (s.giftList || []).join('\n');
+                giftList = s.giftList || [];
+                routineItems = (s.routineText || "").split('\n').filter(t => t.trim() !== "");
+                document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime} | ⚠️ 지각: ~${s.closeTime}`;
+            });
+
+            // 직업 데이터 로드
+            db.ref('jobs').on('value', snap => {
+                jobData = snap.val() || {};
+                let jH = ""; window.jobOpts = "<option value=''>직업 없음</option>";
+                for(let k in jobData) {
+                    jH += `<div class="card"><strong>◈ ${jobData[k].name} ◈</strong><p style="font-size:0.9rem; color:#666;">${jobData[k].desc}</p>${isAdmin ? `<button onclick="db.ref('jobs/${k}').remove()" style="background:red; width:auto; padding:2px 8px;">삭제</button>` : ''}</div>`;
+                    window.jobOpts += `<option value="${jobData[k].name}">${jobData[k].name}</option>`;
+                }
+                document.getElementById('job-list-display').innerHTML = jH || "도감이 비어있습니다.";
+            });
+
+            // 용사(유저) 리스트 로드
+            db.ref('users').on('value', snap => {
+                let gH = "", mH = "", aH = "";
+                snap.forEach(c => {
+                    const u = c.val();
+                    gH += `<div class="hero-card ${u.name===myName?'me':''}">
+                        <span class="card-lv">LV.${u.lv}</span><span class="card-avatar">${getAvatar(u.lv)}</span>
+                        <div style="font-weight:bold;">${u.name}</div><div style="color:var(--primary); font-size:0.75rem;">${u.job||'평민'}</div>
+                        <div class="exp-bar-bg"><div class="exp-bar-fill" style="width:${u.exp}%"></div></div>
+                        <div style="font-size:0.8rem; margin-top:5px;">💰 ${u.points}P / ${u.exp}%</div>
+                    </div>`;
+                    mH += `<div class="list-item"><span>${u.name}</span><div><input type="number" class="m-exp" data-name="${u.name}" placeholder="EXP" style="width:60px;"><input type="number" class="m-pts" data-name="${u.name}" placeholder="P" style="width:60px;"></div></div>`;
+                    aH += `<div class="list-item"><span>${u.name}</span><div style="display:flex; gap:5px;"><select onchange="db.ref('users/${u.name}').update({job:this.value})">${window.jobOpts.replace(`value="${u.job}"`, `value="${u.job}" selected`)}</select><button onclick="deleteHero('${u.name}','${u.email}')" style="width:auto; background:red;">❌</button></div></div>`;
+                });
+                document.getElementById('hero-grid').innerHTML = gH;
+                document.getElementById('mass-score-board').innerHTML = mH;
+                document.getElementById('student-admin-list').innerHTML = aH;
+            });
+
+            // 상점 물품 및 관리자 삭제 기능 로드
+            db.ref('shop').on('value', snap => {
+                let sH = "";
+                snap.forEach(c => {
+                    const i = c.val();
+                    sH += `<div class="list-item">
+                        <span>${i.name} (<strong>${i.price}P</strong>)</span>
+                        <div style="display:flex; gap:5px; width:auto;">
+                            <button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>
+                            ${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto; padding:2px 8px;">삭제</button>` : ''}
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('shop-list').innerHTML = sH || "물건이 없습니다.";
+            });
+
+            // 구매 요청 내역 로드 (관리자용)
+            if (isAdmin) {
+                db.ref('orders').on('value', snap => {
+                    let oH = "";
+                    snap.forEach(c => {
+                        const o = c.val();
+                        if(o.status === '대기') {
+                            oH += `<div class="list-item" style="background:#fff4f4; border-bottom:1px solid #ddd;">
+                                <span style="font-size:0.85rem;">[${o.user}] ${o.item}</span>
+                                <button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto; padding:5px 10px;">지급완료</button>
+                            </div>`;
+                        }
+                    });
+                    document.getElementById('order-list').innerHTML = oH || "처리할 요청이 없습니다.";
+                });
+            }
+        }
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {};
                 document.getElementById('conf-pass').value = s.password || "";
