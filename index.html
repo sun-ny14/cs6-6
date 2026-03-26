@@ -159,19 +159,25 @@
 
         function handleLogin() { auth.signInWithPopup(provider); }
 
-        function startApp() {
+function startApp() {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
 
-            // 관리자 권한 확인 및 상점 관리창 활성화
-            if (isAdmin) {
-                document.getElementById('admin-shop-mgr').style.display = 'block';
-                document.getElementById('admin-order-mgr').style.display = 'block';
-                document.getElementById('btn-admin').style.display = 'block';
-                document.getElementById('admin-job-mgr').style.display = 'block';
+            // 관리자 권한 강제 활성화 (이메일 체크)
+            if (auth.currentUser && auth.currentUser.email === adminEmail) {
+                isAdmin = true;
             }
 
-            // 시스템 설정 로드
+            if (isAdmin) {
+                // 관리자 전용 UI 요소들 표시
+                const adminIds = ['admin-shop-mgr', 'admin-order-mgr', 'btn-admin', 'admin-job-mgr'];
+                adminIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'block';
+                });
+            }
+
+            // 1. 시스템 설정 로드
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {};
                 document.getElementById('conf-pass').value = s.password || "";
@@ -184,7 +190,40 @@
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime} | ⚠️ 지각: ~${s.closeTime}`;
             });
 
-            // 직업 데이터 로드
+            // 2. 상점 물품 및 관리자 삭제 기능 로드
+            db.ref('shop').on('value', snap => {
+                let sH = "";
+                snap.forEach(c => {
+                    const i = c.val();
+                    sH += `<div class="list-item">
+                        <span>${i.name} (<strong>${i.price}P</strong>)</span>
+                        <div style="display:flex; gap:5px; width:auto;">
+                            <button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>
+                            ${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto; padding:2px 8px;">삭제</button>` : ''}
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('shop-list').innerHTML = sH || "물건이 없습니다.";
+            });
+
+            // 3. 구매 요청 내역 로드 (관리자용)
+            if (isAdmin) {
+                db.ref('orders').on('value', snap => {
+                    let oH = "";
+                    snap.forEach(c => {
+                        const o = c.val();
+                        if(o.status === '대기') {
+                            oH += `<div class="list-item" style="background:#fff4f4;">
+                                <span style="font-size:0.85rem;">[${o.user}] ${o.item}</span>
+                                <button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto; padding:5px 10px;">지급완료</button>
+                            </div>`;
+                        }
+                    });
+                    document.getElementById('order-list').innerHTML = oH || "처리할 요청이 없습니다.";
+                });
+            }
+
+            // 4. 직업 데이터 로드
             db.ref('jobs').on('value', snap => {
                 jobData = snap.val() || {};
                 let jH = ""; window.jobOpts = "<option value=''>직업 없음</option>";
@@ -195,7 +234,7 @@
                 document.getElementById('job-list-display').innerHTML = jH || "도감이 비어있습니다.";
             });
 
-            // 용사(유저) 리스트 로드
+            // 5. 용사 리스트 로드
             db.ref('users').on('value', snap => {
                 let gH = "", mH = "", aH = "";
                 snap.forEach(c => {
@@ -213,40 +252,8 @@
                 document.getElementById('mass-score-board').innerHTML = mH;
                 document.getElementById('student-admin-list').innerHTML = aH;
             });
-
-            // 상점 물품 및 관리자 삭제 기능 로드
-            db.ref('shop').on('value', snap => {
-                let sH = "";
-                snap.forEach(c => {
-                    const i = c.val();
-                    sH += `<div class="list-item">
-                        <span>${i.name} (<strong>${i.price}P</strong>)</span>
-                        <div style="display:flex; gap:5px; width:auto;">
-                            <button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>
-                            ${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto; padding:2px 8px;">삭제</button>` : ''}
-                        </div>
-                    </div>`;
-                });
-                document.getElementById('shop-list').innerHTML = sH || "물건이 없습니다.";
-            });
-
-            // 구매 요청 내역 로드 (관리자용)
-            if (isAdmin) {
-                db.ref('orders').on('value', snap => {
-                    let oH = "";
-                    snap.forEach(c => {
-                        const o = c.val();
-                        if(o.status === '대기') {
-                            oH += `<div class="list-item" style="background:#fff4f4; border-bottom:1px solid #ddd;">
-                                <span style="font-size:0.85rem;">[${o.user}] ${o.item}</span>
-                                <button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto; padding:5px 10px;">지급완료</button>
-                            </div>`;
-                        }
-                    });
-                    document.getElementById('order-list').innerHTML = oH || "처리할 요청이 없습니다.";
-                });
-            }
         }
+            
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {};
                 document.getElementById('conf-pass').value = s.password || "";
