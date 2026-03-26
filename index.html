@@ -149,44 +149,43 @@
                 document.getElementById('job-list-display').innerHTML = jH || "도감이 비어있습니다.";
             });
 
-            db.ref('users').on('value', snap => {
-    let users = [];
-    snap.forEach(c => { users.push(c.val()); });
-    
-    // 번호 순으로 정렬 (번호 없으면 뒤로)
-    users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
+           db.ref('users').on('value', snap => {
+    try {
+        let users = [];
+        snap.forEach(c => { users.push(c.val()); });
+        users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
 
-    let gH = "", mH = "", aH = "", pBulkH = "";
+        let gH = "", mH = "", aH = "", pBulkH = "";
 
-    users.forEach(u => {
-        // 1. 메인 화면 카드 (그리드)
-        gH += `<div class="hero-card ${u.name===myName?'me':''}">
-            <span class="card-no">${u.no ? 'No.'+u.no : ''}</span>
-            <span class="card-lv">LV.${u.lv}</span>
-            <span class="card-avatar">${getAvatar(u.lv)}</span>
-            <div class="card-name">${u.name}</div>
-            <div class="card-job">${u.job || '평민'}</div>
-            <div class="card-pt">${u.points || 0} P</div>
-        </div>`;
+        users.forEach(u => {
+            // 1. 메인 카드
+            gH += `<div class="hero-card ${u.name===myName?'me':''}">
+                <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv}</span>
+                <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
+                <div class="card-job">${u.job || '평민'}</div><div class="card-pt">${u.points || 0} P</div>
+            </div>`;
 
-        // 2. 관리자 탭 - 점수 부여(기존 방식)
-        mH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><div><input type="number" class="m-pts" placeholder="점수"><button onclick="addScore('${u.name}', ${users.indexOf(u)})">보내기</button></div></div>`;
+            // 2. 관리자-점수부여
+            mH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><div><input type="number" class="m-pts" style="width:50px;"><button onclick="addScore('${u.name}', ${users.indexOf(u)})">OK</button></div></div>`;
 
-        // 3. 관리자 탭 - 학생 관리(번호/이름 수정)
-        aH += `<div class="list-item" style="padding: 12px 10px;">
-            <div style="width: 75px; flex-shrink: 0;"><input type="number" value="${u.no||''}" onchange="db.ref('users/${u.name}').update({no:this.value})" style="width: 100%; text-align: center; height: 35px;" placeholder="번호"></div>
-            <span style="flex:1; font-weight:bold; margin-left:15px;">${u.name}</span>
-            <button onclick="renameHero('${u.name}', '${u.email}')" style="width:auto; background:var(--primary); padding:8px 12px; font-size:0.85rem; margin-right:5px;">이름수정</button>
-            <select onchange="db.ref('users/${u.name}').update({job:this.value})" style="width:110px; padding:8px;">${window.jobOpts.replace(`value="${u.job}"`, `value="${u.job}" selected`)}</select>
-            <button onclick="deleteHero('${u.name}','${u.email}')" style="background:var(--red); width:auto; padding:8px 12px; margin-left:5px;">❌</button>
-        </div>`;
+            // 3. 관리자-학생관리
+            aH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><button onclick="renameHero('${u.name}')">수정</button></div>`;
 
-        // 4. 포인트 탭 - 일괄 등록 명단 (새로 추가된 부분!)
-        pBulkH += `<div class="list-item">
-            <span>${u.no||'?'}. ${u.name}</span>
-            <input type="number" class="bulk-p-input" data-name="${u.name}" placeholder="P" style="width:70px; margin:0; text-align:center; height:35px;">
-        </div>`;
-    });
+            // 4. 포인트-일괄등록
+            pBulkH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><input type="number" class="bulk-p-input" data-name="${u.name}" style="width:60px;"></div>`;
+        });
+
+        // 안전하게 화면에 뿌리기 (아이디가 없어도 에러 안 남)
+        const safeSet = (id, html) => { const el = document.getElementById(id); if(el) el.innerHTML = html; };
+        
+        safeSet('hero-grid', gH);
+        safeSet('mass-score-board', mH);
+        safeSet('hero-list', aH);
+        safeSet('student-admin-list', aH);
+        safeSet('point-bulk-list', pBulkH);
+
+    } catch (e) { console.error("데이터 표시 중 에러 발생:", e); }
+}); 
 
     // 준비된 HTML 쏟아붓기 (에러 방지 안전모드)
     const updateHTML = (id, html) => {
