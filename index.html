@@ -29,13 +29,9 @@
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
         input, button, textarea, select { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
         button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
-        .shop-filter { display: flex; gap: 5px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; }
-        .shop-filter button { padding: 8px 12px; font-size: 0.8rem; background: #eee; color: #666; width: auto; white-space: nowrap; border-radius: 20px; }
-        .shop-filter button.active { background: var(--purple); color: white; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
         .popup-box { background: white; padding: 25px; border-radius: 20px; width: 85%; max-width: 400px; text-align: center; }
         .manage-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
-        .del-row { display: grid; grid-template-columns: 1fr 1.2fr 0.8fr 0.5fr; gap: 5px; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 0.85rem; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
@@ -44,7 +40,7 @@
     <div id="common-overlay" class="overlay">
         <div class="popup-box">
             <h2 id="pop-title">알림</h2>
-            <div id="pop-content" style="margin-bottom: 20px;">내용</div>
+            <div id="pop-content" style="margin-bottom: 20px; white-space: pre-wrap;">내용</div>
             <button onclick="handlePopupBtn()" style="background:var(--green);">확인</button>
         </div>
     </div>
@@ -66,36 +62,43 @@
         </nav>
         
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
-        <section id="tab-shop" class="tab-content">
-            <div class="card">
-                <h2>🛍️ 상점</h2>
-                <div class="shop-filter">
-                    <button class="active" onclick="filterShop('전체', this)">전체</button>
-                    <button onclick="filterShop('간식', this)">🍬 간식</button>
-                    <button onclick="filterShop('쿠폰', this)">🎫 쿠폰</button>
-                    <button onclick="filterShop('기타', this)">📦 기타</button>
-                </div>
-                <div id="shop-list"></div>
-            </div>
-            <div id="admin-orders" style="display:none;" class="card"><h3>📋 대기</h3><div id="order-list"></div></div>
-        </section>
+        <section id="tab-shop" class="tab-content"><div class="card"><h2>🛍️ 상점</h2><div id="shop-list"></div></div></section>
         <section id="tab-checkin" class="tab-content">
             <div class="card">
-                <h2>⚔️ 등교</h2>
+                <h2>⚔️ 등교 확인</h2>
+                <div id="checkin-guide" style="font-size:0.9rem; color:#666; margin-bottom:10px;"></div>
                 <input type="text" id="checkin-pass" placeholder="오늘의 암호">
                 <button onclick="submitCheckIn()">소환!</button>
             </div>
         </section>
+
         <section id="tab-manage" class="tab-content"><div class="card"><h3>⚖️ 점수 부여</h3><div id="mass-score-board"></div><button onclick="applyMassScores()">반영하기</button></div></section>
+
         <section id="tab-admin" class="tab-content">
-            <div class="card"><h3>⚙️ 설정</h3>암호:<input type="text" id="conf-pass"> 루틴:<textarea id="conf-routine"></textarea><button onclick="saveSettings()">저장</button></div>
-            <div class="card"><h3>🎁 상점등록</h3><input type="text" id="it-name" placeholder="명"><input type="number" id="it-price" placeholder="P">
-                <select id="it-category"><option value="간식">간식</option><option value="쿠폰">쿠폰</option><option value="기타">기타</option></select>
-                <button onclick="addShopItem()">등록</button><div id="admin-shop-list"></div>
+            <div class="card">
+                <h3>⚙️ 시간 및 암호 설정</h3>
+                암호: <input type="text" id="conf-pass">
+                지각 시작: <input type="time" id="conf-late">
+                등교 마감: <input type="time" id="conf-close">
+                🌅 루틴 메세지: <textarea id="conf-routine" placeholder="줄바꿈으로 단계 구분"></textarea>
+                <button onclick="saveSettings()" style="background:var(--dark);">설정 저장</button>
             </div>
-            <div class="card"><h3>💼 직업</h3><input type="text" id="job-name-in"><textarea id="job-desc-in"></textarea><button onclick="addJob()">등록</button><div id="job-admin-list"></div></div>
-            <div class="card"><h3>🆕 등록</h3><textarea id="bulk-in"></textarea><button onclick="bulkReg()">일괄등록</button></div>
-            <div id="student-delete-list"></div>
+            <div class="card">
+                <h3>💼 직업 도감 등록</h3>
+                <input type="text" id="job-name-in" placeholder="직업명">
+                <textarea id="job-desc-in" placeholder="직업 설명"></textarea>
+                <button onclick="addJob()">직업 등록</button>
+                <div id="job-admin-list" style="margin-top:10px;"></div>
+            </div>
+            <div class="card">
+                <h3>🎁 상점 물품 등록</h3>
+                <input type="text" id="it-name" placeholder="물품명">
+                <input type="number" id="it-price" placeholder="가격(P)">
+                <button onclick="addShopItem()">물품 등록</button>
+                <div id="admin-shop-list"></div>
+            </div>
+            <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" placeholder="이름,이메일 (엔터로 구분)"></textarea><button onclick="bulkReg()">등록</button></div>
+            <div id="student-delete-list" class="card"></div>
         </section>
     </div>
 
@@ -115,11 +118,9 @@
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        let myName = ""; let isAdmin = false;
-        let routineItems = []; let rIdx = 0; let isRoutineMode = false;
-        let jobData = {}; let currentCategory = "전체";
+        let myName = "", isAdmin = false, jobData = {}, routineItems = [], rIdx = 0, isRoutineMode = false;
 
-        function getAvatar(lv) { if(lv >= 20) return "🐲"; if(lv >= 15) return "⚔️"; if(lv >= 10) return "🛡️"; return "🐣"; }
+        function getAvatar(lv) { if(lv >= 20) return "🐲"; if(lv >= 10) return "🛡️"; return "🐣"; }
 
         auth.onAuthStateChanged((user) => {
             if (user) {
@@ -128,9 +129,9 @@
                 db.ref('userEmails/' + eKey).once('value', (snap) => {
                     if (snap.exists() || isAdmin) {
                         myName = snap.val() || "총사령관";
-                        if(isAdmin) document.querySelectorAll('#btn-manage, #btn-admin, #admin-orders').forEach(e => e.style.display='block');
+                        if(isAdmin) document.querySelectorAll('#btn-manage, #btn-admin').forEach(e => e.style.display='block');
                         startApp();
-                    } else { alert("미등록 사용자!"); auth.signOut(); }
+                    } else { alert("미등록 사용자입니다."); auth.signOut(); }
                 });
             } else { 
                 document.getElementById('login-screen').style.display='flex'; 
@@ -144,93 +145,155 @@
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
 
+            db.ref('settings').on('value', snap => {
+                const s = snap.val() || {};
+                document.getElementById('conf-pass').value = s.password || "";
+                document.getElementById('conf-late').value = s.lateTime || "08:40";
+                document.getElementById('conf-close').value = s.closeTime || "09:00";
+                document.getElementById('conf-routine').value = s.routineText || "";
+                document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime} | ⚠️ 지각: ~${s.closeTime}`;
+                routineItems = (s.routineText || "").split('\n').filter(t => t.trim() !== "");
+            });
+
             db.ref('jobs').on('value', snap => {
                 jobData = snap.val() || {};
                 let jH = ""; window.jobOpts = "<option value=''>직업 없음</option>";
                 for(let k in jobData) {
-                    jH += `<div>[${jobData[k].name}] <small onclick="db.ref('jobs/${k}').remove()" style="color:red;">삭제</small></div>`;
+                    jH += `<div style="padding:5px; border-bottom:1px solid #eee;"><strong>${jobData[k].name}</strong> <button onclick="db.ref('jobs/${k}').remove()" style="width:auto; padding:2px 5px; background:red;">❌</button></div>`;
                     window.jobOpts += `<option value="${jobData[k].name}">${jobData[k].name}</option>`;
                 }
                 document.getElementById('job-admin-list').innerHTML = jH;
             });
 
             db.ref('users').on('value', snap => {
-                let gH = ""; let mH = ""; let dH = "";
+                let gH = "", mH = "", dH = "<h3>👥 용사 명단</h3>";
                 const users = []; snap.forEach(c => users.push(c.val()));
                 users.forEach(u => {
-                    const job = u.job || "평민";
-                    gH += `<div class="hero-card ${(u.name===myName)?'me':''}" onclick="showJobInfo('${job}')">
+                    gH += `<div class="hero-card ${(u.name===myName)?'me':''}" onclick="showJobInfo('${u.job || '평민'}')">
                         <span class="card-lv">LV.${u.lv}</span><span class="card-avatar">${getAvatar(u.lv)}</span>
-                        <span class="card-job">${job}</span><div class="card-name">${u.name}</div>
+                        <span class="card-job">${u.job || '평민'}</span><div class="card-name">${u.name}</div>
                         <div>💰 ${u.points}P</div>
-                        <div class="exp-bar-bg"><div class="exp-bar-fill" style="width:${u.exp||0}%"></div></div>
                     </div>`;
-                    mH += `<div class="manage-row"><span>${u.name}</span><span>P:${u.points}</span><input type="number" class="mass-exp" data-name="${u.name}" placeholder="EXP"><input type="number" class="mass-point" data-name="${u.name}" placeholder="P"></div>`;
-                    dH += `<div>${u.name} <select onchange="db.ref('users/${u.name}').update({job:this.value})">${window.jobOpts}</select></div>`;
+                    mH += `<div class="manage-row"><span>${u.name}</span><input type="number" class="m-exp" data-name="${u.name}" placeholder="EXP"><input type="number" class="m-pts" data-name="${u.name}" placeholder="P"></div>`;
+                    dH += `<div style="margin-bottom:5px;">${u.name} <select onchange="db.ref('users/${u.name}').update({job:this.value})">${window.jobOpts}</select></div>`;
                 });
                 document.getElementById('hero-grid').innerHTML = gH;
                 document.getElementById('mass-score-board').innerHTML = mH;
                 document.getElementById('student-delete-list').innerHTML = dH;
             });
 
-            db.ref('settings').on('value', snap => {
-                const s = snap.val() || {};
-                document.getElementById('conf-pass').value = s.password || "";
-                document.getElementById('conf-routine').value = s.routineText || "";
-                routineItems = (s.routineText || "").split('\n').filter(t => t.trim() !== "");
-            });
-
             db.ref('shop').on('value', snap => {
-                window.fullShopData = snap.val() || {};
-                renderShop();
+                let sH = "", aH = "";
+                snap.forEach(c => {
+                    const i = c.val();
+                    sH += `<div class="manage-row" style="grid-template-columns: 2fr 1fr;"><span>${i.name} (${i.price}P)</span><button onclick="buyItem('${i.name}',${i.price})">구매</button></div>`;
+                    aH += `<div>${i.name} <button onclick="db.ref('shop/${c.key}').remove()" style="width:auto; background:red;">X</button></div>`;
+                });
+                document.getElementById('shop-list').innerHTML = sH || "물건 없음";
+                document.getElementById('admin-shop-list').innerHTML = aH;
             });
         }
 
-        function filterShop(cat, btn) {
-            currentCategory = cat;
-            document.querySelectorAll('.shop-filter button').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderShop();
+        function addJob() {
+            const n = document.getElementById('job-name-in').value, d = document.getElementById('job-desc-in').value;
+            if(!n || !d) return alert("이름과 설명을 입력하세요!");
+            db.ref('jobs').push({name:n, desc:d}).then(() => {
+                alert("직업 등록 완료!");
+                document.getElementById('job-name-in').value = "";
+                document.getElementById('job-desc-in').value = "";
+            });
         }
 
-        function renderShop() {
-            let sH = ""; let aH = "";
-            for(let k in window.fullShopData) {
-                const i = window.fullShopData[k];
-                const itemCat = i.category || "기타";
-                aH += `<div>[${itemCat}] ${i.name} (${i.price}P) <span onclick="db.ref('shop/${k}').remove()" style="color:red;">[X]</span></div>`;
-                if(currentCategory === "전체" || currentCategory === itemCat) {
-                    sH += `<div class="manage-row" style="grid-template-columns: 2fr 1fr;">
-                        <span><strong>${i.name}</strong><br><small>${itemCat}</small></span>
-                        <button onclick="buyItem('${k}','${i.name}',${i.price})" style="background:var(--purple);">${i.price}P 구매</button>
-                    </div>`;
-                }
-            }
-            document.getElementById('shop-list').innerHTML = sH || "목록 없음";
-            document.getElementById('admin-shop-list').innerHTML = aH;
+        function saveSettings() {
+            db.ref('settings').update({
+                password: document.getElementById('conf-pass').value,
+                lateTime: document.getElementById('conf-late').value,
+                closeTime: document.getElementById('conf-close').value,
+                routineText: document.getElementById('conf-routine').value
+            }).then(() => alert("설정 저장 완료!"));
+        }
+
+        function submitCheckIn() {
+            const pw = document.getElementById('checkin-pass').value;
+            db.ref('settings').once('value', snap => {
+                const s = snap.val();
+                if(pw !== s.password) return alert("암호 오류!");
+                const now = new Date();
+                const time = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
+                if(time > s.closeTime) return alert("등교 마감!");
+                rIdx = 0;
+                if(routineItems.length > 0) openPopup("🌅 아침 루틴", routineItems[0], 'routine');
+                else alert("등교 완료!");
+            });
+        }
+
+        function applyMassScores() {
+            document.querySelectorAll('.m-exp').forEach((e, i) => {
+                const n = e.dataset.name, ae = parseInt(e.value)||0, ap = parseInt(document.querySelectorAll('.m-pts')[i].value)||0;
+                if(ae || ap) db.ref('users/'+n).once('value', sn => {
+                    const u = sn.val();
+                    let nE = (u.exp||0)+ae, nL = (u.lv||1), nP = (u.points||0)+ap;
+                    while(nE >= 100) { nL++; nE -= 100; }
+                    db.ref('users/'+n).update({exp:nE, lv:nL, points:nP});
+                });
+                e.value = ""; document.querySelectorAll('.m-pts')[i].value = "";
+            });
+            alert("처리되었습니다.");
         }
 
         function addShopItem() {
-            const n = document.getElementById('it-name').value, p = parseInt(document.getElementById('it-price').value), c = document.getElementById('it-category').value;
-            if(n && p) db.ref('shop').push({name:n, price:p, category:c});
+            const n = document.getElementById('it-name').value, p = parseInt(document.getElementById('it-price').value);
+            if(n && p) db.ref('shop').push({name:n, price:p});
         }
 
-        function showJobInfo(jobName) {
-            let desc = "특별한 임무가 없습니다.";
-            for(let k in jobData) { if(jobData[k].name === jobName) desc = jobData[k].desc; }
-            openPopup(`💼 ${jobName}`, desc, 'info');
+        function buyItem(n, p) {
+            db.ref('users/'+myName).once('value', sn => {
+                const u = sn.val();
+                if(u.points < p) return alert("포인트 부족!");
+                db.ref('users/'+myName).update({points: u.points - p});
+                db.ref('orders').push({user:myName, item:n, status:'대기'});
+                alert("요청 완료!");
+            });
         }
 
-        function openPopup(t, c, m) { document.getElementById('pop-title').innerText=t; document.getElementById('pop-content').innerText=c; document.getElementById('common-overlay').style.display='flex'; isRoutineMode=(m==='routine'); }
-        function handlePopupBtn() { document.getElementById('common-overlay').style.display='none'; }
-        function showTab(t) { 
-            document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); 
+        function showJobInfo(jn) {
+            let desc = "특별한 능력이 없습니다.";
+            for(let k in jobData) { if(jobData[k].name === jn) desc = jobData[k].desc; }
+            openPopup(`💼 직업: ${jn}`, desc);
+        }
+
+        function openPopup(t, c, m) {
+            document.getElementById('pop-title').innerText = t;
+            document.getElementById('pop-content').innerText = c;
+            document.getElementById('common-overlay').style.display = 'flex';
+            isRoutineMode = (m === 'routine');
+        }
+
+        function handlePopupBtn() {
+            if(isRoutineMode) {
+                rIdx++;
+                if(rIdx < routineItems.length) document.getElementById('pop-content').innerText = routineItems[rIdx];
+                else { document.getElementById('common-overlay').style.display = 'none'; alert("소환 완료!"); }
+            } else { document.getElementById('common-overlay').style.display = 'none'; }
+        }
+
+        function showTab(t) {
+            document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
             document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active'));
-            document.getElementById('tab-'+t).classList.add('active'); 
-            document.getElementById('btn-'+t).classList.add('active'); 
+            document.getElementById('tab-'+t).classList.add('active');
+            document.getElementById('btn-'+t).classList.add('active');
         }
-        function buyItem(k, n, p) { db.ref('users/'+myName).once('value', sn => { const u=sn.val(); if(u.points<p) return alert("포인트 부족!"); db.ref('orders').push({user:myName,item:n,status:'대기'}); db.ref('users/'+myName).update({points:u.points-p}); alert("구매 요청 완료!"); }); }
-        function bulkReg() { document.getElementById('bulk-in').value.trim().split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n,email:e,points:0,exp:0,lv:1}); } }); alert("완료!"); }
+
+        function bulkReg() {
+            document.getElementById('bulk-in').value.trim().split('\n').forEach(l => {
+                const [n, e] = l.split(',').map(s=>s.trim());
+                if(n && e) {
+                    db.ref('userEmails/'+e.replace(/\./g,',')).set(n);
+                    db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1});
+                }
+            });
+            alert("등록 완료!");
+        }
     </script>
 </body>
 </html>
