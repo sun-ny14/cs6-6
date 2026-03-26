@@ -149,31 +149,51 @@
                 document.getElementById('job-list-display').innerHTML = jH || "도감이 비어있습니다.";
             });
 
-            db.ref('users').on('value', snap => {
-                let users = []; snap.forEach(c => { users.push(c.val()); });
-                users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
+            ddb.ref('users').on('value', snap => {
+    let users = [];
+    snap.forEach(c => { users.push(c.val()); });
+    
+    // 번호 순으로 정렬 (번호 없으면 뒤로)
+    users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
 
-                let gH = "", mH = "", aH = "";
-                let pBulkH = ""; // 포인트 일괄 지급용 바구니 추가
-                users.forEach(u => {// 포인트 탭의 관리자 목록 생성
-pBulkH += `<div class="list-item">
-    <span>${u.no||'?'}. ${u.name}</span>
-    <input type="number" class="bulk-p-input" data-name="${u.name}" placeholder="P" style="width:65px; margin:0; text-align:center;">
-</div>`;
-                    gH += `<div class="hero-card ${u.name===myName?'me':''}">
-                        <span class="card-no">${u.no ? 'No.'+u.no : ''}</span>
-                        <span class="card-lv">LV.${u.lv}</span><span class="card-avatar">${getAvatar(u.lv)}</span>
-                        <div style="font-weight:bold;">${u.name}</div><div style="color:var(--primary); font-size:0.75rem;">${u.job||'평민'}</div>
-                        <div class="exp-bar-bg"><div class="exp-bar-fill" style="width:${u.exp}%"></div></div>
-                        <div style="font-size:0.8rem; margin-top:5px;">💰 ${u.points}P / ${u.exp}%</div>
-                    </div>`;
-                    mH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><div><input type="number" class="m-exp" data-name="${u.name}" placeholder="EXP" style="width:60px;"><input type="number" class="m-pts" data-name="${u.name}" placeholder="P" style="width:60px;"></div></div>`;
-                    aH += `<div class="list-item" style="padding: 12px 10px;"><div style="width: 75px; flex-shrink: 0;"><input type="number" value="${u.no||''}" onchange="db.ref('users/${u.name}').update({no:this.value})" style="width: 100%; margin:0; text-align: center; height: 35px;" placeholder="번호"></div><span style="flex:1; font-weight:bold; font-size:1rem; margin-left:15px;">${u.name}</span><button onclick="renameHero('${u.name}', '${u.email}')" style="width:auto; background:var(--primary); padding:8px 12px; font-size:0.85rem; margin-right:5px;">이름수정</button><select onchange="db.ref('users/${u.name}').update({job:this.value})" style="width:110px; padding:8px;">${window.jobOpts.replace(`value="${u.job}"`, `value="${u.job}" selected`)}</select><button onclick="deleteHero('${u.name}','${u.email}')" style="background:var(--red); width:auto; padding:8px 12px; margin-left:5px;">❌</button></div>`;
-                document.getElementById('hero-grid').innerHTML = gH;
-                document.getElementById('mass-score-board').innerHTML = mH;
-                document.getElementById('student-admin-list').innerHTML = aH;
-            });
-                document.getElementById('point-bulk-list').innerHTML = pBulkH;
+    let gH = "", mH = "", aH = "", pBulkH = "";
+
+    users.forEach(u => {
+        // 1. 메인 화면 카드 (그리드)
+        gH += `<div class="hero-card ${u.name===myName?'me':''}">
+            <span class="card-no">${u.no ? 'No.'+u.no : ''}</span>
+            <span class="card-lv">LV.${u.lv}</span>
+            <span class="card-avatar">${getAvatar(u.lv)}</span>
+            <div class="card-name">${u.name}</div>
+            <div class="card-job">${u.job || '평민'}</div>
+            <div class="card-pt">${u.points || 0} P</div>
+        </div>`;
+
+        // 2. 관리자 탭 - 점수 부여(기존 방식)
+        mH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><div><input type="number" class="m-pts" placeholder="점수"><button onclick="addScore('${u.name}', ${users.indexOf(u)})">보내기</button></div></div>`;
+
+        // 3. 관리자 탭 - 학생 관리(번호/이름 수정)
+        aH += `<div class="list-item" style="padding: 12px 10px;">
+            <div style="width: 75px; flex-shrink: 0;"><input type="number" value="${u.no||''}" onchange="db.ref('users/${u.name}').update({no:this.value})" style="width: 100%; text-align: center; height: 35px;" placeholder="번호"></div>
+            <span style="flex:1; font-weight:bold; margin-left:15px;">${u.name}</span>
+            <button onclick="renameHero('${u.name}', '${u.email}')" style="width:auto; background:var(--primary); padding:8px 12px; font-size:0.85rem; margin-right:5px;">이름수정</button>
+            <select onchange="db.ref('users/${u.name}').update({job:this.value})" style="width:110px; padding:8px;">${window.jobOpts.replace(`value="${u.job}"`, `value="${u.job}" selected`)}</select>
+            <button onclick="deleteHero('${u.name}','${u.email}')" style="background:var(--red); width:auto; padding:8px 12px; margin-left:5px;">❌</button>
+        </div>`;
+
+        // 4. 포인트 탭 - 일괄 등록 명단 (새로 추가된 부분!)
+        pBulkH += `<div class="list-item">
+            <span>${u.no||'?'}. ${u.name}</span>
+            <input type="number" class="bulk-p-input" data-name="${u.name}" placeholder="P" style="width:70px; margin:0; text-align:center; height:35px;">
+        </div>`;
+    });
+
+    // 준비된 HTML 쏟아붓기
+    document.getElementById('hero-grid').innerHTML = gH;
+    document.getElementById('mass-score-board').innerHTML = mH;
+    document.getElementById('student-admin-list').innerHTML = aH;
+    document.getElementById('point-bulk-list').innerHTML = pBulkH; 
+});
 
             db.ref('shop').on('value', snap => {
                 let sH = ""; snap.forEach(c => { const i = c.val(); sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:5px;"><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}</div></div>`; });
