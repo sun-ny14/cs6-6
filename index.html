@@ -59,7 +59,7 @@
             <button id="btn-jobs" onclick="showTab('jobs')">💼 직업</button>
             <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-            <button id="id="btn-points" onclick="showTab('points')">💰 포인트</button>
+            <button id="btn-points" onclick="showTab('points')">💰 포인트</button>
             <button id="btn-admin" onclick="showTab('admin')" style="display:none;">🛡️ 관리</button>
         </nav>
         
@@ -188,11 +188,20 @@
         </div>`;
     });
 
-    // 준비된 HTML 쏟아붓기 (아이디 매칭 수정본)
-    if(document.getElementById('hero-grid')) document.getElementById('hero-grid').innerHTML = gH;
-    if(document.getElementById('mass-score-board')) document.getElementById('mass-score-board').innerHTML = mH;
-    if(document.getElementById('hero-list')) document.getElementById('hero-list').innerHTML = aH; // 여기 확인!
-    if(document.getElementById('point-bulk-list')) document.getElementById('point-bulk-list').innerHTML = pBulkH;
+    // 준비된 HTML 쏟아붓기 (에러 방지 안전모드)
+    const updateHTML = (id, html) => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+    };
+
+    updateHTML('hero-grid', gH);          // 메인 용사들 목록
+    updateHTML('mass-score-board', mH);   // 관리자 탭 - 점수 부여 구역
+    updateHTML('point-bulk-list', pBulkH); // 포인트 탭 - 일괄 등록 구역
+
+    // 관리자용 학생 관리 목록은 아래 이름들 중 하나일 확률이 높습니다.
+    updateHTML('hero-list', aH); 
+    updateHTML('student-admin-list', aH);
+    updateHTML('admin-user-list', aH);
 });
 
             db.ref('shop').on('value', snap => {
