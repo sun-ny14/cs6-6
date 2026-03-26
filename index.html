@@ -26,4 +26,326 @@
         .card-name { font-weight: bold; font-size: 1rem; color: var(--dark); }
         .card-job { font-size: 0.7rem; color: var(--primary); font-weight: bold; margin-bottom: 5px; display: block; }
         .card-lv { font-size: 0.75rem; background: var(--dark); color: white; padding: 2px 6px; border-radius: 10px; margin-bottom: 5px; display: inline-block; }
-        .exp-bar-bg { width:
+        .exp-bar-bg { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .exp-bar-fill { height: 100%; background: var(--green); transition: width 0.5s; }
+
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        input, button, textarea, select { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        
+        /* 상점 카테고리 필터 스타일 */
+        .shop-filter { display: flex; gap: 5px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; }
+        .shop-filter button { padding: 8px 12px; font-size: 0.8rem; background: #eee; color: #666; width: auto; white-space: nowrap; border-radius: 20px; }
+        .shop-filter button.active { background: var(--purple); color: white; }
+
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
+        .popup-box { background: white; padding: 25px; border-radius: 20px; width: 85%; max-width: 400px; text-align: center; }
+
+        .manage-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .del-row { display: grid; grid-template-columns: 1fr 1.2fr 0.8fr 0.5fr; gap: 5px; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 0.85rem; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="common-overlay" class="overlay">
+        <div class="popup-box">
+            <h2 id="pop-title">제목</h2>
+            <div id="pop-content" style="margin-bottom: 20px; line-height: 1.6;">내용</div>
+            <button id="pop-btn" onclick="handlePopupBtn()" style="background:var(--green); font-size:1.1rem; padding:12px;">확인</button>
+        </div>
+    </div>
+
+    <div id="login-screen">
+        <div style="background:white; padding:30px; border-radius:15px; text-align:center;">
+            <h1>🏰 6-6 용사 본부</h1>
+            <button onclick="handleLogin()">Google 로그인</button>
+        </div>
+    </div>
+
+    <div id="main-app">
+        <nav class="tab-menu">
+            <button id="btn-main" class="active" onclick="showTab('main')">🤺 용사들</button>
+            <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
+            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+            <button id="btn-manage" onclick="showTab('manage')" style="display:none;">📝 명렬표관리</button>
+            <button id="btn-admin" onclick="showTab('admin')" style="display:none;">🛡️ 설정</button>
+        </nav>
+        
+        <section id="tab-main" class="tab-content active">
+            <h2 style="text-align:center;">⚔️ 6-6 용사단 로비</h2>
+            <div id="hero-grid" class="hero-grid"></div>
+        </section>
+
+        <!-- 상점 탭: 필터 기능 추가 -->
+        <section id="tab-shop" class="tab-content">
+            <div class="card">
+                <h2>🛍️ 학급 상점</h2>
+                <div class="shop-filter">
+                    <button class="active" onclick="filterShop('전체', this)">전체</button>
+                    <button onclick="filterShop('간식', this)">🍬 간식</button>
+                    <button onclick="filterShop('쿠폰', this)">🎫 쿠폰</button>
+                    <button onclick="filterShop('학용품', this)">✏️ 학용품</button>
+                    <button onclick="filterShop('기타', this)">📦 기타</button>
+                </div>
+                <div id="shop-list"></div>
+            </div>
+            <div id="admin-orders" style="display:none;" class="card"><h3>📋 구매 승인 대기</h3><div id="order-list"></div></div>
+        </section>
+
+        <section id="tab-checkin" class="tab-content">
+            <div class="card">
+                <h2>⚔️ 등교 확인</h2>
+                <div style="background:#f8f9fa; padding:10px; border-radius:8px; margin-bottom:10px; font-size:0.9rem;">
+                    ✅ 정상: <span id="guide-ok"></span> 까지 | ⚠️ 지각(-1P): <span id="guide-late"></span> 까지
+                </div>
+                <input type="text" id="checkin-pass" placeholder="오늘의 암호">
+                <button onclick="submitCheckIn()">소환!</button>
+            </div>
+            <div id="admin-checkins" style="display:none;" class="card"><h3>📅 오늘 등교 명단</h3><div id="checkin-list"></div></div>
+        </section>
+
+        <section id="tab-manage" class="tab-content">
+            <div class="card">
+                <h3>⚖️ 용사 명렬표 점수 부여</h3>
+                <div id="mass-score-board"></div>
+                <button onclick="applyMassScores()" style="background:var(--green); padding:15px; margin-top:10px;">✅ 모든 점수 반영하기</button>
+            </div>
+        </section>
+
+        <section id="tab-admin" class="tab-content">
+            <div class="card">
+                <h3>⚙️ 시스템 설정</h3>
+                암호: <input type="text" id="conf-pass">
+                지각/마감: <div style="display:flex; gap:5px;"><input type="time" id="conf-late-start"><input type="time" id="conf-close"></div>
+                🌅 아침 루틴: <textarea id="conf-routine" rows="3"></textarea>
+                <button onclick="saveSettings()" style="background:var(--dark);">저장</button>
+            </div>
+            
+            <!-- 상점 물품 관리: 카테고리 선택 추가 -->
+            <div class="card">
+                <h3>🎁 상점 물품 등록</h3>
+                <input type="text" id="it-name" placeholder="물건명">
+                <input type="number" id="it-price" placeholder="가격">
+                <select id="it-category">
+                    <option value="간식">🍬 간식</option>
+                    <option value="쿠폰">🎫 쿠폰</option>
+                    <option value="학용품">✏️ 학용품</option>
+                    <option value="기타">📦 기타</option>
+                </select>
+                <button onclick="addShopItem()">물품 등록</button>
+                <div id="admin-shop-list" style="margin-top:10px; font-size:0.85rem;"></div>
+            </div>
+
+            <div class="card">
+                <h3>💼 직업 도감 관리</h3>
+                <input type="text" id="job-name-in" placeholder="직업 이름">
+                <textarea id="job-desc-in" rows="2" placeholder="하는 일 설명"></textarea>
+                <button onclick="addJob()">직업 등록</button>
+                <div id="job-admin-list" style="font-size:0.85rem; margin-top:10px;"></div>
+            </div>
+            <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="2" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">등록</button></div>
+            <div class="card"><h3>👤 용사 명단</h3><div id="student-delete-list"></div></div>
+        </section>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+            authDomain: "cs6-6class.firebaseapp.com",
+            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
+            projectId: "cs6-6class",
+            storageBucket: "cs6-6class.firebasestorage.app",
+            messagingSenderId: "644235499537",
+            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
+        };
+        const adminEmail = "ksosuny@cberi.go.kr";
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        let myName = ""; let isAdmin = false;
+        let routineItems = []; let rIdx = 0; let isRoutineMode = false;
+        let jobData = {}; let currentCategory = "전체";
+
+        function getAvatar(lv) { if(lv >= 20) return "🐲"; if(lv >= 15) return "⚔️"; if(lv >= 10) return "🛡️"; if(lv >= 5) return "🐥"; return "🐣"; }
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                isAdmin = (user.email === adminEmail);
+                const eKey = user.email.replace(/\./g, ',');
+                db.ref('userEmails/' + eKey).once('value', (snap) => {
+                    if (snap.exists() || isAdmin) {
+                        myName = snap.val() || "총사령관";
+                        if(isAdmin) document.querySelectorAll('#btn-manage, #btn-admin, #admin-orders, #admin-checkins').forEach(e => e.style.display='block');
+                        startApp();
+                    } else { alert("등록되지 않은 사용자!"); auth.signOut(); }
+                });
+            } else { document.getElementById('login-screen').style.display='flex'; document.getElementById('main-app').style.display='none'; }
+        });
+
+        function handleLogin() { auth.signInWithPopup(provider); }
+
+        function startApp() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+
+            // 직업 로드
+            db.ref('jobs').on('value', snap => {
+                jobData = snap.val() || {};
+                let jH = ""; window.jobOpts = "<option value=''>직업 없음</option>";
+                for(let k in jobData) {
+                    jH += `<div>[${jobData[k].name}] <small onclick="db.ref('jobs/${k}').remove()" style="color:red; cursor:pointer;">삭제</small></div>`;
+                    window.jobOpts += `<option value="${jobData[k].name}">${jobData[k].name}</option>`;
+                }
+                document.getElementById('job-admin-list').innerHTML = jH;
+            });
+
+            // 유저 로드
+            db.ref('users').on('value', snap => {
+                let gH = ""; let mH = ""; let dH = "";
+                const users = []; snap.forEach(c => users.push(c.val()));
+                users.sort((a,b) => b.points - a.points);
+                users.forEach(u => {
+                    const job = u.job || "평민";
+                    gH += `<div class="hero-card ${(u.name===myName)?'me':''}" onclick="showJobInfo('${job}')">
+                        <span class="card-lv">LV.${u.lv}</span><span class="card-avatar">${getAvatar(u.lv)}</span>
+                        <span class="card-job">◈ ${job} ◈</span><div class="card-name">${u.name}</div>
+                        <div class="card-stats">💰 ${u.points}P</div>
+                        <div class="exp-bar-bg"><div class="exp-bar-fill" style="width:${u.exp||0}%"></div></div>
+                    </div>`;
+                    mH += `<div class="manage-row"><span>${u.name}</span><input type="number" class="mass-exp" data-name="${u.name}" placeholder="EXP"><input type="number" class="mass-point" data-name="${u.name}" placeholder="P"></div>`;
+                    dH += `<div class="del-row"><span>${u.name}</span><select onchange="db.ref('users/${u.name}').update({job:this.value})">${window.jobOpts}</select><button onclick="deleteHero('${u.name}','${u.email}')" style="background:red; width:auto; padding:5px;">❌</button></div>`;
+                });
+                document.getElementById('hero-grid').innerHTML = gH;
+                document.getElementById('mass-score-board').innerHTML = mH;
+                document.getElementById('student-delete-list').innerHTML = dH;
+            });
+
+            // 설정 로드
+            db.ref('settings').on('value', snap => {
+                const s = snap.val(); if(!s) return;
+                document.getElementById('guide-ok').innerText = s.lateStart;
+                document.getElementById('guide-late').innerText = s.closeTime;
+                document.getElementById('conf-pass').value = s.password;
+                document.getElementById('conf-late-start').value = s.lateStart;
+                document.getElementById('conf-close').value = s.closeTime;
+                document.getElementById('conf-routine').value = s.routineText || "";
+                routineItems = (s.routineText || "").split('\n').filter(t => t.trim() !== "");
+            });
+
+            // 상점 로드 및 렌더링
+            db.ref('shop').on('value', snap => {
+                window.fullShopData = snap.val() || {};
+                renderShop();
+            });
+
+            // 주문 대기 로드
+            db.ref('orders').on('value', snap => {
+                let oH = ""; snap.forEach(c => { const o = c.val(); if(o.status==='대기') oH += `<div class="manage-row" style="grid-template-columns: 2fr 1fr;"><span>${o.user}:${o.item}</span><button onclick="db.ref('orders/${c.key}').update({status:'완료'})" style="background:var(--green); width:auto;">승인</button></div>`; });
+                document.getElementById('order-list').innerHTML = oH || "대기 없음";
+            });
+        }
+
+        // 상점 카테고리 필터링 함수
+        function filterShop(cat, btn) {
+            currentCategory = cat;
+            document.querySelectorAll('.shop-filter button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderShop();
+        }
+
+        function renderShop() {
+            let sH = ""; let aH = "";
+            for(let k in window.fullShopData) {
+                const i = window.fullShopData[k];
+                const itemCat = i.category || "기타";
+                
+                // 관리자 페이지용 목록
+                aH += `<div style="padding:5px; border-bottom:1px solid #eee;">[${itemCat}] ${i.name} (${i.price}P) <span onclick="db.ref('shop/${k}').remove()" style="color:red; cursor:pointer; margin-left:10px;">[X]</span></div>`;
+
+                // 학생 상점용 (필터 적용)
+                if(currentCategory === "전체" || currentCategory === itemCat) {
+                    sH += `<div class="manage-row" style="grid-template-columns: 2fr 1fr;">
+                        <span><strong>${i.name}</strong><br><small style="color:var(--purple)">${itemCat}</small></span>
+                        <button onclick="buyItem('${k}','${i.name}',${i.price})" style="background:var(--purple); width:auto;">${i.price}P 구매</button>
+                    </div>`;
+                }
+            }
+            document.getElementById('shop-list').innerHTML = sH || "항목이 없습니다.";
+            document.getElementById('admin-shop-list').innerHTML = aH;
+        }
+
+        function addShopItem() {
+            const n = document.getElementById('it-name').value;
+            const p = parseInt(document.getElementById('it-price').value);
+            const c = document.getElementById('it-category').value;
+            if(n && p) {
+                db.ref('shop').push({name:n, price:p, category:c});
+                document.getElementById('it-name').value=""; document.getElementById('it-price').value="";
+            }
+        }
+
+        // 공통 기능 함수들
+        function openPopup(title, content, mode) {
+            document.getElementById('pop-title').innerText = title;
+            document.getElementById('pop-content').innerText = content;
+            document.getElementById('common-overlay').style.display = 'flex';
+            isRoutineMode = (mode === 'routine');
+        }
+        function closePopup() { document.getElementById('common-overlay').style.display = 'none'; }
+        function handlePopupBtn() {
+            if(isRoutineMode) {
+                rIdx++;
+                if(rIdx < routineItems.length) { document.getElementById('pop-content').innerText = routineItems[rIdx]; }
+                else if(rIdx === routineItems.length) { document.getElementById('pop-content').innerText = "오늘도 화이팅! 소환 완료!"; }
+                else { closePopup(); }
+            } else { closePopup(); }
+        }
+        function showJobInfo(jobName) {
+            let desc = "특별한 임무가 없는 평민입니다.";
+            for(let k in jobData) { if(jobData[k].name === jobName) desc = jobData[k].desc; }
+            openPopup(`💼 직업 도감: ${jobName}`, desc, 'info');
+        }
+        function submitCheckIn() {
+            const pw = document.getElementById('checkin-pass').value;
+            db.ref('settings').once('value', snap => {
+                const s = snap.val();
+                if(pw !== s.password) { alert("암호 오류!"); return; }
+                const now = new Date();
+                const timeStr = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
+                if(timeStr > s.closeTime) { alert("등교 마감!"); return; }
+                let status = (timeStr > s.lateStart) ? "지각(-1P)" : "정상";
+                if(status === "지각(-1P)") { db.ref('users/'+myName).once('value', us => { db.ref('users/'+myName).update({points:(us.val().points||0)-1}); }); }
+                db.ref(`checkins/${now.toISOString().slice(0,10)}/${myName}`).set({name:myName, time:timeStr, status:status});
+                rIdx = 0;
+                if(routineItems.length > 0) openPopup("🌅 아침 루틴 임무", routineItems[0], 'routine');
+                else alert("등교 성공!");
+            });
+        }
+        function applyMassScores() {
+            const exps = document.querySelectorAll('.mass-exp'), pts = document.querySelectorAll('.mass-point');
+            exps.forEach((e, i) => {
+                const n = e.getAttribute('data-name'), ae = parseInt(e.value)||0, ap = parseInt(pts[i].value)||0;
+                if(ae||ap) db.ref('users/'+n).once('value', sn => {
+                    let u = sn.val(), nP = (u.points||0)+ap, nE = (u.exp||0)+ae, nL = u.lv||1;
+                    while(nE>=100) { nL++; nE-=100; }
+                    db.ref('users/'+n).update({points:nP, exp:nE, lv:nL});
+                });
+                e.value=""; pts[i].value="";
+            });
+            alert("반영 완료!");
+        }
+        function addJob() {
+            const n = document.getElementById('job-name-in').value, d = document.getElementById('job-desc-in').value;
+            if(n && d) { db.ref('jobs').push({name:n, desc:d}); document.getElementById('job-name-in').value=""; document.getElementById('job-desc-in').value=""; }
+        }
+        function deleteHero(n, e) { if(confirm(n+" 용사를 삭제할까요?")) { db.ref('users/'+n).remove(); if(e) db.ref('userEmails/'+e.replace(/\./g,',')).remove(); } }
+        function saveSettings() { db.ref('settings').update({password:document.getElementById('conf-pass').value, lateStart:document.getElementById('conf-late-start').value, closeTime:document.getElementById('conf-close').value, routineText:document.getElementById('conf-routine').value}); alert("저장!"); }
+        function bulkReg() { document.getElementById('bulk-in').value.trim().split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n,email:e,points:0,exp:0,lv:1}); } }); alert("등록 완료!"); }
+        function buyItem(k, n, p) { db.ref('users/'+myName).once('value', sn => { const u=sn.val(); if(u.points<p) return alert("P 부족!"); db.ref('orders').push({user:myName,item:n,status:'대기'}); db.ref('users/'+myName).update({points:u.points-p}); alert("요청됨!"); }); }
+        function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
+    </script>
+</body>
+</html>
