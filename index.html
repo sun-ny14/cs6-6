@@ -33,6 +33,22 @@
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
         .popup-box { background: white; padding: 25px; border-radius: 20px; width: 85%; max-width: 400px; text-align: center; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* 픽셀 아바타 스타일 추가 */
+        .pixel-avatar {
+            width: 48px; height: 48px;
+            background-image: url('avatars.png');
+            background-repeat: no-repeat;
+            background-size: 288px 48px;
+            display: inline-block;
+            image-rendering: pixelated;
+            vertical-align: middle;
+        }
+        .avatar-lv1 { background-position: 0px 0px; }
+        .avatar-lv5 { background-position: -48px 0px; }
+        .avatar-lv10 { background-position: -96px 0px; }
+        .avatar-lv15 { background-position: -144px 0px; }
+        .avatar-lv20 { background-position: -192px 0px; }
+        .avatar-lv30 { background-position: -240px 0px; }
     </style>
 </head>
 <body>
@@ -106,7 +122,16 @@
 
         let myName = "", isAdmin = false, jobData = {}, routineItems = [], giftList = [], rIdx = 0;
 
-        function getAvatar(lv) { if(lv >= 30) return "👑"; if(lv >= 20) return "🐲"; if(lv >= 15) return "⚔️"; if(lv >= 10) return "🛡️"; if(lv >= 5) return "🐥"; return "🐣"; }
+        function getAvatar(lv) {
+    let lvClass = "avatar-lv1";
+    if(lv >= 30) lvClass = "avatar-lv30";
+    else if(lv >= 20) lvClass = "avatar-lv20";
+    else if(lv >= 15) lvClass = "avatar-lv15";
+    else if(lv >= 10) lvClass = "avatar-lv10";
+    else if(lv >= 5) lvClass = "avatar-lv5";
+    
+    return `<div class="pixel-avatar ${lvClass}"></div>`;
+}
 
         auth.onAuthStateChanged((user) => {
     if (user) {
@@ -165,58 +190,41 @@
             });
 
            db.ref('users').on('value', snap => {
-    try {
-        let users = [];
-        snap.forEach(c => { users.push(c.val()); });
-        users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
+                try {
+                    let users = [];
+                    snap.forEach(c => { users.push(c.val()); });
+                    users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
 
-        let gH = "", mH = "", aH = "", pBulkH = "";
+                    let gH = "", mH = "", aH = "", pBulkH = "";
 
-        users.forEach(u => {
-            // 1. 메인 카드
-            gH += `<div class="hero-card ${u.name===myName?'me':''}">
-                <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv}</span>
-                <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
-                <div class="card-job">${u.job || '평민'}</div><div class="card-pt">${u.points || 0} P</div>
-            </div>`;
+                    users.forEach(u => {
+                        // 1. 메인 카드
+                        gH += `<div class="hero-card ${u.name===myName?'me':''}">
+                            <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv}</span>
+                            <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
+                            <div class="card-job">${u.job || '평민'}</div><div class="card-pt">${u.points || 0} P</div>
+                        </div>`;
 
-            // 2. 관리자-점수부여
-            mH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><div><input type="number" class="m-pts" style="width:50px;"><button onclick="addScore('${u.name}', ${users.indexOf(u)})">OK</button></div></div>`;
+                        // 2. 관리자-점수부여
+                        mH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><div><input type="number" class="m-pts" style="width:50px;"><button onclick="addScore('${u.name}', ${users.indexOf(u)})">OK</button></div></div>`;
 
-            // 3. 관리자-학생관리
-            aH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><button onclick="renameHero('${u.name}')">수정</button></div>`;
+                        // 3. 관리자-학생관리
+                        aH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><button onclick="renameHero('${u.name}', '${u.email}')">수정</button></div>`;
 
-            // 4. 포인트-일괄등록
-            pBulkH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><input type="number" class="bulk-p-input" data-name="${u.name}" style="width:60px;"></div>`;
-        });
+                        // 4. 포인트-일괄등록
+                        pBulkH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><input type="number" class="bulk-p-input" data-name="${u.name}" style="width:60px;"></div>`;
+                    });
 
-        // 안전하게 화면에 뿌리기 (아이디가 없어도 에러 안 남)
-        const safeSet = (id, html) => { const el = document.getElementById(id); if(el) el.innerHTML = html; };
-        
-        safeSet('hero-grid', gH);
-        safeSet('mass-score-board', mH);
-        safeSet('hero-list', aH);
-        safeSet('student-admin-list', aH);
-        safeSet('point-bulk-list', pBulkH);
+                    // 안전하게 화면에 뿌리기
+                    const safeSet = (id, html) => { const el = document.getElementById(id); if(el) el.innerHTML = html; };
+                    
+                    safeSet('hero-grid', gH);
+                    safeSet('mass-score-board', mH);
+                    safeSet('student-admin-list', aH);
+                    safeSet('point-bulk-list', pBulkH);
 
-    } catch (e) { console.error("데이터 표시 중 에러 발생:", e); }
-}); 
-
-    // 준비된 HTML 쏟아붓기 (에러 방지 안전모드)
-    const updateHTML = (id, html) => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = html;
-    };
-
-    updateHTML('hero-grid', gH);          // 메인 용사들 목록
-    updateHTML('mass-score-board', mH);   // 관리자 탭 - 점수 부여 구역
-    updateHTML('point-bulk-list', pBulkH); // 포인트 탭 - 일괄 등록 구역
-
-    // 관리자용 학생 관리 목록은 아래 이름들 중 하나일 확률이 높습니다.
-    updateHTML('hero-list', aH); 
-    updateHTML('student-admin-list', aH);
-    updateHTML('admin-user-list', aH);
-});
+                } catch (e) { console.error("데이터 표시 중 에러 발생:", e); }
+            }); // 이 닫는 괄호가 핵심입니다!
 
             db.ref('shop').on('value', snap => {
                 let sH = ""; snap.forEach(c => { const i = c.val(); sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:5px;"><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}</div></div>`; });
