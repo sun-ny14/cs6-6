@@ -55,3 +55,118 @@
         </section>
 
         <section id="tab-admin" class="tab-content">
+            <div class="card">
+                <h3>👥 학생 일괄 등록</h3>
+                <p style="font-size:0.8rem; color:gray; text-align:left;">형식: 이름,이메일 (한 줄에 한 명씩)<br>예: 홍길동,hero@gmail.com</p>
+                <textarea id="bulk-data" rows="5" placeholder="홍길동,abc@gmail.com&#10;성춘향,def@gmail.com"></textarea>
+                <button onclick="bulkRegister()" style="background:var(--green);">대량 소환 시작</button>
+            </div>
+            <div class="card"><h3>⚙️ 시스템 관리</h3><input type="text" id="new-today-pass" placeholder="새 암호 입력"><button onclick="updateTodayPass()">암호 변경</button></div>
+        </section>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+            authDomain: "cs6-6class.firebaseapp.com",
+            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
+            projectId: "cs6-6class",
+            storageBucket: "cs6-6class.firebasestorage.app",
+            messagingSenderId: "644235499537",
+            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
+        };
+
+        const adminEmail = "ksosuny@cberi.go.kr"; 
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        let myHeroName = "";
+        let isAdmin = false;
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                const emailKey = user.email.replace(/\./g, ',');
+                isAdmin = (user.email === adminEmail);
+                
+                db.ref('userEmails/' + emailKey).once('value', (snap) => {
+                    if (snap.exists() || isAdmin) {
+                        myHeroName = snap.exists() ? snap.val() : "총사령관(관리자)";
+                        if (isAdmin) document.getElementById('btn-admin').style.display = 'block';
+                        startSession(user.email);
+                    } else {
+                        alert("등록되지 않은 용사입니다. 선생님께 문의하세요!");
+                        auth.signOut();
+                    }
+                });
+            } else {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('main-app').style.display = 'none';
+            }
+        });
+
+        function handleLogin() { auth.signInWithPopup(provider).catch(e => alert("보안 차단됨: 시크릿 창을 이용하세요!")); }
+
+        function startSession(email) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            
+            // 내 정보 불러오기
+            db.ref('users/' + myHeroName).on('value', (snap) => {
+                const d = snap.val();
+                if(d) {
+                    document.getElementById('display-name').innerText = `🛡️ ${myHeroName}`;
+                    document.getElementById('display-stats').innerText = `LV.${d.lv} | ${d.points}P`;
+                } else if(isAdmin) {
+                    document.getElementById('display-name').innerText = "🏰 관리자 모드";
+                    document.getElementById('display-stats').innerText = "시스템 정상 가동 중";
+                }
+            });
+
+            // 전체 랭킹 불러오기
+            db.ref('users').orderByChild('points').on('value', (snap) => {
+                let html = "";
+                snap.forEach((child) => {
+                    const u = child.val();
+                    html = `<div class="user-item"><span>LV.${u.lv} ${u.name}</span><strong>${u.points}P</strong></div>` + html;
+                });
+                document.getElementById('all-user-list').innerHTML = html;
+            });
+        }
+
+        // 일괄 등록 함수
+        function bulkRegister() {
+            const data = document.getElementById('bulk-data').value.trim();
+            if(!data) return;
+            const lines = data.split('\n');
+            let count = 0;
+            lines.forEach(line => {
+                const [name, email] = line.split(',').map(s => s.trim());
+                if(name && email) {
+                    const eKey = email.replace(/\./g, ',');
+                    db.ref('userEmails/' + eKey).set(name);
+                    db.ref('users/' + name).update({ name: name, points: 0, exp: 0, lv: 1 });
+                    count++;
+                }
+            });
+            alert(`${count}명의 용사가 소환되었습니다!`);
+            document.getElementById('bulk-data').value = "";
+        }
+
+        function updateTodayPass() {
+            const newPass = document.getElementById('new-today-pass').value;
+            db.ref('todayPassword').set(newPass);
+            alert(`오늘의 암호가 [${newPass}]로 변경되었습니다.`);
+        }
+
+        function showTab(t) {
+            document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + t).classList.add('active');
+            document.getElementById('btn-' + t).classList.add('active');
+        }
+    </script>
+</body>
+</html>
