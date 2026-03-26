@@ -149,7 +149,7 @@
                 document.getElementById('job-list-display').innerHTML = jH || "도감이 비어있습니다.";
             });
 
-            ddb.ref('users').on('value', snap => {
+            db.ref('users').on('value', snap => {
     let users = [];
     snap.forEach(c => { users.push(c.val()); });
     
