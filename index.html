@@ -82,4 +82,190 @@
 
         <section id="tab-admin" class="tab-content">
             <div class="card">
-                <h3>
+                <h3>⚙️ 출결 및 암호 설정</h3>
+                암호: <input type="text" id="conf-pass">
+                지각 시작(감점): <input type="time" id="conf-late-start">
+                최종 마감(차단): <input type="time" id="conf-close">
+                <button onclick="saveSettings()" style="background:var(--dark);">저장</button>
+            </div>
+            <div class="card"><h3>🎁 상점 물품</h3><input type="text" id="it-name" placeholder="물건명"><input type="number" id="it-price" placeholder="가격"><button onclick="addShopItem()">등록</button></div>
+            <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">등록</button></div>
+        </section>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+            authDomain: "cs6-6class.firebaseapp.com",
+            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
+            projectId: "cs6-6class",
+            storageBucket: "cs6-6class.firebasestorage.app",
+            messagingSenderId: "644235499537",
+            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
+        };
+        const adminEmail = "ksosuny@cberi.go.kr";
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        let myName = ""; let isAdmin = false;
+
+        function getAvatar(lv) {
+            if(lv >= 20) return "🐲"; if(lv >= 15) return "⚔️"; if(lv >= 10) return "🛡️"; if(lv >= 5) return "🐥"; return "🐣";
+        }
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                isAdmin = (user.email === adminEmail);
+                const eKey = user.email.replace(/\./g, ',');
+                db.ref('userEmails/' + eKey).once('value', (snap) => {
+                    if (snap.exists() || isAdmin) {
+                        myName = snap.val() || "총사령관";
+                        if(isAdmin) document.querySelectorAll('#btn-manage, #btn-admin, #admin-orders, #admin-checkins').forEach(e => e.style.display='block');
+                        startApp();
+                    } else { alert("등록되지 않은 사용자입니다."); auth.signOut(); }
+                });
+            } else { document.getElementById('login-screen').style.display='flex'; document.getElementById('main-app').style.display='none'; }
+        });
+
+        function handleLogin() { auth.signInWithPopup(provider); }
+
+        function startApp() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+
+            db.ref('users/' + myName).on('value', snap => {
+                const u = snap.val(); if(!u) return;
+                document.getElementById('my-avatar').innerText = getAvatar(u.lv);
+                document.getElementById('display-name').innerText = `🛡️ ${myName}`;
+                document.getElementById('display-stats').innerText = `LV.${u.lv} | EXP: ${u.exp} | ${u.points}P`;
+            });
+
+            db.ref('users').on('value', snap => {
+                let rH = ""; let mH = "";
+                snap.forEach(c => {
+                    const u = c.val();
+                    rH = `<div class="flex-row" style="grid-template-columns: 1fr 2fr;"><span>${getAvatar(u.lv)} ${u.name}</span><strong>${u.points}P</strong></div>` + rH;
+                    mH += `<div class="flex-row"><span>${u.name}</span><span style="font-size:0.8rem; color:gray;">LV.${u.lv} (${u.points}P)</span><input type="number" class="mass-input" data-name="${u.name}" placeholder="0"></div>`;
+                });
+                document.getElementById('rank-list').innerHTML = rH;
+                document.getElementById('mass-score-board').innerHTML = mH;
+            });
+
+            db.ref('shop').on('value', snap => {
+                let sH = ""; snap.forEach(c => {
+                    const i = c.val(); sH += `<div class="flex-row" style="grid-template-columns: 2fr 1fr;"><span>${i.name} (${i.price}P)</span><button onclick="buyItem('${c.key}','${i.name}',${i.price})" style="background:var(--purple); width:auto;">구매</button></div>`;
+                });
+                document.getElementById('shop-list').innerHTML = sH || "비어있음";
+            });
+
+            db.ref('orders').on('value', snap => {
+                let oH = ""; snap.forEach(c => {
+                    const o = c.val(); if(o.status === '대기') oH += `<div class="flex-row" style="grid-template-columns: 2fr 1fr;"><span>${o.user}: ${o.item}</span><button onclick="db.ref('orders/${c.key}').update({status:'완료'})" style="background:var(--green); width:auto;">승인</button></div>`;
+                });
+                document.getElementById('order-list').innerHTML = oH || "대기 없음";
+            });
+
+            db.ref('settings').on('value', snap => {
+                const s = snap.val(); if(!s) return;
+                document.getElementById('guide-ok').innerText = s.lateStart;
+                document.getElementById('guide-late').innerText = s.closeTime;
+                document.getElementById('conf-pass').value = s.password;
+                document.getElementById('conf-late-start').value = s.lateStart;
+                document.getElementById('conf-close').value = s.closeTime;
+            });
+
+            const today = new Date().toISOString().slice(0, 10);
+            db.ref('checkins/' + today).on('value', snap => {
+                let cH = ""; snap.forEach(c => {
+                    const v = c.val(); 
+                    const badgeClass = v.status === "정상" ? "status-ok" : "status-late";
+                    cH += `<div class="flex-row" style="grid-template-columns: 1fr 2fr;"><span>${v.name}</span><small>${v.time} <span class="status-badge ${badgeClass}">${v.status}</span></small></div>`;
+                });
+                document.getElementById('checkin-list').innerHTML = cH || "등교자 없음";
+            });
+        }
+
+        function submitCheckIn() {
+            const input = document.getElementById('checkin-pass').value;
+            db.ref('settings').once('value', snap => {
+                const s = snap.val();
+                if(input !== s.password) { alert("암호가 틀렸습니다!"); return; }
+                const now = new Date();
+                const timeStr = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
+                const today = now.toISOString().slice(0, 10);
+                if(timeStr > s.closeTime) { alert("🚫 등교 마감 시간이 지났습니다."); return; }
+                let status = "정상";
+                if(timeStr > s.lateStart) {
+                    status = "지각(-1P)";
+                    db.ref('users/' + myName).once('value', us => {
+                        db.ref('users/' + myName).update({ points: (us.val().points || 0) - 1 });
+                    });
+                }
+                db.ref(`checkins/${today}/${myName}`).set({ name: myName, time: timeStr, status: status });
+                alert(`등교 완료! [${status}]`);
+            });
+        }
+
+        function applyMassScores() {
+            const inputs = document.querySelectorAll('.mass-input');
+            inputs.forEach(input => {
+                const name = input.getAttribute('data-name');
+                const score = parseInt(input.value);
+                if(!isNaN(score) && score !== 0) {
+                    db.ref('users/' + name).once('value', snap => {
+                        const u = snap.val();
+                        let nP = (u.points || 0) + score;
+                        let nE = (u.exp || 0) + score;
+                        let nL = u.lv || 1;
+                        if(nE >= 100) { nL += Math.floor(nE / 100); nE = nE % 100; }
+                        else if(nE < 0) nE = 0;
+                        db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL });
+                    });
+                    input.value = "";
+                }
+            });
+            alert("반영 완료!");
+        }
+
+        function saveSettings() {
+            db.ref('settings').update({ password: document.getElementById('conf-pass').value, lateStart: document.getElementById('conf-late-start').value, closeTime: document.getElementById('conf-close').value });
+            alert("저장됨!");
+        }
+
+        function buyItem(id, name, price) {
+            db.ref('users/' + myName).once('value', snap => {
+                const u = snap.val(); if(u.points < price) { alert("포인트 부족!"); return; }
+                db.ref('orders').push({ user: myName, item: name, status: '대기' });
+                db.ref('users/' + myName).update({ points: u.points - price });
+                alert("구매 요청 완료!");
+            });
+        }
+
+        function addShopItem() {
+            const n = document.getElementById('it-name').value;
+            const p = parseInt(document.getElementById('it-price').value);
+            if(n && p) { db.ref('shop').push({ name: n, price: p }); document.getElementById('it-name').value=""; document.getElementById('it-price').value=""; }
+        }
+
+        function bulkReg() {
+            document.getElementById('bulk-in').value.trim().split('\n').forEach(l => {
+                const [n, e] = l.split(',').map(s => s.trim());
+                if(n && e) {
+                    db.ref('userEmails/' + e.replace(/\./g, ',')).set(n);
+                    db.ref('users/' + n).update({ name: n, points: 0, exp: 0, lv: 1 });
+                }
+            });
+            alert("학생 등록 완료!");
+        }
+
+        function showTab(t) {
+            document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + t).classList.add('active');
+            document.getElementById('btn-' + t).classList.add('active');
+        }
+    </script>
+</body>
+</html>
