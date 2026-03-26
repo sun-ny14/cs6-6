@@ -188,11 +188,11 @@
         </div>`;
     });
 
-    // 준비된 HTML 쏟아붓기
-    document.getElementById('hero-grid').innerHTML = gH;
-    document.getElementById('mass-score-board').innerHTML = mH;
-    document.getElementById('student-admin-list').innerHTML = aH;
-    document.getElementById('point-bulk-list').innerHTML = pBulkH; 
+    // 준비된 HTML 쏟아붓기 (아이디 매칭 수정본)
+    if(document.getElementById('hero-grid')) document.getElementById('hero-grid').innerHTML = gH;
+    if(document.getElementById('mass-score-board')) document.getElementById('mass-score-board').innerHTML = mH;
+    if(document.getElementById('hero-list')) document.getElementById('hero-list').innerHTML = aH; // 여기 확인!
+    if(document.getElementById('point-bulk-list')) document.getElementById('point-bulk-list').innerHTML = pBulkH;
 });
 
             db.ref('shop').on('value', snap => {
