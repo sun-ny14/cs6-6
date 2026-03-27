@@ -174,11 +174,23 @@
     document.getElementById('main-app').style.display = 'block';
 
     if (isAdmin) {
-        // 선생님일 때만 보이는 버튼들 (포인트 버튼 포함)
+        // 관리자용 버튼들 노출
         ['btn-admin', 'btn-points', 'admin-p-area', 'admin-job-mgr', 'admin-shop-mgr', 'admin-checkin-log'].forEach(id => {
             const el = document.getElementById(id);
             if(el) el.style.display = (id === 'admin-p-area' ? 'flex' : 'block');
         });
+        loadAdminGifts();
+    } else {
+        // 학생일 경우: 포인트 탭과 관리 탭 버튼을 아예 숨김
+        if(document.getElementById('btn-points')) document.getElementById('btn-points').style.display = 'none';
+        if(document.getElementById('btn-admin')) document.getElementById('btn-admin').style.display = 'none';
+        
+        // 만약 학생이 주소창 등으로 강제 진입 시 '용사들' 탭으로 튕겨내기
+        showTab('main');
+    }
+    
+    loadPresets(); loadShop(); loadJobs();
+}
         loadAdminGifts();
     } else {
         // 학생일 때는 상단 메뉴에서 포인트 버튼을 숨김
@@ -282,25 +294,57 @@
     }
     function deletePreset(ev, key) { ev.stopPropagation(); if(confirm("삭제?")) db.ref('presets/'+key).remove(); }
 
-    async function applyPoints() {
-        const reason = document.getElementById('m-reason').value;
-        if(!reason && currentMode === 'bulk') return alert("사유 입력 필수!");
+   async function applyPoints() {
+    const btn = event.target; // 클릭된 버튼을 가져옵니다.
+    const reason = document.getElementById('m-reason').value;
+    
+    // 사유 체크
+    if(!reason && currentMode === 'bulk') {
+        alert("사유를 입력해야 전령을 보낼 수 있습니다!");
+        return;
+    }
+    
+    // [중복 클릭 방지] 버튼을 즉시 비활성화하고 문구 변경
+    btn.disabled = true;
+    btn.style.opacity = "0.5";
+    btn.innerText = "전령 이동 중...";
+
+    try {
         const time = new Date().toLocaleString();
         if(currentMode === 'bulk') {
             const p = parseInt(document.getElementById('b-p').value)||0;
             const e = parseInt(document.getElementById('b-e').value)||0;
             const selected = document.querySelectorAll('.student-chip.selected');
-            if(selected.length === 0) return alert("용사를 선택해주세요.");
-            for(let chip of selected) await updateP(chip.dataset.name, p, e, reason, time);
+            if(selected.length === 0) throw new Error("포인트를 받을 용사를 선택해주세요!");
+            
+            for(let chip of selected) {
+                await updateP(chip.dataset.name, p, e, reason, time);
+            }
         } else {
-            for(let inp of document.querySelectorAll('.e-p')) {
-                const n = inp.dataset.name; const p = parseInt(inp.value)||0;
+            // 개별 지급 모드
+            const inputs = document.querySelectorAll('.e-p');
+            for(let inp of inputs) {
+                const n = inp.dataset.name;
+                const p = parseInt(inp.value)||0;
                 const e = parseInt(document.querySelector(`.e-e[data-name="${n}"]`).value)||0;
-                if(p!==0 || e!==0) await updateP(n, p, e, reason || "개별 지급", time);
+                if(p !== 0 || e !== 0) {
+                    await updateP(n, p, e, reason || "개별 하사", time);
+                }
             }
         }
-        document.getElementById('point-modal').style.display = 'none'; alert("하사 완료!");
+        
+        alert("성공적으로 하사되었습니다! 🤺");
+        document.getElementById('point-modal').style.display = 'none';
+        
+    } catch (err) {
+        alert(err.message);
+    } finally {
+        // 모든 처리가 끝나면 버튼을 다시 원래대로 살려냅니다.
+        btn.disabled = false;
+        btn.style.opacity = "1";
+        btn.innerText = "하사하기";
     }
+}
 
     async function updateP(name, p, e, r, t) {
         const sn = await db.ref('users/'+name).once('value'); const u = sn.val();
