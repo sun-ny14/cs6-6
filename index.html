@@ -101,193 +101,208 @@
     </div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
-            authDomain: "cs6-6class.firebaseapp.com",
-            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
-            projectId: "cs6-6class",
-            storageBucket: "cs6-6class.firebasestorage.app",
-            messagingSenderId: "644235499537",
-            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
-        };
+        <script>
+    // 1. 파이어베이스 설정 (이 부분이 가장 먼저 나와야 합니다!)
+    const firebaseConfig = {
+        apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+        authDomain: "cs6-6class.firebaseapp.com",
+        databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
+        projectId: "cs6-6class",
+        storageBucket: "cs6-6class.firebasestorage.app",
+        messagingSenderId: "644235499537",
+        appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
+    };
+
+    // 파이어베이스 초기화 (에러 방지용 체크 포함)
+    if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const auth = firebase.auth();
-        const provider = new firebase.auth.GoogleAuthProvider();
-        const adminEmail = "ksosuny@cberi.go.kr";
+    }
+    const db = firebase.database();
+    const auth = firebase.auth();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const adminEmail = "ksosuny@cberi.go.kr";
 
-        let myName = "", isAdmin = false, currentMode = 'bulk';
+    let myName = "", isAdmin = false, currentMode = 'bulk';
 
-        // 아바타 칭호 로직
-        function getAutoJob(lv, assignedJob) {
-            if (assignedJob && assignedJob !== "알" && assignedJob !== "평민") return assignedJob;
-            if (lv >= 30) return "👑 전설의 용사";
-            if (lv >= 20) return "🔥 숙련된 용사";
-            if (lv >= 15) return "⚔️ 초보 용사";
-            if (lv >= 10) return "🐥 부화한 용사";
-            if (lv >= 5)  return "🐣 금이 간 알";
-            return "🥚 신비한 알";
+    // 2. 아바타 칭호 로직
+    function getAutoJob(lv, assignedJob) {
+        if (assignedJob && assignedJob !== "알" && assignedJob !== "평민") return assignedJob;
+        if (lv >= 30) return "👑 전설의 용사";
+        if (lv >= 20) return "🔥 숙련된 용사";
+        if (lv >= 15) return "⚔️ 초보 용사";
+        if (lv >= 10) return "🐥 부화한 용사";
+        if (lv >= 5)  return "🐣 금이 간 알";
+        return "🥚 신비한 알";
+    }
+
+    function getAvatar(lv) {
+        let lvClass = "avatar-lv1";
+        if(lv >= 30) lvClass = "avatar-lv30"; else if(lv >= 20) lvClass = "avatar-lv20"; else if(lv >= 15) lvClass = "avatar-lv15"; else if(lv >= 10) lvClass = "avatar-lv10"; else if(lv >= 5) lvClass = "avatar-lv5";
+        return `<div class="pixel-avatar ${lvClass}"></div>`;
+    }
+
+    // 3. 로그인 함수 (버튼 클릭 시 실행)
+    function handleLogin() {
+        auth.signInWithPopup(provider).catch(e => alert("로그인 오류: " + e.message));
+    }
+
+    // 4. 인증 상태 감시 (로그인 성공 시 앱 실행)
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
+            const eKey = user.email.replace(/\./g, ',');
+            db.ref('userEmails/' + eKey).once('value', (snap) => {
+                if (snap.exists() || isAdmin) {
+                    myName = snap.val() || "총사령관";
+                    startApp();
+                } else {
+                    alert("미등록 계정: " + user.email);
+                    auth.signOut();
+                }
+            });
+        } else {
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('main-app').style.display = 'none';
+        }
+    });
+
+    // 5. 앱 구동 및 데이터 연동
+    function startApp() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'block';
+        
+        if (isAdmin) {
+            document.getElementById('btn-admin').style.display = 'block';
+            document.getElementById('admin-p-area').style.display = 'flex';
         }
 
-        function getAvatar(lv) {
-            let lvClass = "avatar-lv1";
-            if(lv >= 30) lvClass = "avatar-lv30"; else if(lv >= 20) lvClass = "avatar-lv20"; else if(lv >= 15) lvClass = "avatar-lv15"; else if(lv >= 10) lvClass = "avatar-lv10"; else if(lv >= 5) lvClass = "avatar-lv5";
-            return `<div class="pixel-avatar ${lvClass}"></div>`;
-        }
+        // 실시간 유저 목록 로드 및 화면 갱신
+        db.ref('users').on('value', snap => {
+            let users = [];
+            snap.forEach(c => { if(c.val() && c.val().name) users.push(c.val()); });
+            users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
+            
+            let gH = "", aH = "";
+            users.forEach(u => {
+                gH += `<div class="hero-card ${u.name===myName?'me':''}">
+                    <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv}</span>
+                    <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
+                    <div style="font-size:0.8rem; color:#888;">${getAutoJob(u.lv, u.job)}</div>
+                    <div style="font-weight:bold; color:var(--primary);">${u.points || 0} P</div>
+                </div>`;
 
-        // 로그인 핸들러
-        function handleLogin() { auth.signInWithPopup(provider).catch(e => alert("로그인 오류: " + e.message)); }
-
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
-                const eKey = user.email.replace(/\./g, ',');
-                db.ref('userEmails/' + eKey).once('value', (snap) => {
-                    if (snap.exists() || isAdmin) {
-                        myName = snap.val() || "총사령관";
-                        startApp();
-                    } else { alert("미등록 계정입니다."); auth.signOut(); }
-                });
-            } else {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('main-app').style.display = 'none';
-            }
-        });
-
-        function startApp() {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
-            if (isAdmin) { 
-                ['btn-admin', 'admin-job-mgr', 'admin-shop-mgr', 'admin-order-mgr', 'admin-p-area'].forEach(id => {
-                    if(document.getElementById(id)) document.getElementById(id).style.display = 'block';
-                });
-            }
-
-            // 실시간 용사 데이터 로드
-            db.ref('users').on('value', snap => {
-                let users = [];
-                snap.forEach(c => { if(c.val() && c.val().name) users.push(c.val()); });
-                users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
-                
-                let gH = "", aH = "";
-                users.forEach(u => {
-                    gH += `<div class="hero-card ${u.name===myName?'me':''}">
-                        <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv}</span>
-                        <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
-                        <div style="font-size:0.8rem; color:#888;">${getAutoJob(u.lv, u.job)}</div>
-                        <div style="font-weight:bold; color:var(--primary);">${u.points || 0} P</div>
-                    </div>`;
-
+                if(isAdmin) {
                     aH += `<div class="list-item">
                         <div style="display:flex; align-items:center; gap:10px; flex:1;">
-                            <input type="number" id="no-${u.name}" value="${u.no || ''}" style="width:60px; text-align:center;">
+                            <input type="number" id="no-${u.name}" value="${u.no || ''}" style="width:60px; text-align:center; height:30px;">
                             <strong>${u.name}</strong>
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <button onclick="saveHeroNo('${u.name}')" style="background:var(--green); width:auto;">저장</button>
-                            <button onclick="editHeroName('${u.name}', '${u.email}')" style="background:var(--primary); width:auto;">이름</button>
-                            <button onclick="deleteHero('${u.name}', '${u.email}')" style="background:var(--red); width:auto;">삭제</button>
+                            <button onclick="saveHeroNo('${u.name}')" style="background:var(--green); width:auto; padding:5px 10px;">저장</button>
+                            <button onclick="editHeroName('${u.name}', '${u.email}')" style="background:var(--primary); width:auto; padding:5px 10px;">이름</button>
+                            <button onclick="deleteHero('${u.name}', '${u.email}')" style="background:var(--red); width:auto; padding:5px 10px;">삭제</button>
                         </div>
                     </div>`;
-                });
-                document.getElementById('hero-grid').innerHTML = gH;
+                }
+            });
+            document.getElementById('hero-grid').innerHTML = gH;
+            if(isAdmin && document.getElementById('student-admin-list')) {
                 document.getElementById('student-admin-list').innerHTML = aH;
-            });
+            }
+        });
 
-            // 기타 데이터 로드 (설정, 기록 등)
-            db.ref('settings').on('value', snap => {
-                const s = snap.val() || {};
-                document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ~${s.closeTime || '09:00'}`;
-            });
+        // 설정값 로드
+        db.ref('settings').on('value', snap => {
+            const s = snap.val() || {};
+            const guide = document.getElementById('checkin-guide');
+            if(guide) guide.innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ~${s.closeTime || '09:00'}`;
+        });
+    }
 
-            db.ref('pointLogs').orderByChild('time').limitToLast(50).on('value', snap => {
-                let html = ""; let logs = []; snap.forEach(c => { let v = c.val(); v.key = c.key; logs.push(v); });
-                logs.reverse().forEach(log => {
-                    if (isAdmin || log.name === myName) {
-                        html += `<div class="list-item"><span>${log.name}: ${log.pAmt}P / ${log.eAmt}E (${log.reason})</span>
-                        ${isAdmin ? `<button onclick="cancelPoint('${log.key}', '${log.name}', ${log.pAmt}, ${log.eAmt})" style="background:var(--red); width:auto;">취소</button>`:''}</div>`;
-                    }
-                });
-                document.getElementById('point-history-list').innerHTML = html;
+    // 6. 관리자용 개별 기능
+    function saveHeroNo(name) {
+        const val = document.getElementById('no-' + name).value;
+        db.ref('users/' + name).update({ no: val }).then(() => alert(name + " 번호 저장 완료!"));
+    }
+
+    function editHeroName(oName, email) {
+        const nName = prompt("새 이름?", oName);
+        if(!nName || nName === oName) return;
+        db.ref('users/' + oName).once('value', sn => {
+            let d = sn.val(); d.name = nName;
+            db.ref('users/' + nName).set(d).then(() => {
+                db.ref('users/' + oName).remove();
+                db.ref('userEmails/' + email.replace(/\./g, ',')).set(nName);
             });
+        });
+    }
+
+    function deleteHero(name, email) {
+        if(confirm(name + " 용사를 정말 삭제할까요?")) {
+            db.ref('users/' + name).remove();
+            if(email) db.ref('userEmails/' + email.replace(/\./g, ',')).remove();
         }
+    }
 
-        // --- 명단 및 점수 관리 기능 ---
-        function saveHeroNo(name) {
-            const val = document.getElementById('no-' + name).value;
-            db.ref('users/' + name).update({ no: val }).then(() => alert("저장 완료"));
-        }
+    // 7. 포인트 부여 팝업 기능
+    function openPointModal(mode) {
+        currentMode = mode;
+        const modal = document.getElementById('point-modal');
+        const bulkArea = document.getElementById('bulk-input-area');
+        if(modal) modal.style.display = 'flex';
+        if(bulkArea) bulkArea.style.display = (mode === 'bulk' ? 'block' : 'none');
 
-        function editHeroName(oName, email) {
-            const nName = prompt("새 이름?", oName);
-            if(!nName || nName === oName) return;
-            db.ref('users/' + oName).once('value', sn => {
-                let d = sn.val(); d.name = nName;
-                db.ref('users/' + nName).set(d).then(() => {
-                    db.ref('users/' + oName).remove();
-                    db.ref('userEmails/' + email.replace(/\./g, ',')).set(nName);
-                });
+        db.ref('users').once('value', snap => {
+            let h = "";
+            snap.forEach(c => {
+                const u = c.val();
+                if(mode === 'bulk') h += `<div class="student-chip" onclick="this.classList.toggle('selected')" data-name="${u.name}">${u.name}</div>`;
+                else h += `<div class="list-item">${u.name} <input type="number" class="m-p-amt" data-name="${u.name}" placeholder="P" style="width:60px;"> <input type="number" class="m-e-amt" data-name="${u.name}" placeholder="E" style="width:60px;"></div>`;
             });
-        }
+            document.getElementById('modal-student-list').innerHTML = h;
+        });
+    }
 
-        function deleteHero(name, email) {
-            if(confirm(name + " 삭제?")) {
-                db.ref('users/' + name).remove();
-                db.ref('userEmails/' + email.replace(/\./g, ',')).remove();
+    async function applyModalPoints() {
+        const reason = document.getElementById('modal-reason').value;
+        if(!reason) return alert("사유를 입력하세요!");
+        const time = new Date().toLocaleString();
+        
+        if(currentMode === 'bulk') {
+            const p = parseInt(document.getElementById('bulk-p-val').value) || 0;
+            const e = parseInt(document.getElementById('bulk-e-val').value) || 0;
+            const selected = document.querySelectorAll('.student-chip.selected');
+            for(let chip of selected) await updatePoints(chip.dataset.name, p, e, reason, time);
+        } else {
+            for(let inp of document.querySelectorAll('.m-p-amt')) {
+                const n = inp.dataset.name;
+                const p = parseInt(inp.value) || 0;
+                const e = parseInt(document.querySelector(`.m-e-amt[data-name="${n}"]`).value) || 0;
+                if(p !== 0 || e !== 0) await updatePoints(n, p, e, reason, time);
             }
         }
+        document.getElementById('point-modal').style.display = 'none';
+        alert("지급이 완료되었습니다!");
+    }
 
-        function openPointModal(mode) {
-            currentMode = mode;
-            document.getElementById('bulk-input-area').style.display = (mode === 'bulk' ? 'block' : 'none');
-            document.getElementById('point-modal').style.display = 'flex';
-            db.ref('users').once('value', snap => {
-                let h = "";
-                snap.forEach(c => {
-                    const u = c.val();
-                    if(mode === 'bulk') h += `<div class="student-chip" onclick="this.classList.toggle('selected')" data-name="${u.name}">${u.name}</div>`;
-                    else h += `<div class="list-item">${u.name} <input type="number" class="m-p-amt" data-name="${u.name}" placeholder="P" style="width:60px;"> <input type="number" class="m-e-amt" data-name="${u.name}" placeholder="E" style="width:60px;"></div>`;
-                });
-                document.getElementById('modal-student-list').innerHTML = h;
-            });
-        }
+    async function updatePoints(name, p, e, reason, time) {
+        const sn = await db.ref('users/' + name).once('value');
+        const u = sn.val() || {};
+        let nP = (u.points||0) + p, nE = (u.exp||0) + e, nL = (u.lv||1);
+        while(nE >= 100) { nL++; nE -= 100; }
+        await db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL });
+        await db.ref('pointLogs').push({ name, pAmt: p, eAmt: e, reason, time });
+    }
 
-        async function applyModalPoints() {
-            const reason = document.getElementById('modal-reason').value;
-            if(!reason) return alert("사유 입력!");
-            const time = new Date().toLocaleString();
-            if(currentMode === 'bulk') {
-                const p = parseInt(document.getElementById('bulk-p-val').value) || 0;
-                const e = parseInt(document.getElementById('bulk-e-val').value) || 0;
-                for(let chip of document.querySelectorAll('.student-chip.selected')) {
-                    await updatePoints(chip.dataset.name, p, e, reason, time);
-                }
-            } else {
-                for(let inp of document.querySelectorAll('.m-p-amt')) {
-                    const n = inp.dataset.name;
-                    const p = parseInt(inp.value) || 0;
-                    const e = parseInt(document.querySelector(`.m-e-amt[data-name="${n}"]`).value) || 0;
-                    if(p !== 0 || e !== 0) await updatePoints(n, p, e, reason, time);
-                }
-            }
-            document.getElementById('point-modal').style.display = 'none';
-        }
-
-        async function updatePoints(name, p, e, reason, time) {
-            const sn = await db.ref('users/' + name).once('value');
-            const u = sn.val();
-            let nP = (u.points||0) + p, nE = (u.exp||0) + e, nL = (u.lv||1);
-            while(nE >= 100) { nL++; nE -= 100; }
-            await db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL });
-            await db.ref('pointLogs').push({ name, pAmt: p, eAmt: e, reason, time });
-        }
-
-        // 기본 공통 함수들
-        function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
-        function openPopup(t, c) { document.getElementById('pop-title').innerText=t; document.getElementById('pop-content').innerText=c; document.getElementById('common-overlay').style.display='flex'; }
-        function closePopup() { document.getElementById('common-overlay').style.display = 'none'; }
-        function cancelPoint(k, n, p, e) { db.ref('users/'+n).once('value', sn=>{ const u=sn.val(); db.ref('users/'+n).update({points:u.points-p, exp:u.exp-e}); db.ref('pointLogs/'+k).remove(); }); }
-        function submitCheckIn() { alert("암호 확인 및 등교 로직 실행..."); } // 세부 등교 로직은 설정값에 따라 구현
-    </script>
+    // 공통 유틸리티
+    function showTab(t) { 
+        document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); 
+        document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); 
+        document.getElementById('tab-'+t).classList.add('active'); 
+        document.getElementById('btn-'+t).classList.add('active'); 
+    }
+    function saveSettings() { db.ref('settings').update({password:document.getElementById('conf-pass').value, lateTime:document.getElementById('conf-late').value, closeTime:document.getElementById('conf-close').value, routineText:document.getElementById('conf-routine').value}).then(()=>alert("저장 완료")); }
+    function bulkReg() { document.getElementById('bulk-in').value.trim().split('\n').forEach(l => { const [n, e] = l.split(','); if(n&&e) { db.ref('userEmails/'+e.trim().replace(/\./g,',')).set(n.trim()); db.ref('users/'+n.trim()).update({name:n.trim(), email:e.trim(), points:0, exp:0, lv:1}); } }); alert("주입 완료!"); }
+</script>
 </body>
 </html>
