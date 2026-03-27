@@ -137,41 +137,100 @@
     </div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
-            authDomain: "cs6-6class.firebaseapp.com",
-            databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
-            projectId: "cs6-6class",
-            storageBucket: "cs6-6class.firebasestorage.app",
-            messagingSenderId: "644235499537",
-            appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
-        };
-        const adminEmail = "ksosuny@cberi.go.kr";
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const auth = firebase.auth();
-        const provider = new firebase.auth.GoogleAuthProvider();
+        // 이 코드가 파일 어딘가에 이미 적혀 있다면 OK!
+function getAutoJob(lv, assignedJob) {
+    if (assignedJob && assignedJob !== "알" && assignedJob !== "평민") return assignedJob;
+    if (lv >= 30) return "👑 전설의 용사";
+    if (lv >= 20) return "🔥 숙련된 용사";
+    if (lv >= 15) return "⚔️ 초보 용사";
+    if (lv >= 10) return "🐥 부화한 용사";
+    if (lv >= 5)  return "🐣 금이 간 알";
+    return "🥚 신비한 알";
+}
+        // [최종 수정] 명단 관리: 번호 칸 자체가 입력창인 구조
+db.ref('users').on('value', snap => {
+    let users = []; 
+    snap.forEach(c => { if(c.val() && c.val().name) users.push(c.val()); });
+    
+    // 번호순 정렬 (번호가 없으면 뒤로 보냄)
+    users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
+    
+    let gH = "", aH = "";
+    users.forEach(u => {
+        // 1. 메인 화면 용사 카드 (번호 표시)
+        gH += `<div class="hero-card ${u.name===myName?'me':''}">
+            <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv}</span>
+            <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
+            <div style="font-size:0.8rem; color:#888;">${getAutoJob(u.lv, u.job)}</div><div style="font-weight:bold; color:var(--primary);">${u.points || 0} P</div>
+        </div>`;
 
-        let myName = "", isAdmin = false, giftList = [], routineItems = [], rIdx = 0, currentMode = 'bulk';
+        // 2. 관리 탭 명단: 번호 자리에 바로 입력창(Input) 배치!
+        aH += `<div class="list-item" style="padding: 10px; border-bottom: 1px solid #eee;">
+            <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                <!-- 번호 입력창: 크기를 70px로 넉넉하게, 테두리 강조 -->
+                <input type="number" id="no-${u.name}" value="${u.no || ''}" 
+                       style="width:70px; height:35px; text-align:center; font-weight:bold; font-size:1.1rem; border:2px solid var(--primary); border-radius:5px; margin:0;"
+                       placeholder="번호">
+                <span style="font-weight:bold; font-size:1.1rem; min-width:80px;">${u.name}</span>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <!-- 바로 옆에 저장 버튼 -->
+                <button onclick="saveHeroNo('${u.name}')" style="background:var(--green); width:60px; padding:8px 0;">저장</button>
+                <button onclick="editHeroName('${u.name}', '${u.email}')" style="background:var(--primary); width:60px; padding:8px 0;">이름</button>
+                <button onclick="deleteHero('${u.name}', '${u.email}')" style="background:var(--red); width:60px; padding:8px 0;">삭제</button>
+            </div>
+        </div>`;
+ });
+    // 1. 번호 저장 엔진
+function saveHeroNo(name) {
+    const newNo = document.getElementById('no-' + name).value;
+    db.ref('users/' + name).update({ no: newNo }).then(() => {
+        console.log(name + " 번호 저장 완료");
+    });
+}
 
-        function getAvatar(lv) {
-            let lvClass = "avatar-lv1";
-            if(lv >= 30) lvClass = "avatar-lv30"; else if(lv >= 20) lvClass = "avatar-lv20"; else if(lv >= 15) lvClass = "avatar-lv15"; else if(lv >= 10) lvClass = "avatar-lv10"; else if(lv >= 5) lvClass = "avatar-lv5";
-            return `<div class="pixel-avatar ${lvClass}"></div>`;
-        }
-
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
-                const eKey = user.email.replace(/\./g, ',');
-                db.ref('userEmails/' + eKey).once('value', (snap) => {
-                    if (snap.exists() || isAdmin) {
-                        myName = snap.val() || "총사령관";
-                        startApp();
-                    } else { alert("미등록 계정: " + user.email); auth.signOut(); }
-                });
-            } else { document.getElementById('login-screen').style.display = 'flex'; document.getElementById('main-app').style.display = 'none'; }
+// 2. 이름 수정 엔진
+function editHeroName(oName, email) {
+    const newName = prompt("새로운 이름을 입력하세요.", oName);
+    if(!newName || newName === oName) return;
+    db.ref('users/' + oName).once('value', sn => {
+        let data = sn.val();
+        data.name = newName;
+        db.ref('users/' + newName).set(data).then(() => {
+            db.ref('users/' + oName).remove();
+            db.ref('userEmails/' + email.replace(/\./g, ',')).set(newName);
+            alert("개명 완료!");
         });
+    });
+}
+
+// 3. 삭제 엔진
+function deleteHero(name, email) {
+    if(confirm(name + " 용사를 삭제할까요? 데이터가 완전히 삭제됩니다.")) {
+        db.ref('users/' + name).remove();
+        if(email) {
+            const eKey = email.replace(/\./g, ',');
+            db.ref('userEmails/' + eKey).remove();
+        }
+        alert("삭제되었습니다.");
+    }
+}
+    
+    // 화면 반영
+    const heroGrid = document.getElementById('hero-grid');
+    const adminList = document.getElementById('student-admin-list');
+    if(heroGrid) heroGrid.innerHTML = gH;
+    if(adminList) adminList.innerHTML = aH;
+});
+
+// 번호 저장 함수 (이건 꼭 있어야 작동합니다!)
+function saveHeroNo(name) {
+    const newNo = document.getElementById('no-' + name).value;
+    db.ref('users/' + name).update({ no: newNo }).then(() => {
+        // 성공 시 살짝 알림 (너무 자주 뜨면 귀찮으니 생략 가능)
+        console.log(name + " 번호 저장 완료: " + newNo);
+    });
+}
 
         function handleLogin() { auth.signInWithPopup(provider).catch(e => alert(e.message)); }
 
@@ -196,7 +255,7 @@
                     gH += `<div class="hero-card ${u.name===myName?'me':''}">
                         <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv}</span>
                         <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
-                        <div style="font-size:0.8rem; color:#888;">${u.job || '평민'}</div><div style="font-weight:bold; color:var(--primary);">${u.points || 0} P</div>
+                        <div style="font-size:0.8rem; color:#888;">${u.job || '알'}</div><div style="font-weight:bold; color:var(--primary);">${u.points || 0} P</div>
                     </div>`;
                     aH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span>
                         <div style="display:flex; gap:5px;">
