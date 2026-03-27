@@ -112,10 +112,17 @@
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
         </section>
 
-        <section id="tab-checkin" class="tab-content">
-            <div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호"><button onclick="submitCheckIn()">본부 소환!</button></div>
-            <div id="admin-checkin-log" style="display:none;" class="card"><h3>📅 등교 현황</h3><div id="checkin-list-area"></div></div>
-        </section>
+       <section id="tab-checkin" class="tab-content">
+    <div class="card">
+        <h2>⚔️ 등교 확인</h2>
+        <!-- 116, 117번 줄을 지우고 아래 한 줄만 남기세요 -->
+        <div id="checkin-guide" style="margin-bottom:15px; font-weight:bold; color:var(--primary);"></div>
+        
+        <input type="text" id="checkin-pass" placeholder="오늘의 암호">
+        <button onclick="submitCheckIn()" style="padding:15px; font-size:1.1rem;">본부 소환!</button>
+    </div>
+    <div id="admin-checkin-log" style="display:none;" class="card"><h3>📅 등교 현황</h3><div id="checkin-list-area"></div></div>
+</section>
 
         <section id="tab-points" class="tab-content">
             <div id="admin-p-area" style="display:none; gap:10px;">
@@ -163,15 +170,22 @@
     });
 
     function startApp() {
-        document.getElementById('login-screen').style.display='none';
-        document.getElementById('main-app').style.display='block';
-        if (isAdmin) {
-            ['btn-admin', 'admin-p-area', 'admin-job-mgr', 'admin-shop-mgr', 'admin-checkin-log'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.style.display = (id === 'admin-p-area' ? 'flex' : 'block');
-            });
-            loadAdminGifts();
-        }
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+
+    if (isAdmin) {
+        // 선생님일 때만 보이는 버튼들 (포인트 버튼 포함)
+        ['btn-admin', 'btn-points', 'admin-p-area', 'admin-job-mgr', 'admin-shop-mgr', 'admin-checkin-log'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = (id === 'admin-p-area' ? 'flex' : 'block');
+        });
+        loadAdminGifts();
+    } else {
+        // 학생일 때는 상단 메뉴에서 포인트 버튼을 숨김
+        const btnPoints = document.getElementById('btn-points');
+        if(btnPoints) btnPoints.style.display = 'none';
+    }
+    // 이 뒤에 이어지는 db.ref('users').on... 부분은 그대로 두시면 됩니다!
 
         db.ref('users').on('value', sn => {
             let list = [], gH = "", aH = "";
