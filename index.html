@@ -127,7 +127,11 @@
             <div class="card" style="background: #fff9e6; border: 2px solid var(--gold);"><h3>📅 등교 기록부</h3><input type="date" id="checkin-date-pick" onchange="loadCheckinLogs()"><div id="checkin-date-list" style="margin-top:10px;"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine"></textarea><button onclick="saveSettings()">저장</button></div>
             <div class="card"><h3>🎁 보상 목록</h3><textarea id="conf-gifts"></textarea><button onclick="saveGifts()">저장</button></div>
-            <div class="card"><h3>👥 명단 관리 (수정/삭제)</h3><div id="student-admin-list"></div></div>
+            <div class="card">
+    <h3>👥 용사 명단 관리 (번호/이름 수정)</h3>
+    <p style="font-size: 0.8rem; color: #666; margin-bottom: 10px;">번호를 입력하고 [저장]을 누르면 즉시 반영됩니다.</p>
+    <div id="student-admin-list" style="max-height: 500px; overflow-y: auto;"></div>
+</div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" placeholder="이름,이메일 (한 줄에 한 명씩)"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
     </div>
