@@ -19,7 +19,7 @@
         .tab-content { display: none; padding: 15px; max-width: 1000px; margin: auto; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
         .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 15px; }
-        .hero-card { background: white; border-radius: 12px; padding: 15px 10px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 2px solid transparent; position: relative; }
+        .hero-card { background: white; border-radius: 12px; padding: 15px 10px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 2px solid transparent; position: relative; cursor: pointer; }
         .hero-card.me { border-color: var(--gold); background: #fffdf2; transform: scale(1.02); }
         .card-lv { font-size: 0.75rem; background: var(--dark); color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
         .card-avatar { font-size: 3rem; margin-bottom: 8px; display: block; }
@@ -28,62 +28,58 @@
         button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
         .popup-box { background: white; padding: 25px; border-radius: 20px; width: 90%; max-width: 450px; text-align: center; max-height: 85vh; overflow-y: auto; }
-        .student-chip { display: inline-block; padding: 8px 12px; margin: 4px; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; font-size: 0.9rem; }
+        .student-chip { display: inline-block; padding: 8px 12px; margin: 4px; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
         .student-chip.selected { background: var(--gold); border-color: var(--dark); font-weight: bold; }
-        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .preset-card { background: #f9f9f9; padding: 15px; border-radius: 10px; border: 2px dashed #ccc; cursor: pointer; text-align: center; }
-        .preset-card:hover { border-color: var(--primary); background: #eef7ff; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; gap: 8px; }
         .gift-box { font-size: 5rem; cursor: pointer; transition: transform 0.3s; }
-        .gift-box:hover { transform: scale(1.2) rotate(5deg); }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <div id="common-overlay" class="overlay">
-        <div class="popup-box"><h2 id="pop-title">알림</h2><div id="pop-content" style="margin-bottom: 20px; white-space: pre-wrap;"></div><button onclick="closePopup()">확인</button></div>
+    <div id="profile-modal" class="overlay">
+        <div class="popup-box" style="text-align: left;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 id="prof-name">용사 정보</h2>
+                <button onclick="document.getElementById('profile-modal').style.display='none'" style="width:auto; padding:5px 15px;">닫기</button>
+            </div>
+            <hr>
+            <div id="prof-stats" style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
+                <p><strong>보유 포인트:</strong> <span id="prof-points"></span> P</p>
+                <p><strong>현재 레벨:</strong> <span id="prof-lv"></span> (EXP: <span id="prof-exp"></span>)</p>
+            </div>
+            <h3>📜 포인트 획득 기록</h3>
+            <div id="prof-history" style="max-height: 250px; overflow-y: auto;"></div>
+        </div>
     </div>
 
     <div id="level-up-overlay" class="overlay">
         <div class="popup-box">
             <h1 style="color:var(--gold);">🎊 LEVEL UP! 🎊</h1>
-            <p>축하합니다! 새로운 레벨에 도달했습니다.</p>
-            <div id="gift-animation-area">
-                <div class="gift-box" onclick="openGift()">🎁</div>
-                <p>상자를 클릭하여 보상을 확인하세요!</p>
-            </div>
-            <div id="gift-result-area" style="display:none;">
-                <h2 id="gift-name" style="color:var(--purple);">보상 이름</h2>
-                <button onclick="closeGiftPopup()" style="background:var(--dark);">본부로 복귀</button>
+            <div class="gift-box" onclick="openGift()">🎁</div>
+            <div id="gift-result" style="display:none;">
+                <h2 id="gift-name"></h2><button onclick="document.getElementById('level-up-overlay').style.display='none'">닫기</button>
             </div>
         </div>
     </div>
 
     <div id="point-modal" class="overlay">
         <div class="popup-box" style="text-align: left;">
-            <h2 id="modal-title" style="text-align: center;">⚡ 포인트 하사</h2>
-            <div id="preset-area" class="preset-grid"></div>
-            <hr>
-            <div id="custom-input-area">
-                <div style="display: flex; gap: 5px;">
-                    <input type="number" id="m-p-val" placeholder="P"><input type="number" id="m-e-val" placeholder="EXP">
-                </div>
-                <input type="text" id="m-reason" placeholder="사유 입력 (예: 배움노트 제출)">
+            <h2 id="modal-title" style="text-align:center;">⚡ 포인트 전령</h2>
+            <div id="bulk-input-area" style="background:#f9f9f9; padding:10px; border-radius:10px; margin-bottom:10px; display:none;">
+                <div style="display:flex; gap:5px;"><input type="number" id="b-p" placeholder="P"><input type="number" id="b-e" placeholder="EXP"></div>
             </div>
-            <p style="font-size:0.8rem; color:#666; margin-top:10px;">대상 용사 선택:</p>
-            <div id="modal-student-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 5px; border-radius: 8px;"></div>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button onclick="applyPoints()" style="background:var(--gold); color:var(--dark);">지급하기</button>
-                <button onclick="document.getElementById('point-modal').style.display='none'" style="background:#95a5a6;">취소</button>
+            <input type="text" id="m-reason" placeholder="지급 사유 입력">
+            <div id="modal-list-area" style="max-height: 300px; overflow-y: auto; margin: 10px 0; border: 1px solid #eee; border-radius: 8px; padding: 5px;"></div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="applyPoints()" style="background:var(--gold); color:var(--dark);">하사하기</button>
+                <button onclick="document.getElementById('point-modal').style.display='none'" style="background:#95a5a6;">닫기</button>
             </div>
         </div>
     </div>
 
     <div id="login-screen">
-        <div class="login-box">
-            <h1>🏰<br>6-6 용사 본부</h1>
-            <button onclick="handleLogin()" style="background:#4285F4; padding:15px; font-size:1.1rem; border-radius:10px;">Google 로그인</button>
-        </div>
+        <div class="login-box"><h1>🏰<br>6-6 용사 본부</h1><button onclick="handleLogin()" style="background:#4285F4;">Google 로그인</button></div>
     </div>
 
     <div id="main-app">
@@ -97,51 +93,37 @@
         </nav>
 
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
-
+        
         <section id="tab-jobs" class="tab-content">
-            <div id="admin-job-mgr" class="card" style="display:none; border:2px solid var(--purple);">
-                <h3>🆕 직업 등록</h3>
-                <input type="text" id="job-name-in" placeholder="직업명 (예: 전사)">
-                <textarea id="job-desc-in" placeholder="설명 및 혜택"></textarea>
-                <button onclick="addJob()" style="background:var(--purple);">등록</button>
-            </div>
+            <div id="admin-job-mgr" style="display:none;" class="card"><h3>🆕 직업 등록</h3><input type="text" id="j-n" placeholder="직업명"><textarea id="j-d" placeholder="설명"></textarea><button onclick="addJob()">등록</button></div>
             <div class="card"><h2>💼 직업 도감</h2><div id="job-list-display"></div></div>
         </section>
 
         <section id="tab-shop" class="tab-content">
-            <div id="admin-shop-mgr" class="card" style="display:none; border:2px solid var(--purple);">
-                <h3>📦 물품 등록</h3>
-                <input type="text" id="item-name-in" placeholder="상품명">
-                <input type="number" id="item-price-in" placeholder="가격 (P)">
-                <button onclick="addItem()" style="background:var(--purple);">진열</button>
-            </div>
+            <div id="admin-shop-mgr" style="display:none;" class="card"><h3>📦 물품 등록</h3><input type="text" id="i-n" placeholder="상품명"><input type="number" id="i-p" placeholder="가격"><button onclick="addItem()">진열</button></div>
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
         </section>
 
         <section id="tab-checkin" class="tab-content">
-            <div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="margin-bottom:10px; font-weight:bold;"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호"><button onclick="submitCheckIn()" style="padding:15px; font-size:1.1rem;">본부 소환!</button></div>
-            <div id="admin-checkin-log" style="display:none;" class="card"><h3>📅 오늘의 등교 현황</h3><div id="checkin-list-area"></div></div>
+            <div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호"><button onclick="submitCheckIn()">본부 소환!</button></div>
+            <div id="admin-checkin-log" style="display:none;" class="card"><h3>📅 등교 현황</h3><div id="checkin-list-area"></div></div>
         </section>
 
         <section id="tab-points" class="tab-content">
-            <div id="admin-p-area" style="display:none; flex-direction:column; gap:10px;">
-                <div class="card" style="border:2px solid var(--gold);">
-                    <h3>⚙️ 자주 쓰는 포인트 설정</h3>
-                    <div style="display:flex; gap:5px;"><input type="text" id="pre-name" placeholder="항목명"><input type="number" id="pre-p" placeholder="P" style="width:60px;"><input type="number" id="pre-e" placeholder="E" style="width:60px;"></div>
-                    <button onclick="savePreset()" style="background:var(--gold); color:var(--dark);">프리셋 저장</button>
-                </div>
-                <button onclick="openPointModal()" style="padding:20px; font-size:1.2rem; background:var(--primary);">⚡ 포인트 지급 모드 실행</button>
+            <div id="admin-p-area" style="display:none; gap:10px;">
+                <button onclick="openPointModal('bulk')" style="flex:1; background:var(--gold); color:var(--dark); padding:20px;">⚡ 일괄 지급</button>
+                <button onclick="openPointModal('each')" style="flex:1; background:var(--primary); padding:20px;">📝 개별 지급</button>
             </div>
         </section>
 
         <section id="tab-admin" class="tab-content">
-            <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine"></textarea><button onclick="saveSettings()">저장</button></div>
-            <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
+            <div class="card"><h3>👥 명단 관리 (번호 즉시 수정)</h3><div id="student-admin-list"></div></div>
+            <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" placeholder="이름,이메일 (줄바꿈으로 구분)"></textarea><button onclick="bulkReg()">일괄 주입</button></div>
+            <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="c-pw"> 지각:<input type="time" id="c-lt"> 마감:<input type="time" id="c-ct"> 루틴:<textarea id="c-rt"></textarea><button onclick="saveSettings()">저장</button></div>
         </section>
     </div>
 
     <script>
-    // 1. 초기화
     const firebaseConfig = {
         apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
         authDomain: "cs6-6class.firebaseapp.com",
@@ -155,13 +137,11 @@
     const db = firebase.database();
     const auth = firebase.auth();
     const provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-
     const adminEmail = "ksosuny@cberi.go.kr";
-    let myName = "", isAdmin = false, myData = {};
+    let myName = "", isAdmin = false, currentMode = 'bulk';
 
-    // 2. 로그인 & 권한
     function handleLogin() { auth.signInWithPopup(provider).catch(e => auth.signInWithRedirect(provider)); }
+
     auth.onAuthStateChanged(user => {
         if (user) {
             isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
@@ -173,155 +153,117 @@
         } else { document.getElementById('login-screen').style.display='flex'; document.getElementById('main-app').style.display='none'; }
     });
 
-    // 3. 메인 로직
     function startApp() {
         document.getElementById('login-screen').style.display='none';
         document.getElementById('main-app').style.display='block';
         if (isAdmin) {
-            document.getElementById('btn-admin').style.display='block';
-            document.getElementById('admin-p-area').style.display='flex';
-            document.getElementById('admin-job-mgr').style.display='block';
-            document.getElementById('admin-shop-mgr').style.display='block';
-            document.getElementById('admin-checkin-log').style.display='block';
+            ['btn-admin', 'admin-p-area', 'admin-job-mgr', 'admin-shop-mgr', 'admin-checkin-log'].forEach(id => {
+                document.getElementById(id).style.display = (id === 'admin-p-area' ? 'flex' : 'block');
+            });
         }
 
-        // 실시간 사용자 정보 감시 (레벨업 체크 포함)
-        db.ref('users/' + myName).on('value', sn => {
-            const newData = sn.val();
-            if(!isAdmin && myData.lv && newData.lv > myData.lv) {
-                showLevelUpPopup(newData.lv);
-            }
-            myData = newData || {};
-        });
-
-        // 용사들 목록
         db.ref('users').on('value', sn => {
             let list = [], gH = "", aH = "";
             sn.forEach(c => list.push(c.val()));
-            list.sort((a,b)=>(a.no||999)-(b.no||999));
+            list.sort((a,b) => (parseInt(a.no)||999) - (parseInt(b.no)||999));
             list.forEach(u => {
-                gH += `<div class="hero-card ${u.name===myName?'me':''}">
-                    <span class="card-lv">LV.${u.lv}</span>
-                    <span class="card-avatar">🥚</span><div class="card-name"><b>${u.name}</b></div>
-                    <div style="color:var(--primary); font-weight:bold;">${u.points||0} P / ${u.exp||0}%</div>
+                gH += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openProfile('${u.name}')">
+                    <span class="card-lv">LV.${u.lv}</span><span class="card-avatar">🥚</span>
+                    <div class="card-name">${u.no||'?'}. <b>${u.name}</b></div>
+                    <div style="color:var(--primary); font-weight:bold;">${u.points||0}P / ${u.exp||0}%</div>
                 </div>`;
-                if(isAdmin) aH += `<div class="card">${u.no}. ${u.name} <button onclick="deleteHero('${u.name}')" style="background:red; width:auto;">삭제</button></div>`;
+                if(isAdmin) aH += `<div class="list-item">
+                    <input type="number" id="no-${u.name}" value="${u.no||''}" style="width:50px; text-align:center;" onchange="updateNo('${u.name}', this.value)">
+                    <span style="flex:1; margin-left:10px;">${u.name}</span>
+                    <button onclick="deleteHero('${u.name}', '${u.email}')" style="background:var(--red); width:auto;">삭제</button>
+                </div>`;
             });
             document.getElementById('hero-grid').innerHTML = gH;
-            if(isAdmin) document.getElementById('student-admin-list').innerHTML = aH;
+            document.getElementById('student-admin-list').innerHTML = aH;
         });
 
-        loadPresets(); loadShop(); loadJobs();
+        db.ref('settings').on('value', sn => {
+            const s = sn.val() || {};
+            document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime||'08:40'} | ⚠️ 지각: ~${s.closeTime||'09:00'}`;
+        });
     }
 
-    // 4. 포인트 프리셋 기능
-    function savePreset() {
-        const n = document.getElementById('pre-name').value;
-        const p = parseInt(document.getElementById('pre-p').value)||0;
-        const e = parseInt(document.getElementById('pre-e').value)||0;
-        if(!n) return;
-        db.ref('presets').push({n, p, e}).then(() => { alert("저장됨!"); loadPresets(); });
-    }
-
-    function loadPresets() {
-        db.ref('presets').on('value', sn => {
-            let h = "";
-            sn.forEach(c => {
-                const v = c.val();
-                h += `<div class="preset-card" onclick="setPreset('${v.n}', ${v.p}, ${v.e})">
-                    <b>${v.n}</b><br><small>${v.p}P / ${v.e}E</small>
-                </div>`;
+    function openProfile(name) {
+        if (!isAdmin && name !== myName) return alert("다른 용사의 정보는 볼 수 없습니다.");
+        document.getElementById('profile-modal').style.display = 'flex';
+        document.getElementById('prof-name').innerText = name + " 용사";
+        db.ref('users/' + name).once('value', sn => {
+            const u = sn.val();
+            document.getElementById('prof-points').innerText = u.points || 0;
+            document.getElementById('prof-lv').innerText = "LV." + (u.lv || 1);
+            document.getElementById('prof-exp').innerText = (u.exp || 0) + "%";
+        });
+        db.ref('pointLogs').orderByChild('name').equalTo(name).once('value', sn => {
+            let h = ""; let logs = []; sn.forEach(c => { let v = c.val(); v.key = c.key; logs.push(v); });
+            logs.reverse().forEach(l => {
+                h += `<div class="list-item"><span>${l.pAmt}P (${l.reason})</span>
+                ${isAdmin ? `<button onclick="cancelP('${l.key}','${name}',${l.pAmt},${l.eAmt})" style="background:red; width:auto; font-size:0.7rem;">취소</button>` : ''}</div>`;
             });
-            document.getElementById('preset-area').innerHTML = h;
+            document.getElementById('prof-history').innerHTML = h || "기록 없음";
         });
     }
 
-    function setPreset(n, p, e) {
-        document.getElementById('m-p-val').value = p;
-        document.getElementById('m-e-val').value = e;
-        document.getElementById('m-reason').value = n;
-    }
-
-    function openPointModal() {
-        document.getElementById('point-modal').style.display='flex';
+    function openPointModal(mode) {
+        currentMode = mode;
+        document.getElementById('point-modal').style.display = 'flex';
+        document.getElementById('bulk-input-area').style.display = (mode === 'bulk' ? 'block' : 'none');
         db.ref('users').once('value', sn => {
             let h = "";
-            sn.forEach(c => { h += `<div class="student-chip" onclick="this.classList.toggle('selected')" data-name="${c.key}">${c.key}</div>`; });
-            document.getElementById('modal-student-list').innerHTML = h;
+            sn.forEach(c => {
+                const u = c.val();
+                if(mode === 'bulk') h += `<div class="student-chip" onclick="this.classList.toggle('selected')" data-name="${u.name}">${u.name}</div>`;
+                else h += `<div class="list-item"><span>${u.name}</span><div style="display:flex; gap:5px;"><input type="number" class="e-p" data-name="${u.name}" placeholder="P" style="width:60px;"><input type="number" class="e-e" data-name="${u.name}" placeholder="E" style="width:60px;"></div></div>`;
+            });
+            document.getElementById('modal-list-area').innerHTML = h;
         });
     }
 
     async function applyPoints() {
-        const p = parseInt(document.getElementById('m-p-val').value)||0;
-        const e = parseInt(document.getElementById('m-e-val').value)||0;
-        const r = document.getElementById('m-reason').value;
-        const selected = document.querySelectorAll('.student-chip.selected');
-        if(!r || selected.length === 0) return alert("사유와 대상을 선택하세요!");
-
-        for(let chip of selected) {
-            const name = chip.dataset.name;
-            const sn = await db.ref('users/'+name).once('value');
-            const u = sn.val();
-            let nP = (u.points||0)+p, nE = (u.exp||0)+e, nL = (u.lv||1);
-            while(nE>=100){ nL++; nE-=100; }
-            await db.ref('users/'+name).update({points:nP, exp:nE, lv:nL});
-            await db.ref('pointLogs').push({name, pAmt:p, eAmt:e, reason:r, time:new Date().toLocaleString()});
+        const reason = document.getElementById('m-reason').value;
+        if(!reason) return alert("사유 입력 필수!");
+        const time = new Date().toLocaleString();
+        if(currentMode === 'bulk') {
+            const p = parseInt(document.getElementById('b-p').value)||0;
+            const e = parseInt(document.getElementById('b-e').value)||0;
+            for(let chip of document.querySelectorAll('.student-chip.selected')) await updateP(chip.dataset.name, p, e, reason, time);
+        } else {
+            for(let inp of document.querySelectorAll('.e-p')) {
+                const n = inp.dataset.name; const p = parseInt(inp.value)||0;
+                const e = parseInt(document.querySelector(`.e-e[data-name="${n}"]`).value)||0;
+                if(p!==0 || e!==0) await updateP(n, p, e, reason, time);
+            }
         }
-        document.getElementById('point-modal').style.display='none';
-        alert("하사 완료!");
+        document.getElementById('point-modal').style.display = 'none'; alert("완료");
     }
 
-    // 5. 레벨업 깜짝 선물
-    const gifts = ["💎 전설의 보물상자", "🎫 면제권 1매", "🍬 사탕 주머니", "⚔️ 전설의 무기", "🛡️ 수호의 방패"];
-    function showLevelUpPopup(lv) {
-        document.getElementById('level-up-overlay').style.display='flex';
-        document.getElementById('gift-animation-area').style.display='block';
-        document.getElementById('gift-result-area').style.display='none';
+    async function updateP(name, p, e, r, t) {
+        const sn = await db.ref('users/'+name).once('value'); const u = sn.val();
+        let nP = (u.points||0)+p, nE = (u.exp||0)+e, nL = (u.lv||1);
+        while(nE >= 100) { nL++; nE -= 100; }
+        await db.ref('users/'+name).update({points:nP, exp:nE, lv:nL});
+        await db.ref('pointLogs').push({name, pAmt:p, eAmt:e, reason:r, time:t});
     }
-    function openGift() {
-        const gift = gifts[Math.floor(Math.random()*gifts.length)];
-        document.getElementById('gift-name').innerText = gift;
-        document.getElementById('gift-animation-area').style.display='none';
-        document.getElementById('gift-result-area').style.display='block';
-        // 로그에 기록
-        db.ref('pointLogs').push({name:myName, reason:"🎁 레벨업 보상: " + gift, time:new Date().toLocaleString()});
-    }
-    function closeGiftPopup() { document.getElementById('level-up-overlay').style.display='none'; }
 
-    // 6. 상점 & 직업 복구
-    function addItem() {
-        const n = document.getElementById('item-name-in').value;
-        const p = document.getElementById('item-price-in').value;
-        if(n&&p) db.ref('shop').push({n, p}).then(()=>alert("진열됨"));
-    }
-    function loadShop() {
-        db.ref('shop').on('value', sn => {
-            let h = "";
-            sn.forEach(c => { const v=c.val(); h+=`<div class="list-item"><b>${v.n}</b> <span>${v.p}P</span></div>`; });
-            document.getElementById('shop-list').innerHTML = h || "상점이 텅 비었습니다.";
+    function updateNo(name, val) { db.ref('users/'+name).update({no: val}); }
+    function bulkReg() {
+        document.getElementById('bulk-in').value.trim().split('\n').forEach(line => {
+            const [n, e] = line.split(',');
+            if(n && e) {
+                db.ref('userEmails/'+e.trim().replace(/\./g,',')).set(n.trim());
+                db.ref('users/'+n.trim()).update({name:n.trim(), email:e.trim(), lv:1, points:0, exp:0});
+            }
         });
+        alert("등록 완료");
     }
-    function addJob() {
-        const n = document.getElementById('job-name-in').value;
-        const d = document.getElementById('job-desc-in').value;
-        if(n&&d) db.ref('jobs').push({n, d}).then(()=>alert("등록됨"));
-    }
-    function loadJobs() {
-        db.ref('jobs').on('value', sn => {
-            let h = "";
-            sn.forEach(c => { const v=c.val(); h+=`<div class="card"><b>${v.n}</b><p>${v.d}</p></div>`; });
-            document.getElementById('job-list-display').innerHTML = h || "직업이 없습니다.";
-        });
-    }
-
-    // 탭 전환 및 기타
-    function showTab(t) {
-        document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
-        document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active'));
-        document.getElementById('tab-'+t).classList.add('active');
-        document.getElementById('btn-'+t).classList.add('active');
-    }
-    function closePopup() { document.getElementById('common-overlay').style.display='none'; }
+    function cancelP(key, n, p, e) { if(confirm("취소?")) { db.ref('users/'+n).once('value', sn => { const u=sn.val(); db.ref('users/'+n).update({points:u.points-p, exp:u.exp-e}); db.ref('pointLogs/'+key).remove(); openProfile(n); }); } }
+    function deleteHero(n, e) { if(confirm(n+" 삭제?")) { db.ref('users/'+n).remove(); db.ref('userEmails/'+e.replace(/\./g,',')).remove(); } }
+    function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
+    function saveSettings() { db.ref('settings').update({password:document.getElementById('c-pw').value, lateTime:document.getElementById('c-lt').value, closeTime:document.getElementById('c-ct').value, routineText:document.getElementById('c-rt').value}).then(()=>alert("저장됨")); }
     </script>
 </body>
 </html>
