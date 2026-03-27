@@ -25,4 +25,217 @@
         .card-lv { font-size: 0.75rem; background: var(--dark); color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
         .card-avatar { font-size: 3rem; margin-bottom: 8px; display: block; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        input, button, textarea, select { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border:
+        input, button, textarea, select { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; gap: 8px; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
+        .popup-box { background: white; padding: 25px; border-radius: 20px; width: 90%; max-width: 450px; text-align: center; max-height: 85vh; overflow-y: auto; }
+        .pixel-avatar { width: 48px; height: 48px; background-image: url('avatars.png'); background-repeat: no-repeat; background-size: 288px 48px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
+        .avatar-lv1 { background-position: 0px 0px; }
+        .avatar-lv5 { background-position: -48px 0px; }
+        .avatar-lv10 { background-position: -96px 0px; }
+        .avatar-lv15 { background-position: -144px 0px; }
+        .avatar-lv20 { background-position: -192px 0px; }
+        .avatar-lv30 { background-position: -240px 0px; }
+        .student-chip { display: inline-block; padding: 8px 12px; margin: 4px; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
+        .student-chip.selected { background: var(--gold); border-color: var(--dark); font-weight: bold; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <!-- 알림 팝업 -->
+    <div id="common-overlay" class="overlay">
+        <div class="popup-box"><h2 id="pop-title">알림</h2><div id="pop-content" style="margin-bottom: 20px; white-space: pre-wrap; font-size: 1.1rem;"></div><button onclick="closePopup()" style="background:var(--green); font-size: 1.1rem; padding: 12px;">확인</button></div>
+    </div>
+
+    <!-- [추가] 용사 상세 프로필 팝업 -->
+    <div id="profile-modal" class="overlay">
+        <div class="popup-box" style="text-align: left; max-width: 500px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 id="prof-name" style="margin:0;">용사 정보</h2>
+                <button onclick="document.getElementById('profile-modal').style.display='none'" style="width:auto; background:#95a5a6; padding:5px 15px;">닫기</button>
+            </div>
+            <hr>
+            <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
+                <p><strong>현재 직업:</strong> <span id="prof-job"></span></p>
+                <p><strong>보유 포인트:</strong> <span id="prof-points" style="color:var(--primary); font-weight:bold;"></span> P</p>
+                <p><strong>현재 레벨:</strong> <span id="prof-lv"></span> (EXP: <span id="prof-exp"></span>)</p>
+            </div>
+            <h3>📜 포인트 획득 기록</h3>
+            <div id="prof-history" style="max-height: 300px; overflow-y: auto; font-size:0.9rem;"></div>
+        </div>
+    </div>
+
+    <!-- 포인트 지급 팝업 -->
+    <div id="point-modal" class="overlay">
+        <div class="popup-box" style="text-align: left;">
+            <h2 id="modal-title" style="text-align: center;">⚡ 포인트 전령</h2>
+            <div id="bulk-input-area" style="background: #f9f9f9; padding: 10px; border-radius: 10px; margin-bottom: 15px; display: none;">
+                <div style="display: flex; gap: 5px;">
+                    <input type="number" id="bulk-p-val" placeholder="P"><input type="number" id="bulk-e-val" placeholder="EXP">
+                </div>
+            </div>
+            <div style="margin-bottom: 10px;"><strong>사유:</strong> <input type="text" id="modal-reason" placeholder="사유 입력"></div>
+            <div id="modal-student-list" style="max-height: 350px; overflow-y: auto; border: 1px solid #eee; padding: 5px; border-radius: 8px;"></div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button onclick="applyModalPoints()" style="background:var(--gold); color:var(--dark);">하사하기</button>
+                <button onclick="document.getElementById('point-modal').style.display='none'" style="background:#95a5a6;">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h1>🏰<br>6-6 용사 본부</h1>
+            <button onclick="handleLogin()" style="background:#4285F4; margin-top:20px; padding:15px; font-size:1.1rem; border-radius:10px;">Google 로그인</button>
+        </div>
+    </div>
+
+    <div id="main-app">
+        <nav class="tab-menu">
+            <button id="btn-main" class="active" onclick="showTab('main')">🤺 용사들</button>
+            <button id="btn-jobs" onclick="showTab('jobs')">💼 직업</button>
+            <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
+            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+            <button id="btn-points" onclick="showTab('points')">💰 포인트</button>
+            <button id="btn-admin" onclick="showTab('admin')" style="display:none;">🛡️ 관리</button>
+        </nav>
+        <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
+        <section id="tab-jobs" class="tab-content"><div id="admin-job-mgr" class="card" style="display:none; border:2px solid var(--purple);"><h3>🆕 직업 등록</h3><input type="text" id="job-name-in" placeholder="직업명"><textarea id="job-desc-in" placeholder="설명"></textarea><button onclick="addJob()">등록</button></div><div class="card"><h2>💼 직업 도감</h2><div id="job-list-display"></div></div></section>
+        <section id="tab-shop" class="tab-content"><div id="admin-shop-mgr" class="card" style="display:none; border:2px solid var(--purple);"><h3>📦 물품 등록</h3><input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격"><button onclick="addItem()" style="background:var(--purple);">진열</button></div><div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div></section>
+        <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="margin-bottom:10px; font-weight:bold;"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호"><button onclick="submitCheckIn()" style="padding:15px; font-size:1.1rem;">본부 소환!</button></div></section>
+        <section id="tab-points" class="tab-content"><div id="admin-p-area" style="display:none; display: flex; gap: 10px;"><button onclick="openPointModal('bulk')" style="flex:1; background:var(--gold); color:var(--dark);">⚡ 일괄 부여</button><button onclick="openPointModal('each')" style="flex:1; background:var(--primary);">📝 개별 부여</button></div><p style="text-align:center; color:#888; margin-top:50px;">포인트 상세 기록은 [용사들] 탭에서<br>자신의 카드를 클릭하면 볼 수 있습니다!</p></section>
+        <section id="tab-admin" class="tab-content">
+            <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine"></textarea><button onclick="saveSettings()">저장</button></div>
+            <div class="card"><h3>👥 명단 관리 (번호/이름 수정)</h3><div id="student-admin-list" style="max-height: 500px; overflow-y: auto;"></div></div>
+            <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
+        </section>
+    </div>
+
+    <script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
+        authDomain: "cs6-6class.firebaseapp.com",
+        databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
+        projectId: "cs6-6class",
+        storageBucket: "cs6-6class.firebasestorage.app",
+        messagingSenderId: "644235499537",
+        appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0"
+    };
+
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.database();
+    const auth = firebase.auth();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' }); 
+
+    const adminEmail = "ksosuny@cberi.go.kr";
+    let myName = "", isAdmin = false, currentMode = 'bulk';
+
+    function getAutoJob(lv, assignedJob) {
+        if (assignedJob && assignedJob !== "알" && assignedJob !== "평민") return assignedJob;
+        if (lv >= 30) return "👑 전설의 용사";
+        if (lv >= 20) return "🔥 숙련된 용사";
+        if (lv >= 15) return "⚔️ 초보 용사";
+        if (lv >= 10) return "🐥 부화한 용사";
+        if (lv >= 5)  return "🐣 금이 간 알";
+        return "🥚 신비한 알";
+    }
+
+    function getAvatar(lv) {
+        let lvClass = "avatar-lv1";
+        if(lv >= 30) lvClass = "avatar-lv30"; else if(lv >= 20) lvClass = "avatar-lv20"; else if(lv >= 15) lvClass = "avatar-lv15"; else if(lv >= 10) lvClass = "avatar-lv10"; else if(lv >= 5) lvClass = "avatar-lv5";
+        return `<div class="pixel-avatar ${lvClass}"></div>`;
+    }
+
+    function handleLogin() { 
+        auth.signInWithPopup(provider).catch(e => { auth.signInWithRedirect(provider); }); 
+    }
+
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
+            const eKey = user.email.replace(/\./g, ',');
+            db.ref('userEmails/' + eKey).once('value', (snap) => {
+                if (snap.exists() || isAdmin) {
+                    myName = snap.val() || "총사령관";
+                    startApp();
+                } else { alert("미등록 계정입니다."); auth.signOut(); }
+            });
+        } else {
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('main-app').style.display = 'none';
+        }
+    });
+
+    function startApp() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'block';
+        if (isAdmin) {
+            document.getElementById('btn-admin').style.display = 'block';
+            document.getElementById('admin-p-area').style.display = 'flex';
+        }
+
+        db.ref('users').on('value', snap => {
+            let users = [];
+            snap.forEach(c => { if(c.val() && c.val().name) users.push(c.val()); });
+            users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
+            let gH = "", aH = "";
+            users.forEach(u => {
+                gH += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openProfile('${u.name}')" style="cursor:pointer;">
+                    <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv}</span>
+                    <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
+                    <div style="font-size:0.8rem; color:#888;">${getAutoJob(u.lv, u.job)}</div>
+                    <div style="font-weight:bold; color:var(--primary);">${u.points || 0} P</div>
+                </div>`;
+                if(isAdmin) {
+                    aH += `<div class="list-item"><div style="display:flex; align-items:center; gap:10px; flex:1;"><input type="number" id="no-${u.name}" value="${u.no || ''}" style="width:60px;"><strong>${u.name}</strong></div>
+                    <div style="display:flex; gap:5px;"><button onclick="saveHeroNo('${u.name}')" style="background:var(--green); width:auto;">저장</button><button onclick="editHeroName('${u.name}', '${u.email}')" style="background:var(--primary); width:auto;">이름</button><button onclick="deleteHero('${u.name}', '${u.email}')" style="background:var(--red); width:auto;">삭제</button></div></div>`;
+                }
+            });
+            document.getElementById('hero-grid').innerHTML = gH;
+            if(isAdmin) document.getElementById('student-admin-list').innerHTML = aH;
+        });
+
+        db.ref('settings').on('value', snap => {
+            const s = snap.val() || {};
+            const guide = document.getElementById('checkin-guide');
+            if(guide) guide.innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ~${s.closeTime || '09:00'}`;
+        });
+    }
+
+    function openProfile(targetName) {
+        if (!isAdmin && targetName !== myName) { alert("비밀입니다! 🤫"); return; }
+        document.getElementById('profile-modal').style.display = 'flex';
+        document.getElementById('prof-name').innerText = `🤺 ${targetName} 용사 정보`;
+        db.ref('users/' + targetName).once('value', sn => {
+            const u = sn.val(); if(!u) return;
+            document.getElementById('prof-job').innerText = getAutoJob(u.lv, u.job);
+            document.getElementById('prof-points').innerText = (u.points || 0).toLocaleString();
+            document.getElementById('prof-lv').innerText = "LV." + (u.lv || 1);
+            document.getElementById('prof-exp').innerText = (u.exp || 0) + "%";
+        });
+        db.ref('pointLogs').orderByChild('name').equalTo(targetName).once('value', sn => {
+            let h = ""; let logs = []; sn.forEach(c => { logs.push(c.val()); });
+            logs.reverse().forEach(log => {
+                const isPlus = (log.pAmt || 0) >= 0;
+                h += `<div class="list-item"><div><span style="color:${isPlus?'#2ecc71':'#e74c3c'}; font-weight:bold;">${isPlus?'▲':'▼'} ${Math.abs(log.pAmt)}P</span> <span style="margin-left:8px;">${log.reason}</span><br><small style="color:#aaa;">${log.time}</small></div></div>`;
+            });
+            document.getElementById('prof-history').innerHTML = h || "기록 없음";
+        });
+    }
+
+    function saveHeroNo(name) { db.ref('users/' + name).update({ no: document.getElementById('no-' + name).value }).then(() => alert("저장!")); }
+    function editHeroName(oName, email) { const nName = prompt("새 이름?", oName); if(nName) { db.ref('users/'+oName).once('value', sn=>{ let d=sn.val(); d.name=nName; db.ref('users/'+nName).set(d).then(()=>{ db.ref('users/'+oName).remove(); db.ref('userEmails/'+email.replace(/\./g,',')).set(nName); }); }); } }
+    function deleteHero(name, email) { if(confirm(name+" 삭제?")) { db.ref('users/'+name).remove(); if(email) db.ref('userEmails/'+email.replace(/\./g,',')).remove(); } }
+    function openPointModal(mode) { currentMode = mode; document.getElementById('point-modal').style.display = 'flex'; document.getElementById('bulk-input-area').style.display = (mode === 'bulk' ? 'block' : 'none'); db.ref('users').once('value', snap => { let h = ""; snap.forEach(c => { const u = c.val(); if(mode==='bulk') h += `<div class="student-chip" onclick="this.classList.toggle('selected')" data-name="${u.name}">${u.name}</div>`; else h += `<div class="list-item">${u.name} <input type="number" class="m-p-amt" data-name="${u.name}" placeholder="P" style="width:60px;"> <input type="number" class="m-e-amt" data-name="${u.name}" placeholder="E" style="width:60px;"></div>`; }); document.getElementById('modal-student-list').innerHTML = h; }); }
+    async function applyModalPoints() { const r = document.getElementById('modal-reason').value; if(!r) return alert("사유!"); const t = new Date().toLocaleString(); if(currentMode==='bulk') { const p=parseInt(document.getElementById('bulk-p-val').value)||0; const e=parseInt(document.getElementById('bulk-e-val').value)||0; for(let chip of document.querySelectorAll('.student-chip.selected')) await updatePoints(chip.dataset.name, p, e, r, t); } else { for(let inp of document.querySelectorAll('.m-p-amt')) { const n=inp.dataset.name; const p=parseInt(inp.value)||0; const e=parseInt(document.querySelector(`.m-e-amt[data-name="${n}"]`).value)||0; if(p!==0||e!==0) await updatePoints(n, p, e, r, t); } } document.getElementById('point-modal').style.display='none'; alert("완료!"); }
+    async function updatePoints(n, p, e, r, t) { const sn=await db.ref('users/'+n).once('value'); const u=sn.val()||{}; let nP=(u.points||0)+p, nE=(u.exp||0)+e, nL=(u.lv||1); while(nE>=100){ nL++; nE-=100; } await db.ref('users/'+n).update({points:nP, exp:nE, lv:nL}); await db.ref('pointLogs').push({name:n, pAmt:p, eAmt:e, reason:r, time:t}); }
+    function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
+    function closePopup() { document.getElementById('common-overlay').style.display = 'none'; }
+    function saveSettings() { db.ref('settings').update({password:document.getElementById('conf-pass').value, lateTime:document.getElementById('conf-late').value, closeTime:document.getElementById('conf-close').value, routineText:document.getElementById('conf-routine').value}).then(()=>alert("저장됨")); }
+    function bulkReg() { document.getElementById('bulk-in').value.trim().split('\n').forEach(l => { const [n, e] = l.split(','); if(n&&e) { db.ref('userEmails/'+e.trim().replace(/\./g,',')).set(n.trim()); db.ref('users/'+n.trim()).update({name:n.trim(), email:e.trim(), points:0, exp:0, lv:1}); } }); alert("완료!"); }
+    </script>
+</body>
+</html>
