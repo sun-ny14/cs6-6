@@ -39,6 +39,7 @@
 </head>
 <body>
 
+    <!-- 프로필 팝업 -->
     <div id="profile-modal" class="overlay">
         <div class="popup-box" style="text-align: left;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -55,6 +56,7 @@
         </div>
     </div>
 
+    <!-- 레벨업 팝업 -->
     <div id="level-up-overlay" class="overlay">
         <div class="popup-box">
             <h1 style="color:var(--gold);">🎊 LEVEL UP! 🎊</h1>
@@ -65,10 +67,10 @@
         </div>
     </div>
 
+    <!-- 포인트 지급 팝업 -->
     <div id="point-modal" class="overlay">
         <div class="popup-box" style="text-align: left;">
             <h2 id="modal-title" style="text-align:center;">⚡ 포인트 전령</h2>
-            
             <div id="bulk-input-area" style="background:#f9f9f9; padding:10px; border-radius:10px; margin-bottom:10px; display:none;">
                 <p style="margin:0 0 5px 0; font-size:0.8rem; color:#666;">직접 입력 또는 아래 프리셋 선택</p>
                 <div style="display:flex; gap:5px;"><input type="number" id="b-p" placeholder="P"><input type="number" id="b-e" placeholder="EXP"></div>
@@ -76,11 +78,9 @@
                 <button onclick="savePreset()" style="background:var(--purple); margin-top:5px; font-size:0.8rem;">현재 항목을 카드로 저장</button>
                 <div id="preset-list" style="margin-top:10px; max-height:120px; overflow-y:auto;"></div>
             </div>
-
             <div id="modal-list-area" style="max-height: 250px; overflow-y: auto; margin: 10px 0; border: 1px solid #eee; border-radius: 8px; padding: 5px;"></div>
-            
             <div style="display:flex; gap:10px;">
-                <button onclick="applyPoints()" style="background:var(--gold); color:var(--dark);">하사하기</button>
+                <button onclick="applyPoints()" id="point-submit-btn" style="background:var(--gold); color:var(--dark);">하사하기</button>
                 <button onclick="document.getElementById('point-modal').style.display='none'" style="background:#95a5a6;">닫기</button>
             </div>
         </div>
@@ -112,17 +112,15 @@
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
         </section>
 
-       <section id="tab-checkin" class="tab-content">
-    <div class="card">
-        <h2>⚔️ 등교 확인</h2>
-        <!-- 116, 117번 줄을 지우고 아래 한 줄만 남기세요 -->
-        <div id="checkin-guide" style="margin-bottom:15px; font-weight:bold; color:var(--primary);"></div>
-        
-        <input type="text" id="checkin-pass" placeholder="오늘의 암호">
-        <button onclick="submitCheckIn()" style="padding:15px; font-size:1.1rem;">본부 소환!</button>
-    </div>
-    <div id="admin-checkin-log" style="display:none;" class="card"><h3>📅 등교 현황</h3><div id="checkin-list-area"></div></div>
-</section>
+        <section id="tab-checkin" class="tab-content">
+            <div class="card">
+                <h2>⚔️ 등교 확인</h2>
+                <div id="checkin-guide" style="margin-bottom:15px; font-weight:bold; color:var(--primary);"></div>
+                <input type="text" id="checkin-pass" placeholder="오늘의 암호">
+                <button onclick="submitCheckIn()" style="padding:15px; font-size:1.1rem;">본부 소환!</button>
+            </div>
+            <div id="admin-checkin-log" style="display:none;" class="card"><h3>📅 등교 현황</h3><div id="checkin-list-area"></div></div>
+        </section>
 
         <section id="tab-points" class="tab-content">
             <div id="admin-p-area" style="display:none; gap:10px;">
@@ -170,34 +168,21 @@
     });
 
     function startApp() {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('main-app').style.display = 'block';
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'block';
 
-    if (isAdmin) {
-        // 관리자용 버튼들 노출
-        ['btn-admin', 'btn-points', 'admin-p-area', 'admin-job-mgr', 'admin-shop-mgr', 'admin-checkin-log'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.style.display = (id === 'admin-p-area' ? 'flex' : 'block');
-        });
-        loadAdminGifts();
-    } else {
-        // 학생일 경우: 포인트 탭과 관리 탭 버튼을 아예 숨김
-        if(document.getElementById('btn-points')) document.getElementById('btn-points').style.display = 'none';
-        if(document.getElementById('btn-admin')) document.getElementById('btn-admin').style.display = 'none';
-        
-        // 만약 학생이 주소창 등으로 강제 진입 시 '용사들' 탭으로 튕겨내기
-        showTab('main');
-    }
-    
-    loadPresets(); loadShop(); loadJobs();
-}
-        loadAdminGifts();
-    } else {
-        // 학생일 때는 상단 메뉴에서 포인트 버튼을 숨김
-        const btnPoints = document.getElementById('btn-points');
-        if(btnPoints) btnPoints.style.display = 'none';
-    }
-    // 이 뒤에 이어지는 db.ref('users').on... 부분은 그대로 두시면 됩니다!
+        if (isAdmin) {
+            ['btn-admin', 'btn-points', 'admin-p-area', 'admin-job-mgr', 'admin-shop-mgr', 'admin-checkin-log'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.style.display = (id === 'admin-p-area' ? 'flex' : 'block');
+            });
+            loadAdminGifts();
+        } else {
+            // 학생일 경우: 포인트 탭과 관리 탭 버튼을 아예 숨김
+            if(document.getElementById('btn-points')) document.getElementById('btn-points').style.display = 'none';
+            if(document.getElementById('btn-admin')) document.getElementById('btn-admin').style.display = 'none';
+            showTab('main');
+        }
 
         db.ref('users').on('value', sn => {
             let list = [], gH = "", aH = "";
@@ -218,8 +203,59 @@
             document.getElementById('hero-grid').innerHTML = gH || "학생을 등록해주세요.";
             if(isAdmin) document.getElementById('student-admin-list').innerHTML = aH;
         });
+
+        db.ref('settings').on('value', sn => {
+            const s = sn.val() || {};
+            const guide = document.getElementById('checkin-guide');
+            if(guide) guide.innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ~${s.closeTime || '09:00'}`;
+        });
+
+        loadPresets(); loadShop(); loadJobs();
+    }
+
+    async function applyPoints() {
+        const btn = document.getElementById('point-submit-btn');
+        const reason = document.getElementById('m-reason').value;
+        if(!reason && currentMode === 'bulk') return alert("사유 입력 필수!");
         
-        loadPresets();
+        btn.disabled = true;
+        btn.innerText = "전령 이동 중...";
+
+        try {
+            const time = new Date().toLocaleString();
+            if(currentMode === 'bulk') {
+                const p = parseInt(document.getElementById('b-p').value)||0;
+                const e = parseInt(document.getElementById('b-e').value)||0;
+                const selected = document.querySelectorAll('.student-chip.selected');
+                if(selected.length === 0) throw new Error("포인트를 받을 용사를 선택해주세요!");
+                for(let chip of selected) await updateP(chip.dataset.name, p, e, reason, time);
+            } else {
+                const inputs = document.querySelectorAll('.e-p');
+                for(let inp of inputs) {
+                    const n = inp.dataset.name;
+                    const p = parseInt(inp.value)||0;
+                    const e = parseInt(document.querySelector(`.e-e[data-name="${n}"]`).value)||0;
+                    if(p !== 0 || e !== 0) await updateP(n, p, e, reason || "개별 하사", time);
+                }
+            }
+            alert("성공적으로 하사되었습니다! 🤺");
+            document.getElementById('point-modal').style.display = 'none';
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "하사하기";
+        }
+    }
+
+    async function updateP(name, p, e, r, t) {
+        const sn = await db.ref('users/'+name).once('value'); const u = sn.val();
+        let nP = (u.points||0)+p, nE = (u.exp||0)+e, nL = (u.lv||1);
+        let levelUp = false;
+        while(nE >= 100) { nL++; nE -= 100; levelUp = true; }
+        await db.ref('users/'+name).update({points:nP, exp:nE, lv:nL});
+        await db.ref('pointLogs').push({name, pAmt:p, eAmt:e, reason:r, time:t});
+        if(levelUp && name === myName) document.getElementById('level-up-overlay').style.display='flex';
     }
 
     function openProfile(name) {
@@ -263,7 +299,6 @@
         });
     }
 
-    // 포인트 프리셋 기능
     function savePreset() {
         const p = parseInt(document.getElementById('b-p').value)||0;
         const e = parseInt(document.getElementById('b-e').value)||0;
@@ -293,79 +328,8 @@
         document.getElementById('m-reason').value = r;
     }
     function deletePreset(ev, key) { ev.stopPropagation(); if(confirm("삭제?")) db.ref('presets/'+key).remove(); }
-
-   async function applyPoints() {
-    const btn = event.target; // 클릭된 버튼을 가져옵니다.
-    const reason = document.getElementById('m-reason').value;
-    
-    // 사유 체크
-    if(!reason && currentMode === 'bulk') {
-        alert("사유를 입력해야 전령을 보낼 수 있습니다!");
-        return;
-    }
-    
-    // [중복 클릭 방지] 버튼을 즉시 비활성화하고 문구 변경
-    btn.disabled = true;
-    btn.style.opacity = "0.5";
-    btn.innerText = "전령 이동 중...";
-
-    try {
-        const time = new Date().toLocaleString();
-        if(currentMode === 'bulk') {
-            const p = parseInt(document.getElementById('b-p').value)||0;
-            const e = parseInt(document.getElementById('b-e').value)||0;
-            const selected = document.querySelectorAll('.student-chip.selected');
-            if(selected.length === 0) throw new Error("포인트를 받을 용사를 선택해주세요!");
-            
-            for(let chip of selected) {
-                await updateP(chip.dataset.name, p, e, reason, time);
-            }
-        } else {
-            // 개별 지급 모드
-            const inputs = document.querySelectorAll('.e-p');
-            for(let inp of inputs) {
-                const n = inp.dataset.name;
-                const p = parseInt(inp.value)||0;
-                const e = parseInt(document.querySelector(`.e-e[data-name="${n}"]`).value)||0;
-                if(p !== 0 || e !== 0) {
-                    await updateP(n, p, e, reason || "개별 하사", time);
-                }
-            }
-        }
-        
-        alert("성공적으로 하사되었습니다! 🤺");
-        document.getElementById('point-modal').style.display = 'none';
-        
-    } catch (err) {
-        alert(err.message);
-    } finally {
-        // 모든 처리가 끝나면 버튼을 다시 원래대로 살려냅니다.
-        btn.disabled = false;
-        btn.style.opacity = "1";
-        btn.innerText = "하사하기";
-    }
-}
-
-    async function updateP(name, p, e, r, t) {
-        const sn = await db.ref('users/'+name).once('value'); const u = sn.val();
-        let nP = (u.points||0)+p, nE = (u.exp||0)+e, nL = (u.lv||1);
-        let levelUp = false;
-        while(nE >= 100) { nL++; nE -= 100; levelUp = true; }
-        await db.ref('users/'+name).update({points:nP, exp:nE, lv:nL});
-        await db.ref('pointLogs').push({name, pAmt:p, eAmt:e, reason:r, time:t});
-        if(levelUp && name === myName) document.getElementById('level-up-overlay').style.display='flex';
-    }
-
-    // 선물 관리
-    function saveGifts() {
-        const list = document.getElementById('gift-mgr').value.trim().split('\n');
-        db.ref('giftList').set(list).then(()=>alert("보상 목록 저장됨"));
-    }
-    function loadAdminGifts() {
-        db.ref('giftList').once('value', sn => {
-            if(sn.exists()) document.getElementById('gift-mgr').value = sn.val().join('\n');
-        });
-    }
+    function saveGifts() { const list = document.getElementById('gift-mgr').value.trim().split('\n'); db.ref('giftList').set(list).then(()=>alert("보상 목록 저장됨")); }
+    function loadAdminGifts() { db.ref('giftList').once('value', sn => { if(sn.exists()) document.getElementById('gift-mgr').value = sn.val().join('\n'); }); }
     function openGift() {
         db.ref('giftList').once('value', sn => {
             const list = sn.val() || ["꽝"];
@@ -375,7 +339,6 @@
             db.ref('pointLogs').push({name:myName, pAmt:0, eAmt:0, reason:"🎁레벨업 보상: "+pick, time:new Date().toLocaleString()});
         });
     }
-
     function updateNo(name, val) { db.ref('users/'+name).update({no: val}); }
     function bulkReg() {
         const lines = document.getElementById('bulk-in').value.trim().split('\n');
@@ -392,6 +355,20 @@
     function deleteHero(n, e) { if(confirm(n+" 용사를 제명하시겠습니까?")) { db.ref('users/'+n).remove(); db.ref('userEmails/'+e.replace(/\./g,',')).remove(); } }
     function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
     function saveSettings() { db.ref('settings').update({password:document.getElementById('c-pw').value, lateTime:document.getElementById('c-lt').value, closeTime:document.getElementById('c-ct').value, routineText:document.getElementById('c-rt').value}).then(()=>alert("설정 저장됨")); }
+    function loadShop() { db.ref('shop').on('value', sn => { let h = ""; sn.forEach(c => { const v=c.val(); h+=`<div class="list-item"><b>${v.n}</b> <span>${v.p}P</span></div>`; }); document.getElementById('shop-list').innerHTML = h || "상점이 비었습니다."; }); }
+    function addItem() { const n = document.getElementById('i-n').value, p = document.getElementById('i-p').value; if(n && p) db.ref('shop').push({n, p}).then(() => alert("진열됨")); }
+    function loadJobs() { db.ref('jobs').on('value', sn => { let h = ""; sn.forEach(c => { const v=c.val(); h+=`<div class="card"><b>${v.n}</b><p>${v.d}</p></div>`; }); document.getElementById('job-list-display').innerHTML = h || "직업이 없습니다."; }); }
+    function addJob() { const n = document.getElementById('j-n').value, d = document.getElementById('j-d').value; if(n && d) db.ref('jobs').push({n, d}).then(() => alert("등록됨")); }
+    function submitCheckIn() {
+        const pass = document.getElementById('checkin-pass').value;
+        db.ref('settings/password').once('value', sn => {
+            if(sn.val() === pass) {
+                const today = new Date().toISOString().split('T')[0];
+                const time = new Date().toLocaleTimeString('ko-KR', {hour12:false});
+                db.ref('checkinLogs/' + today + '/' + myName).set({time, status:'출석'}).then(()=>alert("등교 완료!"));
+            } else { alert("암호가 틀렸습니다."); }
+        });
+    }
     </script>
 </body>
 </html>
