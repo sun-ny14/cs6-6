@@ -242,20 +242,45 @@
         }
 
         function submitCheckIn() {
-            const pw = document.getElementById('checkin-pass').value;
-            db.ref('settings').once('value', snap => {
-                const s = snap.val(); if(pw !== s.password) return alert("암호 오류!");
-                const now = new Date(); const curT = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
-                if(curT > s.closeTime) return openPopup("🚫 실패", "마감 시간 경과!");
-                
-                let msg = "✨ 정상 등교 완료!", penalty = 0, reason = "정상 등교 성공";
-                if(curT > s.lateTime) { penalty = -10; msg = `⚠️ 지각 확정! (${curT}) 벌금 -10P`; reason = `지각 등교 (${curT})`; }
-                
-                updatePoint(myName, penalty, reason);
-                rIdx = 0; if(routineItems.length > 0) openPopup(msg, `[아침 루틴]\n1단계: ${routineItems[0]}`, true); else openPopup("🎊 완료", msg);
-                document.getElementById('checkin-pass').value = "";
-            });
+    const pw = document.getElementById('checkin-pass').value;
+    db.ref('settings').once('value', snap => {
+        const s = snap.val(); if(pw !== s.password) return alert("암호 오류!");
+        
+        const now = new Date(); 
+        const curT = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
+        
+        if(curT > s.closeTime) return openPopup("🚫 실패", "마감 시간 경과! 본부 소환 불가.");
+        
+        let msg = "✨ 정상 등교 완료!", penalty = 0, reason = "정상 등교 성공";
+
+        // [수정된 로직] 지각한 '분'만큼 포인트 차감
+        if(curT > s.lateTime) { 
+            // 1. 기준 시간과 현재 시간을 '분' 단위로 변환
+            const [lateH, lateM] = s.lateTime.split(':').map(Number);
+            const nowH = now.getHours();
+            const nowM = now.getMinutes();
+            
+            const lateTotalMin = lateH * 60 + lateM;
+            const nowTotalMin = nowH * 60 + nowM;
+            
+            // 2. 차이 계산 (지각한 분 수)
+            const diffMin = nowTotalMin - lateTotalMin;
+            
+            penalty = -diffMin; // 1분당 1P씩 차감
+            msg = `⚠️ 지각 확정! (${curT})\n기준보다 ${diffMin}분 늦어 벌금 ${penalty}P 부과!`; 
+            reason = `지각 등교 (${diffMin}분 지각)`;
         }
+        
+        // 등교 로그 및 포인트 반영
+        updatePoint(myName, penalty, reason);
+
+        rIdx = 0; 
+        if(routineItems.length > 0) openPopup(msg, `[아침 루틴]\n1단계: ${routineItems[0]}`, true); 
+        else openPopup("🎊 완료", msg);
+        
+        document.getElementById('checkin-pass').value = "";
+    });
+}
 
         function applyMassScores() {
             const expInputs = document.querySelectorAll('.m-exp');
