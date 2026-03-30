@@ -15,34 +15,34 @@
         .login-box { background: white; padding: 50px 40px; border-radius: 30px; text-align: center; width: 100%; max-width: 450px; }
         #main-app { display: none; }
         .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; overflow-x: auto; }
-        .tab-menu button { flex: 1; min-width: 90px; padding: 20px 10px; border: none; background: none; color: #95a5a6; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+        .tab-menu button { flex: 1; min-width: 95px; padding: 20px 10px; border: none; background: none; color: #95a5a6; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
         .tab-menu button.active { color: white; border-bottom: 5px solid var(--gold); }
         .tab-content { display: none; padding: 20px; max-width: 1200px; margin: auto; }
         .tab-content.active { display: block; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 15px; font-size: 1.2rem; }
         input, button, textarea, select { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #ccc; box-sizing: border-box; font-size: 1.2rem; }
-        .pop-score-input { width: 90px !important; height: 65px !important; font-size: 1.6rem !important; text-align: center; border: 2px solid var(--primary) !important; font-weight: bold; }
-        .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; margin-top: 20px; }
+        .pop-score-input { width: 95px !important; height: 70px !important; font-size: 1.7rem !important; text-align: center; border: 3px solid var(--primary) !important; font-weight: bold; }
+        .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 20px; margin-top: 20px; }
         .hero-card { background: white; border-radius: 20px; padding: 25px 15px; text-align: center; box-shadow: 0 6px 15px rgba(0,0,0,0.1); border: 3px solid transparent; position: relative; cursor: pointer; }
         .hero-card.me { border-color: var(--gold); background: #fffdf2; transform: scale(1.03); }
         .card-avatar { font-size: 4rem; margin-bottom: 10px; display: block; }
         .card-name { font-size: 1.4rem; font-weight: bold; }
         .card-pt { font-size: 1.2rem; color: var(--primary); font-weight: bold; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
-        .popup-box { background: white; padding: 30px; border-radius: 25px; width: 95%; max-width: 650px; text-align: center; max-height: 90vh; overflow-y: auto; }
+        .popup-box { background: white; padding: 35px; border-radius: 25px; width: 95%; max-width: 700px; text-align: center; max-height: 90vh; overflow-y: auto; }
         .pixel-avatar { width: 64px; height: 64px; background-image: url('avatars.png'); background-repeat: no-repeat; background-size: 384px 64px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
         .avatar-lv1 { background-position: 0px 0px; } .avatar-lv5 { background-position: -64px 0px; } .avatar-lv10 { background-position: -128px 0px; } .avatar-lv15 { background-position: -192px 0px; } .avatar-lv20 { background-position: -256px 0px; } .avatar-lv30 { background-position: -320px 0px; }
-        .floating-btn { position: fixed; bottom: 25px; right: 25px; width: 80px; height: 80px; border-radius: 40px; background: var(--gold); color: var(--dark); box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
-        .coupon-card { background: #fff; border: 2px solid var(--purple); padding: 15px; border-radius: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .floating-btn { position: fixed; bottom: 25px; right: 25px; width: 85px; height: 85px; border-radius: 45px; background: var(--gold); color: var(--dark); box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
+        .coupon-card { background: #fff; border: 2.5px solid var(--purple); padding: 18px; border-radius: 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
     <div id="loading-screen">🏰 용사 본부 접속 중...</div>
-    <div id="common-overlay" class="overlay"><div class="popup-box"><h2 id="pop-title">알림</h2><div id="pop-content" style="white-space: pre-wrap; font-size: 1.3rem; text-align: left;"></div><button onclick="closePopup()" style="background:var(--green); font-size: 1.4rem; padding: 15px;">확인</button></div></div>
+    <div id="common-overlay" class="overlay"><div class="popup-box"><h2 id="pop-title">알림</h2><div id="pop-content" style="white-space: pre-wrap; font-size: 1.3rem; text-align: left;"></div><button onclick="closePopup()" style="background:var(--green); font-size: 1.4rem; padding: 18px; margin-top:20px;">확인</button></div></div>
     <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title">포인트 전령</h2><div id="point-pop-body"></div><div style="display:flex; gap:15px; margin-top:25px;"><button onclick="closePointPopup()" style="background:#95a5a6; font-size: 1.3rem;">닫기</button><button id="point-apply-btn" style="background:var(--gold); color:var(--dark); font-size: 1.3rem;">반영하기</button></div></div></div>
     
-    <div id="login-screen"><div class="login-box"><h1>🏰<br>6-6 용사 본부</h1><button onclick="handleLogin()" style="background:#4285F4; font-size: 1.4rem; padding: 20px;">Google 로그인</button></div></div>
+    <div id="login-screen"><div class="login-box"><h1>🏰<br>6-6 용사 본부</h1><button onclick="handleLogin()" style="background:#4285F4; font-size: 1.5rem; padding: 22px;">Google 로그인</button></div></div>
 
     <div id="main-app">
         <nav class="tab-menu">
@@ -63,7 +63,7 @@
                 <input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격 (P)"><button onclick="addItem()" style="background:var(--purple);">진열</button>
             </div>
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
-            <div id="admin-order-mgr" class="card" style="display:none; border:3px solid var(--red);"><h3>📜 사용 요청 목록</h3><div id="order-list"></div></div>
+            <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 목록</h3><div id="order-list"></div></div>
         </section>
         <section id="tab-guide" class="tab-content">
             <div id="admin-guide-mgr" class="card" style="display:none; border:3px solid var(--primary);"><h3>📋 사유 등록</h3><input type="text" id="guide-title" placeholder="항목"><input type="number" id="guide-p" placeholder="P"><input type="number" id="guide-e" placeholder="E"><button onclick="addGuide()">등록</button></div>
@@ -76,10 +76,11 @@
             <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine" rows="5"></textarea><button onclick="saveSettings()">저장</button></div>
             <div class="card"><h3>🎁 레벨업 보상</h3><textarea id="conf-gifts" rows="5"></textarea><button onclick="saveGifts()">저장</button></div>
+            <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" placeholder="이름,이메일" rows="4"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
 
         <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
-        <button id="floating-score-btn" class="floating-btn" style="right: 125px;" onclick="openScorePopup()">🎯</button>
+        <button id="floating-score-btn" class="floating-btn" style="right: 130px;" onclick="openScorePopup()">🎯</button>
     </div>
 
     <script>
@@ -136,7 +137,7 @@
             }
         });
 
-        function handleLogin() { auth.signInWithPopup(provider).catch(e => alert("로그인 오류: " + e.message)); }
+        function handleLogin() { auth.signInWithPopup(provider); }
 
         function showTab(t) {
             currentTab = t; sessionStorage.setItem('activeTab', t);
@@ -179,7 +180,6 @@
                 document.getElementById('student-admin-list').innerHTML = aH;
             });
 
-            // [쿠폰 대기 로직 수정] 사용하기를 눌러도 승인 전까지 사라지지 않음
             db.ref('orders').on('value', snap => {
                 let cH = "", oH = "";
                 snap.forEach(c => {
@@ -189,14 +189,14 @@
                         cH += `<div class="coupon-card">
                             <span>${o.item} ${isWaiting ? '<b style="color:var(--red);">(⏳요청중)</b>' : ''}</span>
                             <button class="btn-use" onclick="requestUseCoupon('${c.key}', '${o.item}')" 
-                            style="width:auto; padding:10px 20px; background:${isWaiting ? '#95a5a6' : 'var(--purple)'};" 
+                            style="width:auto; padding:12px 22px; background:${isWaiting ? '#95a5a6' : 'var(--purple)'};" 
                             ${isWaiting ? 'disabled' : ''}>${isWaiting ? '승인 대기' : '사용하기'}</button>
                         </div>`;
                     }
                     if((isAdmin || isShopMode) && o.status === '사용요청') {
-                        oH += `<div class="list-item" style="background:#fff0f0; border:2px solid var(--red);">
+                        oH += `<div class="list-item" style="background:#fff0f0; border:2.5px solid var(--red);">
                             <span><strong>${o.user}</strong>: ${o.item}</span>
-                            <button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto; padding:10px 20px;">최종 승인</button>
+                            <button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto; padding:12px 25px;">최종 승인</button>
                         </div>`;
                     }
                 });
@@ -219,11 +219,10 @@
                 let sH = "", currentCat = "";
                 items.forEach(i => {
                     if(i.category !== currentCat) { currentCat = i.category || "기타"; sH += `<div style="background:var(--purple); color:white; padding:8px; border-radius:10px; margin-top:15px; font-weight:bold;">${currentCat}</div>`; }
-                    sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:10px;"><button onclick="buyItem('${i.key}', '${i.name}', ${i.price})" style="width:auto; padding:10px 20px;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${i.key}').remove()" style="background:red; width:auto;">삭제</button>`:''}</div></div>`;
+                    sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:10px;"><button onclick="buyItem('${i.key}', '${i.name}', ${i.price})" style="width:auto; padding:12px 25px;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${i.key}').remove()" style="background:red; width:auto;">삭제</button>`:''}</div></div>`;
                 });
                 document.getElementById('shop-list').innerHTML = sH || "비어있음";
             });
-
             db.ref('guides').on('value', snap => {
                 let gH = ""; snap.forEach(c => { const g = c.val(); gH += `<div class="hero-card" onclick="applyGuide('${g.title}', ${g.p}, ${g.e})"><strong>${g.title}</strong><br><small>${g.p}P / ${g.e}E</small></div>`; });
                 document.getElementById('guide-list').innerHTML = gH || "항목 없음";
@@ -234,29 +233,30 @@
             let html = ""; [...allLogs].reverse().forEach(l => {
                 if (isAdmin || l.name === myName) {
                     const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-                    html += `<div class="list-item" style="border-left:8px solid ${color}"><span><strong>${l.name}</strong></span><strong style="color:${color}">${l.amount>0?'+':''}${l.amount}P</strong><br><small>${l.reason} (${l.time})</small></div>`;
+                    html += `<div class="list-item" style="border-left:10px solid ${color}"><span><strong>${l.name}</strong></span><strong style="color:${color}">${l.amount>0?'+':''}${l.amount}P</strong><br><small>${l.reason} (${l.time})</small></div>`;
                 }
             });
-            document.getElementById('point-history-list').innerHTML = html || "기록이 없습니다.";
+            document.getElementById('point-history-list').innerHTML = html || "기록 없음";
         }
 
         function openUserHistory(userName) {
-            if (!isAdmin && userName !== myName) return alert("비밀입니다!");
+            if (!isAdmin && userName !== myName) return alert("다른 용사의 비밀입니다!");
             const userLogs = allLogs.filter(l => l.name === userName).reverse();
-            let html = `<div style="text-align:left; font-size:1.15rem;">`;
+            let html = `<div style="text-align:left; font-size:1.2rem;">`;
             if(userLogs.length === 0) html += "<p style='text-align:center;'>기록 없음</p>";
             userLogs.forEach(l => {
                 const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-                html += `<div class="list-item" style="border-left:8px solid ${color}; margin-bottom:12px; background:#f9f9f9; padding:15px; border-radius:15px;"><div><strong>${l.reason}</strong><br><small>${l.time}</small></div><strong style="color:${color}; font-size:1.4rem;">${l.amount>0?'+':''}${l.amount}P</strong></div>`;
+                html += `<div class="list-item" style="border-left:10px solid ${color}; margin-bottom:15px; background:#f9f9f9; padding:20px; border-radius:18px;"><div><strong>${l.reason}</strong><br><small>${l.time}</small></div><strong style="color:${color}; font-size:1.5rem;">${l.amount>0?'+':''}${l.amount}P</strong></div>`;
             });
             openPopup(`${userName} 용사 연대기`, html + `</div>`);
         }
 
-        function requestUseCoupon(key, itemName) { if(confirm(`'${itemName}' 사용을 요청할까요? 선생님 승인 후 삭제됩니다.`)) db.ref('orders/'+key).update({status:'사용요청', useTime:new Date().toLocaleString()}).then(()=>alert("사용 요청 완료!")); }
-        function approveOrder(id) { if(confirm("용사의 요청을 승인하시겠습니까? (쿠폰이 최종 소멸됩니다)")) db.ref('orders/'+id).update({status:'완료'}); }
+        function requestUseCoupon(key, itemName) { if(confirm(`'${itemName}' 사용을 요청할까요? 승인 전까지 사라지지 않습니다.`)) db.ref('orders/'+key).update({status:'사용요청', useTime:new Date().toLocaleString()}); }
+        function approveOrder(id) { if(confirm("승인하시겠습니까? 쿠폰이 최종 삭제됩니다.")) db.ref('orders/'+id).update({status:'완료'}); }
         function buyItem(k, n, p) { db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("P 부족!"); if(confirm(n+" 구매?")) { updatePoint(myName, -p, n+" 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
         function updatePoint(n, a, r) { db.ref('users/'+n).once('value', sn => { if(sn.val()) db.ref('users/'+n).update({points: (sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
         function addScore(name, p, e, reason) { db.ref('users/'+name).once('value', sn => { const u = sn.val(); if(!u) return; let nE=(u.exp||0)+e, nL=(u.lv||1), nP=(u.points||0)+p; while(nE>=100){ nL++; nE-=100; } db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}); db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()}); }); }
+        
         function submitCheckIn() {
             const pw = document.getElementById('checkin-pass').value;
             db.ref('settings').once('value', snap => {
@@ -282,8 +282,9 @@
         function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n')}).then(()=>alert("저장됨!")); }
         function openPopup(t, c, isR=false) { document.getElementById('pop-title').innerText=t; document.getElementById('pop-content').innerHTML=c; document.getElementById('common-overlay').style.display='flex'; window.routineActive=isR; }
         function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display = 'none'; } else document.getElementById('common-overlay').style.display = 'none'; }
+        
         function openPointBulkPopup() {
-            let html = `<input type="text" id="pop-bulk-reason" placeholder="사유 입력" style="font-size:1.3rem;"><div style="max-height:400px; overflow-y:auto; margin-top:15px;">`;
+            let html = `<input type="text" id="pop-bulk-reason" placeholder="사유 입력" style="font-size:1.3rem;"><div style="max-height:450px; overflow-y:auto; margin-top:15px;">`;
             currentUsers.forEach(u => { html += `<div class="list-item"><span>${u.no}. <strong>${u.name}</strong></span><div>P <input type="number" class="pop-bulk-p pop-score-input" data-name="${u.name}"> E <input type="number" class="pop-bulk-e pop-score-input" data-name="${u.name}"></div></div>`; });
             html += `</div>`; document.getElementById('point-pop-title').innerText = "⚖️ 일괄 지급"; document.getElementById('point-pop-body').innerHTML = html;
             document.getElementById('point-apply-btn').onclick = () => {
@@ -294,8 +295,8 @@
             document.getElementById('point-popup').style.display = 'flex';
         }
         function openScorePopup() {
-            let html = `<div style="max-height:500px; overflow-y:auto;">`;
-            currentUsers.forEach(u => { html += `<div class="list-item"><span>${u.no}. <strong>${u.name}</strong></span><div>P <input type="number" class="pop-one-p pop-score-input"> E <input type="number" class="pop-one-e pop-score-input"><button onclick="applyOneS('${u.name}', ${currentUsers.indexOf(u)})" style="width:auto; margin-left:10px;">OK</button></div></div>`; });
+            let html = `<div style="max-height:550px; overflow-y:auto;">`;
+            currentUsers.forEach(u => { html += `<div class="list-item"><span>${u.no}. <strong>${u.name}</strong></span><div>P <input type="number" class="pop-one-p pop-score-input"> E <input type="number" class="pop-one-e pop-score-input"><button onclick="applyOneS('${u.name}', ${currentUsers.indexOf(u)})" style="width:auto; margin-left:15px;">OK</button></div></div>`; });
             html += `</div>`; document.getElementById('point-pop-title').innerText = "🎯 개별 지급"; document.getElementById('point-pop-body').innerHTML = html;
             document.getElementById('point-apply-btn').style.display = 'none'; document.getElementById('point-popup').style.display = 'flex';
         }
@@ -304,6 +305,7 @@
         function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('guides').push({title:t, p, e}).then(()=>alert("등록됨!")); }
         function addItem() { const c=document.getElementById('item-cat-in').value, n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value); if(n&&p) db.ref('shop').push({category:c, name:n, price:p}).then(()=>alert("진열됨!")); }
         function applyGuide(t, p, e) { if(isAdmin && confirm(`전원 [${t}] 적용?`)) currentUsers.forEach(u => addScore(u.name, p, e, t)); }
+        function bulkReg() { const txt = document.getElementById('bulk-in').value; if(!txt) return; txt.split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); } }); alert("등록 완료!"); }
     </script>
 </body>
 </html>
