@@ -89,9 +89,18 @@
         
         <section id="tab-shop" class="tab-content">
             <div id="admin-shop-mgr" class="card" style="display:none; border:2px solid var(--purple);">
-                <h3>📦 물품 등록</h3>
-                <input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격 (P)"><button onclick="addItem()" style="background:var(--purple);">진열</button>
-            </div>
+    <h3>📦 물품 등록</h3>
+    <!-- 카테고리 선택 추가 -->
+    <select id="item-cat-in">
+        <option value="🍕 먹거리">🍕 먹거리</option>
+        <option value="🎫 쿠폰">🎫 쿠폰</option>
+        <option value="🎲 뽑기">🎲 뽑기</option>
+        <option value="✨ 기타">✨ 기타</option>
+    </select>
+    <input type="text" id="item-name-in" placeholder="상품명">
+    <input type="number" id="item-price-in" placeholder="가격 (P)">
+    <button onclick="addItem()" style="background:var(--purple);">진열</button>
+</div>
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 요청 목록</h3><div id="order-list"></div></div>
         </section>
@@ -231,15 +240,25 @@
             });
 
             // 등교로그 (관리자 전용)
-            db.ref('checkinLogs').on('value', snap => {
-                let hH = ""; let logs = [];
-                snap.forEach(c => { if(c.val() && c.val().name) logs.push(c.val()); });
-                logs.reverse().slice(0, 50).forEach(l => {
-                    const color = l.result.includes('정상') ? 'var(--green)' : 'var(--red)';
-                    hH += `<div class="list-item"><span><strong>${l.name}</strong></span> <span style="color:${color}">${l.result}</span> <small>${l.time}</small></div>`;
-                });
-                document.getElementById('checkin-history').innerHTML = hH || "기록 없음";
-            });
+            db.ref('checkinLogs').limitToLast(50).on('value', snap => {
+    let hH = "";
+    let logs = [];
+    snap.forEach(c => {
+        const val = c.val();
+        if(val) logs.push(val);
+    });
+    // 최신순으로 뒤집기
+    logs.reverse().forEach(l => {
+        const color = l.result && l.result.includes('정상') ? 'var(--green)' : 'var(--red)';
+        const timeStr = l.time ? l.time.split(' ').slice(1,4).join(' ') : ""; // 날짜 제외 시간만 표시
+        hH += `<div class="list-item">
+                <span><strong>${l.name || '용사'}</strong></span>
+                <span style="color:${color}">${l.result || '기록없음'}</span>
+                <small style="color:#888;">${timeStr}</small>
+               </div>`;
+    });
+    document.getElementById('checkin-history').innerHTML = hH || "오늘의 등교자가 아직 없습니다.";
+});
 
             db.ref('guides').on('value', snap => {
                 let gH = "";
@@ -253,9 +272,19 @@
             });
 
             db.ref('shop').on('value', snap => {
-                let sH = ""; snap.forEach(c => { const i = c.val(); sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:5px;"><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}</div></div>`; });
-                document.getElementById('shop-list').innerHTML = sH || "비어있음";
-            });
+    let sH = "";
+    let currentCat = "";
+    snap.forEach(c => {
+        const i = c.val();
+        // 카테고리가 바뀌면 제목 표시
+        if (i.category !== currentCat) {
+            currentCat = i.category || "✨ 기타";
+            sH += `<div style="background:var(--dark); color:white; padding:5px 10px; border-radius:5px; margin-top:15px; font-size:0.9rem;">${currentCat}</div>`;
+        }
+        sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:5px;"><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}</div></div>`;
+    });
+    document.getElementById('shop-list').innerHTML = sH || "상점이 텅 비었습니다.";
+});
         }
 
         // 팝업 기능 (일괄/개별)
@@ -386,7 +415,18 @@
         function closePointPopup() { document.getElementById('point-popup').style.display = 'none'; document.getElementById('point-apply-btn').style.display = 'block'; }
         function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display = 'none'; } else document.getElementById('common-overlay').style.display = 'none'; }
         function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
-        function addItem() { const n = document.getElementById('item-name-in').value, p = parseInt(document.getElementById('item-price-in').value); if(n&&p) db.ref('shop').push({name:n, price:p}); }
+        function addItem() {
+    const cat = document.getElementById('item-cat-in').value; // 카테고리 가져오기
+    const n = document.getElementById('item-name-in').value;
+    const p = parseInt(document.getElementById('item-price-in').value);
+    if(n && p) {
+        db.ref('shop').push({ category: cat, name: n, price: p }).then(() => {
+            alert("등록 완료!");
+            document.getElementById('item-name-in').value = "";
+            document.getElementById('item-price-in').value = "";
+        });
+    }
+}
         function buyItem(k, n, p) { if(confirm(n+" 구매?")) { updatePoint(myName, -p, n+" 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }
         function approveOrder(id) { db.ref('orders/' + id).update({ status: '완료' }); }
         function saveSettings() { db.ref('settings').update({password:document.getElementById('conf-pass').value, lateTime:document.getElementById('conf-late').value, closeTime:document.getElementById('conf-close').value, routineText:document.getElementById('conf-routine').value}); }
