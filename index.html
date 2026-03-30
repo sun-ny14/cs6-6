@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>6-6 용사 본부</title>
-    <!-- 내부망에서 가장 안정적인 버전 유지 -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -39,7 +38,7 @@
         .avatar-lv15 { background-position: -144px 0px; }
         .avatar-lv20 { background-position: -192px 0px; }
         .avatar-lv30 { background-position: -240px 0px; }
-        .cat-title { margin-top: 15px; margin-bottom: 5px; padding: 5px 10px; background: var(--purple); color: white; border-radius: 6px; font-size: 0.85rem; font-weight: bold; }
+        .cat-tag { font-size: 0.7rem; background: #eee; padding: 2px 5px; border-radius: 4px; color: #666; margin-right: 5px; }
     </style>
 </head>
 <body>
@@ -73,7 +72,7 @@
         
         <section id="tab-shop" class="tab-content">
             <div id="admin-shop-mgr" class="card" style="display:none; border:2px solid var(--purple);">
-                <h3>📦 물품 등록 (관리자)</h3>
+                <h3>📦 물품 등록</h3>
                 <select id="item-cat-in">
                     <option value="🎫 쿠폰">🎫 쿠폰</option>
                     <option value="🍕 먹거리">🍕 먹거리</option>
@@ -98,30 +97,33 @@
         </section>
 
         <section id="tab-points" class="tab-content">
-            <div id="admin-mass-card" class="card" style="display:none; border:2px solid var(--primary);">
-                <h3>⚖️ 점수 및 경험치 부여 (관리자)</h3>
-                <div id="mass-score-board"></div>
-                <button onclick="applyMassScores()">일괄 반영</button>
-            </div>
+            <!-- 선생님이 요청하신 네모난 카드 입력창들 유지 -->
             <div id="admin-point-mgr" class="card" style="display:none; border:2px solid var(--gold);">
-                <h3>⚖️ 포인트 전령 (관리자)</h3>
+                <h3>⚖️ 포인트 전령 (일괄 지급)</h3>
                 <input type="text" id="point-reason-bulk" placeholder="지급 사유 (예: 발표왕, 청소)">
                 <div id="point-bulk-list" style="max-height: 300px; overflow-y: auto; margin: 10px 0; border: 1px solid #eee;"></div>
                 <button onclick="applyPointsBulk()" style="background:var(--gold); color:var(--dark);">⚡ 선택 항목 일괄 적용</button>
             </div>
-            <div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list" style="font-size: 0.9rem; max-height: 400px; overflow-y: auto;"></div></div>
+            <div id="admin-score-mgr" class="card" style="display:none; border:2px solid var(--primary);">
+                <h3>⚖️ 점수/경험치 부여 (개별)</h3>
+                <div id="mass-score-board"></div>
+                <button onclick="applyMassScores()">일괄 반영</button>
+            </div>
+            <div class="card">
+                <h3>📜 포인트 연대기</h3>
+                <div id="point-history-list" style="font-size: 0.9rem; max-height: 400px; overflow-y: auto;"></div>
+            </div>
         </section>
 
         <section id="tab-admin" class="tab-content">
-            <div class="card"><h3>👥 명단 관리 (번호 & 이름 수정)</h3><div id="student-admin-list"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine"></textarea><button onclick="saveSettings()">저장</button></div>
-            <div class="card"><h3>🎁 레벨업 보상 목록</h3><textarea id="conf-gifts"></textarea><button onclick="saveGifts()">선물 저장</button></div>
-            <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
+            <div class="card"><h3>🎁 랜덤 선물 목록</h3><textarea id="conf-gifts"></textarea><button onclick="saveGifts()">선물 저장</button></div>
+            <div class="card"><h3>👥 명단 관리 (번호 & 이름 수정)</h3><div id="student-admin-list"></div></div>
+            <div class="card"><h3>🆕 학생 등록</h3><textarea id="bulk-in" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
     </div>
 
     <script>
-        // 선생님의 원본 Firebase 설정 및 초기화 (내부망 접속용)
         const firebaseConfig = {
             apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
             authDomain: "cs6-6class.firebaseapp.com",
@@ -149,7 +151,6 @@
             return `<div class="pixel-avatar ${lvClass}"></div>`;
         }
 
-        // 로그인 감지 로직 (내부망에서 가장 안전하게 돌아가던 방식)
         auth.onAuthStateChanged((user) => {
             if (user) {
                 isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
@@ -175,7 +176,7 @@
 
         function startApp() {
             if (isAdmin) {
-                ['btn-admin', 'admin-shop-mgr', 'admin-order-mgr', 'admin-point-mgr', 'admin-mass-card'].forEach(id => {
+                ['btn-admin', 'admin-shop-mgr', 'admin-order-mgr', 'admin-point-mgr', 'admin-score-mgr'].forEach(id => {
                     const el = document.getElementById(id); if(el) el.style.display = 'block';
                 });
             }
@@ -204,8 +205,23 @@
                         <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
                         <div class="card-pt">${u.points || 0} P</div>
                     </div>`;
-                    mH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><div style="display:flex; gap:5px;">Exp<input type="number" class="m-exp" data-name="${u.name}" style="width:40px;"> P<input type="number" class="m-pts" style="width:40px;"></div></div>`;
-                    aH += `<div class="list-item"><span>${u.no||'?'}. <strong>${u.name}</strong></span><button onclick="renameHero('${u.name}', '${u.email}', '${u.no}')" style="width:auto;">수정</button></div>`;
+                    
+                    // 점수/경험치 부여 칸 (경험치 칸 다시 살림)
+                    mH += `<div class="list-item">
+                        <span>${u.no||'?'}. ${u.name}</span>
+                        <div style="display:flex; gap:5px;">
+                            E<input type="number" class="m-exp" data-name="${u.name}" style="width:40px;">
+                            P<input type="number" class="m-pts" style="width:40px;">
+                        </div>
+                    </div>`;
+                    
+                    // 명단 관리 (네모 박스 형태 유지)
+                    aH += `<div class="list-item">
+                        <input type="number" class="edit-no" data-name="${u.name}" value="${u.no}" style="width:40px;">
+                        <input type="text" class="edit-name" data-name="${u.name}" value="${u.name}" style="flex:1; margin:0 5px;">
+                        <button onclick="updateHeroInfo('${u.name}')" style="width:auto; padding:5px 10px;">저장</button>
+                    </div>`;
+                    
                     pBulkH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><input type="number" class="bulk-p-input" data-name="${u.name}" style="width:60px;"></div>`;
                 });
                 document.getElementById('hero-grid').innerHTML = gH;
@@ -215,14 +231,16 @@
             });
 
             db.ref('shop').on('value', snap => {
-                let sH = ""; let currentCat = "";
+                let sH = "";
                 snap.forEach(c => {
                     const i = c.val();
-                    if (i.category !== currentCat) {
-                        currentCat = i.category || "✨ 기타";
-                        sH += `<div class="cat-title">${currentCat}</div>`;
-                    }
-                    sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:5px;"><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}</div></div>`;
+                    sH += `<div class="list-item">
+                        <span><small class="cat-tag">${i.category || '기타'}</small>${i.name} (<strong>${i.price}P</strong>)</span>
+                        <div style="display:flex; gap:5px;">
+                            <button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>
+                            ${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}
+                        </div>
+                    </div>`;
                 });
                 document.getElementById('shop-list').innerHTML = sH || "물건이 없습니다.";
             });
@@ -233,6 +251,35 @@
                     document.getElementById('order-list').innerHTML = oH || "요청 없음";
                 });
             }
+        }
+
+        function updateHeroInfo(oldName) {
+            const listItems = document.querySelectorAll('#student-admin-list .list-item');
+            let newNo = "", newName = "";
+            listItems.forEach(item => {
+                const nameIn = item.querySelector('.edit-name');
+                if(nameIn.dataset.name === oldName) {
+                    newNo = item.querySelector('.edit-no').value;
+                    newName = nameIn.value;
+                }
+            });
+
+            if(!newName) return;
+            db.ref('users/' + oldName).once('value', snap => {
+                const data = snap.val();
+                data.no = newNo;
+                data.name = newName;
+                db.ref('users/' + newName).set(data).then(() => {
+                    if(oldName !== newName) {
+                        db.ref('users/' + oldName).remove();
+                        // 이메일 맵핑 업데이트
+                        db.ref('userEmails').once('value', eSnap => {
+                            eSnap.forEach(e => { if(e.val() === oldName) db.ref('userEmails/' + e.key).set(newName); });
+                        });
+                    }
+                    alert("수정 완료!");
+                });
+            });
         }
 
         function updatePoint(targetName, amount, reason) {
@@ -254,48 +301,42 @@
                 let msg = "✨ 정상 등교 완료!", penalty = 0, reason = "정상 등교 성공";
                 if(curT > s.lateTime) { 
                     const [lateH, lateM] = s.lateTime.split(':').map(Number);
-                    const nowH = now.getHours(); const nowM = now.getMinutes();
-                    const diffMin = (nowH * 60 + nowM) - (lateH * 60 + lateM);
+                    const diffMin = (now.getHours() * 60 + now.getMinutes()) - (lateH * 60 + lateM);
                     penalty = -diffMin; 
-                    msg = `⚠️ 지각 확정! (${curT})\n기준보다 ${diffMin}분 늦어 벌금 ${penalty}P 부과!`; 
+                    msg = `⚠️ 지각! (${curT}) 벌금 ${penalty}P`; 
                     reason = `지각 등교 (${diffMin}분 지각)`; 
                 }
                 
                 updatePoint(myName, penalty, reason);
-                rIdx = 0; if(routineItems.length > 0) openPopup(msg, `[아침 루틴]\n1단계: ${routineItems[0]}`, true); else openPopup("🎊 완료", msg);
+                rIdx = 0; if(routineItems.length > 0) openPopup(msg, `[루틴]\n1단계: ${routineItems[0]}`, true); else openPopup("🎊 완료", msg);
                 document.getElementById('checkin-pass').value = "";
             });
         }
 
         function applyMassScores() {
-            const expInputs = document.querySelectorAll('.m-exp');
-            const ptInputs = document.querySelectorAll('.m-pts');
-            expInputs.forEach((e, i) => {
-                const n = e.dataset.name, ae = parseInt(e.value)||0, ap = parseInt(ptInputs[i].value)||0;
-                if(ae || ap) {
-                    db.ref('users/'+n).once('value', sn => {
-                        const u = sn.val(); 
-                        let nE = (u.exp||0)+ae, nL = (u.lv||1), nP = (u.points||0)+ap, levelUps = 0;
-                        while(nE >= 100) { nL++; nE -= 100; levelUps++; }
-                        db.ref('users/'+n).update({exp:nE, lv:nL, points:nP});
-                        if(ap !== 0) updatePoint(n, ap, "관리자 개별 지급/차감");
-                    });
-                }
-                e.value = ""; ptInputs[i].value = "";
+            document.querySelectorAll('.m-exp').forEach((e, i) => {
+                const n = e.dataset.name, ae = parseInt(e.value)||0, ap = parseInt(document.querySelectorAll('.m-pts')[i].value)||0;
+                if(ae || ap) db.ref('users/'+n).once('value', sn => {
+                    const u = sn.val(); let nE = (u.exp||0)+ae, nL = (u.lv||1), nP = (u.points||0)+ap;
+                    while(nE >= 100) { nL++; nE -= 100; }
+                    db.ref('users/'+n).update({exp:nE, lv:nL, points:nP});
+                    if(ap !== 0) updatePoint(n, ap, "관리자 개별 부여");
+                });
+                e.value = ""; document.querySelectorAll('.m-pts')[i].value = "";
             });
             alert("반영 완료!");
         }
 
         function applyPointsBulk() {
             const reason = document.getElementById('point-reason-bulk').value;
-            if(!reason) return alert("지급 사유를 입력해주세요!");
+            if(!reason) return alert("사유 입력!");
             const inputs = document.querySelectorAll('.bulk-p-input');
             inputs.forEach(input => {
                 const val = parseInt(input.value);
-                if(val && val !== 0) { updatePoint(input.dataset.name, val, reason); input.value = ""; }
+                if(val) { updatePoint(input.dataset.name, val, reason); input.value = ""; }
             });
             document.getElementById('point-reason-bulk').value = "";
-            alert("일괄 지급 완료!");
+            alert("일괄 적용 완료!");
         }
 
         db.ref('pointLogs').orderByChild('time').limitToLast(50).on('value', snap => {
@@ -303,55 +344,35 @@
             logs.reverse().forEach(log => {
                 if (isAdmin || log.name === myName) {
                     const color = log.amount > 0 ? "var(--green)" : (log.amount < 0 ? "var(--red)" : "#888");
-                    html += `<div class="list-item" style="border-left: 5px solid ${color}; margin-bottom: 5px; padding-left:10px;">
-                        <div style="flex:1;"><strong>${log.name}</strong> <span style="color:${color}; font-weight:bold;">${log.amount>0?'+':''}${log.amount}P</span><br>
-                        <small style="color:#888;">${log.reason}</small></div>
-                        <div style="font-size:0.7rem; color:#bbb; min-width:65px; text-align:right;">${log.time.split(' ').slice(1,4).join(' ')}</div></div>`;
+                    html += `<div class="list-item" style="border-left: 5px solid ${color};">
+                        <div style="flex:1;"><strong>${log.name}</strong> <span style="color:${color};">${log.amount>0?'+':''}${log.amount}P</span><br>
+                        <small>${log.reason}</small></div>
+                        <div style="font-size:0.7rem; color:#bbb;">${log.time.split(' ').slice(1,4).join(' ')}</div></div>`;
                 }
             });
-            document.getElementById('point-history-list').innerHTML = html || "아직 기록된 역사가 없습니다.";
+            document.getElementById('point-history-list').innerHTML = html || "기록 없음";
         });
 
-        function renameHero(oldName, email, oldNo) {
-            const newNo = prompt(`'${oldName}' 용사의 새 번호를 입력하세요.`, oldNo);
-            if (newNo === null) return;
-            const newName = prompt(`'${oldName}' 용사의 새 이름을 입력하세요.`, oldName);
-            if (!newName) return;
-            db.ref('users/' + oldName).once('value', snap => {
-                const userData = snap.val();
-                userData.name = newName; userData.no = newNo;
-                db.ref('users/' + newName).set(userData).then(() => {
-                    db.ref('userEmails/' + email.replace(/\./g, ',')).set(newName);
-                    if (oldName !== newName) db.ref('users/' + oldName).remove();
-                    alert("정보 수정을 완료했습니다!");
-                });
-            });
-        }
-
         function addItem() { 
-            const cat = document.getElementById('item-cat-in').value;
-            const n = document.getElementById('item-name-in').value, p = parseInt(document.getElementById('item-price-in').value); 
-            if(n && p) db.ref('shop').push({category:cat, name:n, price:p}).then(() => { 
-                alert("등록 완료!"); document.getElementById('item-name-in').value=""; document.getElementById('item-price-in').value=""; 
-            }); 
+            const c = document.getElementById('item-cat-in').value, n = document.getElementById('item-name-in').value, p = parseInt(document.getElementById('item-price-in').value);
+            if(n && p) db.ref('shop').push({category:c, name:n, price:p}).then(() => { alert("등록 완료!"); });
         }
         function buyItem(id, name, price) { 
             db.ref('users/'+myName).once('value', sn => { 
-                const u = sn.val(); if(!u || u.points < price) return alert("P가 부족합니다!"); 
-                if(confirm(`${name}을(를) ${price}P에 구매하시겠습니까?`)) { 
+                const u = sn.val(); if(!u || u.points < price) return alert("P 부족!"); 
+                if(confirm(`${name} 구매?`)) { 
                     updatePoint(myName, -price, `${name} 구매`);
                     db.ref('orders').push({ user: myName, item: name, status: '대기', time: new Date().toLocaleString() }); 
-                    alert("구매 완료! 확인 대기 중."); 
                 } 
             }); 
         }
-        function approveOrder(id) { if(confirm("지급 완료 처리할까요?")) db.ref('orders/' + id).update({ status: '완료' }); }
-        function saveSettings() { db.ref('settings').update({password:document.getElementById('conf-pass').value, lateTime:document.getElementById('conf-late').value, closeTime:document.getElementById('conf-close').value, routineText:document.getElementById('conf-routine').value}).then(()=>alert("저장 완료!")); }
-        function saveGifts() { const list = document.getElementById('conf-gifts').value.split('\n').map(t=>t.trim()).filter(t=>t!==""); db.ref('settings').update({giftList: list}).then(()=>alert("선물 저장!")); }
+        function approveOrder(id) { db.ref('orders/' + id).update({ status: '완료' }); }
+        function saveSettings() { db.ref('settings').update({password:document.getElementById('conf-pass').value, lateTime:document.getElementById('conf-late').value, closeTime:document.getElementById('conf-close').value, routineText:document.getElementById('conf-routine').value}).then(()=>alert("저장!")); }
+        function saveGifts() { const list = document.getElementById('conf-gifts').value.split('\n').filter(t=>t!==""); db.ref('settings').update({giftList: list}).then(()=>alert("선물 저장!")); }
         function openPopup(t, c, isR = false) { document.getElementById('pop-title').innerText=t; document.getElementById('pop-content').innerText=c; document.getElementById('common-overlay').style.display='flex'; window.routineActive = isR; }
-        function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) { document.getElementById('pop-content').innerText = `다음 루틴: ${routineItems[rIdx]}`; } else { document.getElementById('common-overlay').style.display = 'none'; window.routineActive = false; } } else { document.getElementById('common-overlay').style.display = 'none'; } }
+        function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) { document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; } else { document.getElementById('common-overlay').style.display = 'none'; window.routineActive = false; } } else { document.getElementById('common-overlay').style.display = 'none'; } }
         function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
-        function bulkReg() { document.getElementById('bulk-in').value.trim().split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); } }); alert("완료!"); }
+        function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); } }); alert("완료!"); }
     </script>
 </body>
 </html>
