@@ -18,6 +18,68 @@
         .tab-menu button.active { color: white; border-bottom: 4px solid var(--gold); }
         .tab-content { display: none; padding: 15px; max-width: 1000px; margin: auto; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
+
+        /* --- 여기서부터 추가된 핵심 스타일 --- */
+        
+        /* 인벤토리 쿠폰 카드 디자인 */
+        .coupon-card { 
+            background: #fff; 
+            border: 2px solid var(--purple); 
+            padding: 12px; 
+            border-radius: 12px; 
+            margin-bottom: 8px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .btn-use { 
+            background: var(--purple); 
+            color: white; 
+            padding: 8px 15px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            border: none; 
+            font-weight: bold;
+            font-size: 0.85rem; 
+        }
+        .btn-use:hover { opacity: 0.9; }
+
+        /* 상점 친구 전용 상태 표시 */
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .status-req { background: var(--red); color: white; } /* 사용요청 상태 */
+        .status-wait { background: #eee; color: #666; }      /* 구매대기 상태 */
+
+        /* 기존 요소 유지 */
+        .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 15px; }
+        .hero-card { background: white; border-radius: 12px; padding: 15px 10px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 2px solid transparent; position: relative; }
+        .card-no { position: absolute; top: 5px; left: 8px; font-size: 0.7rem; color: #999; font-weight: bold; }
+        .card-avatar { font-size: 3rem; margin-bottom: 8px; display: block; }
+        .card-lv { font-size: 0.75rem; background: var(--dark); color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        input, button, textarea, select { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; gap: 8px; }
+        
+        /* 번호 수정 입력박스 확대 유지 */
+        .edit-no { width: 75px !important; height: 50px !important; font-size: 1.2rem !important; font-weight: bold; text-align: center; border: 2px solid var(--primary) !important; margin-right: 10px; }
+    <style>
+        :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; --bg: #ecf0f1; }
+        body { font-family: 'Pretendard', sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 50px; }
+        #login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: var(--dark); padding: 20px; box-sizing: border-box; }
+        .login-box { background: white; padding: 40px 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 100%; max-width: 350px; }
+        #main-app { display: none; }
+        .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; overflow-x: auto; }
+        .tab-menu button { flex: 1; min-width: 70px; padding: 15px 5px; border: none; background: none; color: #95a5a6; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+        .tab-menu button.active { color: white; border-bottom: 4px solid var(--gold); }
+        .tab-content { display: none; padding: 15px; max-width: 1000px; margin: auto; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
         .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 15px; }
         .hero-card { background: white; border-radius: 12px; padding: 15px 10px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 2px solid transparent; position: relative; }
         .hero-card.me { border-color: var(--gold); background: #fffdf2; transform: scale(1.02); }
