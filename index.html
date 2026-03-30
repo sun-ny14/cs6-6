@@ -396,19 +396,29 @@
         function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); } }); alert("완료!"); }
 
-        // 포인트 연대기 표시
-        db.ref('pointLogs').orderByChild('time').limitToLast(40).on('value', snap => {
-            let html = ""; let logs = []; snap.forEach(c => logs.push(c.val()));
-            logs.reverse().forEach(log => {
-                if (isAdmin || log.name === myName) {
-                    const color = log.amount > 0 ? "var(--green)" : (log.amount < 0 ? "var(--red)" : "#888");
-                    html += `<div class="list-item" style="border-left:5px solid ${color}">
-                        <strong>${log.name}</strong> <span style="color:${color}">${log.amount > 0 ? '+' : ''}${log.amount}P</span><br>
-                        <small>${log.reason} (${log.time})</small></div>`;
-                }
-            });
-            document.getElementById('point-history-list').innerHTML = html || "연대기가 비어있습니다.";
-        });
+      // 기존 limitToLast(40)을 100 정도로 늘리고, 데이터가 비어있어도 최대한 출력하게 수정
+db.ref('pointLogs').orderByChild('time').limitToLast(100).on('value', snap => {
+    let html = ""; 
+    let logs = []; 
+    snap.forEach(c => {
+        const log = c.val();
+        if(log) logs.push(log); // 아주 최소한의 조건만 검사
+    });
+    logs.reverse().forEach(log => {
+        // 관리자거나 내 이름일 때 표시
+        if (isAdmin || (log.name && log.name === myName)) {
+            const color = log.amount > 0 ? "var(--green)" : (log.amount < 0 ? "var(--red)" : "#888");
+            const logName = log.name || "알 수 없는 용사";
+            const logReason = log.reason || "사유 없음";
+            
+            html += `<div class="list-item" style="border-left:5px solid ${color}">
+                <strong>${logName}</strong> <span style="color:${color}">${log.amount > 0 ? '+' : ''}${log.amount}P</span><br>
+                <small>${logReason} (${log.time || ''})</small></div>`;
+        }
+    });
+    document.getElementById('point-history-list').innerHTML = html || "아직 기록된 역사가 없습니다.";
+});
+       
     </script>
 </body>
 </html>
