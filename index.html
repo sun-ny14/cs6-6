@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>6-6 용사 본부</title>
+    <!-- 내부망에서 가장 안정적인 버전 유지 -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -120,6 +121,7 @@
     </div>
 
     <script>
+        // 선생님의 원본 Firebase 설정 및 초기화 (내부망 접속용)
         const firebaseConfig = {
             apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
             authDomain: "cs6-6class.firebaseapp.com",
@@ -147,6 +149,7 @@
             return `<div class="pixel-avatar ${lvClass}"></div>`;
         }
 
+        // 로그인 감지 로직 (내부망에서 가장 안전하게 돌아가던 방식)
         auth.onAuthStateChanged((user) => {
             if (user) {
                 isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
