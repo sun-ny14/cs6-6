@@ -38,7 +38,7 @@
         .avatar-lv15 { background-position: -144px 0px; }
         .avatar-lv20 { background-position: -192px 0px; }
         .avatar-lv30 { background-position: -240px 0px; }
-        .cat-title { margin-top: 15px; margin-bottom: 5px; padding: 5px 10px; background: var(--dark); color: white; border-radius: 6px; font-size: 0.85rem; font-weight: bold; }
+        .cat-title { margin-top: 15px; margin-bottom: 5px; padding: 5px 10px; background: var(--purple); color: white; border-radius: 6px; font-size: 0.85rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -120,7 +120,6 @@
     </div>
 
     <script>
-        // 선생님의 기존 Firebase 설정 (그대로 유지)
         const firebaseConfig = {
             apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0",
             authDomain: "cs6-6class.firebaseapp.com",
@@ -148,7 +147,6 @@
             return `<div class="pixel-avatar ${lvClass}"></div>`;
         }
 
-        // 로그인 상태 감지 (기존 로직 복구)
         auth.onAuthStateChanged((user) => {
             if (user) {
                 isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
@@ -170,13 +168,7 @@
             }
         });
 
-        // 로그인 팝업 호출 (기존 로직 복구)
-        function handleLogin() { 
-            auth.signInWithPopup(provider).catch(err => {
-                console.error(err);
-                alert("로그인 오류: " + err.message);
-            }); 
-        }
+        function handleLogin() { auth.signInWithPopup(provider).catch(err => alert("로그인 오류: " + err.message)); }
 
         function startApp() {
             if (isAdmin) {
@@ -249,7 +241,6 @@
             });
         }
 
-        // 지각 분 단위 차감 적용된 등교 로직
         function submitCheckIn() {
             const pw = document.getElementById('checkin-pass').value;
             db.ref('settings').once('value', snap => {
