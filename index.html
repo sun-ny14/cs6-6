@@ -217,68 +217,60 @@
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime} | ⚠️ 지각: ~${s.closeTime}`;
             });
 
-            // 용사 명단 복구 및 출력 로직
+            // 🤺 용사들 탭: 무조건 다 불러오기 (복구 핵심)
             db.ref('users').on('value', snap => {
                 let users = [];
                 snap.forEach(c => { 
-                    const data = c.val();
-                    // 데이터가 존재하기만 하면 일단 목록에 넣음 (검사 완화)
-                    if(data) {
-                        // 혹시 이름(name)이 없으면 키값(아이디)이라도 이름으로 사용
-                        if(!data.name) data.name = c.key; 
-                        users.push(data); 
-                    }
+                    let u = c.val() || {};
+                    u.name = u.name || c.key; // 이름 없으면 키값이라도 사용
+                    users.push(u);
                 });
-
-                // 번호 순서대로 정렬
                 users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
                 currentUsers = users;
 
                 let gH = "", aH = "";
                 users.forEach(u => {
-                    // 메인 화면 용사 카드 생성
                     gH += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openUserHistory('${u.name}')">
                         <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv || 1}</span>
                         <span class="card-avatar">${getAvatar(u.lv || 1)}</span><div class="card-name">${u.name}</div>
                         <div class="card-pt">${u.points || 0} P</div>
                     </div>`;
-                    
-                    // 관리 탭 명단 생성
                     aH += `<div class="list-item">
                         <input type="number" class="edit-no" data-name="${u.name}" value="${u.no}">
                         <input type="text" class="edit-name" data-name="${u.name}" value="${u.name}">
                         <button onclick="updateHeroInfo('${u.name}')" style="width:auto; background:var(--primary); padding:8px;">저장</button>
-                        <button onclick="deleteHero('${u.name}', '${u.email}')" style="width:auto; background:var(--red); padding:8px;">삭제</button>
+                        <button onclick="deleteHero('${u.name}', '${u.email}')" style="background:var(--red); padding:8px;">삭제</button>
                     </div>`;
                 });
-                document.getElementById('hero-grid').innerHTML = gH || "용사를 소환 중이거나 명단이 비어있습니다.";
+                document.getElementById('hero-grid').innerHTML = gH || "데이터 로딩 실패";
                 document.getElementById('student-admin-list').innerHTML = aH;
             });
 
-            db.ref('pointLogs').orderByChild('time').limitToLast(100).on('value', snap => {
-                allLogs = [];
-                snap.forEach(c => allLogs.push(c.val()));
-                renderHistory();
-            });
-
+            // 🛍️ 상점 요청 목록: "사용요청"만 뜨도록 수정
             db.ref('orders').on('value', snap => {
                 let cH = "", oH = "";
                 snap.forEach(c => {
                     const o = c.val();
+                    // 내 인벤토리 (내가 산 것)
                     if(o.user === myName && o.status === '대기') {
                         cH += `<div class="coupon-card"><span>${o.item}</span><button class="btn-use" onclick="requestUseCoupon('${c.key}', '${o.item}')">사용하기</button></div>`;
                     }
-                    if(isAdmin || isShopMode) {
-                        if(o.status === '대기' || o.status === '사용요청') {
-                            const label = o.status === '사용요청' ? '🔴사용' : '⚪구매';
-                            oH += `<div class="list-item" style="background:${o.status==='사용요청'?'#fff0f0':'#f9f9f9'}"><span>[${label}] <strong>${o.user}</strong>: ${o.item}</span><button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto;">완료</button></div>`;
-                        }
+                    // 관리자/상점친구: "사용요청"인 것만 리스트에 띄움
+                    if((isAdmin || isShopMode) && o.status === '사용요청') {
+                        oH += `<div class="list-item" style="background:#fff0f0">
+                                <span><strong>${o.user}</strong> 용사가 <strong>${o.item}</strong> 사용 요청!</span>
+                                <button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto;">승인완료</button>
+                               </div>`;
                     }
                 });
                 document.getElementById('my-coupon-list').innerHTML = cH || "보유 쿠폰 없음";
-                if(isAdmin || isShopMode) document.getElementById('order-list').innerHTML = oH || "요청 없음";
+                if(isAdmin || isShopMode) document.getElementById('order-list').innerHTML = oH || "현재 사용 요청이 없습니다.";
             });
 
+            // 나머지 등교로그, 도감 등은 기존 로직 유지...
+            db.ref('pointLogs').orderByChild('time').limitToLast(100).on('value', snap => {
+                allLogs = []; snap.forEach(c => allLogs.push(c.val())); renderHistory();
+            });
             db.ref('checkinLogs').limitToLast(50).on('value', snap => {
                 let hH = ""; let logs = []; snap.forEach(c => { if(c.val()) logs.push(c.val()); });
                 logs.reverse().forEach(l => {
@@ -287,7 +279,6 @@
                 });
                 document.getElementById('checkin-history').innerHTML = hH || "기록 없음";
             });
-
             db.ref('shop').on('value', snap => {
                 let items = []; snap.forEach(c => { let i = c.val(); i.key = c.key; items.push(i); });
                 items.sort((a,b) => (a.category||"").localeCompare(b.category||""));
@@ -298,7 +289,6 @@
                 });
                 document.getElementById('shop-list').innerHTML = sH || "비어있음";
             });
-
             db.ref('guides').on('value', snap => {
                 let gH = ""; snap.forEach(c => { const g = c.val(); gH += `<div class="hero-card" onclick="applyGuide('${g.title}', ${g.p}, ${g.e})"><strong>${g.title}</strong><br><small>${g.p}P / ${g.e}E</small></div>`; });
                 document.getElementById('guide-list').innerHTML = gH || "없음";
