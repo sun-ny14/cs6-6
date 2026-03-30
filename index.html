@@ -271,20 +271,34 @@
                 document.getElementById('guide-list').innerHTML = gH || "도감을 등록하세요.";
             });
 
-            db.ref('shop').on('value', snap => {
-    let sH = "";
-    let currentCat = "";
-    snap.forEach(c => {
-        const i = c.val();
-        // 카테고리가 바뀌면 제목 표시
-        if (i.category !== currentCat) {
-            currentCat = i.category || "✨ 기타";
-            sH += `<div style="background:var(--dark); color:white; padding:5px 10px; border-radius:5px; margin-top:15px; font-size:0.9rem;">${currentCat}</div>`;
-        }
-        sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:5px;"><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}</div></div>`;
-    });
-    document.getElementById('shop-list').innerHTML = sH || "상점이 텅 비었습니다.";
-});
+           db.ref('shop').on('value', snap => {
+                let items = [];
+                snap.forEach(c => {
+                    let item = c.val();
+                    item.key = c.key;
+                    items.push(item);
+                });
+
+                // 카테고리 순서대로 정렬 (🍕 -> 🎫 -> 🎲 순)
+                items.sort((a, b) => (a.category || "").localeCompare(b.category || ""));
+
+                let sH = "";
+                let currentCat = "";
+                items.forEach(i => {
+                    if (i.category !== currentCat) {
+                        currentCat = i.category || "✨ 기타";
+                        sH += `<div style="background:var(--purple); color:white; padding:5px 10px; border-radius:5px; margin-top:15px; font-size:0.85rem; font-weight:bold;">${currentCat}</div>`;
+                    }
+                    sH += `<div class="list-item">
+                        <span>${i.name} (<strong>${i.price}P</strong>)</span>
+                        <div style="display:flex; gap:5px;">
+                            <button onclick="buyItem('${i.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>
+                            ${isAdmin ? `<button onclick="db.ref('shop/${i.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('shop-list').innerHTML = sH || "상점이 텅 비었습니다.";
+            });
         }
 
         // 팝업 기능 (일괄/개별)
