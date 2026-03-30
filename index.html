@@ -205,24 +205,36 @@
         function handleLogin() { auth.signInWithPopup(provider).catch(e => alert("로그인 실패: " + e.message)); }
 
         function startApp() {
-            if (isAdmin) { ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => document.getElementById(id).style.display = 'block'); }
+            // 1. 관리자 전용 UI 노출
+            if (isAdmin) { 
+                ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) el.style.display = 'block';
+                }); 
+            }
 
+            // 2. 시스템 설정 및 [레벨업 보상] 불러오기 (복구 핵심)
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {};
                 document.getElementById('conf-pass').value = s.password || "";
                 document.getElementById('conf-late').value = s.lateTime || "08:40";
                 document.getElementById('conf-close').value = s.closeTime || "09:00";
                 document.getElementById('conf-routine').value = s.routineText || "";
+                
+                // 레벨업 보상 필드 복구 (비어있으면 빈 배열)
+                const gList = s.giftList || [];
+                document.getElementById('conf-gifts').value = gList.join('\n');
+                
                 routineItems = (s.routineText || "").split('\n').filter(t => t.trim() !== "");
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime} | ⚠️ 지각: ~${s.closeTime}`;
             });
 
-            // 🤺 용사들 탭: 무조건 다 불러오기 (복구 핵심)
+            // 3. 🤺 용사들 탭: 필터 없이 무조건 전원 소환
             db.ref('users').on('value', snap => {
                 let users = [];
                 snap.forEach(c => { 
                     let u = c.val() || {};
-                    u.name = u.name || c.key; // 이름 없으면 키값이라도 사용
+                    u.name = u.name || c.key; 
                     users.push(u);
                 });
                 users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
@@ -242,24 +254,23 @@
                         <button onclick="deleteHero('${u.name}', '${u.email}')" style="background:var(--red); padding:8px;">삭제</button>
                     </div>`;
                 });
-                document.getElementById('hero-grid').innerHTML = gH || "데이터 로딩 실패";
+                document.getElementById('hero-grid').innerHTML = gH || "용사를 소환 중...";
                 document.getElementById('student-admin-list').innerHTML = aH;
             });
 
-            // 🛍️ 상점 요청 목록: "사용요청"만 뜨도록 수정
+            // 4. 🛍️ 상점/인벤토리: "사용요청" 위주로 정리
             db.ref('orders').on('value', snap => {
                 let cH = "", oH = "";
                 snap.forEach(c => {
                     const o = c.val();
-                    // 내 인벤토리 (내가 산 것)
                     if(o.user === myName && o.status === '대기') {
                         cH += `<div class="coupon-card"><span>${o.item}</span><button class="btn-use" onclick="requestUseCoupon('${c.key}', '${o.item}')">사용하기</button></div>`;
                     }
-                    // 관리자/상점친구: "사용요청"인 것만 리스트에 띄움
+                    // 상점 관리자/친구: 구매 내역은 안 봐도 되고 "사용 요청"만 띄움
                     if((isAdmin || isShopMode) && o.status === '사용요청') {
-                        oH += `<div class="list-item" style="background:#fff0f0">
-                                <span><strong>${o.user}</strong> 용사가 <strong>${o.item}</strong> 사용 요청!</span>
-                                <button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto;">승인완료</button>
+                        oH += `<div class="list-item" style="background:#fff0f0; border:2px solid var(--red);">
+                                <span><strong>${o.user}</strong>: ${o.item} (사용요청!)</span>
+                                <button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto;">승인</button>
                                </div>`;
                     }
                 });
@@ -267,7 +278,7 @@
                 if(isAdmin || isShopMode) document.getElementById('order-list').innerHTML = oH || "현재 사용 요청이 없습니다.";
             });
 
-            // 나머지 등교로그, 도감 등은 기존 로직 유지...
+            // 5. 나머지 로그 및 도감 (기존 유지)
             db.ref('pointLogs').orderByChild('time').limitToLast(100).on('value', snap => {
                 allLogs = []; snap.forEach(c => allLogs.push(c.val())); renderHistory();
             });
