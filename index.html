@@ -29,7 +29,7 @@
         button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; gap: 8px; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
-        .popup-box { background: white; padding: 25px; border-radius: 20px; width: 85%; max-width: 400px; text-align: center; }
+        .popup-box { background: white; padding: 25px; border-radius: 20px; width: 90%; max-width: 450px; text-align: center; max-height: 85vh; overflow-y: auto; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .pixel-avatar { width: 48px; height: 48px; background-image: url('avatars.png'); background-repeat: no-repeat; background-size: 288px 48px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
         .avatar-lv1 { background-position: 0px 0px; }
@@ -38,7 +38,7 @@
         .avatar-lv15 { background-position: -144px 0px; }
         .avatar-lv20 { background-position: -192px 0px; }
         .avatar-lv30 { background-position: -240px 0px; }
-        .cat-tag { font-size: 0.7rem; background: #eee; padding: 2px 5px; border-radius: 4px; color: #666; margin-right: 5px; }
+        .floating-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 30px; background: var(--gold); color: var(--dark); box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 999; font-size: 1.5rem; display: none; align-items: center; justify-content: center; border: none; }
     </style>
 </head>
 <body>
@@ -48,6 +48,18 @@
             <h2 id="pop-title">알림</h2>
             <div id="pop-content" style="margin-bottom: 20px; white-space: pre-wrap; font-size: 1.1rem;">내용</div>
             <button onclick="closePopup()" style="background:var(--green); font-size: 1.1rem; padding: 12px;">확인</button>
+        </div>
+    </div>
+
+    <!-- 포인트 지급 통합 팝업 -->
+    <div id="point-popup" class="overlay">
+        <div class="popup-box">
+            <h2 id="point-pop-title">포인트 전령</h2>
+            <div id="point-pop-body"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="closePointPopup()" style="background:#95a5a6;">닫기</button>
+                <button id="point-apply-btn" style="background:var(--gold); color:var(--dark);">반영하기</button>
+            </div>
         </div>
     </div>
 
@@ -63,8 +75,10 @@
         <nav class="tab-menu">
             <button id="btn-main" class="active" onclick="showTab('main')">🤺 용사들</button>
             <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
+            <button id="btn-guide" onclick="showTab('guide')">📜 도감</button>
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-            <button id="btn-points" onclick="showTab('points')">💰 포인트</button>
+            <button id="btn-logs" onclick="showTab('logs')">📅 등교로그</button>
+            <button id="btn-points" onclick="showTab('points')">💰 연대기</button>
             <button id="btn-admin" onclick="showTab('admin')" style="display:none;">🛡️ 관리</button>
         </nav>
         
@@ -73,18 +87,18 @@
         <section id="tab-shop" class="tab-content">
             <div id="admin-shop-mgr" class="card" style="display:none; border:2px solid var(--purple);">
                 <h3>📦 물품 등록</h3>
-                <select id="item-cat-in">
-                    <option value="🎫 쿠폰">🎫 쿠폰</option>
-                    <option value="🍕 먹거리">🍕 먹거리</option>
-                    <option value="🎲 뽑기">🎲 뽑기</option>
-                    <option value="✨ 기타">✨ 기타</option>
-                </select>
-                <input type="text" id="item-name-in" placeholder="상품명">
-                <input type="number" id="item-price-in" placeholder="가격 (P)">
-                <button onclick="addItem()" style="background:var(--purple);">진열하기</button>
+                <input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격 (P)"><button onclick="addItem()" style="background:var(--purple);">진열</button>
             </div>
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 요청 목록</h3><div id="order-list"></div></div>
+        </section>
+
+        <section id="tab-guide" class="tab-content">
+            <div id="admin-guide-mgr" class="card" style="display:none; border:2px solid var(--primary);">
+                <h3>📋 자주 쓰는 항목 등록</h3>
+                <input type="text" id="guide-title" placeholder="항목 이름 (예: 독서왕)"><input type="number" id="guide-p" placeholder="포인트"><input type="number" id="guide-e" placeholder="경험치"><button onclick="addGuide()">도감 등록</button>
+            </div>
+            <div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div>
         </section>
 
         <section id="tab-checkin" class="tab-content">
@@ -96,31 +110,24 @@
             </div>
         </section>
 
+        <section id="tab-logs" class="tab-content">
+            <div class="card"><h2>📅 등교 기록부</h2><div id="checkin-history"></div></div>
+        </section>
+
         <section id="tab-points" class="tab-content">
-            <!-- 선생님이 요청하신 네모난 카드 입력창들 유지 -->
-            <div id="admin-point-mgr" class="card" style="display:none; border:2px solid var(--gold);">
-                <h3>⚖️ 포인트 전령 (일괄 지급)</h3>
-                <input type="text" id="point-reason-bulk" placeholder="지급 사유 (예: 발표왕, 청소)">
-                <div id="point-bulk-list" style="max-height: 300px; overflow-y: auto; margin: 10px 0; border: 1px solid #eee;"></div>
-                <button onclick="applyPointsBulk()" style="background:var(--gold); color:var(--dark);">⚡ 선택 항목 일괄 적용</button>
-            </div>
-            <div id="admin-score-mgr" class="card" style="display:none; border:2px solid var(--primary);">
-                <h3>⚖️ 점수/경험치 부여 (개별)</h3>
-                <div id="mass-score-board"></div>
-                <button onclick="applyMassScores()">일괄 반영</button>
-            </div>
-            <div class="card">
-                <h3>📜 포인트 연대기</h3>
-                <div id="point-history-list" style="font-size: 0.9rem; max-height: 400px; overflow-y: auto;"></div>
-            </div>
+            <div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list" style="font-size: 0.9rem;"></div></div>
         </section>
 
         <section id="tab-admin" class="tab-content">
+            <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine"></textarea><button onclick="saveSettings()">저장</button></div>
-            <div class="card"><h3>🎁 랜덤 선물 목록</h3><textarea id="conf-gifts"></textarea><button onclick="saveGifts()">선물 저장</button></div>
-            <div class="card"><h3>👥 명단 관리 (번호 & 이름 수정)</h3><div id="student-admin-list"></div></div>
+            <div class="card"><h3>🎁 레벨업 보상</h3><textarea id="conf-gifts"></textarea><button onclick="saveGifts()">저장</button></div>
             <div class="card"><h3>🆕 학생 등록</h3><textarea id="bulk-in" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
+
+        <!-- 관리자 전용 플로팅 버튼 (포인트 팝업 호출용) -->
+        <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
+        <button id="floating-score-btn" class="floating-btn" style="right: 90px;" onclick="openScorePopup()">🎯</button>
     </div>
 
     <script>
@@ -139,7 +146,7 @@
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        let myName = "", isAdmin = false, routineItems = [], giftList = [], rIdx = 0;
+        let myName = "", isAdmin = false, routineItems = [], giftList = [], rIdx = 0, currentUsers = [];
 
         function getAvatar(lv) {
             let lvClass = "avatar-lv1";
@@ -155,16 +162,14 @@
             if (user) {
                 isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
                 const eKey = user.email.replace(/\./g, ',');
-                db.ref('userEmails/' + eKey).once('value', (snap) => {
+                db.ref('userEmails/' + eKey).once('value', snap => {
                     if (snap.exists() || isAdmin) {
                         myName = snap.val() || "총사령관";
                         document.getElementById('login-screen').style.display = 'none';
                         document.getElementById('main-app').style.display = 'block';
+                        if(isAdmin) document.querySelectorAll('.floating-btn').forEach(b => b.style.display = 'flex');
                         startApp();
-                    } else {
-                        alert("미등록 계정: " + user.email);
-                        auth.signOut();
-                    }
+                    } else { alert("미등록 계정입니다."); auth.signOut(); }
                 });
             } else {
                 document.getElementById('login-screen').style.display = 'flex';
@@ -172,14 +177,10 @@
             }
         });
 
-        function handleLogin() { auth.signInWithPopup(provider).catch(err => alert("로그인 오류: " + err.message)); }
+        function handleLogin() { auth.signInWithPopup(provider); }
 
         function startApp() {
-            if (isAdmin) {
-                ['btn-admin', 'admin-shop-mgr', 'admin-order-mgr', 'admin-point-mgr', 'admin-score-mgr'].forEach(id => {
-                    const el = document.getElementById(id); if(el) el.style.display = 'block';
-                });
-            }
+            if (isAdmin) { ['btn-admin', 'admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => document.getElementById(id).style.display = 'block'); }
 
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {};
@@ -195,100 +196,141 @@
 
             db.ref('users').on('value', snap => {
                 let users = [];
-                snap.forEach(c => { users.push(c.val()); });
+                snap.forEach(c => { 
+                    const data = c.val();
+                    if(data && data.name) users.push(data); // undefined 방지: 이름이 있는 데이터만 로드
+                });
                 users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
+                currentUsers = users;
 
-                let gH = "", mH = "", aH = "", pBulkH = "";
+                let gH = "", aH = "";
                 users.forEach(u => {
                     gH += `<div class="hero-card ${u.name===myName?'me':''}">
-                        <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv}</span>
-                        <span class="card-avatar">${getAvatar(u.lv)}</span><div class="card-name">${u.name}</div>
+                        <span class="card-no">${u.no || ''}</span><span class="card-lv">LV.${u.lv || 1}</span>
+                        <span class="card-avatar">${getAvatar(u.lv || 1)}</span><div class="card-name">${u.name}</div>
                         <div class="card-pt">${u.points || 0} P</div>
                     </div>`;
                     
-                    // 점수/경험치 부여 칸 (경험치 칸 다시 살림)
-                    mH += `<div class="list-item">
-                        <span>${u.no||'?'}. ${u.name}</span>
-                        <div style="display:flex; gap:5px;">
-                            E<input type="number" class="m-exp" data-name="${u.name}" style="width:40px;">
-                            P<input type="number" class="m-pts" style="width:40px;">
-                        </div>
-                    </div>`;
-                    
-                    // 명단 관리 (네모 박스 형태 유지)
                     aH += `<div class="list-item">
                         <input type="number" class="edit-no" data-name="${u.name}" value="${u.no}" style="width:40px;">
-                        <input type="text" class="edit-name" data-name="${u.name}" value="${u.name}" style="flex:1; margin:0 5px;">
-                        <button onclick="updateHeroInfo('${u.name}')" style="width:auto; padding:5px 10px;">저장</button>
+                        <span style="flex:1;">${u.name}</span>
+                        <button onclick="updateNo('${u.name}')" style="width:auto; background:var(--primary); padding:5px;">수정</button>
+                        <button onclick="deleteHero('${u.name}', '${u.email}')" style="width:auto; background:var(--red); padding:5px;">삭제</button>
                     </div>`;
-                    
-                    pBulkH += `<div class="list-item"><span>${u.no||'?'}. ${u.name}</span><input type="number" class="bulk-p-input" data-name="${u.name}" style="width:60px;"></div>`;
                 });
                 document.getElementById('hero-grid').innerHTML = gH;
-                document.getElementById('mass-score-board').innerHTML = mH;
                 document.getElementById('student-admin-list').innerHTML = aH;
-                document.getElementById('point-bulk-list').innerHTML = pBulkH;
+            });
+
+            // 등교 로그 전용 표시
+            db.ref('checkinLogs').orderByChild('time').limitToLast(30).on('value', snap => {
+                let hH = "";
+                let logs = []; snap.forEach(c => logs.push(c.val()));
+                logs.reverse().forEach(l => {
+                    const color = l.result.includes('정상') ? 'var(--green)' : 'var(--red)';
+                    hH += `<div class="list-item"><span><strong>${l.name}</strong></span> <span style="color:${color}">${l.result}</span> <small>${l.time}</small></div>`;
+                });
+                document.getElementById('checkin-history').innerHTML = hH || "오늘의 등교자가 없습니다.";
+            });
+
+            db.ref('guides').on('value', snap => {
+                let gH = "";
+                snap.forEach(c => {
+                    const g = c.val();
+                    gH += `<div class="hero-card" style="cursor:pointer;" onclick="applyGuide('${g.title}', ${g.p}, ${g.e})">
+                        <strong>${g.title}</strong><br><small>${g.p}P / ${g.e}E</small>
+                        ${isAdmin ? `<button onclick="db.ref('guides/${c.key}').remove(); event.stopPropagation();" style="background:var(--red); margin-top:5px; padding:2px;">삭제</button>` : ''}
+                    </div>`;
+                });
+                document.getElementById('guide-list').innerHTML = gH || "등록된 도감이 없습니다.";
             });
 
             db.ref('shop').on('value', snap => {
-                let sH = "";
-                snap.forEach(c => {
-                    const i = c.val();
-                    sH += `<div class="list-item">
-                        <span><small class="cat-tag">${i.category || '기타'}</small>${i.name} (<strong>${i.price}P</strong>)</span>
+                let sH = ""; snap.forEach(c => { const i = c.val(); sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:5px;"><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}</div></div>`; });
+                document.getElementById('shop-list').innerHTML = sH || "상점이 텅 비었습니다.";
+            });
+        }
+
+        // 팝업 관련 함수
+        function openPointBulkPopup() {
+            let html = `<input type="text" id="pop-bulk-reason" placeholder="지급 사유">
+                        <div style="max-height:300px; overflow-y:auto; margin-top:10px; border:1px solid #eee;">`;
+            currentUsers.forEach(u => {
+                html += `<div class="list-item"><span>${u.no}. ${u.name}</span>
                         <div style="display:flex; gap:5px;">
-                            <button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button>
-                            ${isAdmin ? `<button onclick="db.ref('shop/${c.key}').remove()" style="background:red; width:auto;">삭제</button>` : ''}
-                        </div>
-                    </div>`;
-                });
-                document.getElementById('shop-list').innerHTML = sH || "물건이 없습니다.";
+                        P<input type="number" class="pop-bulk-p" data-name="${u.name}" style="width:50px;">
+                        E<input type="number" class="pop-bulk-e" data-name="${u.name}" style="width:50px;">
+                        </div></div>`;
             });
+            html += `</div>`;
+            document.getElementById('point-pop-title').innerText = "⚖️ 일괄 포인트/경험치 전령";
+            document.getElementById('point-pop-body').innerHTML = html;
+            document.getElementById('point-apply-btn').onclick = applyBulkPopup;
+            document.getElementById('point-popup').style.display = 'flex';
+        }
 
-            if (isAdmin) {
-                db.ref('orders').on('value', snap => {
-                    let oH = ""; snap.forEach(c => { const o = c.val(); if(o.status === '대기') { oH += `<div class="list-item" style="background:#fff4f4;"><span>[${o.user}] ${o.item}</span><button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto;">지급완료</button></div>`; } });
-                    document.getElementById('order-list').innerHTML = oH || "요청 없음";
-                });
+        function applyBulkPopup() {
+            const reason = document.getElementById('pop-bulk-reason').value;
+            if(!reason) return alert("사유를 입력하세요.");
+            const pIns = document.querySelectorAll('.pop-bulk-p');
+            const eIns = document.querySelectorAll('.pop-bulk-e');
+            pIns.forEach((pI, i) => {
+                const name = pI.dataset.name, p = parseInt(pI.value) || 0, e = parseInt(eIns[i].value) || 0;
+                if(p || e) addScore(name, p, e, reason);
+            });
+            alert("일괄 반영되었습니다!"); closePointPopup();
+        }
+
+        function openScorePopup() {
+            let html = `<div style="max-height:400px; overflow-y:auto;">`;
+            currentUsers.forEach(u => {
+                html += `<div class="list-item"><span>${u.no}. ${u.name}</span>
+                        <div style="display:flex; gap:5px;">
+                        P<input type="number" class="pop-one-p" data-name="${u.name}" style="width:45px;">
+                        E<input type="number" class="pop-one-e" data-name="${u.name}" style="width:45px;">
+                        <button onclick="applyOneScore('${u.name}', ${currentUsers.indexOf(u)})" style="width:auto; padding:5px;">OK</button>
+                        </div></div>`;
+            });
+            html += `</div>`;
+            document.getElementById('point-pop-title').innerText = "🎯 개별 점수/경험치 부여";
+            document.getElementById('point-pop-body').innerHTML = html;
+            document.getElementById('point-apply-btn').style.display = 'none'; // 개별은 OK버튼 사용
+            document.getElementById('point-popup').style.display = 'flex';
+        }
+
+        function applyOneScore(name, idx) {
+            const p = parseInt(document.querySelectorAll('.pop-one-p')[idx].value) || 0;
+            const e = parseInt(document.querySelectorAll('.pop-one-e')[idx].value) || 0;
+            if(!p && !e) return;
+            addScore(name, p, e, "관리자 수동 부여");
+            document.querySelectorAll('.pop-one-p')[idx].value = "";
+            document.querySelectorAll('.pop-one-e')[idx].value = "";
+            alert(`${name} 반영 완료!`);
+        }
+
+        function closePointPopup() { 
+            document.getElementById('point-popup').style.display = 'none'; 
+            document.getElementById('point-apply-btn').style.display = 'block';
+        }
+
+        // 로직 함수들
+        function addScore(name, p, e, reason) {
+            db.ref('users/' + name).once('value', snap => {
+                const u = snap.val(); if(!u) return;
+                let nE = (u.exp || 0) + e, nL = (u.lv || 1), nP = (u.points || 0) + p;
+                while(nE >= 100) { nL++; nE -= 100; }
+                db.ref('users/' + name).update({ exp: nE, lv: nL, points: nP });
+                const ts = new Date().toLocaleString();
+                db.ref('pointLogs').push({ name, amount: p, reason, time: ts });
+            });
+        }
+
+        function applyGuide(title, p, e) {
+            if(!isAdmin) return;
+            if(confirm(`[${title}] 항목을 모든 학생에게 일괄 적용할까요?`)) {
+                currentUsers.forEach(u => addScore(u.name, p, e, title));
+                alert("일괄 적용 완료!");
             }
-        }
-
-        function updateHeroInfo(oldName) {
-            const listItems = document.querySelectorAll('#student-admin-list .list-item');
-            let newNo = "", newName = "";
-            listItems.forEach(item => {
-                const nameIn = item.querySelector('.edit-name');
-                if(nameIn.dataset.name === oldName) {
-                    newNo = item.querySelector('.edit-no').value;
-                    newName = nameIn.value;
-                }
-            });
-
-            if(!newName) return;
-            db.ref('users/' + oldName).once('value', snap => {
-                const data = snap.val();
-                data.no = newNo;
-                data.name = newName;
-                db.ref('users/' + newName).set(data).then(() => {
-                    if(oldName !== newName) {
-                        db.ref('users/' + oldName).remove();
-                        // 이메일 맵핑 업데이트
-                        db.ref('userEmails').once('value', eSnap => {
-                            eSnap.forEach(e => { if(e.val() === oldName) db.ref('userEmails/' + e.key).set(newName); });
-                        });
-                    }
-                    alert("수정 완료!");
-                });
-            });
-        }
-
-        function updatePoint(targetName, amount, reason) {
-            const timestamp = new Date().toLocaleString();
-            db.ref('pointLogs').push({ name: targetName, amount: amount, reason: reason, time: timestamp });
-            db.ref('users/' + targetName).once('value', snap => {
-                const u = snap.val();
-                if (u) db.ref('users/' + targetName).update({ points: (u.points || 0) + amount });
-            });
         }
 
         function submitCheckIn() {
@@ -298,81 +340,75 @@
                 const now = new Date(); const curT = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
                 if(curT > s.closeTime) return openPopup("🚫 실패", "마감 시간 경과!");
                 
-                let msg = "✨ 정상 등교 완료!", penalty = 0, reason = "정상 등교 성공";
+                let msg = "✨ 정상 등교!", penalty = 0, res = "정상 등교";
                 if(curT > s.lateTime) { 
-                    const [lateH, lateM] = s.lateTime.split(':').map(Number);
-                    const diffMin = (now.getHours() * 60 + now.getMinutes()) - (lateH * 60 + lateM);
-                    penalty = -diffMin; 
-                    msg = `⚠️ 지각! (${curT}) 벌금 ${penalty}P`; 
-                    reason = `지각 등교 (${diffMin}분 지각)`; 
+                    const [lh, lm] = s.lateTime.split(':').map(Number);
+                    const diff = (now.getHours()*60+now.getMinutes()) - (lh*60+lm);
+                    penalty = -diff; msg = `⚠️ 지각! (${curT}) 벌금 ${penalty}P`; res = `지각 (${diff}분)`;
                 }
-                
-                updatePoint(myName, penalty, reason);
+                updatePoint(myName, penalty, res);
+                db.ref('checkinLogs').push({ name: myName, result: res, time: now.toLocaleString() });
                 rIdx = 0; if(routineItems.length > 0) openPopup(msg, `[루틴]\n1단계: ${routineItems[0]}`, true); else openPopup("🎊 완료", msg);
                 document.getElementById('checkin-pass').value = "";
             });
         }
 
-        function applyMassScores() {
-            document.querySelectorAll('.m-exp').forEach((e, i) => {
-                const n = e.dataset.name, ae = parseInt(e.value)||0, ap = parseInt(document.querySelectorAll('.m-pts')[i].value)||0;
-                if(ae || ap) db.ref('users/'+n).once('value', sn => {
-                    const u = sn.val(); let nE = (u.exp||0)+ae, nL = (u.lv||1), nP = (u.points||0)+ap;
-                    while(nE >= 100) { nL++; nE -= 100; }
-                    db.ref('users/'+n).update({exp:nE, lv:nL, points:nP});
-                    if(ap !== 0) updatePoint(n, ap, "관리자 개별 부여");
-                });
-                e.value = ""; document.querySelectorAll('.m-pts')[i].value = "";
+        function updatePoint(n, a, r) {
+            db.ref('users/' + n).once('value', snap => {
+                const u = snap.val(); if(!u) return;
+                db.ref('users/' + n).update({ points: (u.points || 0) + a });
+                db.ref('pointLogs').push({ name: n, amount: a, reason: r, time: new Date().toLocaleString() });
             });
-            alert("반영 완료!");
         }
 
-        function applyPointsBulk() {
-            const reason = document.getElementById('point-reason-bulk').value;
-            if(!reason) return alert("사유 입력!");
-            const inputs = document.querySelectorAll('.bulk-p-input');
-            inputs.forEach(input => {
-                const val = parseInt(input.value);
-                if(val) { updatePoint(input.dataset.name, val, reason); input.value = ""; }
-            });
-            document.getElementById('point-reason-bulk').value = "";
-            alert("일괄 적용 완료!");
+        function deleteHero(n, e) {
+            if(confirm(`'${n}' 용사를 본부에서 영구 삭제하시겠습니까?`)) {
+                db.ref('users/' + n).remove();
+                if(e) db.ref('userEmails/' + e.replace(/\./g, ',')).remove();
+                alert("삭제되었습니다.");
+            }
         }
 
-        db.ref('pointLogs').orderByChild('time').limitToLast(50).on('value', snap => {
-            let html = ""; let logs = []; snap.forEach(c => { logs.push(c.val()); });
-            logs.reverse().forEach(log => {
-                if (isAdmin || log.name === myName) {
-                    const color = log.amount > 0 ? "var(--green)" : (log.amount < 0 ? "var(--red)" : "#888");
-                    html += `<div class="list-item" style="border-left: 5px solid ${color};">
-                        <div style="flex:1;"><strong>${log.name}</strong> <span style="color:${color};">${log.amount>0?'+':''}${log.amount}P</span><br>
-                        <small>${log.reason}</small></div>
-                        <div style="font-size:0.7rem; color:#bbb;">${log.time.split(' ').slice(1,4).join(' ')}</div></div>`;
-                }
-            });
-            document.getElementById('point-history-list').innerHTML = html || "기록 없음";
-        });
+        function updateNo(n) {
+            const val = document.querySelector(`.edit-no[data-name="${n}"]`).value;
+            db.ref('users/' + n).update({ no: val }).then(() => alert("번호 수정 완료!"));
+        }
 
-        function addItem() { 
-            const c = document.getElementById('item-cat-in').value, n = document.getElementById('item-name-in').value, p = parseInt(document.getElementById('item-price-in').value);
-            if(n && p) db.ref('shop').push({category:c, name:n, price:p}).then(() => { alert("등록 완료!"); });
+        function addGuide() {
+            const title = document.getElementById('guide-title').value;
+            const p = parseInt(document.getElementById('guide-p').value) || 0;
+            const e = parseInt(document.getElementById('guide-e').value) || 0;
+            if(title) db.ref('guides').push({ title, p, e }).then(() => {
+                document.getElementById('guide-title').value = "";
+                document.getElementById('guide-p').value = "";
+                document.getElementById('guide-e').value = "";
+            });
         }
-        function buyItem(id, name, price) { 
-            db.ref('users/'+myName).once('value', sn => { 
-                const u = sn.val(); if(!u || u.points < price) return alert("P 부족!"); 
-                if(confirm(`${name} 구매?`)) { 
-                    updatePoint(myName, -price, `${name} 구매`);
-                    db.ref('orders').push({ user: myName, item: name, status: '대기', time: new Date().toLocaleString() }); 
-                } 
-            }); 
-        }
+
+        function addJob() { /* 직업 삭제됨 */ }
+        function addItem() { const n = document.getElementById('item-name-in').value, p = parseInt(document.getElementById('item-price-in').value); if(n && p) db.ref('shop').push({name:n, price:p}); }
+        function buyItem(id, name, price) { db.ref('users/'+myName).once('value', sn => { const u = sn.val(); if(!u || u.points < price) return alert("P 부족!"); if(confirm(`${name} 구매?`)) { updatePoint(myName, -price, `${name} 구매`); db.ref('orders').push({ user: myName, item: name, status: '대기', time: new Date().toLocaleString() }); } }); }
         function approveOrder(id) { db.ref('orders/' + id).update({ status: '완료' }); }
-        function saveSettings() { db.ref('settings').update({password:document.getElementById('conf-pass').value, lateTime:document.getElementById('conf-late').value, closeTime:document.getElementById('conf-close').value, routineText:document.getElementById('conf-routine').value}).then(()=>alert("저장!")); }
-        function saveGifts() { const list = document.getElementById('conf-gifts').value.split('\n').filter(t=>t!==""); db.ref('settings').update({giftList: list}).then(()=>alert("선물 저장!")); }
+        function saveSettings() { db.ref('settings').update({password:document.getElementById('conf-pass').value, lateTime:document.getElementById('conf-late').value, closeTime:document.getElementById('conf-close').value, routineText:document.getElementById('conf-routine').value}); }
+        function saveGifts() { const list = document.getElementById('conf-gifts').value.split('\n'); db.ref('settings').update({giftList: list}); }
         function openPopup(t, c, isR = false) { document.getElementById('pop-title').innerText=t; document.getElementById('pop-content').innerText=c; document.getElementById('common-overlay').style.display='flex'; window.routineActive = isR; }
         function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) { document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; } else { document.getElementById('common-overlay').style.display = 'none'; window.routineActive = false; } } else { document.getElementById('common-overlay').style.display = 'none'; } }
         function showTab(t) { document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); document.getElementById('btn-'+t).classList.add('active'); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); } }); alert("완료!"); }
+
+        // 포인트 연대기 표시
+        db.ref('pointLogs').orderByChild('time').limitToLast(40).on('value', snap => {
+            let html = ""; let logs = []; snap.forEach(c => logs.push(c.val()));
+            logs.reverse().forEach(log => {
+                if (isAdmin || log.name === myName) {
+                    const color = log.amount > 0 ? "var(--green)" : (log.amount < 0 ? "var(--red)" : "#888");
+                    html += `<div class="list-item" style="border-left:5px solid ${color}">
+                        <strong>${log.name}</strong> <span style="color:${color}">${log.amount > 0 ? '+' : ''}${log.amount}P</span><br>
+                        <small>${log.reason} (${log.time})</small></div>`;
+                }
+            });
+            document.getElementById('point-history-list').innerHTML = html || "연대기가 비어있습니다.";
+        });
     </script>
 </body>
 </html>
