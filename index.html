@@ -35,6 +35,9 @@
         .coupon-card { background: #fff; border: 2.5px solid var(--purple); padding: 18px; border-radius: 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
         #roulette-box { font-size: 2.2rem; font-weight: bold; color: var(--purple); padding: 30px; border: 5px dashed var(--gold); margin: 20px 0; border-radius: 20px; background: #fffceb; text-align: center; }
         .lv-up-title { color: var(--gold); font-size: 2.5rem; text-shadow: 2px 2px var(--dark); text-align: center; font-weight:bold; }
+        /* 아바타 스타일 복구 */
+        .pixel-avatar { width: 64px; height: 64px; background-image: url('avatars.png'); background-repeat: no-repeat; background-size: 384px 64px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
+        .avatar-lv1 { background-position: 0px 0px; } .avatar-lv5 { background-position: -64px 0px; } .avatar-lv10 { background-position: -128px 0px; } .avatar-lv15 { background-position: -192px 0px; } .avatar-lv20 { background-position: -256px 0px; } .avatar-lv30 { background-position: -320px 0px; }
     </style>
 </head>
 <body>
@@ -56,19 +59,46 @@
         </nav>
         
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
+        
         <section id="tab-shop" class="tab-content">
-            <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);"><h3>📦 물품 등록</h3><input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격 (P)"><button onclick="addItem()" style="background:var(--purple); color:white; border:none;">진열</button></div>
+            <!-- 상점 등록 로직 복구 -->
+            <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);">
+                <h3>📦 물품 등록</h3>
+                <select id="item-cat-in">
+                    <option value="🍕 먹거리">🍕 먹거리</option>
+                    <option value="🎫 쿠폰">🎫 쿠폰</option>
+                    <option value="🎲 뽑기">🎲 뽑기</option>
+                    <option value="✏️ 학용품">✏️ 학용품</option>
+                    <option value="✨ 기타">✨ 기타</option>
+                </select>
+                <input type="text" id="item-name-in" placeholder="상품명">
+                <input type="number" id="item-price-in" placeholder="가격 (P)">
+                <button onclick="addItem()" style="background:var(--purple); color:white; border:none;">진열</button>
+            </div>
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 목록</h3><div id="order-list"></div></div>
         </section>
-        <section id="tab-guide" class="tab-content"><div id="admin-guide-mgr" class="card" style="display:none; border:3px solid var(--primary);"><h3>📋 사유 등록</h3><input type="text" id="guide-title" placeholder="항목"><input type="number" id="guide-p" placeholder="P"><input type="number" id="guide-e" placeholder="E"><button onclick="addGuide()" style="background:var(--primary); color:white; border:none;">등록</button></div><div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div></section>
+
+        <section id="tab-guide" class="tab-content">
+            <!-- 도감 등록 로직 복구 -->
+            <div id="admin-guide-mgr" class="card" style="display:none; border:3px solid var(--primary);">
+                <h3>📋 사유 등록</h3>
+                <input type="text" id="guide-title" placeholder="항목">
+                <input type="number" id="guide-p" placeholder="P">
+                <input type="number" id="guide-e" placeholder="E">
+                <button onclick="addGuide()" style="background:var(--primary); color:white; border:none;">등록</button>
+            </div>
+            <div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div>
+        </section>
+
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; font-size:1.4rem; margin-bottom:15px;"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button id="btn-checkin-submit" onclick="submitCheckIn()" style="padding:25px; font-size:1.6rem; background:var(--primary); color:white; border:none; border-radius:15px;">본부 소환!</button></div></section>
         <section id="tab-logs" class="tab-content"><div class="card"><h2>📅 등교 기록부</h2><div style="margin-bottom:15px; display:flex; gap:10px; align-items:center;"><span style="font-weight:bold;">날짜:</span><input type="date" id="checkin-date-filter" style="flex:1; font-size:1.3rem; padding:10px;"></div><div id="checkin-history"></div></div></section>
         <section id="tab-points" class="tab-content"><div id="my-inventory" class="card"><h3>🎁 나의 인벤토리</h3><div id="my-coupon-list"></div></div><div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div></section>
+        
         <section id="tab-admin" class="tab-content">
             <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine" rows="5"></textarea><button onclick="saveSettings()">저장</button></div>
-            <div class="card"><h3>🎁 레벨업 보상</h3><textarea id="conf-gifts" rows="5" placeholder="보상을 한 줄씩 입력하세요"></textarea><button onclick="saveGifts()">저장</button></div>
+            <div class="card"><h3>🎁 레벨업 보상</h3><textarea id="conf-gifts" rows="5" placeholder="사탕&#13;&#10;초콜릿&#13;&#10;쿠폰"></textarea><button onclick="saveGifts()">저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" placeholder="이름,이메일" rows="4"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
 
@@ -82,7 +112,8 @@
         let myName = "", isAdmin = false, currentUsers = [], allLogs = [], rIdx = 0, routineItems = [], giftList = [];
         let currentTab = sessionStorage.getItem('activeTab') || 'main';
 
-        function getAvatar(lv) { let lvClass = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1"; return `<div class="card-avatar">🐲</div>`; }
+        // 아바타 로직 복구
+        function getAvatar(lv) { let lvClass = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1"; return `<div class="pixel-avatar ${lvClass}"></div>`; }
 
         auth.onAuthStateChanged((user) => {
             if (user) {
@@ -95,7 +126,7 @@
                         document.getElementById('main-app').style.display = 'block';
                         if(isAdmin) { ['floating-point-btn', 'floating-score-btn', 'btn-guide', 'btn-logs', 'btn-admin'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = id.includes('btn') ? 'block' : 'flex'; }); }
                         startApp(); showTab(currentTab); document.getElementById('loading-screen').style.display = 'none';
-                    } else { alert("미등록 사용자!"); auth.signOut(); }
+                    } else { alert("미등록!"); auth.signOut(); }
                 });
             } else { document.getElementById('loading-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; document.getElementById('main-app').style.display = 'none'; }
         });
@@ -126,12 +157,19 @@
                 currentUsers = users;
                 let gH = "";
                 users.forEach(u => {
+                    // [핵심수정] 총사령관 완벽 은신
                     if(u.name === "총사령관" || (u.email && u.email.toLowerCase() === adminEmail.toLowerCase())) return;
                     const isMe = (u.name === myName);
-                    gH += `<div class="hero-card ${isMe?'me':''}" onclick="openUserHistory('${u.name}')"><span class="card-avatar">🐲</span><div class="card-name">LV.${u.lv||1} ${u.name}</div><div class="card-pt">${u.points||0}P</div></div>`;
+                    gH += `<div class="hero-card ${isMe?'me':''}" onclick="openUserHistory('${u.name}')"><span class="card-avatar">${getAvatar(u.lv||1)}</span><div class="card-name">LV.${u.lv||1} ${u.name}</div><div class="card-pt">${u.points||0}P</div></div>`;
                 });
                 document.getElementById('hero-grid').innerHTML = gH;
                 renderCheckinBoard();
+            });
+
+            // 도감 표시 복구
+            db.ref('pointGuide').on('value', snap => {
+                let hH = ""; snap.forEach(c => { const g = c.val(); hH += `<div class="hero-card"><b>${g.title}</b><div class="card-pt">${g.p}P / ${g.e}E</div></div>`; });
+                document.getElementById('guide-list').innerHTML = hH || "도감 비어있음";
             });
 
             db.ref('orders').on('value', snap => {
@@ -154,6 +192,7 @@
                     const logs = {}; logSnap.forEach(c => { const l = c.val(); if(l.date === targetDate) logs[l.name] = l; });
                     let hH = `<div style="margin-bottom:10px; font-size:1.1rem; color:#666;">📌 <b>${targetDate}</b> 출석부</div>`;
                     currentUsers.forEach(u => {
+                        // [핵심수정] 출석부에서도 총사령관 은신
                         if(u.name === "총사령관") return;
                         const log = logs[u.name]; let color = "#f1c40f", txt = "미등교", time = "-";
                         if (log) { time = log.time || ""; if (log.result.includes('정상')) { color = "var(--green)"; txt = "정상"; } else { color = "var(--red)"; txt = log.result; } }
@@ -164,13 +203,13 @@
             };
             db.ref('checkinLogs').on('value', () => renderCheckinBoard());
             db.ref('shop').on('value', snap => {
-                let sH = ""; snap.forEach(c => { const i = c.val(); sH += `<div class="list-item"><span>${i.name} (${i.price}P)</span><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto; background:var(--primary); color:white; border:none; padding:10px;">구매</button></div>`; });
+                let sH = ""; snap.forEach(c => { const i = c.val(); sH += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto; background:var(--primary); color:white; border:none; padding:10px;">구매</button></div>`; });
                 document.getElementById('shop-list').innerHTML = sH || "보급소 준비 중";
             });
             if (isAdmin) { ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'block'; }); }
         }
 
-        // [수정: 상점 구매 팝업 확실히 띄우기]
+        // [핵심수정] 상점 구매 알림 확실히 노출
         function buyItem(k, n, p) {
             db.ref('users/'+myName).once('value', sn => {
                 const curP = (sn.val().points || 0);
@@ -184,8 +223,9 @@
             });
         }
 
+        // [핵심수정] 레벨업 보상 정배 (관리 탭 목록만 사용)
         function triggerLevelUpRoulette(userName, newLv) {
-            if (!giftList || giftList.length === 0) { openPopup("🎊 레벨업!", `<h3>축하합니다! LV.${newLv}</h3>`); return; }
+            if (!giftList || giftList.length === 0) { openPopup("🎊 레벨업!", `<h3>축하합니다! LV.${newLv} 달성!</h3>`); return; }
             document.getElementById('pop-title').innerHTML = `<span class="lv-up-title">🎊 LEVEL UP! 🎊</span>`;
             document.getElementById('pop-content').innerHTML = `<div style="text-align:center; padding:10px;"><p style="font-size:1.4rem;"><b>${userName}</b> 용사, 레벨 <b>${newLv}</b> 달성!</p><div id="roulette-box">보상 탐색 중...</div></div>`;
             document.getElementById('pop-close-btn').style.display = 'none';
@@ -219,6 +259,7 @@
             });
         }
 
+        // [핵심수정] 등교 시간 칼차단
         async function submitCheckIn() {
             const pw = document.getElementById('checkin-pass').value;
             const now = new Date(); const dateStr = now.toISOString().split('T')[0];
@@ -229,7 +270,7 @@
 
             db.ref('settings').once('value', sSnap => {
                 const s = sSnap.val(); if(pw !== s.password) return alert("암호 오류!");
-                if(curT > s.closeTime) return alert(`마감되었습니다! (${s.closeTime}까지)`);
+                if(curT > s.closeTime) return alert(`등교 시간이 마감되었습니다! (마감: ${s.closeTime})`);
                 let res = "정상 등교", penalty = 0;
                 if(curT > s.lateTime) {
                     const [lh, lm] = s.lateTime.split(':').map(Number);
@@ -266,7 +307,7 @@
         function updatePoint(n, a, r) { db.ref('users/'+n).once('value', sn => { if(sn.val()) db.ref('users/'+n).update({points: (sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
         function requestUseCoupon(key, itemName) { if(confirm(`${itemName} 사용요청?`)) db.ref('orders/'+key).update({status:'사용요청', useTime:new Date().toLocaleString()}); }
         function approveOrder(id) { if(confirm("승인하시겠습니까?")) db.ref('orders/'+id).update({status:'완료'}); }
-        function addItem() { const n = document.getElementById('item-name-in').value, p = parseInt(document.getElementById('item-price-in').value); if(n && p) { db.ref('shop').push({name:n, price:p}); document.getElementById('item-name-in').value=''; document.getElementById('item-price-in').value=''; }}
+        function addItem() { const cat = document.getElementById('item-cat-in').value, n = document.getElementById('item-name-in').value, p = parseInt(document.getElementById('item-price-in').value); if(n && p) { db.ref('shop').push({cat, name:n, price:p}); document.getElementById('item-name-in').value=''; document.getElementById('item-price-in').value=''; }}
         function addGuide() { const t = document.getElementById('guide-title').value, p = parseInt(document.getElementById('guide-p').value)||0, e = parseInt(document.getElementById('guide-e').value)||0; if(t) { db.ref('pointGuide').push({title:t, p, e}); document.getElementById('guide-title').value=''; }}
         function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}).then(()=>alert("저장됨!")); }
         function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n')}).then(()=>alert("보상 저장됨!")); }
