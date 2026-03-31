@@ -156,19 +156,56 @@
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime} | ⚠️ 지각: ~${s.closeTime}`;
             });
 
-            db.ref('users').on('value', snap => {
-                let users = []; snap.forEach(c => { let u = c.val(); if(u){ u.name = u.name || c.key; users.push(u); }});
-                users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
-                currentUsers = users;
-                let gH = "";
-                users.forEach(u => {
-                    if(u.name === "총사령관" || (u.email && u.email.toLowerCase() === adminEmail.toLowerCase())) return;
-                    const isMe = (u.name === myName);
-                    gH += `<div class="hero-card ${isMe?'me':''}" onclick="openUserHistory('${u.name}')"><span class="card-avatar">${getAvatar(u.lv||1)}</span><div class="card-name">LV.${u.lv||1} ${u.name}</div><div class="card-pt">${u.points||0}P</div></div>`;
-                });
-                document.getElementById('hero-grid').innerHTML = gH;
-                renderCheckinBoard();
-            });
+           // [복구] 학생 명단 불러오기 및 번호 수정 로직
+db.ref('users').on('value', snap => {
+    let users = []; 
+    snap.forEach(c => { 
+        let u = c.val(); 
+        if(u) { 
+            u.name = u.name || c.key; 
+            users.push(u); 
+        }
+    });
+
+    // 번호 순으로 정렬 (번호가 없으면 뒤로 보냄)
+    users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
+    currentUsers = users;
+
+    let gH = ""; // 메인 [용사들] 탭용
+    let aH = ""; // [관리] 탭 명단 수정용
+
+    users.forEach(u => {
+        // 총사령관(관리자)은 모든 명단에서 제외 (선생님 요청)
+        if(u.name === "총사령관" || (u.email && u.email.toLowerCase() === adminEmail.toLowerCase())) return;
+
+        const isMe = (u.name === myName);
+        
+        // 1. 메인 [용사들] 탭 카드 생성
+        gH += `<div class="hero-card ${isMe?'me':''}" onclick="openUserHistory('${u.name}')">
+                <span class="card-avatar">${getAvatar(u.lv||1)}</span>
+                <div class="card-name">LV.${u.lv||1} ${u.name}</div>
+                <div class="card-pt">${u.points||0}P</div>
+               </div>`;
+
+        // 2. [관리] 탭 학생 번호 수정 리스트 생성 (핵심 복구)
+        if(isAdmin) {
+            aH += `<div class="list-item">
+                    <span>${u.name} (${u.email})</span>
+                    <div style="display:flex; gap:5px; width:150px;">
+                        <input type="number" value="${u.no||''}" placeholder="번호" 
+                               onchange="updateNo('${u.name}', this.value)" 
+                               style="margin:0; padding:5px; text-align:center;">
+                        <button onclick="delUser('${u.name}')" style="background:var(--red); color:white; width:auto; padding:5px 10px;">제거</button>
+                    </div>
+                   </div>`;
+        }
+    });
+
+    document.getElementById('hero-grid').innerHTML = gH;
+    if(isAdmin) document.getElementById('student-admin-list').innerHTML = aH;
+    
+    renderCheckinBoard(); // 명단 갱신될 때 출석부도 같이 갱신
+});
 
             db.ref('pointGuide').on('value', snap => {
                 let hH = ""; snap.forEach(c => { const g = c.val(); hH += `<div class="hero-card"><b>${g.title}</b><div class="card-pt">${g.p}P / ${g.e}E</div></div>`; });
