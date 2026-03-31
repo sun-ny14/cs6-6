@@ -35,11 +35,16 @@
         .avatar-lv1 { background-position: 0px 0px; } .avatar-lv5 { background-position: -64px 0px; } .avatar-lv10 { background-position: -128px 0px; } .avatar-lv15 { background-position: -192px 0px; } .avatar-lv20 { background-position: -256px 0px; } .avatar-lv30 { background-position: -320px 0px; }
         .floating-btn { position: fixed; bottom: 25px; right: 25px; width: 85px; height: 85px; border-radius: 45px; background: var(--gold); color: var(--dark); box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
         .coupon-card { background: #fff; border: 2.5px solid var(--purple); padding: 18px; border-radius: 18px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 룰렛 연출용 애니메이션 */
+        #roulette-box { font-size: 2rem; font-weight: bold; color: var(--purple); padding: 20px; border: 4px dashed var(--gold); margin: 20px 0; border-radius: 15px; background: #fffceb; }
+        .lv-up-title { color: var(--gold); font-size: 2.5rem; text-shadow: 2px 2px var(--dark); animation: bounce 0.5s infinite alternate; }
+        @keyframes bounce { from { transform: scale(1); } to { transform: scale(1.1); } }
     </style>
 </head>
 <body>
     <div id="loading-screen">🏰 용사 본부 접속 중...</div>
-    <div id="common-overlay" class="overlay"><div class="popup-box"><h2 id="pop-title">알림</h2><div id="pop-content" style="white-space: pre-wrap; font-size: 1.3rem; text-align: left;"></div><button onclick="closePopup()" style="background:var(--green); font-size: 1.4rem; padding: 18px; margin-top:20px;">확인</button></div></div>
+    <div id="common-overlay" class="overlay"><div class="popup-box"><h2 id="pop-title">알림</h2><div id="pop-content" style="white-space: pre-wrap; font-size: 1.3rem; text-align: left;"></div><button onclick="closePopup()" id="pop-close-btn" style="background:var(--green); font-size: 1.4rem; padding: 18px; margin-top:20px;">확인</button></div></div>
     <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title">포인트 전령</h2><div id="point-pop-body"></div><div style="display:flex; gap:15px; margin-top:25px;"><button onclick="closePointPopup()" style="background:#95a5a6; font-size: 1.3rem;">닫기</button><button id="point-apply-btn" style="background:var(--gold); color:var(--dark); font-size: 1.3rem;">반영하기</button></div></div></div>
     
     <div id="login-screen"><div class="login-box"><h1>🏰<br>6-6 용사 본부</h1><button onclick="handleLogin()" style="background:#4285F4; font-size: 1.5rem; padding: 22px;">Google 로그인</button></div></div>
@@ -56,43 +61,21 @@
         </nav>
         
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
-        
         <section id="tab-shop" class="tab-content">
-            <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);">
-                <h3>📦 물품 등록</h3>
-                <select id="item-cat-in"><option value="🍕 먹거리">🍕 먹거리</option><option value="🎫 쿠폰">🎫 쿠폰</option><option value="🎲 뽑기">🎲 뽑기</option><option value="✏️ 학용품">✏️ 학용품</option><option value="✨ 기타">✨ 기타</option></select>
-                <input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격 (P)"><button onclick="addItem()" style="background:var(--purple);">진열</button>
-            </div>
+            <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);"><h3>📦 물품 등록</h3><select id="item-cat-in"><option value="🍕 먹거리">🍕 먹거리</option><option value="🎫 쿠폰">🎫 쿠폰</option><option value="🎲 뽑기">🎲 뽑기</option><option value="✏️ 학용품">✏️ 학용품</option><option value="✨ 기타">✨ 기타</option></select><input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격 (P)"><button onclick="addItem()" style="background:var(--purple);">진열</button></div>
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 목록</h3><div id="order-list"></div></div>
         </section>
-
-        <section id="tab-guide" class="tab-content">
-            <div id="admin-guide-mgr" class="card" style="display:none; border:3px solid var(--primary);"><h3>📋 사유 등록</h3><input type="text" id="guide-title" placeholder="항목"><input type="number" id="guide-p" placeholder="P"><input type="number" id="guide-e" placeholder="E"><button onclick="addGuide()">등록</button></div>
-            <div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div>
-        </section>
-
-        <section id="tab-checkin" class="tab-content">
-            <div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; font-size:1.4rem; margin-bottom:15px;"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="padding:25px; font-size:1.6rem;">본부 소환!</button></div>
-        </section>
-
-        <section id="tab-logs" class="tab-content">
-            <div class="card">
-                <h2>📅 등교 기록부 (출석부)</h2>
-                <div style="margin-bottom:15px; display:flex; gap:10px; align-items:center;">
-                    <span style="font-weight:bold;">날짜 선택:</span>
-                    <input type="date" id="checkin-date-filter" style="flex:1; font-size:1.3rem; padding:10px;">
-                </div>
-                <div id="checkin-history"></div>
-            </div>
-        </section>
-
+        <section id="tab-guide" class="tab-content"><div id="admin-guide-mgr" class="card" style="display:none; border:3px solid var(--primary);"><h3>📋 사유 등록</h3><input type="text" id="guide-title" placeholder="항목"><input type="number" id="guide-p" placeholder="P"><input type="number" id="guide-e" placeholder="E"><button onclick="addGuide()">등록</button></div><div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div></section>
+        <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; font-size:1.4rem; margin-bottom:15px;"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="padding:25px; font-size:1.6rem;">본부 소환!</button></div></section>
+        
+        <section id="tab-logs" class="tab-content"><div class="card"><h2>📅 등교 기록부 (출석부)</h2><div style="margin-bottom:15px; display:flex; gap:10px; align-items:center;"><span style="font-weight:bold;">날짜 선택:</span><input type="date" id="checkin-date-filter" style="flex:1; font-size:1.3rem; padding:10px;"></div><div id="checkin-history"></div></div></section>
+        
         <section id="tab-points" class="tab-content"><div id="my-inventory" class="card"><h3>🎁 나의 인벤토리</h3><div id="my-coupon-list"></div></div><div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div></section>
-
         <section id="tab-admin" class="tab-content">
             <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine" rows="5"></textarea><button onclick="saveSettings()">저장</button></div>
-            <div class="card"><h3>🎁 레벨업 보상</h3><textarea id="conf-gifts" rows="5"></textarea><button onclick="saveGifts()">저장</button></div>
+            <div class="card"><h3>🎁 레벨업 보상 (줄바꿈으로 구분)</h3><textarea id="conf-gifts" rows="5"></textarea><button onclick="saveGifts()">저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" placeholder="이름,이메일" rows="4"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
 
@@ -116,10 +99,8 @@
         const auth = firebase.auth();
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        let myName = "", isAdmin = false, currentUsers = [], allLogs = [], rIdx = 0, routineItems = [];
+        let myName = "", isAdmin = false, currentUsers = [], allLogs = [], rIdx = 0, routineItems = [], giftList = [];
         let currentTab = sessionStorage.getItem('activeTab') || 'main';
-        const urlParams = new URLSearchParams(window.location.search);
-        const isShopMode = urlParams.get('mode') === 'shopkeeper';
 
         function getAvatar(lv) {
             let lvClass = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1";
@@ -138,150 +119,137 @@
                         document.getElementById('main-app').style.display = 'block';
                         if(isAdmin) {
                             ['floating-point-btn', 'floating-score-btn', 'btn-guide', 'btn-logs', 'btn-admin'].forEach(id => {
-                                const el = document.getElementById(id);
-                                if(el) el.style.display = id.includes('btn') ? 'block' : 'flex';
+                                const el = document.getElementById(id); if(el) el.style.display = id.includes('btn') ? 'block' : 'flex';
                             });
                         }
                         startApp();
                         showTab(currentTab);
                         if (loading) loading.style.display = 'none';
-                    } else { alert("미등록 계정!"); auth.signOut(); }
+                    } else { alert("미등록!"); auth.signOut(); }
                 });
-            } else {
-                if (loading) loading.style.display = 'none';
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('main-app').style.display = 'none';
-            }
+            } else { if (loading) loading.style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; document.getElementById('main-app').style.display = 'none'; }
         });
 
-        function handleLogin() { auth.signInWithPopup(provider).catch(e => alert("로그인 오류: " + e.message)); }
-
-        function showTab(t) {
-            currentTab = t; sessionStorage.setItem('activeTab', t);
-            document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active'));
-            if(document.getElementById('tab-'+t)) document.getElementById('tab-'+t).classList.add('active');
-            if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active');
-        }
+        function handleLogin() { auth.signInWithPopup(provider); }
+        function showTab(t) { currentTab = t; sessionStorage.setItem('activeTab', t); document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); if(document.getElementById('tab-'+t)) document.getElementById('tab-'+t).classList.add('active'); if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); }
 
         function startApp() {
-            // [날짜 설정] 오늘 날짜 자동 세팅
             const dateInput = document.getElementById('checkin-date-filter');
-            if(dateInput && !dateInput.value) {
-                dateInput.value = new Date().toISOString().split('T')[0];
-                dateInput.onchange = () => renderCheckinBoard();
-            }
+            if(dateInput && !dateInput.value) { dateInput.value = new Date().toISOString().split('T')[0]; dateInput.onchange = () => renderCheckinBoard(); }
 
-            // 1. 연대기 로그 실시간 로드
-            db.ref('pointLogs').on('value', snap => {
-                allLogs = []; snap.forEach(c => { if(c.val()) allLogs.push(c.val()); });
-                renderHistory();
-            });
-
-            // 2. 시스템 설정
+            db.ref('pointLogs').on('value', snap => { allLogs = []; snap.forEach(c => { if(c.val()) allLogs.push(c.val()); }); renderHistory(); });
             db.ref('settings').on('value', snap => {
-                const s = snap.val() || {};
+                const s = snap.val() || {}; giftList = s.giftList || [];
                 document.getElementById('conf-pass').value = s.password || "";
                 document.getElementById('conf-late').value = s.lateTime || "08:40";
                 document.getElementById('conf-close').value = s.closeTime || "09:00";
                 document.getElementById('conf-routine').value = s.routineText || "";
-                document.getElementById('conf-gifts').value = (s.giftList || []).join('\n');
+                document.getElementById('conf-gifts').value = giftList.join('\n');
                 routineItems = (s.routineText || "").split('\n').filter(t => t.trim() !== "");
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime} | ⚠️ 지각: ~${s.closeTime}`;
             });
 
-            // 3. 용사 명단 불러오기
             db.ref('users').on('value', snap => {
-                let users = [];
-                snap.forEach(c => { let u = c.val(); if(u){ u.name = u.name || c.key; users.push(u); }});
+                let users = []; snap.forEach(c => { let u = c.val(); if(u){ u.name = u.name || c.key; users.push(u); }});
                 users.sort((a, b) => (parseInt(a.no) || 999) - (parseInt(b.no) || 999));
                 currentUsers = users;
                 let gH = "", aH = "";
                 users.forEach(u => {
                     const isMe = (u.name === myName);
-                    const clickAction = (isMe || isAdmin) ? `onclick="openUserHistory('${u.name}')"` : `onclick="alert('다른 용사의 연대기는 볼 수 없습니다! 🛡️')"`;
-                    gH += `<div class="hero-card ${isMe?'me':''}" ${clickAction}><span class="card-no">${u.no||''}</span><span class="card-lv">LV.${u.lv||1}</span><span class="card-avatar">${getAvatar(u.lv||1)}</span><div class="card-name">${u.name}</div><div class="card-pt">${u.points||0}P</div></div>`;
-                    aH += `<div class="list-item"><input type="number" data-name="${u.name}" class="edit-no" value="${u.no||''}" style="width:100px;"><input type="text" data-name="${u.name}" class="edit-name" value="${u.name}"><button onclick="updateHeroInfo('${u.name}')" style="width:auto;">저장</button><button onclick="deleteHero('${u.name}', '${u.email}')" style="background:var(--red); width:auto;">삭제</button></div>`;
+                    const clickAction = (isMe || isAdmin) ? `onclick="openUserHistory('${u.name}')"` : `onclick="alert('다른 친구 연대기는 비밀입니다! 🛡️')"`;
+                    gH += `<div class="hero-card ${isMe?'me':''}" ${clickAction}><span class="card-avatar">${getAvatar(u.lv||1)}</span><div class="card-name">LV.${u.lv||1} ${u.name}</div><div class="card-pt">${u.points||0}P</div></div>`;
+                    aH += `<div class="list-item"><span>${u.no}. ${u.name}</span><button onclick="updateHeroInfo('${u.name}')" style="width:auto;">저장</button></div>`;
                 });
                 document.getElementById('hero-grid').innerHTML = gH;
-                document.getElementById('student-admin-list').innerHTML = aH;
-                renderCheckinBoard(); // 명단 로드 후 출석부 그리기
+                renderCheckinBoard();
             });
 
-            // 4. 상점/인벤토리
             db.ref('orders').on('value', snap => {
                 let cH = "", oH = "";
                 snap.forEach(c => {
                     const o = c.val();
                     if(o.user === myName && o.status !== '완료') {
-                        const isWaiting = (o.status === '사용요청');
-                        cH += `<div class="coupon-card"><span>${o.item} ${isWaiting ? '<b style="color:var(--red);">(⏳요청중)</b>' : ''}</span><button class="btn-use" onclick="requestUseCoupon('${c.key}', '${o.item}')" style="width:auto; padding:12px 22px; background:${isWaiting ? '#95a5a6' : 'var(--purple)'};" ${isWaiting ? 'disabled' : ''}>${isWaiting ? '승인 대기' : '사용하기'}</button></div>`;
+                        const isW = (o.status === '사용요청');
+                        cH += `<div class="coupon-card"><span>${o.item} ${isW?'(⏳요청중)':''}</span><button onclick="requestUseCoupon('${c.key}', '${o.item}')" style="width:auto; background:${isW?'#95a5a6':'var(--purple)'};" ${isW?'disabled':''}>${isW?'대기':'사용'}</button></div>`;
                     }
-                    if((isAdmin || isShopMode) && o.status === '사용요청') {
-                        oH += `<div class="list-item" style="background:#fff0f0; border:2.5px solid var(--red);"><span><strong>${o.user}</strong>: ${o.item}</span><button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto; padding:12px 25px;">최종 승인</button></div>`;
-                    }
+                    if((isAdmin || isShopMode) && o.status === '사용요청') oH += `<div class="list-item"><span>${o.user}: ${o.item}</span><button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto;">최종 승인</button></div>`;
                 });
-                document.getElementById('my-coupon-list').innerHTML = cH || "보유 쿠폰 없음";
-                if(isAdmin || isShopMode) document.getElementById('order-list').innerHTML = oH || "사용 요청 없음";
+                document.getElementById('my-coupon-list').innerHTML = cH || "없음";
+                if(isAdmin || isShopMode) document.getElementById('order-list').innerHTML = oH || "요청 없음";
             });
 
-            // 5. [출석부] 날짜별 번호순 조회
-            // 5. [출석부] 날짜별 번호순 조회 (임시 복구 로직 추가)
             const renderCheckinBoard = () => {
                 const targetDate = document.getElementById('checkin-date-filter').value;
-                const isToday = (targetDate === new Date().toISOString().split('T')[0]);
-
                 db.ref('checkinLogs').once('value', logSnap => {
-                    const logs = {}; 
-                    logSnap.forEach(c => {
-                        const l = c.val();
-                        // 1순위: 날짜가 정확히 일치하는 경우
-                        if(l.date === targetDate) {
-                            logs[l.name] = l; 
-                        } 
-                        // 2순위: 오늘 조회 중인데 날짜 정보가 없는 옛날 데이터인 경우 (오늘만 임시 허용)
-                        else if (isToday && !l.date) {
-                            // 오늘 날짜 문자열이 포함되어 있는지 확인 (기존 time 필드 활용)
-                            // 보통 l.time에 '오전 9:00:00' 식으로 저장되므로 오늘 찍은 건지 완벽 확인은 어렵지만
-                            // 일단 '미등교'로 뜨는 답답함을 해소하기 위해 logs에 담아줍니다.
-                            if(!logs[l.name]) logs[l.name] = l; 
-                        }
-                    });
-
-                    let hH = `<div style="margin-bottom:10px; font-size:1.1rem; color:#666;">📌 <b>${targetDate}</b> 출석부 ${isToday ? '(실시간)' : ''}</div>`;
+                    const logs = {}; logSnap.forEach(c => { const l = c.val(); if(l.date === targetDate) logs[l.name] = l; });
+                    let hH = "";
                     currentUsers.forEach(u => {
-                        const log = logs[u.name];
-                        let color = "#f1c40f", txt = "미등교", time = "-";
-                        
-                        if (log) {
-                            time = log.time || "";
-                            if (log.result.includes('정상')) { color = "var(--green)"; txt = "정상 등교"; }
-                            else { color = "var(--red)"; txt = log.result; }
-                        }
-                        
-                        hH += `<div class="list-item" style="border-left:15px solid ${color}; background:white; margin-bottom:10px; padding:20px; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"><div style="flex:1;"><span style="color:#999;">${u.no||'?'}.</span><strong style="font-size:1.3rem; margin-left:8px;">${u.name}</strong></div><div style="flex:1; text-align:center;"><b style="color:${color}; font-size:1.2rem;">${txt}</b></div><div style="flex:1; text-align:right; color:#777; font-size:1.1rem;">${time}</div></div>`;
+                        const log = logs[u.name]; let color = "#f1c40f", txt = "미등교", time = "-";
+                        if (log) { time = log.time || ""; if (log.result.includes('정상')) { color = "var(--green)"; txt = "정상"; } else { color = "var(--red)"; txt = log.result; } }
+                        hH += `<div class="list-item" style="border-left:15px solid ${color};"><span>${u.no}. <strong>${u.name}</strong></span><b>${txt}</b><span>${time}</span></div>`;
                     });
                     document.getElementById('checkin-history').innerHTML = hH;
                 });
             };
             db.ref('checkinLogs').on('value', () => renderCheckinBoard());
-
-            // 6. 상점/도감
             db.ref('shop').on('value', snap => {
-                let items = []; snap.forEach(c => { let i = c.val(); i.key = c.key; items.push(i); });
-                items.sort((a,b) => (a.category||"").localeCompare(b.category||""));
-                let sH = "", currentCat = "";
-                items.forEach(i => {
-                    if(i.category !== currentCat) { currentCat = i.category || "기타"; sH += `<div style="background:var(--purple); color:white; padding:8px; border-radius:10px; margin-top:15px; font-weight:bold;">${currentCat}</div>`; }
-                    sH += `<div class="list-item"><span>${i.name} (<strong>${i.price}P</strong>)</span><div style="display:flex; gap:10px;"><button onclick="buyItem('${i.key}', '${i.name}', ${i.price})" style="width:auto; padding:12px 25px;">구매</button>${isAdmin ? `<button onclick="db.ref('shop/${i.key}').remove()" style="background:red; width:auto;">삭제</button>`:''}</div></div>`;
-                });
+                let sH = ""; snap.forEach(c => { const i = c.val(); sH += `<div class="list-item"><span>${i.name} (${i.price}P)</span><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto;">구매</button></div>`; });
                 document.getElementById('shop-list').innerHTML = sH || "비어있음";
             });
-            db.ref('guides').on('value', snap => {
-                let gH = ""; snap.forEach(c => { const g = c.val(); gH += `<div class="hero-card" onclick="applyGuide('${g.title}', ${g.p}, ${g.e})"><strong>${g.title}</strong><br><small>${g.p}P / ${g.e}E</small></div>`; });
-                document.getElementById('guide-list').innerHTML = gH || "항목 없음";
-            });
             if (isAdmin) { ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => document.getElementById(id).style.display = 'block'); }
+        }
+
+        // [핵심] 레벨업 룰렛 보상 시스템
+        function triggerLevelUpRoulette(userName, newLv) {
+            if (giftList.length === 0) {
+                openPopup("🎊 레벨업!", `축하합니다! ${userName} 용사님,\n레벨 ${newLv}이 되셨습니다!`);
+                return;
+            }
+
+            document.getElementById('pop-title').innerHTML = `<span class="lv-up-title">🎊 LEVEL UP! 🎊</span>`;
+            document.getElementById('pop-content').innerHTML = `
+                <div style="text-align:center;">
+                    <p style="font-size:1.5rem;"><b>${userName}</b> 용사,\n레벨 <b>${newLv}</b> 달성을 축하한다!</p>
+                    <div id="roulette-box">보상 탐색 중...</div>
+                    <p id="roulette-msg" style="color:#888;">연대기에 기록되는 보상을 확인하세요!</p>
+                </div>`;
+            document.getElementById('pop-close-btn').style.display = 'none';
+            document.getElementById('common-overlay').style.display = 'flex';
+
+            let count = 0;
+            const interval = setInterval(() => {
+                document.getElementById('roulette-box').innerText = giftList[Math.floor(Math.random() * giftList.length)];
+                count++;
+                if (count > 20) {
+                    clearInterval(interval);
+                    const finalGift = giftList[Math.floor(Math.random() * giftList.length)];
+                    document.getElementById('roulette-box').innerText = "⭐ " + finalGift + " ⭐";
+                    document.getElementById('roulette-box').style.background = "var(--gold)";
+                    document.getElementById('roulette-msg').innerText = "연대기에 보상이 기록되었습니다!";
+                    document.getElementById('pop-close-btn').style.display = 'block';
+                    
+                    // 연대기에 보상 자동 기록
+                    db.ref('pointLogs').push({
+                        name: userName,
+                        amount: 0,
+                        reason: `🎁 LV.${newLv} 달성 보상 당첨: [${finalGift}]`,
+                        time: new Date().toLocaleString()
+                    });
+                }
+            }, 100);
+        }
+
+        function addScore(name, p, e, reason) {
+            db.ref('users/'+name).once('value', sn => {
+                const u = sn.val(); if(!u) return;
+                let nE=(u.exp||0)+e, nL=(u.lv||1), nP=(u.points||0)+p;
+                let leveledUp = false;
+                while(nE >= 100){ nL++; nE -= 100; leveledUp = true; }
+                db.ref('users/'+name).update({exp:nE, lv:nL, points:nP});
+                db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()});
+                if (leveledUp && name === myName) triggerLevelUpRoulette(name, nL);
+                else if (leveledUp) alert(name + " 용사가 레벨업했습니다!");
+            });
         }
 
         function renderHistory() {
@@ -291,11 +259,10 @@
                     html += `<div class="list-item" style="border-left:10px solid ${color}"><span><strong>${l.name}</strong></span><strong style="color:${color}">${l.amount>0?'+':''}${l.amount}P</strong><br><small>${l.reason} (${l.time})</small></div>`;
                 }
             });
-            document.getElementById('point-history-list').innerHTML = html || "기록 없음";
+            document.getElementById('point-history-list').innerHTML = html || "없음";
         }
 
         function openUserHistory(userName) {
-            if (!isAdmin && userName !== myName) return alert("비밀입니다!");
             const userLogs = allLogs.filter(l => l.name === userName).reverse();
             let html = `<div style="text-align:left;">`;
             userLogs.forEach(l => {
@@ -309,62 +276,45 @@
             const pw = document.getElementById('checkin-pass').value;
             db.ref('settings').once('value', snap => {
                 const s = snap.val(); if(pw !== s.password) return alert("암호 오류!");
-                const now = new Date();
-                const dateStr = now.toISOString().split('T')[0];
+                const now = new Date(); const dateStr = now.toISOString().split('T')[0];
                 const curT = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
-                if(curT > s.closeTime) return alert("마감됨!");
-                let msg = "✨ 성공!", penalty = 0, res = "정상 등교";
-                if(curT > s.lateTime) {
-                    const [lh, lm] = s.lateTime.split(':').map(Number);
-                    const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm);
-                    penalty = -diff; res = `지각(${diff}분)`; msg = `⚠️ 지각! ${penalty}P`;
-                }
+                let res = "정상 등교", penalty = 0;
+                if(curT > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); penalty = -diff; res = `지각(${diff}분)`; }
                 updatePoint(myName, penalty, res);
                 db.ref('checkinLogs').push({ name: myName, result: res, time: now.toLocaleTimeString('ko-KR'), date: dateStr });
-                rIdx = 0; if(routineItems.length > 0) openPopup(msg, `[루틴]\n1단계: ${routineItems[0]}`, true); else openPopup("🎊 완료", msg);
+                rIdx = 0; if(routineItems.length > 0) openPopup("✨ 성공", `[루틴]\n1단계: ${routineItems[0]}`, true); else openPopup("🎊 완료", "등교 완료!");
                 document.getElementById('checkin-pass').value = "";
             });
         }
 
-        function requestUseCoupon(key, itemName) { if(confirm(`${itemName} 사용요청?`)) db.ref('orders/'+key).update({status:'사용요청', useTime:new Date().toLocaleString()}); }
-        function approveOrder(id) { if(confirm("승인 완료?")) db.ref('orders/'+id).update({status:'완료'}); }
-        function buyItem(k, n, p) { db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("P 부족!"); if(confirm(n+" 구매?")) { updatePoint(myName, -p, n+" 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
         function updatePoint(n, a, r) { db.ref('users/'+n).once('value', sn => { if(sn.val()) db.ref('users/'+n).update({points: (sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
-        function addScore(name, p, e, reason) { db.ref('users/'+name).once('value', sn => { const u = sn.val(); if(!u) return; let nE=(u.exp||0)+e, nL=(u.lv||1), nP=(u.points||0)+p; while(nE>=50){ nL++; nE-=50; } db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}); db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()}); }); }
-        function updateHeroInfo(oldN) {
-            const list = document.querySelectorAll('#student-admin-list .list-item');
-            let nNo = "", nN = "";
-            list.forEach(i => { const inp = i.querySelector('.edit-name'); if(inp.dataset.name === oldN) { nNo = i.querySelector('.edit-no').value; nN = inp.value; } });
-            db.ref('users/'+oldN).once('value', sn => { let d = sn.val(); d.no = nNo; d.name = nN; db.ref('users/'+nN).set(d).then(() => { if(oldN!==nN) { db.ref('users/'+oldN).remove(); db.ref('userEmails').once('value', es => { es.forEach(e => { if(e.val()===oldN) db.ref('userEmails/'+e.key).set(nN); }); }); } alert("수정됨!"); }); });
-        }
-        function deleteHero(n, e) { if(confirm(n+" 삭제?")) { db.ref('users/'+n).remove(); if(e) db.ref('userEmails/'+e.replace(/\./g,',')).remove(); } }
-        function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}).then(()=>alert("저장됨!")); }
-        function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n')}).then(()=>alert("저장됨!")); }
-        function openPopup(t, c, isR=false) { document.getElementById('pop-title').innerText=t; document.getElementById('pop-content').innerHTML=c; document.getElementById('common-overlay').style.display='flex'; window.routineActive=isR; }
+        function requestUseCoupon(key, itemName) { db.ref('orders/'+key).update({status:'사용요청', useTime:new Date().toLocaleString()}); }
+        function approveOrder(id) { db.ref('orders/'+id).update({status:'완료'}); }
+        function buyItem(k, n, p) { db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("P 부족!"); updatePoint(myName, -p, n+" 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); }); }
+        function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); }
+        function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n')}).then(()=>alert("보상 저장됨!")); }
+        function openPopup(t, c, isR=false) { document.getElementById('pop-title').innerText=t; document.getElementById('pop-content').innerText=c; document.getElementById('common-overlay').style.display='flex'; window.routineActive=isR; }
         function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display = 'none'; } else document.getElementById('common-overlay').style.display = 'none'; }
         function openPointBulkPopup() {
-            let html = `<input type="text" id="pop-bulk-reason" placeholder="사유" style="font-size:1.3rem;"><div style="max-height:450px; overflow-y:auto; margin-top:15px;">`;
-            currentUsers.forEach(u => { html += `<div class="list-item"><span>${u.no}. <strong>${u.name}</strong></span><div>P <input type="number" class="pop-bulk-p pop-score-input" data-name="${u.name}"> E <input type="number" class="pop-bulk-e pop-score-input" data-name="${u.name}"></div></div>`; });
-            html += `</div>`; document.getElementById('point-pop-title').innerText = "⚖️ 일괄 지급"; document.getElementById('point-pop-body').innerHTML = html;
+            let html = `<input type="text" id="pop-bulk-reason" placeholder="사유"><div style="max-height:400px; overflow-y:auto; margin-top:15px;">`;
+            currentUsers.forEach(u => { html += `<div class="list-item"><span>${u.no}. ${u.name}</span><div>P <input type="number" class="pop-bulk-p pop-score-input" data-name="${u.name}"> E <input type="number" class="pop-bulk-e pop-score-input" data-name="${u.name}"></div></div>`; });
+            html += `</div>`; document.getElementById('point-pop-body').innerHTML = html;
             document.getElementById('point-apply-btn').onclick = () => {
                 const r = document.getElementById('pop-bulk-reason').value; if(!r) return alert("사유!");
                 document.querySelectorAll('.pop-bulk-p').forEach((pI, i) => { const p=parseInt(pI.value)||0, e=parseInt(document.querySelectorAll('.pop-bulk-e')[i].value)||0; if(p||e) addScore(pI.dataset.name, p, e, r); });
-                alert("완료!"); closePointPopup();
+                closePointPopup();
             };
             document.getElementById('point-popup').style.display = 'flex';
         }
         function openScorePopup() {
-            let html = `<div style="max-height:550px; overflow-y:auto;">`;
-            currentUsers.forEach(u => { html += `<div class="list-item"><span>${u.no}. <strong>${u.name}</strong></span><div>P <input type="number" class="pop-one-p pop-score-input"> E <input type="number" class="pop-one-e pop-score-input"><button onclick="applyOneS('${u.name}', ${currentUsers.indexOf(u)})" style="width:auto; margin-left:15px;">OK</button></div></div>`; });
-            html += `</div>`; document.getElementById('point-pop-title').innerText = "🎯 개별 지급"; document.getElementById('point-pop-body').innerHTML = html;
+            let html = `<div style="max-height:500px; overflow-y:auto;">`;
+            currentUsers.forEach(u => { html += `<div class="list-item"><span>${u.no}. ${u.name}</span><div>P <input type="number" class="pop-one-p pop-score-input"> E <input type="number" class="pop-one-e pop-score-input"><button onclick="applyOneS('${u.name}', ${currentUsers.indexOf(u)})" style="width:auto;">OK</button></div></div>`; });
+            html += `</div>`; document.getElementById('point-pop-body').innerHTML = html;
             document.getElementById('point-apply-btn').style.display = 'none'; document.getElementById('point-popup').style.display = 'flex';
         }
-        function applyOneS(n, idx) { const p=parseInt(document.querySelectorAll('.pop-one-p')[idx].value)||0, e=parseInt(document.querySelectorAll('.pop-one-e')[idx].value)||0; addScore(n, p, e, "개별 지급"); alert(n+" 완료!"); }
+        function applyOneS(n, idx) { const p=parseInt(document.querySelectorAll('.pop-one-p')[idx].value)||0, e=parseInt(document.querySelectorAll('.pop-one-e')[idx].value)||0; addScore(n, p, e, "개별 지급"); alert("반영됨!"); }
         function closePointPopup() { document.getElementById('point-popup').style.display = 'none'; document.getElementById('point-apply-btn').style.display = 'block'; }
-        function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('guides').push({title:t, p, e}).then(()=>alert("등록됨!")); }
-        function addItem() { const c=document.getElementById('item-cat-in').value, n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value); if(n&&p) db.ref('shop').push({category:c, name:n, price:p}).then(()=>alert("진열됨!")); }
-        function applyGuide(t, p, e) { if(isAdmin && confirm(`전원 [${t}] 적용?`)) currentUsers.forEach(u => addScore(u.name, p, e, t)); }
-        function bulkReg() { const txt = document.getElementById('bulk-in').value; if(!txt) return; txt.split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); } }); alert("등록 완료!"); }
+        function bulkReg() { const txt = document.getElementById('bulk-in').value; if(!txt) return; txt.split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); } }); alert("주입 완료!"); }
     </script>
 </body>
 </html>
