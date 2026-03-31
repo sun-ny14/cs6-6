@@ -56,6 +56,7 @@
         </nav>
         
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
+        
         <section id="tab-shop" class="tab-content">
             <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);">
                 <h3>📦 물품 등록</h3>
@@ -65,13 +66,29 @@
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 목록</h3><div id="order-list"></div></div>
         </section>
+
         <section id="tab-guide" class="tab-content">
             <div id="admin-guide-mgr" class="card" style="display:none; border:3px solid var(--primary);"><h3>📋 사유 등록</h3><input type="text" id="guide-title" placeholder="항목"><input type="number" id="guide-p" placeholder="P"><input type="number" id="guide-e" placeholder="E"><button onclick="addGuide()">등록</button></div>
             <div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div>
         </section>
-        <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; font-size:1.4rem;"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="padding:25px; font-size:1.6rem;">본부 소환!</button></div></section>
-        <section id="tab-logs" class="tab-content"><div class="card"><h2>📅 등교 기록부</h2><div id="checkin-history"></div></div></section>
+
+        <section id="tab-checkin" class="tab-content">
+            <div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; font-size:1.4rem; margin-bottom:15px;"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="padding:25px; font-size:1.6rem;">본부 소환!</button></div>
+        </section>
+
+        <section id="tab-logs" class="tab-content">
+            <div class="card">
+                <h2>📅 등교 기록부 (출석부)</h2>
+                <div style="margin-bottom:15px; display:flex; gap:10px; align-items:center;">
+                    <span style="font-weight:bold;">날짜 선택:</span>
+                    <input type="date" id="checkin-date-filter" style="flex:1; font-size:1.3rem; padding:10px;">
+                </div>
+                <div id="checkin-history"></div>
+            </div>
+        </section>
+
         <section id="tab-points" class="tab-content"><div id="my-inventory" class="card"><h3>🎁 나의 인벤토리</h3><div id="my-coupon-list"></div></div><div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div></section>
+
         <section id="tab-admin" class="tab-content">
             <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine" rows="5"></textarea><button onclick="saveSettings()">저장</button></div>
@@ -80,7 +97,7 @@
         </section>
 
         <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
-        <button id="floating-score-btn" class="floating-btn" style="right: 130px;" onclick="openScorePopup()">🎯</button>
+        <button id="floating-score-btn" class="floating-btn" style="right: 140px;" onclick="openScorePopup()">🎯</button>
     </div>
 
     <script>
@@ -137,7 +154,7 @@
             }
         });
 
-        function handleLogin() { auth.signInWithPopup(provider); }
+        function handleLogin() { auth.signInWithPopup(provider).catch(e => alert("로그인 오류: " + e.message)); }
 
         function showTab(t) {
             currentTab = t; sessionStorage.setItem('activeTab', t);
@@ -148,11 +165,20 @@
         }
 
         function startApp() {
+            // [날짜 설정] 오늘 날짜 자동 세팅
+            const dateInput = document.getElementById('checkin-date-filter');
+            if(dateInput && !dateInput.value) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+                dateInput.onchange = () => renderCheckinBoard();
+            }
+
+            // 1. 연대기 로그 실시간 로드
             db.ref('pointLogs').on('value', snap => {
                 allLogs = []; snap.forEach(c => { if(c.val()) allLogs.push(c.val()); });
                 renderHistory();
             });
 
+            // 2. 시스템 설정
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {};
                 document.getElementById('conf-pass').value = s.password || "";
@@ -164,6 +190,7 @@
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime} | ⚠️ 지각: ~${s.closeTime}`;
             });
 
+            // 3. 용사 명단 불러오기
             db.ref('users').on('value', snap => {
                 let users = [];
                 snap.forEach(c => { let u = c.val(); if(u){ u.name = u.name || c.key; users.push(u); }});
@@ -178,41 +205,53 @@
                 });
                 document.getElementById('hero-grid').innerHTML = gH;
                 document.getElementById('student-admin-list').innerHTML = aH;
+                renderCheckinBoard(); // 명단 로드 후 출석부 그리기
             });
 
+            // 4. 상점/인벤토리
             db.ref('orders').on('value', snap => {
                 let cH = "", oH = "";
                 snap.forEach(c => {
                     const o = c.val();
                     if(o.user === myName && o.status !== '완료') {
                         const isWaiting = (o.status === '사용요청');
-                        cH += `<div class="coupon-card">
-                            <span>${o.item} ${isWaiting ? '<b style="color:var(--red);">(⏳요청중)</b>' : ''}</span>
-                            <button class="btn-use" onclick="requestUseCoupon('${c.key}', '${o.item}')" 
-                            style="width:auto; padding:12px 22px; background:${isWaiting ? '#95a5a6' : 'var(--purple)'};" 
-                            ${isWaiting ? 'disabled' : ''}>${isWaiting ? '승인 대기' : '사용하기'}</button>
-                        </div>`;
+                        cH += `<div class="coupon-card"><span>${o.item} ${isWaiting ? '<b style="color:var(--red);">(⏳요청중)</b>' : ''}</span><button class="btn-use" onclick="requestUseCoupon('${c.key}', '${o.item}')" style="width:auto; padding:12px 22px; background:${isWaiting ? '#95a5a6' : 'var(--purple)'};" ${isWaiting ? 'disabled' : ''}>${isWaiting ? '승인 대기' : '사용하기'}</button></div>`;
                     }
                     if((isAdmin || isShopMode) && o.status === '사용요청') {
-                        oH += `<div class="list-item" style="background:#fff0f0; border:2.5px solid var(--red);">
-                            <span><strong>${o.user}</strong>: ${o.item}</span>
-                            <button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto; padding:12px 25px;">최종 승인</button>
-                        </div>`;
+                        oH += `<div class="list-item" style="background:#fff0f0; border:2.5px solid var(--red);"><span><strong>${o.user}</strong>: ${o.item}</span><button onclick="approveOrder('${c.key}')" style="background:var(--green); width:auto; padding:12px 25px;">최종 승인</button></div>`;
                     }
                 });
                 document.getElementById('my-coupon-list').innerHTML = cH || "보유 쿠폰 없음";
                 if(isAdmin || isShopMode) document.getElementById('order-list').innerHTML = oH || "사용 요청 없음";
             });
 
-            db.ref('checkinLogs').limitToLast(50).on('value', snap => {
-                let hH = ""; let logs = []; snap.forEach(c => logs.push(c.val()));
-                logs.reverse().forEach(l => {
-                    const color = l.result.includes('정상') ? 'var(--green)' : 'var(--red)';
-                    hH += `<div class="list-item"><span><strong>${l.name}</strong></span><span style="color:${color}">${l.result}</span><small style="color:#888;">${l.time}</small></div>`;
-                });
-                document.getElementById('checkin-history').innerHTML = hH || "기록 없음";
-            });
+            // 5. [출석부] 날짜별 번호순 조회
+            const renderCheckinBoard = () => {
+                const targetDate = document.getElementById('checkin-date-filter').value;
+                db.ref('checkinLogs').once('value', logSnap => {
+                    const logs = {}; 
+                    logSnap.forEach(c => {
+                        const l = c.val();
+                        if(l.date === targetDate) logs[l.name] = l; 
+                    });
 
+                    let hH = `<div style="margin-bottom:10px; font-size:1.1rem; color:#666;">📌 <b>${targetDate}</b> 출석부</div>`;
+                    currentUsers.forEach(u => {
+                        const log = logs[u.name];
+                        let color = "#f1c40f", txt = "미등교", time = "-";
+                        if (log) {
+                            time = log.time || "";
+                            if (log.result.includes('정상')) { color = "var(--green)"; txt = "정상 등교"; }
+                            else { color = "var(--red)"; txt = log.result; }
+                        }
+                        hH += `<div class="list-item" style="border-left:15px solid ${color}; background:white; margin-bottom:10px; padding:20px; border-radius:10px;"><div style="flex:1;"><span style="color:#999;">${u.no||'?'}.</span><strong style="font-size:1.3rem; margin-left:8px;">${u.name}</strong></div><div style="flex:1; text-align:center;"><b style="color:${color}">${txt}</b></div><div style="flex:1; text-align:right; color:#777;">${time}</div></div>`;
+                    });
+                    document.getElementById('checkin-history').innerHTML = hH;
+                });
+            };
+            db.ref('checkinLogs').on('value', () => renderCheckinBoard());
+
+            // 6. 상점/도감
             db.ref('shop').on('value', snap => {
                 let items = []; snap.forEach(c => { let i = c.val(); i.key = c.key; items.push(i); });
                 items.sort((a,b) => (a.category||"").localeCompare(b.category||""));
@@ -227,6 +266,7 @@
                 let gH = ""; snap.forEach(c => { const g = c.val(); gH += `<div class="hero-card" onclick="applyGuide('${g.title}', ${g.p}, ${g.e})"><strong>${g.title}</strong><br><small>${g.p}P / ${g.e}E</small></div>`; });
                 document.getElementById('guide-list').innerHTML = gH || "항목 없음";
             });
+            if (isAdmin) { ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => document.getElementById(id).style.display = 'block'); }
         }
 
         function renderHistory() {
@@ -240,37 +280,42 @@
         }
 
         function openUserHistory(userName) {
-            if (!isAdmin && userName !== myName) return alert("다른 용사의 비밀입니다!");
+            if (!isAdmin && userName !== myName) return alert("비밀입니다!");
             const userLogs = allLogs.filter(l => l.name === userName).reverse();
-            let html = `<div style="text-align:left; font-size:1.2rem;">`;
-            if(userLogs.length === 0) html += "<p style='text-align:center;'>기록 없음</p>";
+            let html = `<div style="text-align:left;">`;
             userLogs.forEach(l => {
                 const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-                html += `<div class="list-item" style="border-left:10px solid ${color}; margin-bottom:15px; background:#f9f9f9; padding:20px; border-radius:18px;"><div><strong>${l.reason}</strong><br><small>${l.time}</small></div><strong style="color:${color}; font-size:1.5rem;">${l.amount>0?'+':''}${l.amount}P</strong></div>`;
+                html += `<div class="list-item" style="border-left:10px solid ${color}; background:#f9f9f9; padding:15px; margin-bottom:10px; border-radius:15px;"><div><strong>${l.reason}</strong><br><small>${l.time}</small></div><strong style="color:${color}">${l.amount>0?'+':''}${l.amount}P</strong></div>`;
             });
-            openPopup(`${userName} 용사 연대기`, html + `</div>`);
+            openPopup(`${userName} 연대기`, html || "기록 없음");
         }
 
-        function requestUseCoupon(key, itemName) { if(confirm(`'${itemName}' 사용을 요청할까요? 승인 전까지 사라지지 않습니다.`)) db.ref('orders/'+key).update({status:'사용요청', useTime:new Date().toLocaleString()}); }
-        function approveOrder(id) { if(confirm("승인하시겠습니까? 쿠폰이 최종 삭제됩니다.")) db.ref('orders/'+id).update({status:'완료'}); }
-        function buyItem(k, n, p) { db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("P 부족!"); if(confirm(n+" 구매?")) { updatePoint(myName, -p, n+" 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
-        function updatePoint(n, a, r) { db.ref('users/'+n).once('value', sn => { if(sn.val()) db.ref('users/'+n).update({points: (sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
-        function addScore(name, p, e, reason) { db.ref('users/'+name).once('value', sn => { const u = sn.val(); if(!u) return; let nE=(u.exp||0)+e, nL=(u.lv||1), nP=(u.points||0)+p; while(nE>=100){ nL++; nE-=100; } db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}); db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()}); }); }
-        
         function submitCheckIn() {
             const pw = document.getElementById('checkin-pass').value;
             db.ref('settings').once('value', snap => {
                 const s = snap.val(); if(pw !== s.password) return alert("암호 오류!");
-                const now = new Date(); const curT = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const curT = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
                 if(curT > s.closeTime) return alert("마감됨!");
                 let msg = "✨ 성공!", penalty = 0, res = "정상 등교";
-                if(curT > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); penalty = -diff; res = `지각(${diff}분)`; msg = `⚠️ 지각! ${penalty}P 차감`; }
+                if(curT > s.lateTime) {
+                    const [lh, lm] = s.lateTime.split(':').map(Number);
+                    const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm);
+                    penalty = -diff; res = `지각(${diff}분)`; msg = `⚠️ 지각! ${penalty}P`;
+                }
                 updatePoint(myName, penalty, res);
-                db.ref('checkinLogs').push({ name: myName, result: res, time: now.toLocaleTimeString('ko-KR') });
+                db.ref('checkinLogs').push({ name: myName, result: res, time: now.toLocaleTimeString('ko-KR'), date: dateStr });
                 rIdx = 0; if(routineItems.length > 0) openPopup(msg, `[루틴]\n1단계: ${routineItems[0]}`, true); else openPopup("🎊 완료", msg);
                 document.getElementById('checkin-pass').value = "";
             });
         }
+
+        function requestUseCoupon(key, itemName) { if(confirm(`${itemName} 사용요청?`)) db.ref('orders/'+key).update({status:'사용요청', useTime:new Date().toLocaleString()}); }
+        function approveOrder(id) { if(confirm("승인 완료?")) db.ref('orders/'+id).update({status:'완료'}); }
+        function buyItem(k, n, p) { db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("P 부족!"); if(confirm(n+" 구매?")) { updatePoint(myName, -p, n+" 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
+        function updatePoint(n, a, r) { db.ref('users/'+n).once('value', sn => { if(sn.val()) db.ref('users/'+n).update({points: (sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
+        function addScore(name, p, e, reason) { db.ref('users/'+name).once('value', sn => { const u = sn.val(); if(!u) return; let nE=(u.exp||0)+e, nL=(u.lv||1), nP=(u.points||0)+p; while(nE>=100){ nL++; nE-=100; } db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}); db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()}); }); }
         function updateHeroInfo(oldN) {
             const list = document.querySelectorAll('#student-admin-list .list-item');
             let nNo = "", nN = "";
@@ -282,9 +327,8 @@
         function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n')}).then(()=>alert("저장됨!")); }
         function openPopup(t, c, isR=false) { document.getElementById('pop-title').innerText=t; document.getElementById('pop-content').innerHTML=c; document.getElementById('common-overlay').style.display='flex'; window.routineActive=isR; }
         function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display = 'none'; } else document.getElementById('common-overlay').style.display = 'none'; }
-        
         function openPointBulkPopup() {
-            let html = `<input type="text" id="pop-bulk-reason" placeholder="사유 입력" style="font-size:1.3rem;"><div style="max-height:450px; overflow-y:auto; margin-top:15px;">`;
+            let html = `<input type="text" id="pop-bulk-reason" placeholder="사유" style="font-size:1.3rem;"><div style="max-height:450px; overflow-y:auto; margin-top:15px;">`;
             currentUsers.forEach(u => { html += `<div class="list-item"><span>${u.no}. <strong>${u.name}</strong></span><div>P <input type="number" class="pop-bulk-p pop-score-input" data-name="${u.name}"> E <input type="number" class="pop-bulk-e pop-score-input" data-name="${u.name}"></div></div>`; });
             html += `</div>`; document.getElementById('point-pop-title').innerText = "⚖️ 일괄 지급"; document.getElementById('point-pop-body').innerHTML = html;
             document.getElementById('point-apply-btn').onclick = () => {
