@@ -202,12 +202,32 @@
                 });
             };
             db.ref('checkinLogs').on('value', () => renderCheckinBoard());
-            db.ref('shop').on('value', snap => {
-                let sH = ""; snap.forEach(c => { const i = c.val(); sH += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto; background:var(--primary); color:white; border:none; padding:10px;">구매</button></div>`; });
-                document.getElementById('shop-list').innerHTML = sH || "보급소 준비 중";
-            });
-            if (isAdmin) { ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'block'; }); }
-        }
+            // 1. 상점 목록 출력 로직 수정 (관리자일 때만 삭제 버튼 노출)
+db.ref('shop').on('value', snap => {
+    let sH = ""; 
+    snap.forEach(c => { 
+        const i = c.val(); 
+        const delBtn = isAdmin ? `<button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; background:var(--red); color:white; border:none; padding:10px; margin-left:5px;">삭제</button>` : "";
+        
+        sH += `<div class="list-item">
+                <span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span>
+                <div>
+                    <button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto; background:var(--primary); color:white; border:none; padding:10px;">구매</button>
+                    ${delBtn}
+                </div>
+               </div>`; 
+    });
+    document.getElementById('shop-list').innerHTML = sH || "보급소 준비 중";
+});
+
+// 2. 물품 삭제 함수 추가 (스크립트 하단에 추가)
+function deleteItem(key, name) {
+    if(confirm(`[${name}] 물품을 보급소에서 삭제하시겠습니까?`)) {
+        db.ref('shop/' + key).remove()
+            .then(() => alert("삭제되었습니다."))
+            .catch((error) => alert("삭제 실패: " + error.message));
+    }
+}
 
         // [핵심수정] 상점 구매 알림 확실히 노출
         function buyItem(k, n, p) {
