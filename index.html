@@ -127,6 +127,10 @@
                 currentUsers = users;
                 let gH = "";
                 users.forEach(u => {
+                    // [수정: 총사령관 숨기기]
+                    if(u.email && u.email.toLowerCase() === adminEmail.toLowerCase()) return;
+                    if(u.name === "총사령관") return;
+
                     const isMe = (u.name === myName);
                     const clickAction = (isMe || isAdmin) ? `onclick="openUserHistory('${u.name}')"` : `onclick="alert('비밀입니다! 🛡️')"`;
                     gH += `<div class="hero-card ${isMe?'me':''}" ${clickAction}><span class="card-avatar">${getAvatar(u.lv||1)}</span><div class="card-name">LV.${u.lv||1} ${u.name}</div><div class="card-pt">${u.points||0}P</div></div>`;
@@ -161,6 +165,10 @@
                     });
                     let hH = `<div style="margin-bottom:10px; font-size:1.1rem; color:#666;">📌 <b>${targetDate}</b> 출석부</div>`;
                     currentUsers.forEach(u => {
+                        // 출석부에서도 총사령관은 제외
+                        if(u.email && u.email.toLowerCase() === adminEmail.toLowerCase()) return;
+                        if(u.name === "총사령관") return;
+
                         const log = logs[u.name]; let color = "#f1c40f", txt = "미등교", time = "-";
                         if (log) { time = log.time || ""; if (log.result.includes('정상')) { color = "var(--green)"; txt = "정상"; } else { color = "var(--red)"; txt = log.result; } }
                         hH += `<div class="list-item" style="border-left:15px solid ${color};"><span>${u.no}. <strong>${u.name}</strong></span><b>${txt}</b><span>${time}</span></div>`;
@@ -176,7 +184,6 @@
             if (isAdmin) { ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'block'; }); }
         }
 
-        // [복구 및 인벤토리 추가]
         function triggerLevelUpRoulette(userName, newLv) {
             if (!giftList || giftList.length === 0) { openPopup("🎊 레벨업!", `<div style="text-align:center; padding:20px;"><h3>축하합니다! ${userName} 용사님!</h3><p>레벨 <b>${newLv}</b>이 되셨습니다!</p></div>`); return; }
             document.getElementById('pop-title').innerHTML = `<span class="lv-up-title">🎊 LEVEL UP! 🎊</span>`;
@@ -195,7 +202,6 @@
                     document.getElementById('roulette-box').innerText = "⭐ " + finalGift + " ⭐";
                     document.getElementById('roulette-box').style.background = "var(--gold)";
                     document.getElementById('pop-close-btn').style.display = 'block';
-                    // 연대기 및 인벤토리 기록
                     db.ref('pointLogs').push({ name: userName, amount: 0, reason: resultText, time: new Date().toLocaleString() });
                     db.ref('orders').push({ user: userName, item: resultText, status: '대기', time: new Date().toLocaleString() });
                 }
@@ -214,7 +220,6 @@
             });
         }
 
-        // [수정: 등교 시간 제한 및 중복 방지]
         async function submitCheckIn() {
             const btn = document.getElementById('btn-checkin-submit');
             const pw = document.getElementById('checkin-pass').value;
@@ -222,7 +227,6 @@
             const dateStr = now.toISOString().split('T')[0];
             const curT = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
 
-            // 중복 체크
             const snap = await db.ref('checkinLogs').orderByChild('date').equalTo(dateStr).once('value');
             let alreadyDone = false;
             snap.forEach(c => { if(c.val().name === myName) alreadyDone = true; });
@@ -231,7 +235,6 @@
             db.ref('settings').once('value', sSnap => {
                 const s = sSnap.val();
                 if(pw !== s.password) return alert("암호 오류!");
-                // 시간 마감 체크
                 if(curT > s.closeTime) return alert("등교 시간이 마감되었습니다! ("+s.closeTime+" 마감)");
 
                 let res = "정상 등교", penalty = 0;
