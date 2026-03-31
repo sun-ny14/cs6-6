@@ -190,16 +190,17 @@ db.ref('users').on('value', snap => {
         // 2. [관리] 탭 학생 번호 수정 리스트 생성 (핵심 복구)
         if(isAdmin) {
             // 번호 입력을 맨 앞으로 뺀 관리자 명단 로직
+// 관리자 명단 이메일 출력 수정 (u.email 필드 정확히 참조)
 aH += `<div class="list-item" style="display:flex; align-items:center; gap:10px;">
-        <!-- 1. 번호 입력 (맨 앞) -->
+        <!-- 1. 번호 입력 -->
         <input type="number" value="${u.no||''}" placeholder="No" 
                onchange="updateNo('${u.name}', this.value)" 
                style="width:70px !important; margin:0; padding:8px; text-align:center; flex-shrink:0;">
         
-        <!-- 2. 이름 및 이메일 -->
+        <!-- 2. 이름 및 이메일 (u.email을 가져옴) -->
         <div style="flex-grow:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
             <strong style="font-size:1.3rem;">${u.name}</strong> 
-            <small style="color:#666;">(${u.email || '이메일 없음'})</small>
+            <small style="color:#666;">(${u.email || '이메일 정보 확인 불가'})</small>
         </div>
 
         <!-- 3. 제거 버튼 -->
