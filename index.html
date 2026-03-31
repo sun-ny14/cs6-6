@@ -189,15 +189,25 @@ db.ref('users').on('value', snap => {
 
         // 2. [관리] 탭 학생 번호 수정 리스트 생성 (핵심 복구)
         if(isAdmin) {
-            aH += `<div class="list-item">
-                    <span>${u.name} (${u.email})</span>
-                    <div style="display:flex; gap:5px; width:150px;">
-                        <input type="number" value="${u.no||''}" placeholder="번호" 
-                               onchange="updateNo('${u.name}', this.value)" 
-                               style="margin:0; padding:5px; text-align:center;">
-                        <button onclick="delUser('${u.name}')" style="background:var(--red); color:white; width:auto; padding:5px 10px;">제거</button>
-                    </div>
-                   </div>`;
+            // 번호 입력을 맨 앞으로 뺀 관리자 명단 로직
+aH += `<div class="list-item" style="display:flex; align-items:center; gap:10px;">
+        <!-- 1. 번호 입력 (맨 앞) -->
+        <input type="number" value="${u.no||''}" placeholder="No" 
+               onchange="updateNo('${u.name}', this.value)" 
+               style="width:70px !important; margin:0; padding:8px; text-align:center; flex-shrink:0;">
+        
+        <!-- 2. 이름 및 이메일 -->
+        <div style="flex-grow:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <strong style="font-size:1.3rem;">${u.name}</strong> 
+            <small style="color:#666;">(${u.email || '이메일 없음'})</small>
+        </div>
+
+        <!-- 3. 제거 버튼 -->
+        <button onclick="delUser('${u.name}')" 
+                style="background:var(--red); color:white; width:auto; padding:8px 15px; margin:0; flex-shrink:0;">
+            제거
+        </button>
+       </div>`;
         }
     });
 
@@ -350,7 +360,17 @@ db.ref('users').on('value', snap => {
             let html = ""; [...allLogs].reverse().forEach(l => {
                 if (isAdmin || l.name === myName) {
                     const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-                    html += `<div class="list-item" style="border-left:10px solid ${color}"><span><strong>${l.name}</strong></span><strong style="color:${color}">${l.amount>0?'+':''}${l.amount}P</strong><br><small>${l.reason} (${l.time})</small></div>`;
+                    // 포인트 연대기 및 유저 연대기 정렬 수정 버전
+html += `<div class="list-item" style="border-left:10px solid ${color}; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div style="flex:1; min-width:0;">
+                <strong style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${l.name}</strong>
+                <small style="color:#666; font-size:0.9rem;">${l.reason} (${l.time})</small>
+            </div>
+            <!-- 포인트 숫자를 우측 정렬하고 고정 너비 부여 -->
+            <strong style="color:${color}; min-width:80px; text-align:right; font-size:1.3rem; flex-shrink:0;">
+                ${l.amount > 0 ? '+' : ''}${l.amount}P
+            </strong>
+         </div>`;
                 }
             });
             document.getElementById('point-history-list').innerHTML = html || "기록 없음";
