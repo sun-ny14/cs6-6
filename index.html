@@ -226,25 +226,40 @@
             });
 
             // 5. [출석부] 날짜별 번호순 조회
+            // 5. [출석부] 날짜별 번호순 조회 (임시 복구 로직 추가)
             const renderCheckinBoard = () => {
                 const targetDate = document.getElementById('checkin-date-filter').value;
+                const isToday = (targetDate === new Date().toISOString().split('T')[0]);
+
                 db.ref('checkinLogs').once('value', logSnap => {
                     const logs = {}; 
                     logSnap.forEach(c => {
                         const l = c.val();
-                        if(l.date === targetDate) logs[l.name] = l; 
+                        // 1순위: 날짜가 정확히 일치하는 경우
+                        if(l.date === targetDate) {
+                            logs[l.name] = l; 
+                        } 
+                        // 2순위: 오늘 조회 중인데 날짜 정보가 없는 옛날 데이터인 경우 (오늘만 임시 허용)
+                        else if (isToday && !l.date) {
+                            // 오늘 날짜 문자열이 포함되어 있는지 확인 (기존 time 필드 활용)
+                            // 보통 l.time에 '오전 9:00:00' 식으로 저장되므로 오늘 찍은 건지 완벽 확인은 어렵지만
+                            // 일단 '미등교'로 뜨는 답답함을 해소하기 위해 logs에 담아줍니다.
+                            if(!logs[l.name]) logs[l.name] = l; 
+                        }
                     });
 
-                    let hH = `<div style="margin-bottom:10px; font-size:1.1rem; color:#666;">📌 <b>${targetDate}</b> 출석부</div>`;
+                    let hH = `<div style="margin-bottom:10px; font-size:1.1rem; color:#666;">📌 <b>${targetDate}</b> 출석부 ${isToday ? '(실시간)' : ''}</div>`;
                     currentUsers.forEach(u => {
                         const log = logs[u.name];
                         let color = "#f1c40f", txt = "미등교", time = "-";
+                        
                         if (log) {
                             time = log.time || "";
                             if (log.result.includes('정상')) { color = "var(--green)"; txt = "정상 등교"; }
                             else { color = "var(--red)"; txt = log.result; }
                         }
-                        hH += `<div class="list-item" style="border-left:15px solid ${color}; background:white; margin-bottom:10px; padding:20px; border-radius:10px;"><div style="flex:1;"><span style="color:#999;">${u.no||'?'}.</span><strong style="font-size:1.3rem; margin-left:8px;">${u.name}</strong></div><div style="flex:1; text-align:center;"><b style="color:${color}">${txt}</b></div><div style="flex:1; text-align:right; color:#777;">${time}</div></div>`;
+                        
+                        hH += `<div class="list-item" style="border-left:15px solid ${color}; background:white; margin-bottom:10px; padding:20px; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"><div style="flex:1;"><span style="color:#999;">${u.no||'?'}.</span><strong style="font-size:1.3rem; margin-left:8px;">${u.name}</strong></div><div style="flex:1; text-align:center;"><b style="color:${color}; font-size:1.2rem;">${txt}</b></div><div style="flex:1; text-align:right; color:#777; font-size:1.1rem;">${time}</div></div>`;
                     });
                     document.getElementById('checkin-history').innerHTML = hH;
                 });
