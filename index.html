@@ -330,7 +330,7 @@
         function approveOrder(id) { if(confirm("승인 완료?")) db.ref('orders/'+id).update({status:'완료'}); }
         function buyItem(k, n, p) { db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("P 부족!"); if(confirm(n+" 구매?")) { updatePoint(myName, -p, n+" 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
         function updatePoint(n, a, r) { db.ref('users/'+n).once('value', sn => { if(sn.val()) db.ref('users/'+n).update({points: (sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
-        function addScore(name, p, e, reason) { db.ref('users/'+name).once('value', sn => { const u = sn.val(); if(!u) return; let nE=(u.exp||0)+e, nL=(u.lv||1), nP=(u.points||0)+p; while(nE>=100){ nL++; nE-=100; } db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}); db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()}); }); }
+        function addScore(name, p, e, reason) { db.ref('users/'+name).once('value', sn => { const u = sn.val(); if(!u) return; let nE=(u.exp||0)+e, nL=(u.lv||1), nP=(u.points||0)+p; while(nE>=50){ nL++; nE-=50; } db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}); db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()}); }); }
         function updateHeroInfo(oldN) {
             const list = document.querySelectorAll('#student-admin-list .list-item');
             let nNo = "", nN = "";
