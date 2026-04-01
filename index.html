@@ -255,25 +255,34 @@
         }
 
         function triggerLevelUpRoulette(userName, newLv) {
-            if (!giftList || giftList.length === 0) { openPopup("🎊 레벨업!", `<h3>축하합니다! LV.${newLv} 달성!</h3>`); return; }
-            openPopup(`<span class="lv-up-title">🎊 LEVEL UP! 🎊</span>`, `<div style="text-align:center;"><p><b>${userName}</b> 용사, 레벨 <b>${newLv}</b> 달성!</p><div id="roulette-box">보상 탐색 중...</div></div>`);
-            document.getElementById('pop-close-btn').style.display = 'none';
-            let count = 0;
-            const interval = setInterval(() => {
-                document.getElementById('roulette-box').innerText = giftList[Math.floor(Math.random() * giftList.length)];
-                if (++count > 20) {
-                    clearInterval(interval);
-                    const finalGift = giftList[Math.floor(Math.random() * giftList.length)];
-                    const resultText = `[LV.${newLv} 레벨업 보상] ${finalGift}`;
-                    document.getElementById('roulette-box').innerText = "⭐ " + finalGift + " ⭐";
-                    document.getElementById('roulette-box').style.background = "var(--gold)";
-                    document.getElementById('pop-close-btn').style.display = 'block';
-                    db.ref('pointLogs').push({ name: userName, amount: 0, reason: resultText, time: new Date().toLocaleString() });
-                    db.ref('orders').push({ user: userName, item: resultText, status: '대기', time: new Date().toLocaleString() });
-                }
-            }, 100);
-        }
+    if (!giftList || giftList.length === 0) { openPopup("🎊 레벨업!", `<h3>축하합니다! LV.${newLv} 달성!</h3>`); return; }
+    
+    // 버튼 중복 클릭 방지
+    const btn = document.getElementById('roulette-btn');
+    if(btn) btn.style.display = 'none';
 
+    openPopup(`<span class="lv-up-title">🎊 LEVEL UP! 🎊</span>`, `<div style="text-align:center;"><p><b>${userName}</b> 용사, 레벨 <b>${newLv}</b> 달성!</p><div id="roulette-box">보상 탐색 중...</div></div>`);
+    document.getElementById('pop-close-btn').style.display = 'none';
+    
+    let count = 0;
+    const interval = setInterval(() => {
+        document.getElementById('roulette-box').innerText = giftList[Math.floor(Math.random() * giftList.length)];
+        if (++count > 20) {
+            clearInterval(interval);
+            const finalGift = giftList[Math.floor(Math.random() * giftList.length)];
+            const resultText = `[LV.${newLv} 레벨업 보상] ${finalGift}`;
+            
+            document.getElementById('roulette-box').innerText = "⭐ " + finalGift + " ⭐";
+            document.getElementById('roulette-box').style.background = "var(--gold)";
+            document.getElementById('pop-close-btn').style.display = 'block';
+            
+            // [핵심] 보상 로그 저장 + 해당 레벨 보상 완료 기록(lastGiftLv 업데이트)
+            db.ref('pointLogs').push({ name: userName, amount: 0, reason: resultText, time: new Date().toLocaleString() });
+            db.ref('orders').push({ user: userName, item: resultText, status: '대기', time: new Date().toLocaleString() });
+            db.ref('users/' + userName).update({ lastGiftLv: newLv }); // 보상 받은 레벨 저장
+        }
+    }, 100);
+}
         function addScore(name, p, e, reason) {
             db.ref('users/'+name).once('value', sn => {
                 const u = sn.val(); if(!u) return;
@@ -327,29 +336,35 @@
 
         // [수정사항 3] 개별 팝업: 경험치 바 시각화 및 본인일 때만 보상 버튼 노출
         function openUserHistory(userName) {
-            db.ref('users/' + userName).once('value', sn => {
-                const u = sn.val() || {};
-                const isMe = (userName === myName);
-                const exp = u.exp || 0;
-                const lv = u.lv || 1;
-                let html = `<div style="text-align:center; padding:15px; background:#f8f9fa; border-radius:20px; margin-bottom:20px;">
-                                <div style="font-size:1.5rem; font-weight:bold;">LV.${lv} ${userName} 용사</div>
-                                <div style="margin:15px 0;">
-                                    <div style="background:#ddd; border-radius:10px; height:25px; width:100%; position:relative; overflow:hidden;">
-                                        <div style="background:var(--primary); width:${exp}%; height:100%;"></div>
-                                        <small style="position:absolute; width:100%; left:0; top:0; line-height:25px; color:${exp>50?'white':'#333'}; font-weight:bold;">EXP ${exp}/100</small>
-                                    </div>
-                                </div>
-                                ${isMe ? `<button onclick="triggerLevelUpRoulette('${userName}', ${lv})" style="background:var(--gold); color:var(--dark); font-weight:bold; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">🎁 보상 확인</button>` : ''}
-                            </div><div id="user-logs-container">`;
-                const userLogs = allLogs.filter(l => l.name === userName).reverse();
-                userLogs.forEach(l => {
-                    const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-                    html += `<div class="list-item" style="border-left:10px solid ${color};"><div><strong>${l.reason}</strong><br><small>${l.time}</small></div><strong>${l.amount>0?'+':''}${l.amount}P</strong></div>`;
-                });
-                html += `</div>`; openPopup(`${userName} 정보`, html);
-            });
-        }
+    db.ref('users/' + userName).once('value', sn => {
+        const u = sn.val() || {};
+        const isMe = (userName === myName);
+        const exp = u.exp || 0;
+        const lv = u.lv || 1;
+        const lastGiftLv = u.lastGiftLv || 0; // 마지막으로 보상 받은 레벨 체크
+
+        let html = `<div style="text-align:center; padding:15px; background:#f8f9fa; border-radius:20px; margin-bottom:20px;">
+                        <div style="font-size:1.5rem; font-weight:bold;">LV.${lv} ${userName} 용사</div>
+                        <div style="margin:15px 0;">
+                            <div style="background:#ddd; border-radius:10px; height:25px; width:100%; position:relative; overflow:hidden;">
+                                <div style="background:var(--primary); width:${exp}%; height:100%;"></div>
+                                <small style="position:absolute; width:100%; left:0; top:0; line-height:25px; color:${exp>50?'white':'#333'}; font-weight:bold;">EXP ${exp}/100</small>
+                            </div>
+                        </div>
+                        ${(isMe && lv > 1 && lv > lastGiftLv) ? 
+                            `<button id="roulette-btn" onclick="triggerLevelUpRoulette('${userName}', ${lv})" style="background:var(--gold); color:var(--dark); font-weight:bold; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">🎁 보상 확인</button>` : 
+                            (isMe && lv > 1 ? `<span style="color:#888; font-size:0.9rem;">✅ 이번 레벨 보상 수령 완료</span>` : '')
+                        }
+                    </div><div id="user-logs-container">`;
+
+        const userLogs = allLogs.filter(l => l.name === userName).reverse();
+        userLogs.forEach(l => {
+            const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+            html += `<div class="list-item" style="border-left:10px solid ${color};"><div><strong>${l.reason}</strong><br><small>${l.time}</small></div><strong>${l.amount>0?'+':''}${l.amount}P</strong></div>`;
+        });
+        html += `</div>`; openPopup(`${userName} 정보`, html);
+    });
+}
 
         function updatePoint(n, a, r) { db.ref('users/'+n).once('value', sn => { if(sn.val()) db.ref('users/'+n).update({points: (sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
         function requestUseCoupon(key, itemName) { if(confirm(`${itemName} 사용요청?`)) db.ref('orders/'+key).update({status:'사용요청', useTime:new Date().toLocaleString()}); }
