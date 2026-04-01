@@ -60,22 +60,22 @@
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
         
         <section id="tab-shop" class="tab-content">
-    <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);">
-        <h3>📦 물품 등록</h3>
-        <select id="item-cat-in">
-            <option value="🍕 먹거리">🍕 먹거리</option>
-            <option value="🎫 쿠폰">🎫 쿠폰</option>
-            <option value="🎲 뽑기">🎲 뽑기</option>
-            <option value="✏️ 학용품">✏️ 학용품</option>
-            <option value="✨ 기타">✨ 기타</option>
-        </select>
-        <input type="text" id="item-name-in" placeholder="상품명">
-        <input type="number" id="item-price-in" placeholder="가격 (P)">
-        <button onclick="addItem()" style="background:var(--purple); color:white; border:none;">진열</button>
-    </div>
-    <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
-    <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 목록</h3><div id="order-list"></div></div>
-</section>
+            <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);">
+                <h3>📦 물품 등록</h3>
+                <select id="item-cat-in">
+                    <option value="🍕 먹거리">🍕 먹거리</option>
+                    <option value="🎫 쿠폰">🎫 쿠폰</option>
+                    <option value="🎲 뽑기">🎲 뽑기</option>
+                    <option value="✏️ 학용품">✏️ 학용품</option>
+                    <option value="✨ 기타">✨ 기타</option>
+                </select>
+                <input type="text" id="item-name-in" placeholder="상품명">
+                <input type="number" id="item-price-in" placeholder="가격 (P)">
+                <button onclick="addItem()" style="background:var(--purple); color:white; border:none;">진열</button>
+            </div>
+            <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
+            <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 목록</h3><div id="order-list"></div></div>
+        </section>
 
         <section id="tab-guide" class="tab-content">
             <div id="admin-guide-mgr" class="card" style="display:none; border:3px solid var(--primary);">
@@ -111,55 +111,28 @@
 
         function getAvatar(lv) { let lvClass = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1"; return `<div class="pixel-avatar ${lvClass}"></div>`; }
 
-       // [수정] 114번 줄부터 이 내용으로 교체하세요
-auth.onAuthStateChanged((user) => {
-    const lBox = document.getElementById('loading-screen');
-    const loginBox = document.getElementById('login-screen');
-    const mainApp = document.getElementById('main-app');
-
-    if (user) {
-        // 관리자 이메일 체크 (대소문자 무시)
-        isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
-        const eKey = user.email.replace(/\./g, ',');
-
-        db.ref('userEmails/' + eKey).once('value', snap => {
-            if (snap.exists() || isAdmin) {
-                myName = snap.val() || "총사령관";
-                
-                // 로딩 끄고 메인 화면 열기
-                if(lBox) lBox.style.display = 'none';
-                if(loginBox) loginBox.style.display = 'none';
-                if(mainApp) mainApp.style.display = 'block';
-
-                // 관리자 권한 설정 (버튼 및 관리창 노출)
-                if(isAdmin) {
-                    // 상단 버튼 노출
-                    ['floating-point-btn', 'floating-score-btn', 'btn-guide', 'btn-logs', 'btn-admin'].forEach(id => {
-                        const el = document.getElementById(id);
-                        if(el) el.style.display = id.includes('btn-') ? 'block' : 'flex';
-                    });
-                    
-                    // 상점 등록창 등 관리자 전용 카드 노출
-                    ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => {
-                        const el = document.getElementById(id);
-                        if(el) el.style.display = 'block';
-                    });
-                }
-                
-                startApp();
-                showTab(currentTab);
-            } else {
-                alert("미등록 사용자입니다!");
-                auth.signOut();
-            }
+        auth.onAuthStateChanged((user) => {
+            const lBox = document.getElementById('loading-screen');
+            const loginBox = document.getElementById('login-screen');
+            const mainApp = document.getElementById('main-app');
+            if (user) {
+                isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
+                const eKey = user.email.replace(/\./g, ',');
+                db.ref('userEmails/' + eKey).once('value', snap => {
+                    if (snap.exists() || isAdmin) {
+                        myName = snap.val() || "총사령관";
+                        if(lBox) lBox.style.display = 'none';
+                        if(loginBox) loginBox.style.display = 'none';
+                        if(mainApp) mainApp.style.display = 'block';
+                        if(isAdmin) {
+                            ['floating-point-btn', 'floating-score-btn', 'btn-guide', 'btn-logs', 'btn-admin'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = id.includes('btn') ? 'block' : 'flex'; });
+                            ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'block'; });
+                        }
+                        startApp(); showTab(currentTab);
+                    } else { alert("미등록!"); auth.signOut(); }
+                });
+            } else { if(lBox) lBox.style.display = 'none'; if(loginBox) loginBox.style.display = 'flex'; if(mainApp) mainApp.style.display = 'none'; }
         });
-    } else {
-        // 로그아웃 상태면 로그인 화면으로
-        if(lBox) lBox.style.display = 'none';
-        if(loginBox) loginBox.style.display = 'flex';
-        if(mainApp) mainApp.style.display = 'none';
-    }
-});
 
         function handleLogin() { auth.signInWithPopup(provider); }
         function showTab(t) { currentTab = t; sessionStorage.setItem('activeTab', t); document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); if(document.getElementById('tab-'+t)) document.getElementById('tab-'+t).classList.add('active'); if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); }
@@ -170,8 +143,6 @@ auth.onAuthStateChanged((user) => {
             document.getElementById('checkin-date-filter').value = today;
 
             db.ref('pointLogs').on('value', snap => { allLogs = []; snap.forEach(c => { if(c.val()) allLogs.push(c.val()); }); renderHistory(); });
-            
-            // [수정3] 보상 데이터 안전하게 불러오기
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {};
                 giftList = s.giftList ? (Array.isArray(s.giftList) ? s.giftList : Object.values(s.giftList)) : [];
@@ -213,21 +184,12 @@ auth.onAuthStateChanged((user) => {
             });
 
             db.ref('shop').on('value', snap => {
-    let sH = ""; 
-    snap.forEach(c => { 
-        const i = c.val(); 
-        // [복구] 관리자일 때만 보이는 삭제 버튼
-        const delBtn = isAdmin ? `<button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; background:var(--red); color:white; border:none; padding:10px; margin-left:5px;">삭제</button>` : "";
-        sH += `<div class="list-item">
-                <span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span>
-                <div>
-                    <button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto; background:var(--primary); color:white; border:none; padding:10px;">구매</button>
-                    ${delBtn}
-                </div>
-               </div>`; 
-    });
-    document.getElementById('shop-list').innerHTML = sH || "보급소 준비 중";
-});
+                let sH = ""; snap.forEach(c => {
+                    const i = c.val(); const delBtn = isAdmin ? `<button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; background:var(--red); color:white; border:none; padding:10px; margin-left:5px;">삭제</button>` : "";
+                    sH += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span><div><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto; background:var(--primary); color:white; border:none; padding:10px;">구매</button>${delBtn}</div></div>`;
+                });
+                document.getElementById('shop-list').innerHTML = sH || "보급소 준비 중";
+            });
 
             db.ref('orders').on('value', snap => {
                 let cH = "", oH = ""; snap.forEach(c => {
@@ -245,7 +207,7 @@ auth.onAuthStateChanged((user) => {
             db.ref('checkinLogs').on('value', () => renderCheckinBoard());
         }
 
-        // [수정2] 통합된 출석부 함수
+        // [수정사항 1] 출석부: 칼정렬 및 미등교 형광펜 적용
         const renderCheckinBoard = () => {
             let targetDate = document.getElementById('checkin-date-filter').value;
             if (!targetDate) {
@@ -255,16 +217,25 @@ auth.onAuthStateChanged((user) => {
             }
             db.ref('checkinLogs').once('value', logSnap => {
                 const logs = {}; logSnap.forEach(c => { const l = c.val(); if (l.date === targetDate) logs[l.name] = l; });
-                let hH = `<div style="margin-bottom:10px; font-size:1.1rem; color:#666;">📌 <b>${targetDate}</b> 출석부</div>`;
+                let hH = `<div style="margin-bottom:15px; font-size:1.2rem; color:#2c3e50; font-weight:bold;">📌 [${targetDate}] 출석부</div>`;
                 currentUsers.forEach(u => {
                     if (u.name === "총사령관") return;
-                    const log = logs[u.name]; let color = "#f1c40f", txt = "미등교", time = "-";
+                    const log = logs[u.name]; let color = "#bdc3c7", txt = "미등교", time = "-", bg = "";
                     if (log) {
                         time = log.time || "";
                         if (log.result && log.result.includes('정상')) { color = "var(--green)"; txt = "정상"; }
                         else { color = "var(--red)"; txt = log.result || "지각"; }
+                    } else {
+                        // 미등교 형광펜 처리
+                        bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; 
                     }
-                    hH += `<div class="list-item" style="border-left:15px solid ${color};"><span>${u.no||''}. <strong>${u.name}</strong></span><b>${txt}</b><span>${time}</span></div>`;
+                    // 칼정렬을 위해 고정 너비 span 사용
+                    hH += `<div class="list-item" style="border-left:15px solid ${color}; ${bg} display:flex; align-items:center; padding:12px 10px;">
+                            <span style="width:50px; flex-shrink:0;">${u.no||''}.</span>
+                            <span style="width:100px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis;"><strong>${u.name}</strong></span>
+                            <b style="flex:1; text-align:center; color:${color};">${txt}</b>
+                            <span style="width:120px; flex-shrink:0; text-align:right; font-family:monospace;">${time}</span>
+                           </div>`;
                 });
                 document.getElementById('checkin-history').innerHTML = hH;
             });
@@ -315,7 +286,6 @@ auth.onAuthStateChanged((user) => {
             });
         }
 
-        // [수정1] 등교 체크 함수
         async function submitCheckIn() {
             const pw = document.getElementById('checkin-pass').value;
             const now = new Date();
@@ -341,12 +311,13 @@ auth.onAuthStateChanged((user) => {
             });
         }
 
+        // [수정사항 2] 연대기 보안: 관리자 혹은 본인 기록만 노출
         function renderHistory() {
             let html = ""; [...allLogs].reverse().forEach(l => {
                 if (isAdmin || l.name === myName) {
                     const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
                     html += `<div class="list-item" style="border-left:10px solid ${color}; display:flex; justify-content:space-between; align-items:center;">
-                                <div style="flex:1; min-width:0;"><strong style="display:block;">${l.name}</strong><small style="color:#666;">${l.reason} (${l.time})</small></div>
+                                <div style="flex:1; min-width:0;"><strong style="display:block; overflow:hidden; text-overflow:ellipsis;">${l.name}</strong><small style="color:#666;">${l.reason} (${l.time})</small></div>
                                 <strong style="color:${color}; min-width:80px; text-align:right;">${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
                              </div>`;
                 }
@@ -354,14 +325,30 @@ auth.onAuthStateChanged((user) => {
             document.getElementById('point-history-list').innerHTML = html || "기록 없음";
         }
 
+        // [수정사항 3] 개별 팝업: 경험치 바 시각화 및 본인일 때만 보상 버튼 노출
         function openUserHistory(userName) {
-            const userLogs = allLogs.filter(l => l.name === userName).reverse();
-            let html = `<div style="text-align:left;">`;
-            userLogs.forEach(l => {
-                const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-                html += `<div class="list-item" style="border-left:10px solid ${color};"><div><strong>${l.reason}</strong><br><small>${l.time}</small></div><strong>${l.amount>0?'+':''}${l.amount}P</strong></div>`;
+            db.ref('users/' + userName).once('value', sn => {
+                const u = sn.val() || {};
+                const isMe = (userName === myName);
+                const exp = u.exp || 0;
+                const lv = u.lv || 1;
+                let html = `<div style="text-align:center; padding:15px; background:#f8f9fa; border-radius:20px; margin-bottom:20px;">
+                                <div style="font-size:1.5rem; font-weight:bold;">LV.${lv} ${userName} 용사</div>
+                                <div style="margin:15px 0;">
+                                    <div style="background:#ddd; border-radius:10px; height:25px; width:100%; position:relative; overflow:hidden;">
+                                        <div style="background:var(--primary); width:${exp}%; height:100%;"></div>
+                                        <small style="position:absolute; width:100%; left:0; top:0; line-height:25px; color:${exp>50?'white':'#333'}; font-weight:bold;">EXP ${exp}/100</small>
+                                    </div>
+                                </div>
+                                ${isMe ? `<button onclick="triggerLevelUpRoulette('${userName}', ${lv})" style="background:var(--gold); color:var(--dark); font-weight:bold; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">🎁 보상 확인</button>` : ''}
+                            </div><div id="user-logs-container">`;
+                const userLogs = allLogs.filter(l => l.name === userName).reverse();
+                userLogs.forEach(l => {
+                    const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+                    html += `<div class="list-item" style="border-left:10px solid ${color};"><div><strong>${l.reason}</strong><br><small>${l.time}</small></div><strong>${l.amount>0?'+':''}${l.amount}P</strong></div>`;
+                });
+                html += `</div>`; openPopup(`${userName} 정보`, html);
             });
-            html += `</div>`; openPopup(`${userName} 용사 연대기`, html);
         }
 
         function updatePoint(n, a, r) { db.ref('users/'+n).once('value', sn => { if(sn.val()) db.ref('users/'+n).update({points: (sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
