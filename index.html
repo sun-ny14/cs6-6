@@ -111,39 +111,38 @@
 
         function getAvatar(lv) { let lvClass = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1"; return `<div class="pixel-avatar ${lvClass}"></div>`; }
 
-       auth.onAuthStateChanged((user) => {
-    // [긴급복구] 페이지가 안 열리는 문제를 해결하기 위해 화면 요소를 먼저 잡습니다.
+       // [수정] 114번 줄부터 이 내용으로 교체하세요
+auth.onAuthStateChanged((user) => {
     const lBox = document.getElementById('loading-screen');
     const loginBox = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
 
-           if(isAdmin) {
-    ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.style.display = 'block';
-    });
-}
-           
     if (user) {
         // 관리자 이메일 체크 (대소문자 무시)
         isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
         const eKey = user.email.replace(/\./g, ',');
 
         db.ref('userEmails/' + eKey).once('value', snap => {
-            // 관리자이거나 등록된 학생이면 화면을 엽니다.
             if (snap.exists() || isAdmin) {
                 myName = snap.val() || "총사령관";
                 
-                // 로딩 화면을 무조건 끄고 메인 앱을 보여줍니다.
+                // 로딩 끄고 메인 화면 열기
                 if(lBox) lBox.style.display = 'none';
                 if(loginBox) loginBox.style.display = 'none';
                 if(mainApp) mainApp.style.display = 'block';
 
-                // 관리자 권한 버튼 활성화
+                // 관리자 권한 설정 (버튼 및 관리창 노출)
                 if(isAdmin) {
+                    // 상단 버튼 노출
                     ['floating-point-btn', 'floating-score-btn', 'btn-guide', 'btn-logs', 'btn-admin'].forEach(id => {
                         const el = document.getElementById(id);
                         if(el) el.style.display = id.includes('btn-') ? 'block' : 'flex';
+                    });
+                    
+                    // 상점 등록창 등 관리자 전용 카드 노출
+                    ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if(el) el.style.display = 'block';
                     });
                 }
                 
@@ -155,7 +154,7 @@
             }
         });
     } else {
-        // 로그아웃 상태면 로그인 화면으로 전환
+        // 로그아웃 상태면 로그인 화면으로
         if(lBox) lBox.style.display = 'none';
         if(loginBox) loginBox.style.display = 'flex';
         if(mainApp) mainApp.style.display = 'none';
