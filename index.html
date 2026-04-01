@@ -59,23 +59,23 @@
         
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
         
-        <section id="tab-shop" class="tab-content">
-            <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);">
-                <h3>📦 물품 등록</h3>
-                <select id="item-cat-in">
-                    <option value="🍕 먹거리">🍕 먹거리</option>
-                    <option value="🎫 쿠폰">🎫 쿠폰</option>
-                    <option value="🎲 뽑기">🎲 뽑기</option>
-                    <option value="✏️ 학용품">✏️ 학용품</option>
-                    <option value="✨ 기타">✨ 기타</option>
-                </select>
-                <input type="text" id="item-name-in" placeholder="상품명">
-                <input type="number" id="item-price-in" placeholder="가격 (P)">
-                <button onclick="addItem()" style="background:var(--purple); color:white; border:none;">진열</button>
-            </div>
-            <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
-            <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 목록</h3><div id="order-list"></div></div>
-        </section>
+        <<section id="tab-shop" class="tab-content">
+    <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);">
+        <h3>📦 물품 등록</h3>
+        <select id="item-cat-in">
+            <option value="🍕 먹거리">🍕 먹거리</option>
+            <option value="🎫 쿠폰">🎫 쿠폰</option>
+            <option value="🎲 뽑기">🎲 뽑기</option>
+            <option value="✏️ 학용품">✏️ 학용품</option>
+            <option value="✨ 기타">✨ 기타</option>
+        </select>
+        <input type="text" id="item-name-in" placeholder="상품명">
+        <input type="number" id="item-price-in" placeholder="가격 (P)">
+        <button onclick="addItem()" style="background:var(--purple); color:white; border:none;">진열</button>
+    </div>
+    <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
+    <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 목록</h3><div id="order-list"></div></div>
+</section>
 
         <section id="tab-guide" class="tab-content">
             <div id="admin-guide-mgr" class="card" style="display:none; border:3px solid var(--primary);">
@@ -207,12 +207,21 @@
             });
 
             db.ref('shop').on('value', snap => {
-                let sH = ""; snap.forEach(c => {
-                    const i = c.val(); const delBtn = isAdmin ? `<button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; background:var(--red); color:white; border:none; padding:10px; margin-left:5px;">삭제</button>` : "";
-                    sH += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span><div><button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto; background:var(--primary); color:white; border:none; padding:10px;">구매</button>${delBtn}</div></div>`;
-                });
-                document.getElementById('shop-list').innerHTML = sH || "보급소 준비 중";
-            });
+    let sH = ""; 
+    snap.forEach(c => { 
+        const i = c.val(); 
+        // [복구] 관리자일 때만 보이는 삭제 버튼
+        const delBtn = isAdmin ? `<button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; background:var(--red); color:white; border:none; padding:10px; margin-left:5px;">삭제</button>` : "";
+        sH += `<div class="list-item">
+                <span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span>
+                <div>
+                    <button onclick="buyItem('${c.key}', '${i.name}', ${i.price})" style="width:auto; background:var(--primary); color:white; border:none; padding:10px;">구매</button>
+                    ${delBtn}
+                </div>
+               </div>`; 
+    });
+    document.getElementById('shop-list').innerHTML = sH || "보급소 준비 중";
+});
 
             db.ref('orders').on('value', snap => {
                 let cH = "", oH = ""; snap.forEach(c => {
