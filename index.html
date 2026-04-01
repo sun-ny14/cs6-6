@@ -335,13 +335,13 @@
         }
 
         // [수정사항 3] 개별 팝업: 경험치 바 시각화 및 본인일 때만 보상 버튼 노출
-        function openUserHistory(userName) {
+       function openUserHistory(userName) {
     db.ref('users/' + userName).once('value', sn => {
         const u = sn.val() || {};
         const isMe = (userName === myName);
         const exp = u.exp || 0;
         const lv = u.lv || 1;
-        const lastGiftLv = u.lastGiftLv || 0; // 마지막으로 보상 받은 레벨 체크
+        const lastGiftLv = u.lastGiftLv || 0;
 
         let html = `<div style="text-align:center; padding:15px; background:#f8f9fa; border-radius:20px; margin-bottom:20px;">
                         <div style="font-size:1.5rem; font-weight:bold;">LV.${lv} ${userName} 용사</div>
@@ -355,13 +355,24 @@
                             `<button id="roulette-btn" onclick="triggerLevelUpRoulette('${userName}', ${lv})" style="background:var(--gold); color:var(--dark); font-weight:bold; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">🎁 보상 확인</button>` : 
                             (isMe && lv > 1 ? `<span style="color:#888; font-size:0.9rem;">✅ 이번 레벨 보상 수령 완료</span>` : '')
                         }
-                    </div><div id="user-logs-container">`;
+                    </div><div id="user-logs-container" style="text-align:left;">`;
 
-        const userLogs = allLogs.filter(l => l.name === userName).reverse();
-        userLogs.forEach(l => {
-            const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-            html += `<div class="list-item" style="border-left:10px solid ${color};"><div><strong>${l.reason}</strong><br><small>${l.time}</small></div><strong>${l.amount>0?'+':''}${l.amount}P</strong></div>`;
-        });
+        // [중요 필터] 관리자이거나 본인일 때만 아래 활동 기록을 보여줌
+        if (isAdmin || isMe) {
+            html += `<h3 style="margin-left:10px;">📜 최근 활동 기록</h3>`;
+            const userLogs = allLogs.filter(l => l.name === userName).reverse();
+            userLogs.forEach(l => {
+                const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+                html += `<div class="list-item" style="border-left:10px solid ${color};">
+                            <div><strong>${l.reason}</strong><br><small>${l.time}</small></div>
+                            <strong style="color:${color}">${l.amount>0?'+':''}${l.amount}P</strong>
+                         </div>`;
+            });
+        } else {
+            // 남의 정보를 누르면 기록 대신 경고 문구 출력
+            html += `<p style="text-align:center; color:#888; padding:20px;">🔒 다른 용사의 활동 기록은<br>본부 규정상 볼 수 없습니다.</p>`;
+        }
+        
         html += `</div>`; openPopup(`${userName} 정보`, html);
     });
 }
