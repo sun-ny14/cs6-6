@@ -209,37 +209,64 @@
 
         // [수정사항 1] 출석부: 칼정렬 및 미등교 형광펜 적용
         const renderCheckinBoard = () => {
-            let targetDate = document.getElementById('checkin-date-filter').value;
-            if (!targetDate) {
-                const now = new Date();
-                targetDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-                document.getElementById('checkin-date-filter').value = targetDate;
+    // 1. 날짜 선택기에서 날짜 가져오기 (없으면 오늘 2026-04-01 세팅)
+    let targetDate = document.getElementById('checkin-date-filter').value;
+    
+    if (!targetDate) {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        targetDate = `${y}-${m}-${d}`;
+        document.getElementById('checkin-date-filter').value = targetDate;
+    }
+
+    // 2. 날짜 변경 시 실시간 반영을 위한 이벤트 연결
+    const dateInput = document.getElementById('checkin-date-filter');
+    if (dateInput && !dateInput.onchange) {
+        dateInput.onchange = () => renderCheckinBoard();
+    }
+
+    db.ref('checkinLogs').once('value', logSnap => {
+        const logs = {}; 
+        logSnap.forEach(c => { 
+            const l = c.val(); 
+            if (l.date === targetDate) logs[l.name] = l; 
+        });
+
+        let hH = `<div style="margin-bottom:15px; font-size:1.2rem; color:#2c3e50; font-weight:bold;">📌 [${targetDate}] 출석부</div>`;
+        
+        currentUsers.forEach(u => {
+            if (u.name === "총사령관") return;
+            
+            const log = logs[u.name]; 
+            let color = "#bdc3c7", txt = "미등교", time = "-", bg = "";
+
+            if (log) {
+                time = log.time || "";
+                if (log.result && log.result.includes('정상')) { 
+                    color = "var(--green)"; txt = "정상"; 
+                } else { 
+                    color = "var(--red)"; txt = log.result || "지각"; 
+                }
+            } else {
+                // [형광펜] 미등교 학생 노란색 강조 (절대 삭제 안 함!)
+                bg = "background-color: #ffff00; font-weight: bold;";
+                color = "#f1c40f"; 
             }
-            db.ref('checkinLogs').once('value', logSnap => {
-                const logs = {}; logSnap.forEach(c => { const l = c.val(); if (l.date === targetDate) logs[l.name] = l; });
-                let hH = `<div style="margin-bottom:15px; font-size:1.2rem; color:#2c3e50; font-weight:bold;">📌 [${targetDate}] 출석부</div>`;
-                currentUsers.forEach(u => {
-                    if (u.name === "총사령관") return;
-                    const log = logs[u.name]; let color = "#bdc3c7", txt = "미등교", time = "-", bg = "";
-                    if (log) {
-                        time = log.time || "";
-                        if (log.result && log.result.includes('정상')) { color = "var(--green)"; txt = "정상"; }
-                        else { color = "var(--red)"; txt = log.result || "지각"; }
-                    } else {
-                        // 미등교 형광펜 처리
-                        bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; 
-                    }
-                    // 칼정렬을 위해 고정 너비 span 사용
-                    hH += `<div class="list-item" style="border-left:15px solid ${color}; ${bg} display:flex; align-items:center; padding:12px 10px;">
-                            <span style="width:50px; flex-shrink:0;">${u.no||''}.</span>
-                            <span style="width:100px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis;"><strong>${u.name}</strong></span>
-                            <b style="flex:1; text-align:center; color:${color};">${txt}</b>
-                            <span style="width:120px; flex-shrink:0; text-align:right; font-family:monospace;">${time}</span>
-                           </div>`;
-                });
-                document.getElementById('checkin-history').innerHTML = hH;
-            });
-        };
+
+            // [칼정렬 디자인]
+            hH += `
+                <div class="list-item" style="border-left:15px solid ${color}; ${bg} display:flex; align-items:center; padding:12px 10px;">
+                    <span style="width:50px; flex-shrink:0;">${u.no || ''}.</span>
+                    <span style="width:100px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis;"><strong>${u.name}</strong></span>
+                    <b style="flex:1; text-align:center; color:${color};">${txt}</b>
+                    <span style="width:120px; flex-shrink:0; text-align:right; font-family:monospace;">${time}</span>
+                </div>`;
+        });
+        document.getElementById('checkin-history').innerHTML = hH;
+    });
+};
 
         function buyItem(k, n, p) {
             db.ref('users/'+myName).once('value', sn => {
