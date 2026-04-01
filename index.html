@@ -117,6 +117,13 @@
     const loginBox = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
 
+           if(isAdmin) {
+    ['admin-shop-mgr', 'admin-order-mgr', 'admin-guide-mgr'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'block';
+    });
+}
+           
     if (user) {
         // 관리자 이메일 체크 (대소문자 무시)
         isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
