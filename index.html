@@ -167,9 +167,17 @@
                 renderCheckinBoard();
             });
             db.ref('pointGuide').on('value', snap => {
-                let hH = ""; snap.forEach(c => { const g = c.val(); hH += `<div class="hero-card"><b>${g.title}</b><div class="card-pt">${g.p}P / ${g.e}E</div></div>`; });
-                document.getElementById('guide-list').innerHTML = hH || "도감 비어있음";
-            });
+    let hH = ""; 
+    snap.forEach(c => { 
+        const g = c.val(); 
+        // [수정] 클릭하면 해당 항목의 이름, 포인트, 경험치가 일괄 지급창에 자동으로 들어갑니다.
+        hH += `<div class="hero-card" onclick="openPointBulkPopup('${g.title}', ${g.p}, ${g.e})">
+                <b>${g.title}</b>
+                <div class="card-pt">${g.p}P / ${g.e}E</div>
+              </div>`; 
+    });
+    document.getElementById('guide-list').innerHTML = hH || "도감 비어있음";
+});
             db.ref('shop').on('value', snap => {
                 let sH = ""; snap.forEach(c => {
                     const i = c.val(); const delBtn = isAdmin ? `<button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; background:var(--red); color:white; padding:10px; margin-left:5px;">삭제</button>` : "";
