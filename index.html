@@ -218,15 +218,17 @@
        function addScore(name, p, e, reason) {
     db.ref('users/'+name).once('value', sn => {
         const u = sn.val(); if(!u) return; 
-        let nE = (u.exp||0)+e, nL = (u.lv||1), nP = (u.points||0)+p, up = false;
+        let nE = (u.exp||0) + e, nL = (u.lv||1), nP = (u.points||0) + p, up = false;
         
+        // 경험치 100 넘으면 레벨업 판정
         while(nE >= 100) { nL++; nE -= 100; up = true; }
         
         db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}).then(() => {
             db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()});
-            // 레벨업 했고, 그게 본인이거나 관리자가 보고 있을 때 룰렛 실행
+            
+            // 레벨업(up)이 true일 때 룰렛 실행 로직 (이게 빠졌었습니다!)
             if(up) {
-                // 관리자가 지급해서 애가 레벨업한 경우 혹은 본인이 레벨업한 경우
+                // 관리자가 일괄 지급해서 애들이 렙업했든, 본인이 했든 룰렛 팝업을 띄움
                 triggerLevelUpRoulette(name, nL);
             }
         });
@@ -256,13 +258,36 @@
         }
 
         function openUserHistory(un) {
-            db.ref('users/'+un).once('value', sn => {
-                const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0;
-                let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`;
-                allLogs.filter(l=>l.name===un).reverse().slice(0, 20).forEach(l => h += `<div class="list-item" style="border-left:10px solid var(--primary);"><span>${l.reason}</span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`);
-                openPopup(`${un} 활동 기록`, h);
+    db.ref('users/'+un).once('value', sn => {
+        const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0;
+        
+        // 상단 기본 정보 (이건 공용)
+        let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;">
+                    <strong>LV.${lv} ${un} 용사</strong>
+                    <div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div>
+                    <div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100
+                 </div>`;
+        
+        // 🔒 상세 로그 차단 로직: 선생님(isAdmin)이거나 본인(un === myName)일 때만 로그 출력
+        if (isAdmin || un === myName) {
+            allLogs.filter(l => l.name === un).reverse().slice(0, 20).forEach(l => {
+                const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+                h += `<div class="list-item" style="border-left:10px solid ${color};">
+                        <span>${l.reason} <small style="color:#888;">(${l.time})</small></span>
+                        <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
+                      </div>`;
             });
+        } else {
+            // 본인이 아닐 경우 보여줄 메시지
+            h += `<div style="text-align:center; padding:30px; color:#888;">
+                    <span style="font-size:3rem;">🔒</span><br>
+                    상세 활동 기록은 본인과<br>총사령관님만 열람할 수 있습니다.
+                  </div>`;
         }
+        
+        openPopup(`${un} 용사 정보`, h);
+    });
+}
 
         function toggleAllCheckboxes(status) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = status); }
         function applyToAll(type) { const val = document.getElementById('all-' + type + '-input').value; document.querySelectorAll('.pop-bulk-' + type).forEach(i => i.value = val); }
@@ -279,7 +304,7 @@
         function renderHistory() { 
     let h = ""; 
     [...allLogs].reverse().slice(0, 50).forEach(l => { 
-        // 관리자면 다 보여주고, 학생이면 자기 이름인 것만 보여줌
+        // 핵심 로직: 관리자(선생님)이거나, 기록의 주인공이 '현재 로그인한 나'일 때만 노출
         if(isAdmin || l.name === myName) {
             const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
             h += `<div class="list-item" style="border-left:10px solid ${color};">
