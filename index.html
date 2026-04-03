@@ -82,6 +82,7 @@
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
         <section id="tab-logs" class="tab-content"><div class="card"><h2>📅 등교 기록부</h2><div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;"><span style="font-weight:bold;">날짜 선택:</span><input type="date" id="checkin-date-filter" style="flex:1; padding:10px;"></div><div id="checkin-history" style="width:100%;"></div></div></section>
         <section id="tab-points" class="tab-content"><div id="my-inventory" class="card"><h3>🎁 나의 인벤토리</h3><div id="my-coupon-list"></div></div><div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div></section>
+        
         <section id="tab-admin" class="tab-content">
             <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveSettings()">저장</button></div>
@@ -130,7 +131,10 @@
                 let h = ""; currentUsers.forEach(u => { if(u.name!=="총사령관") h += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openUserHistory('${u.name}')"><span class="card-avatar">${getAvatar(u.lv||1)}</span><b>LV.${u.lv||1} ${u.name}</b><br>${u.points||0}P</div>`; });
                 document.getElementById('hero-grid').innerHTML = h;
                 if(isAdmin) {
-                    let aH = ""; currentUsers.forEach(u => { if(u.name!=="총사령관") aH += `<div class="list-item"><span>${u.no||''}. <strong>${u.name}</strong> ${u.isHelper?'[도우미]':''}</span><div><button onclick="toggleHelper('${u.name}',${u.isHelper||false})" style="width:auto; padding:5px 10px;">권한</button><button onclick="delUser('${u.name}')" style="width:auto; padding:5px 10px; background:var(--red); color:white; border:none; margin-left:5px;">제거</button></div></div>`; });
+                    let aH = ""; currentUsers.forEach(u => { if(u.name!=="총사령관") aH += `<div class="list-item" style="padding:20px;">
+                        <input type="number" value="${u.no||''}" onchange="updateNo('${u.name}', this.value)" style="width:70px; height:50px; margin:0; text-align:center; border:2px solid var(--primary);">
+                        <span style="flex:1; margin-left:15px;"><strong>${u.name}</strong> ${u.isHelper?'[도우미]':''}</span>
+                        <div><button onclick="toggleHelper('${u.name}',${u.isHelper||false})" style="width:auto; padding:5px 10px;">권한</button><button onclick="delUser('${u.name}')" style="width:auto; padding:5px 10px; background:var(--red); color:white; border:none; margin-left:5px;">제거</button></div></div>`; });
                     document.getElementById('student-admin-list').innerHTML = aH;
                 }
                 renderCheckinBoard();
@@ -162,9 +166,10 @@
                     if(u.name === "총사령관") return;
                     const log = logs[u.name]; let color = "#bdc3c7", txt = "미등교", bg = "";
                     if(log) { color = log.result.includes('정상') ? "var(--green)" : "var(--red)"; txt = log.result; }
-                    else { bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; } // 미등교 노란 형광펜!
+                    else { bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; }
                     h += `<div class="list-item" style="border-left:15px solid ${color}; ${bg} padding:12px 15px;">
-                            <span style="flex:1;">${u.no||''}. <strong>${u.name}</strong></span>
+                            <span style="width:50px; flex-shrink:0;">${u.no||''}.</span>
+                            <span style="flex:1;"><strong>${u.name}</strong></span>
                             <b style="width:100px; text-align:center; color:${color};">${txt}</b>
                             <span style="width:120px; text-align:right; color:#888;">${log?.time || '-'}</span>
                           </div>`;
@@ -243,8 +248,12 @@
 
         function openUserHistory(un) {
             db.ref('users/'+un).once('value', sn => {
-                const u = sn.val(), exp = u.exp||0, lv = u.lv||1;
-                let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="background:#ddd; height:20px; border-radius:10px; margin:10px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`;
+                const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0;
+                let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;">
+                            <strong>LV.${lv} ${un} 용사</strong>
+                            <div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div>
+                            <div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100
+                         </div>`;
                 allLogs.filter(l=>l.name===un).reverse().slice(0, 20).forEach(l => h += `<div class="list-item"><span>${l.reason}</span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`);
                 openPopup(`${un} 활동 기록`, h);
             });
@@ -258,6 +267,7 @@
         function updatePoint(n,a,r) { db.ref('users/'+n).once('value', sn => { db.ref('users/'+n).update({points:(sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
         function requestUseCoupon(k,n) { if(confirm(`[${n}] 사용 요청하시겠습니까?`)) db.ref('orders/'+k).update({status:'사용요청'}); }
         function approveOrder(k) { if(confirm("승인하시겠습니까?")) db.ref('orders/'+k).update({status:'완료'}); }
+        function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
         function toggleHelper(n,s) { if(confirm(`${n}의 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
         function renderHistory() { let h = ""; [...allLogs].reverse().slice(0, 50).forEach(l => { if(isAdmin||l.name===myName) h += `<div class="list-item"><span><strong>${l.name}</strong>: ${l.reason}</span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); document.getElementById('point-history-list').innerHTML = h; }
