@@ -33,44 +33,16 @@
         .pixel-avatar { width: 64px; height: 64px; background: url('avatars.png') no-repeat; background-size: 384px 64px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
         .avatar-lv1 { background-position: 0px 0px; } .avatar-lv5 { background-position: -64px 0px; } .avatar-lv10 { background-position: -128px 0px; } .avatar-lv15 { background-position: -192px 0px; } .avatar-lv20 { background-position: -256px 0px; } .avatar-lv30 { background-position: -320px 0px; }
         #roulette-box { font-size: 2.2rem; font-weight: bold; color: var(--purple); padding: 30px; border: 5px dashed var(--gold); margin: 20px 0; border-radius: 20px; background: #fffceb; text-align: center; }
-    /* 인벤토리 카드를 한 줄씩 예쁘게 배치 */
-.coupon-card { 
-    background: #fff; 
-    border: 2.5px solid var(--purple); 
-    padding: 18px; 
-    border-radius: 18px; 
-    margin-bottom: 15px; 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
-.coupon-card span { 
-    flex: 1; 
-    font-weight: bold; 
-    font-size: 1.3rem; 
-    margin-right: 10px; 
-    word-break: keep-all; 
-}
-.coupon-card button { 
-    width: auto !important; 
-    padding: 10px 20px !important; 
-    margin: 0 !important; 
-    background: var(--purple); 
-    color: white; 
-    border: none; 
-    border-radius: 10px; 
-    cursor: pointer; 
-    flex-shrink: 0; 
-}
-
-/* 등교 기록부 줄 맞춤용 설정 */
-/* 등교 기록부 가로 정렬 */
-.checkin-item { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 10px; font-size: 1.3rem; width: 100%; box-sizing: border-box; }
-.checkin-no { width: 45px; flex-shrink: 0; font-weight: bold; text-align: center; }
-.checkin-name { width: 95px; flex-shrink: 0; font-weight: bold; }
-.checkin-status { flex: 1; text-align: center; font-weight: bold; }
-.checkin-time { width: 120px; flex-shrink: 0; text-align: right; color: #666; font-size: 1.1rem; }
+        
+        .coupon-card { background: #fff; border: 2.5px solid var(--purple); padding: 18px; border-radius: 18px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .coupon-card span { flex: 1; font-weight: bold; font-size: 1.3rem; margin-right: 10px; word-break: keep-all; }
+        .coupon-card button { width: auto !important; padding: 10px 20px !important; margin: 0 !important; background: var(--purple); color: white; border: none; border-radius: 10px; cursor: pointer; flex-shrink: 0; }
+        
+        .checkin-item { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 10px; font-size: 1.3rem; width: 100%; box-sizing: border-box; }
+        .checkin-no { width: 45px; flex-shrink: 0; font-weight: bold; text-align: center; }
+        .checkin-name { width: 95px; flex-shrink: 0; font-weight: bold; }
+        .checkin-status { flex: 1; text-align: center; font-weight: bold; }
+        .checkin-time { width: 120px; flex-shrink: 0; text-align: right; color: #666; font-size: 1.1rem; }
     </style>
 </head>
 <body>
@@ -178,7 +150,10 @@
             });
             db.ref('orders').on('value', snap => {
                 let cH = "", oH = ""; snap.forEach(c => {
-                    const o = c.val(); if(o.user === myName && o.status !== '완료') cH += `<div class="coupon-card"><span>${o.item}</span><button onclick="requestUseCoupon('${c.key}','${o.item}')" style="width:auto; padding:10px; background:var(--purple); color:white; border:none; border-radius:8px;">사용</button></div>`;
+                    const o = c.val(); if(o.user === myName && o.status !== '완료') {
+                        const isW = (o.status === '사용요청');
+                        cH += `<div class="coupon-card"><span>${o.item} ${isW ? '<b style="color:var(--red);">(⏳요청중)</b>' : ''}</span><button onclick="requestUseCoupon('${c.key}','${o.item}')" ${isW ? 'disabled' : ''}>${isW ? '대기' : '사용'}</button></div>`;
+                    }
                     if((isAdmin || isHelper) && o.status === '사용요청') oH += `<div class="list-item"><span>${o.user}: ${o.item}</span><button onclick="approveOrder('${c.key}')" style="width:auto; padding:10px; background:var(--green); color:white; border:none; border-radius:8px;">승인</button></div>`;
                 });
                 document.getElementById('my-coupon-list').innerHTML = cH || "보유 물품 없음"; document.getElementById('order-list').innerHTML = oH || "사용 요청 없음";
@@ -191,27 +166,25 @@
         }
 
         const renderCheckinBoard = () => {
-    const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0];
-    db.ref('checkinLogs').once('value', snap => {
-        const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
-        let h = `<div style="margin-bottom:15px; font-weight:bold; font-size:1.2rem;">📌 [${td}] 등교 상태</div>`;
-        currentUsers.forEach(u => {
-            if(u.name === "총사령관") return;
-            const log = logs[u.name]; let color = "#bdc3c7", txt = "미등교", bg = "";
-            if(log) { color = log.result.includes('정상') ? "var(--green)" : "var(--red)"; txt = log.result; }
-            else { bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; }
-            
-            // 이 부분이 핵심입니다! 줄 맞춤용 클래스 적용
-            h += `<div class="checkin-item" style="border-left:15px solid ${color}; ${bg}">
-                    <span class="checkin-no">${u.no||''}</span>
-                    <span class="checkin-name">${u.name}</span>
-                    <span class="checkin-status" style="color:${color};">${txt}</span>
-                    <span class="checkin-time">${log?.time || '-'}</span>
-                  </div>`;
-        });
-        document.getElementById('checkin-history').innerHTML = h;
-    });
-};
+            const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0];
+            db.ref('checkinLogs').once('value', snap => {
+                const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
+                let h = `<div style="margin-bottom:15px; font-weight:bold; font-size:1.2rem;">📌 [${td}] 등교 상태</div>`;
+                currentUsers.forEach(u => {
+                    if(u.name === "총사령관") return;
+                    const log = logs[u.name]; let color = "#bdc3c7", txt = "미등교", bg = "";
+                    if(log) { color = log.result.includes('정상') ? "var(--green)" : "var(--red)"; txt = log.result; }
+                    else { bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; }
+                    h += `<div class="checkin-item" style="border-left:15px solid ${color}; ${bg}">
+                            <span class="checkin-no">${u.no||''}</span>
+                            <span class="checkin-name">${u.name}</span>
+                            <span class="checkin-status" style="color:${color};">${txt}</span>
+                            <span class="checkin-time">${log?.time || '-'}</span>
+                          </div>`;
+                });
+                document.getElementById('checkin-history').innerHTML = h;
+            });
+        };
 
         async function buyItem(k, n, p, limit) {
             if(limit > 0) {
@@ -226,20 +199,13 @@
         }
 
         function editItem(key, name, price, limit) {
-    const n = prompt("수정할 물품 이름", name); if(n === null) return;
-    const p = prompt("수정할 가격 (숫자만)", price); if(p === null) return;
-    const l = prompt("1인당 구매 제한 (0은 무제한)", limit); if(l === null) return;
-    
-    db.ref('shop/' + key).update({
-        name: n,
-        price: parseInt(p) || 0,
-        limit: parseInt(l) || 0
-    }).then(() => alert("물품 정보가 수정되었습니다!"));
-}
+            const n = prompt("수정할 물품 이름", name); if(n === null) return;
+            const p = prompt("수정할 가격 (숫자만)", price); if(p === null) return;
+            const l = prompt("1인당 구매 제한 (0은 무제한)", limit); if(l === null) return;
+            db.ref('shop/' + key).update({ name: n, price: parseInt(p) || 0, limit: parseInt(l) || 0 }).then(() => alert("물품 정보가 수정되었습니다!"));
+        }
 
-        function deleteItem(k, n) { 
-    if(confirm(`[${n}] 물품을 삭제하시겠습니까?`)) db.ref('shop/' + k).remove(); 
-}
+        function deleteItem(k, n) { if(confirm(`[${n}] 물품을 삭제하시겠습니까?`)) db.ref('shop/' + k).remove(); }
 
         function openPointBulkPopup(t='', p='', e='') {
             let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유"><div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;"> E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;"></div><div style="display:flex; justify-content:flex-end; gap:5px;"><button onclick="toggleAllCheckboxes(true)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:5px;">전체 선택</button><button onclick="toggleAllCheckboxes(false)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:5px;">해제</button></div></div>`;
@@ -291,7 +257,7 @@
             db.ref('users/'+un).once('value', sn => {
                 const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0;
                 let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`;
-                allLogs.filter(l=>l.name===un).reverse().slice(0, 20).forEach(l => h += `<div class="list-item"><span>${l.reason}</span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`);
+                allLogs.filter(l=>l.name===un).reverse().slice(0, 20).forEach(l => h += `<div class="list-item" style="border-left:10px solid var(--primary);"><span>${l.reason}</span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`);
                 openPopup(`${un} 활동 기록`, h);
             });
         }
@@ -308,25 +274,24 @@
         function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
         function renderHistory() { 
-    let h = ""; 
-    [...allLogs].reverse().slice(0, 50).forEach(l => { 
-        if(isAdmin || l.name === myName) {
-            const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-            h += `<div class="list-item" style="border-left:10px solid ${color};">
-                    <span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span>
-                    <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
-                  </div>`; 
+            let h = ""; 
+            [...allLogs].reverse().slice(0, 50).forEach(l => { 
+                if(isAdmin || l.name === myName) {
+                    const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+                    h += `<div class="list-item" style="border-left:10px solid ${color};">
+                            <span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span>
+                            <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
+                          </div>`; 
+                }
+            }); 
+            const target = document.getElementById('point-history-list');
+            if(target) target.innerHTML = h || "기록이 아직 없습니다.";
         }
-    }); 
-    const target = document.getElementById('point-history-list');
-    if(target) target.innerHTML = h || "기록이 아직 없습니다.";
-} // 이 중괄호가 꼭 있어야 합니다!
-
-function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
-function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
-function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
-function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
-function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("주입 완료!"); }
+        function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
+        function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
+        function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
+        function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
+        function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("주입 완료!"); }
     </script>
 </body>
 </html>
