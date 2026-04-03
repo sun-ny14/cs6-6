@@ -61,7 +61,7 @@ input[type="number"] {
         .avatar-lv1 { background-position: 0px 0px; } .avatar-lv5 { background-position: -64px 0px; } .avatar-lv10 { background-position: -128px 0px; } .avatar-lv15 { background-position: -192px 0px; } .avatar-lv20 { background-position: -256px 0px; } .avatar-lv30 { background-position: -320px 0px; }
         #roulette-box { font-size: 2.2rem; font-weight: bold; color: var(--purple); padding: 30px; border: 5px dashed var(--gold); margin: 20px 0; border-radius: 20px; background: #fffceb; text-align: center; }
         .lv-up-title { color: var(--gold); font-size: 2.5rem; text-shadow: 2px 2px var(--dark); text-align: center; font-weight:bold; }
-    </style>
+    </style>1
 </head>
 <body>
     <div id="loading-screen">🏰 용사 본부 접속 중...</div>
@@ -309,24 +309,29 @@ aH += `<div class="list-item" style="display:flex; align-items:center; gap:15px;
         function openPopup(t, h, r = false) { document.getElementById('pop-title').innerHTML = t; document.getElementById('pop-content').innerHTML = h; document.getElementById('common-overlay').style.display = 'flex'; window.routineActive = r; }
         function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display = 'none'; } else { document.getElementById('common-overlay').style.display = 'none'; } }
         function openPointBulkPopup() {
-    // 사유 입력칸을 상단에 고정(sticky) 시켰습니다.
+    // 1. 사유 입력칸과 '전체 적용' 칸을 상단에 고정
     let html = `
-        <div style="position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 10px; border-bottom: 2px solid #eee;">
-            <input type="text" id="pop-bulk-reason" placeholder="사유를 입력하세요 (예: 우유 급식 도우미)">
+        <div style="position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 15px; border-bottom: 3px solid var(--gold);">
+            <input type="text" id="pop-bulk-reason" placeholder="사유 (예: 환경 미화 단체 보상)" style="margin-bottom:10px;">
+            
+            <div style="background: #fffdf2; padding: 15px; border-radius: 15px; border: 2px dashed var(--gold); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; justify-content: center;">
+                <span style="font-weight:bold; font-size:1.2rem; color:var(--dark);">✨ 전체 적용:</span>
+                P <input type="number" id="all-p-input" oninput="applyToAll('p')" style="width:80px; height:50px; margin:0; border:2px solid var(--gold); text-align:center;">
+                E <input type="number" id="all-e-input" oninput="applyToAll('e')" style="width:80px; height:50px; margin:0; border:2px solid var(--gold); text-align:center;">
+            </div>
         </div>
         <div style="margin-top:15px;">`;
 
     currentUsers.forEach(u => { 
         if(u.name !== "총사령관") {
-            // openPointBulkPopup 함수 내부의 input 스타일 부분만 확인하세요
-html += `
-    <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
-        <span style="font-weight:bold; font-size:1.4rem;">${u.no || ''}. ${u.name}</span>
-        <div style="display:flex; align-items:center; gap:8px;">
-            P <input type="number" class="pop-bulk-p" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary);"> 
-            E <input type="number" class="pop-bulk-e" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary);">
-        </div>
-    </div>`;
+            html += `
+                <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
+                    <span style="font-weight:bold; font-size:1.4rem;">${u.no || ''}. ${u.name}</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        P <input type="number" class="pop-bulk-p" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary); text-align:center;"> 
+                        E <input type="number" class="pop-bulk-e" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary); text-align:center;">
+                    </div>
+                </div>`;
         }
     });
     
@@ -335,7 +340,7 @@ html += `
     
     document.getElementById('point-apply-btn').onclick = () => { 
         const r = document.getElementById('pop-bulk-reason').value; 
-        if(!r) return alert("사유를 적어주세요!"); 
+        if(!r) return alert("사유를 꼭 적어주세요!"); 
         
         const ps = document.querySelectorAll('.pop-bulk-p');
         const es = document.querySelectorAll('.pop-bulk-e');
@@ -348,6 +353,15 @@ html += `
         closePointPopup(); 
     };
     document.getElementById('point-popup').style.display = 'flex';
+}
+
+// 이 함수도 꼭 추가해 주세요! (전체 적용 작동용)
+function applyToAll(type) {
+    const val = document.getElementById('all-' + type + '-input').value;
+    const targets = document.querySelectorAll('.pop-bulk-' + type);
+    targets.forEach(input => {
+        input.value = val;
+    });
 }
         function openScorePopup() {
             let h = `<div>`; currentUsers.forEach((u, i) => { if(u.name !== "총사령관") h += `<div class="list-item"><span>${u.no||''}. ${u.name}</span><div>P <input type="number" class="pop-one-p" style="width:40px;"> E <input type="number" class="pop-one-e" style="width:40px;"><button onclick="applyOneS('${u.name}', ${i})" style="width:auto; padding:5px;">OK</button></div></div>`; });
