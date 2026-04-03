@@ -15,17 +15,24 @@
     background: var(--bg); 
     color: #333; 
     padding-bottom: 60px; 
-    font-size: 1.2rem; /* 글씨 크기 복구 */
+    font-size: 1.4rem; /* 1.2에서 1.4로 더 키움 */
 }
 
 input, button, textarea, select { 
     width: 100%; 
-    padding: 15px; /* 칸 크기(여백) 복구 */
+    padding: 18px; /* 위아래 폭을 더 넓게 */
     margin: 10px 0; 
-    border-radius: 10px; 
-    border: 1px solid #ccc; 
+    border-radius: 12px; 
+    border: 2px solid #ccc; 
     box-sizing: border-box; 
-    font-size: 1.2rem; /* 입력창 글씨 크기 복구 */
+    font-size: 1.4rem; /* 입력창 안의 글씨도 큼직하게 */
+}
+
+/* [추가/수정] 번호 입력칸 전용 스타일 */
+input[type="number"] {
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
 }
         #loading-screen { display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); color: white; z-index: 3000; font-size: 1.8rem; }
         #login-screen { display: none; justify-content: center; align-items: center; min-height: 100vh; background: var(--dark); padding: 20px; }
@@ -166,12 +173,17 @@ input, button, textarea, select {
                     const isMe = (u.name === myName);
                     gH += `<div class="hero-card ${isMe?'me':''}" onclick="openUserHistory('${u.name}')"><span class="card-avatar">${getAvatar(u.lv||1)}</span><div class="card-name">LV.${u.lv||1} ${u.name}</div><div class="card-pt">${u.points||0}P</div></div>`;
                     if(isAdmin) {
-                        aH += `<div class="list-item" style="display:flex; align-items:center; gap:10px;">
-                                <input type="number" value="${u.no||''}" onchange="updateNo('${u.name}', this.value)" style="width:60px; text-align:center;">
-                                <div style="flex:1;"><strong>${u.name}</strong> ${u.isHelper ? '<span style="color:var(--purple); font-size:0.8rem; font-weight:bold;">[도우미]</span>' : ''}</div>
-                                <button onclick="toggleHelper('${u.name}', ${u.isHelper||false})" style="width:auto; background:var(--purple); color:white; padding:5px 10px;">${u.isHelper?'해제':'도우미'}</button>
-                                <button onclick="delUser('${u.name}')" style="background:var(--red); color:white; width:auto; padding:5px 10px;">제거</button>
-                               </div>`;
+                        // 관리 탭 명단 부분 (aH += ...)
+aH += `<div class="list-item" style="display:flex; align-items:center; gap:15px; padding:20px;">
+        <input type="number" value="${u.no||''}" onchange="updateNo('${u.name}', this.value)" 
+               style="width:80px; height:50px; margin:0; padding:5px; text-align:center; flex-shrink:0; border:2px solid var(--primary);">
+        <div style="flex:1; font-size:1.4rem;">
+            <strong>${u.name}</strong> 
+            ${u.isHelper ? '<span style="color:var(--purple); font-weight:bold;">[도우미]</span>' : ''}
+        </div>
+        <button onclick="toggleHelper('${u.name}', ${u.isHelper||false})" style="width:auto; background:var(--purple); color:white; padding:10px 15px;">${u.isHelper?'해제':'도우미'}</button>
+        <button onclick="delUser('${u.name}')" style="background:var(--red); color:white; width:auto; padding:10px 15px;">제거</button>
+       </div>`;
                     }
                 });
                 document.getElementById('hero-grid').innerHTML = gH;
@@ -306,14 +318,15 @@ input, button, textarea, select {
 
     currentUsers.forEach(u => { 
         if(u.name !== "총사령관") {
-            html += `
-                <div class="list-item">
-                    <span>${u.no || ''}. ${u.name}</span>
-                    <div>
-                        P <input type="number" class="pop-bulk-p" style="width:65px; padding:8px;"> 
-                        E <input type="number" class="pop-bulk-e" style="width:65px; padding:8px;">
-                    </div>
-                </div>`;
+            // openPointBulkPopup 함수 내부의 input 스타일 부분만 확인하세요
+html += `
+    <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
+        <span style="font-weight:bold; font-size:1.4rem;">${u.no || ''}. ${u.name}</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+            P <input type="number" class="pop-bulk-p" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary);"> 
+            E <input type="number" class="pop-bulk-e" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary);">
+        </div>
+    </div>`;
         }
     });
     
