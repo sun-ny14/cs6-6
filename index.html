@@ -191,6 +191,16 @@
                 if((sn.val().points||0) < p) return alert("포인트 부족!");
                 if(confirm(`[${n}] 구매하시겠습니까?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); }
             });
+            // startApp 함수 맨 아래쪽에 넣으세요
+db.ref('pointLogs').on('value', snap => { 
+    allLogs = []; 
+    snap.forEach(c => {
+        let logData = c.val();
+        logData.key = c.key; // 키값 보존
+        allLogs.push(logData);
+    }); 
+    renderHistory(); // 데이터가 들어오면 화면을 다시 그리라는 명령!
+});
         }
 
         function editItem(key, name, price, limit) {
@@ -216,17 +226,40 @@
         }
 
         function addScore(name, p, e, reason) {
-            db.ref('users/'+name).once('value', sn => {
-                const u = sn.val(); if(!u) return; 
-                let nE = (u.exp||0) + e, nL = (u.lv||1), nP = (u.points||0) + p, up = false;
-                while(nE >= 100) { nL++; nE -= 100; up = true; }
-                db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}).then(() => {
-                    db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()});
-                    if(up) triggerLevelUpRoulette(name, nL);
-                });
-            });
+    db.ref('users/' + name).once('value', sn => {
+        const u = sn.val();
+        if (!u) return;
+
+        let nE = (parseInt(u.exp) || 0) + parseInt(e);
+        let nL = (parseInt(u.lv) || 1);
+        let nP = (parseInt(u.points) || 0) + parseInt(p);
+        let up = false;
+
+        // 경험치 100당 1레벨업 로직
+        while (nE >= 100) {
+            nL++;
+            nE -= 100;
+            up = true;
         }
 
+        // 포인트와 레벨, 경험치를 한꺼번에 서버에 전송 (따로따로 보내면 씹힙니다)
+        db.ref('users/' + name).update({
+            exp: nE,
+            lv: nL,
+            points: nP
+        }).then(() => {
+            // 기록 저장
+            db.ref('pointLogs').push({
+                name: name,
+                amount: p,
+                reason: reason,
+                time: new Date().toLocaleString()
+            });
+            // 레벨업 시 룰렛 실행
+            if (up) triggerLevelUpRoulette(name, nL);
+        });
+    });
+}
         function triggerLevelUpRoulette(un, lv) {
             if(!giftList.length) return openPopup("🎊 레벨업!", `LV.${lv} 달성!`);
             openPopup(`🎊 LEVEL UP! 🎊`, `<div style="text-align:center;"><p>LV.<b>${lv}</b> 달성 보상 룰렛!</p><div id="roulette-box">탐색 중...</div></div>`);
