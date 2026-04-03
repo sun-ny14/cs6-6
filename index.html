@@ -293,25 +293,34 @@
         function openPopup(t, h, r = false) { document.getElementById('pop-title').innerHTML = t; document.getElementById('pop-content').innerHTML = h; document.getElementById('common-overlay').style.display = 'flex'; window.routineActive = r; }
         function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display = 'none'; } else { document.getElementById('common-overlay').style.display = 'none'; } }
         
-        // 매개변수 t(사유), p(포인트), e(경험치)를 받도록 수정
-// 1. 일괄 지급 팝업 (도감 연동 기능 포함)
-function openPointBulkPopup(t = '', p = '', e = '') {
+       function openPointBulkPopup(t = '', p = '', e = '') {
+    // 1. 상단 고정 영역 (사유, 전체 적용, 전체 선택/해제)
     let html = `
         <div style="position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 15px; border-bottom: 3px solid var(--gold);">
             <input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유 (예: 환경 미화 단체 보상)" style="margin-bottom:10px;">
+            
             <div style="background: #fffdf2; padding: 15px; border-radius: 15px; border: 2px dashed var(--gold); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; justify-content: center;">
                 <span style="font-weight:bold; font-size:1.2rem; color:var(--dark);">✨ 전체 적용:</span>
                 P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px; margin:0; border:2px solid var(--gold); text-align:center;">
                 E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px; margin:0; border:2px solid var(--gold); text-align:center;">
             </div>
+            
+            <div style="text-align: right; padding-right: 10px;">
+                <button onclick="toggleAllCheckboxes(true)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:5px;">전체 선택</button>
+                <button onclick="toggleAllCheckboxes(false)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:5px;">전체 해제</button>
+            </div>
         </div>
         <div style="margin-top:15px;">`;
 
-    currentUsers.forEach(u => { 
+    // 2. 학생 목록 (체크박스 포함)
+    currentUsers.forEach((u, i) => { 
         if(u.name !== "총사령관") {
             html += `
                 <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
-                    <span style="font-weight:bold; font-size:1.4rem;">${u.no || ''}. ${u.name}</span>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="checkbox" class="student-select" data-name="${u.name}" style="width:25px; height:25px; cursor:pointer;" checked>
+                        <span style="font-weight:bold; font-size:1.4rem;">${u.no || ''}. ${u.name}</span>
+                    </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         P <input type="number" class="pop-bulk-p" value="${p}" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary); text-align:center;"> 
                         E <input type="number" class="pop-bulk-e" value="${e}" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary); text-align:center;">
@@ -322,20 +331,42 @@ function openPointBulkPopup(t = '', p = '', e = '') {
     html += `</div>`; 
     document.getElementById('point-pop-body').innerHTML = html;
     
+    // 3. 반영하기 로직 (체크된 학생만 필터링)
     document.getElementById('point-apply-btn').onclick = () => { 
         const r = document.getElementById('pop-bulk-reason').value; 
         if(!r) return alert("사유를 꼭 적어주세요!"); 
-        const ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e');
-        currentUsers.filter(u => u.name !== "총사령관").forEach((u, i) => { 
-            const valP = parseInt(ps[i].value) || 0; 
-            const valE = parseInt(es[i].value) || 0; 
-            if(valP || valE) addScore(u.name, valP, valE, r); 
-        }); 
-        closePointPopup(); 
+        
+        const checkboxes = document.querySelectorAll('.student-select');
+        const ps = document.querySelectorAll('.pop-bulk-p');
+        const es = document.querySelectorAll('.pop-bulk-e');
+        
+        let count = 0;
+        checkboxes.forEach((cb, idx) => {
+            if(cb.checked) {
+                const name = cb.getAttribute('data-name');
+                const valP = parseInt(ps[idx].value) || 0; 
+                const valE = parseInt(es[idx].value) || 0; 
+                if(valP || valE) {
+                    addScore(name, valP, valE, r);
+                    count++;
+                }
+            }
+        });
+        
+        if(count === 0) alert("선택된 학생이 없거나 입력된 포인트가 없습니다.");
+        else {
+            alert(count + "명의 용사에게 포인트가 전송되었습니다!");
+            closePointPopup(); 
+        }
     };
     document.getElementById('point-popup').style.display = 'flex';
 }
 
+// 전체 선택/해제용 도우미 함수
+function toggleAllCheckboxes(status) {
+    const checkboxes = document.querySelectorAll('.student-select');
+    checkboxes.forEach(cb => cb.checked = status);
+}
 // 2. 전체 적용 마법 함수
 function applyToAll(type) {
     const val = document.getElementById('all-' + type + '-input').value;
