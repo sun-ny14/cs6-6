@@ -65,7 +65,8 @@
 }
 
 /* 등교 기록부 줄 맞춤용 설정 */
-.checkin-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 10px; font-size: 1.3rem; }
+/* 등교 기록부 가로 정렬 */
+.checkin-item { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 10px; font-size: 1.3rem; width: 100%; box-sizing: border-box; }
 .checkin-no { width: 45px; flex-shrink: 0; font-weight: bold; text-align: center; }
 .checkin-name { width: 95px; flex-shrink: 0; font-weight: bold; }
 .checkin-status { flex: 1; text-align: center; font-weight: bold; }
@@ -217,14 +218,21 @@
             });
         }
 
-        function editItem(key, name, price, limit) {
-            const n = prompt("물품 이름 수정", name); if(n === null) return;
-            const p = prompt("가격 수정", price); if(p === null) return;
-            const l = prompt("1인당 구매 제한 수정 (0:무제한)", limit); if(l === null) return;
-            db.ref('shop/' + key).update({ name: n, price: parseInt(p), limit: parseInt(l) }).then(() => alert("수정 완료!"));
-        }
+        ffunction editItem(key, name, price, limit) {
+    const n = prompt("수정할 물품 이름", name); if(n === null) return;
+    const p = prompt("수정할 가격 (숫자만)", price); if(p === null) return;
+    const l = prompt("1인당 구매 제한 (0은 무제한)", limit); if(l === null) return;
+    
+    db.ref('shop/' + key).update({
+        name: n,
+        price: parseInt(p) || 0,
+        limit: parseInt(l) || 0
+    }).then(() => alert("물품 정보가 수정되었습니다!"));
+}
 
-        function deleteItem(k, n) { if(confirm(`[${n}] 정말 삭제하시겠습니까?`)) db.ref('shop/' + k).remove(); }
+        function deleteItem(k, n) { 
+    if(confirm(`[${n}] 물품을 삭제하시겠습니까?`)) db.ref('shop/' + k).remove(); 
+}
 
         function openPointBulkPopup(t='', p='', e='') {
             let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유"><div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;"> E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;"></div><div style="display:flex; justify-content:flex-end; gap:5px;"><button onclick="toggleAllCheckboxes(true)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:5px;">전체 선택</button><button onclick="toggleAllCheckboxes(false)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:5px;">해제</button></div></div>`;
@@ -292,7 +300,20 @@
         function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
         function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
-        function renderHistory() { let h = ""; [...allLogs].reverse().slice(0, 50).forEach(l => { if(isAdmin||l.name===myName) h += `<div class="list-item"><span><strong>${l.name}</strong>: ${l.reason}</span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); document.getElementById('point-history-list').innerHTML = h; }
+        function renderHistory() { 
+    let h = ""; 
+    // 최신순으로 정렬해서 보여줌
+    [...allLogs].reverse().slice(0, 50).forEach(l => { 
+        if(isAdmin || l.name === myName) {
+            const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+            h += `<div class="list-item" style="border-left:10px solid ${color};">
+                    <span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span>
+                    <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
+                  </div>`; 
+        }
+    }); 
+    const target = document.getElementById('point-history-list');
+    if(target) target.innerHTML = h || "기록이 아직 없습니다.";
         function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
         function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
         function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
