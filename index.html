@@ -294,6 +294,7 @@
         function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display = 'none'; } else { document.getElementById('common-overlay').style.display = 'none'; } }
         
         // 매개변수 t(사유), p(포인트), e(경험치)를 받도록 수정
+// 1. 일괄 지급 팝업 (도감 연동 기능 포함)
 function openPointBulkPopup(t = '', p = '', e = '') {
     let html = `
         <div style="position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 15px; border-bottom: 3px solid var(--gold);">
@@ -333,36 +334,53 @@ function openPointBulkPopup(t = '', p = '', e = '') {
         closePointPopup(); 
     };
     document.getElementById('point-popup').style.display = 'flex';
-}document.getElementById('point-pop-body').innerHTML = html;
-            document.getElementById('point-apply-btn').onclick = () => { 
-                const r = document.getElementById('pop-bulk-reason').value; 
-                if(!r) return alert("사유를 꼭 적어주세요!"); 
-                const ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e');
-                currentUsers.filter(u => u.name !== "총사령관").forEach((u, i) => { 
-                    const p = parseInt(ps[i].value) || 0; const e = parseInt(es[i].value) || 0; 
-                    if(p || e) addScore(u.name, p, e, r); 
-                }); 
-                closePointPopup(); 
-            };
-            document.getElementById('point-popup').style.display = 'flex';
-        }
+}
 
-        function applyToAll(type) {
-            const val = document.getElementById('all-' + type + '-input').value;
-            const targets = document.querySelectorAll('.pop-bulk-' + type);
-            targets.forEach(input => { input.value = val; });
-        }
+// 2. 전체 적용 마법 함수
+function applyToAll(type) {
+    const val = document.getElementById('all-' + type + '-input').value;
+    const targets = document.querySelectorAll('.pop-bulk-' + type);
+    targets.forEach(input => { input.value = val; });
+}
 
-        function openScorePopup() {
-            let h = `<div>`; currentUsers.forEach((u, i) => { if(u.name !== "총사령관") h += `<div class="list-item"><span>${u.no||''}. ${u.name}</span><div>P <input type="number" class="pop-one-p" style="width:40px;"> E <input type="number" class="pop-one-e" style="width:40px;"><button onclick="applyOneS('${u.name}', ${i})" style="width:auto; padding:5px;">OK</button></div></div>`; });
-            h += `</div>`; document.getElementById('point-pop-body').innerHTML = h; document.getElementById('point-apply-btn').style.display = 'none'; document.getElementById('point-popup').style.display = 'flex';
-        }
-        function applyOneS(n, idx) { const p = parseInt(document.querySelectorAll('.pop-one-p')[idx].value) || 0, e = parseInt(document.querySelectorAll('.pop-one-e')[idx].value) || 0; addScore(n, p, e, "개별 지급"); alert("지급 완료"); }
-        function closePointPopup() { document.getElementById('point-popup').style.display = 'none'; document.getElementById('point-apply-btn').style.display = 'block'; }
-        function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
-        function delUser(n) { if(confirm(n + " 제거?")) db.ref('users/' + n).remove(); }
-        function bulkReg() { const t = document.getElementById('bulk-in').value; if(!t) return; t.split('\n').forEach(l => { const [n, e] = l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); } }); alert("주입 완료"); }
-        function toggleHelper(n, s) { if(confirm(n + " 권한 변경?")) db.ref('users/' + n).update({ isHelper: !s }).then(() => alert("변경 완료")); }
+// 3. 기타 관리 함수들
+function openScorePopup() {
+    let h = `<div>`; 
+    currentUsers.forEach((u, i) => { 
+        if(u.name !== "총사령관") h += `<div class="list-item"><span>${u.no||''}. ${u.name}</span><div>P <input type="number" class="pop-one-p" style="width:50px;"> E <input type="number" class="pop-one-e" style="width:50px;"><button onclick="applyOneS('${u.name}', ${i})" style="width:auto; padding:5px; margin-left:5px;">OK</button></div></div>`; 
+    });
+    h += `</div>`; 
+    document.getElementById('point-pop-body').innerHTML = h; 
+    document.getElementById('point-apply-btn').style.display = 'none'; 
+    document.getElementById('point-popup').style.display = 'flex';
+}
+
+function applyOneS(n, idx) { 
+    const p = parseInt(document.querySelectorAll('.pop-one-p')[idx].value) || 0, e = parseInt(document.querySelectorAll('.pop-one-e')[idx].value) || 0; 
+    addScore(n, p, e, "개별 지급"); 
+    alert("지급 완료"); 
+}
+
+function closePointPopup() { 
+    document.getElementById('point-popup').style.display = 'none'; 
+    document.getElementById('point-apply-btn').style.display = 'block'; 
+}
+
+function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
+function delUser(n) { if(confirm(n + " 제거?")) db.ref('users/' + n).remove(); }
+function bulkReg() { 
+    const t = document.getElementById('bulk-in').value; 
+    if(!t) return; 
+    t.split('\n').forEach(l => { 
+        const [n, e] = l.split(',').map(s=>s.trim()); 
+        if(n&&e) { 
+            db.ref('userEmails/'+e.replace(/\./g,',')).set(n); 
+            db.ref('users/'+n).update({name:n, email:e, points:0, exp:0, lv:1, no:""}); 
+        } 
+    }); 
+    alert("주입 완료"); 
+}
+function toggleHelper(n, s) { if(confirm(n + " 권한 변경?")) db.ref('users/' + n).update({ isHelper: !s }).then(() => alert("변경 완료")); }
     </script>
 </body>
 </html>
