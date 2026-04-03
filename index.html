@@ -191,20 +191,27 @@
         }
 
         const renderCheckinBoard = () => {
-            const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0];
-            db.ref('checkinLogs').once('value', snap => {
-                const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
-                let h = `<div style="margin-bottom:15px; font-weight:bold; font-size:1.2rem;">📌 [${td}] 등교 상태</div>`;
-                currentUsers.forEach(u => {
-                    if(u.name === "총사령관") return;
-                    const log = logs[u.name]; let color = "#bdc3c7", txt = "미등교", bg = "";
-                    if(log) { color = log.result.includes('정상') ? "var(--green)" : "var(--red)"; txt = log.result; }
-                    else { bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; }
-                    h += `<div class="list-item" style="border-left:15px solid ${color}; ${bg} padding:12px 15px;"><span style="width:50px; flex-shrink:0;">${u.no||''}.</span><span style="flex:1;"><strong>${u.name}</strong></span><b style="width:100px; text-align:center; color:${color};">${txt}</b><span style="width:120px; text-align:right; color:#888;">${log?.time || '-'}</span></div>`;
-                });
-                document.getElementById('checkin-history').innerHTML = h;
-            });
-        };
+    const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0];
+    db.ref('checkinLogs').once('value', snap => {
+        const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
+        let h = `<div style="margin-bottom:15px; font-weight:bold; font-size:1.2rem;">📌 [${td}] 등교 상태</div>`;
+        currentUsers.forEach(u => {
+            if(u.name === "총사령관") return;
+            const log = logs[u.name]; let color = "#bdc3c7", txt = "미등교", bg = "";
+            if(log) { color = log.result.includes('정상') ? "var(--green)" : "var(--red)"; txt = log.result; }
+            else { bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; }
+            
+            // 이 부분이 핵심입니다! 줄 맞춤용 클래스 적용
+            h += `<div class="checkin-item" style="border-left:15px solid ${color}; ${bg}">
+                    <span class="checkin-no">${u.no||''}</span>
+                    <span class="checkin-name">${u.name}</span>
+                    <span class="checkin-status" style="color:${color};">${txt}</span>
+                    <span class="checkin-time">${log?.time || '-'}</span>
+                  </div>`;
+        });
+        document.getElementById('checkin-history').innerHTML = h;
+    });
+};
 
         async function buyItem(k, n, p, limit) {
             if(limit > 0) {
@@ -218,7 +225,7 @@
             });
         }
 
-        ffunction editItem(key, name, price, limit) {
+        function editItem(key, name, price, limit) {
     const n = prompt("수정할 물품 이름", name); if(n === null) return;
     const p = prompt("수정할 가격 (숫자만)", price); if(p === null) return;
     const l = prompt("1인당 구매 제한 (0은 무제한)", limit); if(l === null) return;
@@ -302,7 +309,6 @@
         function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
         function renderHistory() { 
     let h = ""; 
-    // 최신순으로 정렬해서 보여줌
     [...allLogs].reverse().slice(0, 50).forEach(l => { 
         if(isAdmin || l.name === myName) {
             const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
@@ -314,11 +320,13 @@
     }); 
     const target = document.getElementById('point-history-list');
     if(target) target.innerHTML = h || "기록이 아직 없습니다.";
-        function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
-        function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
-        function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
-        function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
-        function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("주입 완료!"); }
+} // 이 중괄호가 꼭 있어야 합니다!
+
+function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
+function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
+function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
+function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
+function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("주입 완료!"); }
     </script>
 </body>
 </html>
