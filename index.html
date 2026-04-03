@@ -9,31 +9,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; --bg: #ecf0f1; }
-        body { 
-    font-family: 'Pretendard', sans-serif; 
-    margin: 0; 
-    background: var(--bg); 
-    color: #333; 
-    padding-bottom: 60px; 
-    font-size: 1.4rem; /* 1.2에서 1.4로 더 키움 */
-}
+        
+        /* [복구] 전체 글씨 및 기본 입력창 크기 */
+        body { font-family: 'Pretendard', sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; font-size: 1.4rem; }
+        input, button, textarea, select { width: 100%; padding: 18px; margin: 10px 0; border-radius: 12px; border: 2px solid #ccc; box-sizing: border-box; font-size: 1.4rem; }
+        input[type="number"] { padding: 10px; text-align: center; font-weight: bold; }
 
-input, button, textarea, select { 
-    width: 100%; 
-    padding: 18px; /* 위아래 폭을 더 넓게 */
-    margin: 10px 0; 
-    border-radius: 12px; 
-    border: 2px solid #ccc; 
-    box-sizing: border-box; 
-    font-size: 1.4rem; /* 입력창 안의 글씨도 큼직하게 */
-}
-
-/* [추가/수정] 번호 입력칸 전용 스타일 */
-input[type="number"] {
-    padding: 10px;
-    text-align: center;
-    font-weight: bold;
-}
+        /* 화면 레이아웃 */
         #loading-screen { display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); color: white; z-index: 3000; font-size: 1.8rem; }
         #login-screen { display: none; justify-content: center; align-items: center; min-height: 100vh; background: var(--dark); padding: 20px; }
         .login-box { background: white; padding: 50px 40px; border-radius: 30px; text-align: center; width: 100%; max-width: 450px; }
@@ -44,8 +26,7 @@ input[type="number"] {
         .tab-content { display: none; padding: 20px; max-width: 1200px; margin: auto; }
         .tab-content.active { display: block; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 15px; font-size: 1.2rem; }
-        input, button, textarea, select { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #ccc; box-sizing: border-box; font-size: 1.2rem; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 15px; font-size: 1.4rem; }
         .pop-score-input { width: 95px !important; height: 70px !important; font-size: 1.7rem !important; text-align: center; border: 3px solid var(--primary) !important; font-weight: bold; }
         .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 20px; margin-top: 20px; }
         .hero-card { background: white; border-radius: 20px; padding: 25px 15px; text-align: center; box-shadow: 0 6px 15px rgba(0,0,0,0.1); border: 3px solid transparent; position: relative; cursor: pointer; }
@@ -61,7 +42,7 @@ input[type="number"] {
         .avatar-lv1 { background-position: 0px 0px; } .avatar-lv5 { background-position: -64px 0px; } .avatar-lv10 { background-position: -128px 0px; } .avatar-lv15 { background-position: -192px 0px; } .avatar-lv20 { background-position: -256px 0px; } .avatar-lv30 { background-position: -320px 0px; }
         #roulette-box { font-size: 2.2rem; font-weight: bold; color: var(--purple); padding: 30px; border: 5px dashed var(--gold); margin: 20px 0; border-radius: 20px; background: #fffceb; text-align: center; }
         .lv-up-title { color: var(--gold); font-size: 2.5rem; text-shadow: 2px 2px var(--dark); text-align: center; font-weight:bold; }
-    </style>1
+    </style>
 </head>
 <body>
     <div id="loading-screen">🏰 용사 본부 접속 중...</div>
@@ -173,17 +154,12 @@ input[type="number"] {
                     const isMe = (u.name === myName);
                     gH += `<div class="hero-card ${isMe?'me':''}" onclick="openUserHistory('${u.name}')"><span class="card-avatar">${getAvatar(u.lv||1)}</span><div class="card-name">LV.${u.lv||1} ${u.name}</div><div class="card-pt">${u.points||0}P</div></div>`;
                     if(isAdmin) {
-                        // 관리 탭 명단 부분 (aH += ...)
-aH += `<div class="list-item" style="display:flex; align-items:center; gap:15px; padding:20px;">
-        <input type="number" value="${u.no||''}" onchange="updateNo('${u.name}', this.value)" 
-               style="width:80px; height:50px; margin:0; padding:5px; text-align:center; flex-shrink:0; border:2px solid var(--primary);">
-        <div style="flex:1; font-size:1.4rem;">
-            <strong>${u.name}</strong> 
-            ${u.isHelper ? '<span style="color:var(--purple); font-weight:bold;">[도우미]</span>' : ''}
-        </div>
-        <button onclick="toggleHelper('${u.name}', ${u.isHelper||false})" style="width:auto; background:var(--purple); color:white; padding:10px 15px;">${u.isHelper?'해제':'도우미'}</button>
-        <button onclick="delUser('${u.name}')" style="background:var(--red); color:white; width:auto; padding:10px 15px;">제거</button>
-       </div>`;
+                        aH += `<div class="list-item" style="display:flex; align-items:center; gap:15px; padding:20px;">
+                                <input type="number" value="${u.no||''}" onchange="updateNo('${u.name}', this.value)" style="width:80px; height:50px; margin:0; padding:5px; text-align:center; flex-shrink:0; border:2px solid var(--primary);">
+                                <div style="flex:1; font-size:1.4rem;"><strong>${u.name}</strong> ${u.isHelper ? '<span style="color:var(--purple); font-weight:bold;">[도우미]</span>' : ''}</div>
+                                <button onclick="toggleHelper('${u.name}', ${u.isHelper||false})" style="width:auto; background:var(--purple); color:white; padding:10px 15px;">${u.isHelper?'해제':'도우미'}</button>
+                                <button onclick="delUser('${u.name}')" style="background:var(--red); color:white; width:auto; padding:10px 15px;">제거</button>
+                               </div>`;
                     }
                 });
                 document.getElementById('hero-grid').innerHTML = gH;
@@ -308,61 +284,52 @@ aH += `<div class="list-item" style="display:flex; align-items:center; gap:15px;
         function saveGifts() { const g = document.getElementById('conf-gifts').value.split('\n').map(x => x.trim()).filter(x => x !== ""); db.ref('settings').update({ giftList: g }).then(() => alert("저장!")); }
         function openPopup(t, h, r = false) { document.getElementById('pop-title').innerHTML = t; document.getElementById('pop-content').innerHTML = h; document.getElementById('common-overlay').style.display = 'flex'; window.routineActive = r; }
         function closePopup() { if(window.routineActive) { rIdx++; if(rIdx < routineItems.length) document.getElementById('pop-content').innerText = `다음: ${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display = 'none'; } else { document.getElementById('common-overlay').style.display = 'none'; } }
+        
         function openPointBulkPopup() {
-    // 1. 사유 입력칸과 '전체 적용' 칸을 상단에 고정
-    let html = `
-        <div style="position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 15px; border-bottom: 3px solid var(--gold);">
-            <input type="text" id="pop-bulk-reason" placeholder="사유 (예: 환경 미화 단체 보상)" style="margin-bottom:10px;">
-            
-            <div style="background: #fffdf2; padding: 15px; border-radius: 15px; border: 2px dashed var(--gold); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; justify-content: center;">
-                <span style="font-weight:bold; font-size:1.2rem; color:var(--dark);">✨ 전체 적용:</span>
-                P <input type="number" id="all-p-input" oninput="applyToAll('p')" style="width:80px; height:50px; margin:0; border:2px solid var(--gold); text-align:center;">
-                E <input type="number" id="all-e-input" oninput="applyToAll('e')" style="width:80px; height:50px; margin:0; border:2px solid var(--gold); text-align:center;">
-            </div>
-        </div>
-        <div style="margin-top:15px;">`;
-
-    currentUsers.forEach(u => { 
-        if(u.name !== "총사령관") {
-            html += `
-                <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
-                    <span style="font-weight:bold; font-size:1.4rem;">${u.no || ''}. ${u.name}</span>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        P <input type="number" class="pop-bulk-p" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary); text-align:center;"> 
-                        E <input type="number" class="pop-bulk-e" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary); text-align:center;">
+            let html = `
+                <div style="position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 15px; border-bottom: 3px solid var(--gold);">
+                    <input type="text" id="pop-bulk-reason" placeholder="사유 (예: 환경 미화 단체 보상)" style="margin-bottom:10px;">
+                    <div style="background: #fffdf2; padding: 15px; border-radius: 15px; border: 2px dashed var(--gold); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; justify-content: center;">
+                        <span style="font-weight:bold; font-size:1.2rem; color:var(--dark);">✨ 전체 적용:</span>
+                        P <input type="number" id="all-p-input" oninput="applyToAll('p')" style="width:80px; height:50px; margin:0; border:2px solid var(--gold); text-align:center;">
+                        E <input type="number" id="all-e-input" oninput="applyToAll('e')" style="width:80px; height:50px; margin:0; border:2px solid var(--gold); text-align:center;">
                     </div>
-                </div>`;
-        }
-    });
-    
-    html += `</div>`; 
-    document.getElementById('point-pop-body').innerHTML = html;
-    
-    document.getElementById('point-apply-btn').onclick = () => { 
-        const r = document.getElementById('pop-bulk-reason').value; 
-        if(!r) return alert("사유를 꼭 적어주세요!"); 
-        
-        const ps = document.querySelectorAll('.pop-bulk-p');
-        const es = document.querySelectorAll('.pop-bulk-e');
-        
-        currentUsers.filter(u => u.name !== "총사령관").forEach((u, i) => { 
-            const p = parseInt(ps[i].value) || 0; 
-            const e = parseInt(es[i].value) || 0; 
-            if(p || e) addScore(u.name, p, e, r); 
-        }); 
-        closePointPopup(); 
-    };
-    document.getElementById('point-popup').style.display = 'flex';
-}
+                </div>
+                <div style="margin-top:15px;">`;
 
-// 이 함수도 꼭 추가해 주세요! (전체 적용 작동용)
-function applyToAll(type) {
-    const val = document.getElementById('all-' + type + '-input').value;
-    const targets = document.querySelectorAll('.pop-bulk-' + type);
-    targets.forEach(input => {
-        input.value = val;
-    });
-}
+            currentUsers.forEach(u => { 
+                if(u.name !== "총사령관") {
+                    html += `
+                        <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
+                            <span style="font-weight:bold; font-size:1.4rem;">${u.no || ''}. ${u.name}</span>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                P <input type="number" class="pop-bulk-p" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary); text-align:center;"> 
+                                E <input type="number" class="pop-bulk-e" style="width:85px; height:50px; padding:5px; margin:0; border:2px solid var(--primary); text-align:center;">
+                            </div>
+                        </div>`;
+                }
+            });
+            html += `</div>`; 
+            document.getElementById('point-pop-body').innerHTML = html;
+            document.getElementById('point-apply-btn').onclick = () => { 
+                const r = document.getElementById('pop-bulk-reason').value; 
+                if(!r) return alert("사유를 꼭 적어주세요!"); 
+                const ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e');
+                currentUsers.filter(u => u.name !== "총사령관").forEach((u, i) => { 
+                    const p = parseInt(ps[i].value) || 0; const e = parseInt(es[i].value) || 0; 
+                    if(p || e) addScore(u.name, p, e, r); 
+                }); 
+                closePointPopup(); 
+            };
+            document.getElementById('point-popup').style.display = 'flex';
+        }
+
+        function applyToAll(type) {
+            const val = document.getElementById('all-' + type + '-input').value;
+            const targets = document.querySelectorAll('.pop-bulk-' + type);
+            targets.forEach(input => { input.value = val; });
+        }
+
         function openScorePopup() {
             let h = `<div>`; currentUsers.forEach((u, i) => { if(u.name !== "총사령관") h += `<div class="list-item"><span>${u.no||''}. ${u.name}</span><div>P <input type="number" class="pop-one-p" style="width:40px;"> E <input type="number" class="pop-one-e" style="width:40px;"><button onclick="applyOneS('${u.name}', ${i})" style="width:auto; padding:5px;">OK</button></div></div>`; });
             h += `</div>`; document.getElementById('point-pop-body').innerHTML = h; document.getElementById('point-apply-btn').style.display = 'none'; document.getElementById('point-popup').style.display = 'flex';
