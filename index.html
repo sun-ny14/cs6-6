@@ -215,17 +215,23 @@
             document.getElementById('point-popup').style.display = 'flex';
         }
 
-        function addScore(name, p, e, reason) {
-            db.ref('users/'+name).once('value', sn => {
-                const u = sn.val(); if(!u) return; let nE = (u.exp||0)+e, nL = (u.lv||1), nP = (u.points||0)+p, up = false;
-                while(nE >= 100) { nL++; nE -= 100; up = true; }
-                db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}).then(() => {
-                    db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()});
-                    // 룰렛 호출 로직 복구: 본인일 경우에만 룰렛 실행
-                    if(up && name === myName) triggerLevelUpRoulette(name, nL);
-                });
-            });
-        }
+       function addScore(name, p, e, reason) {
+    db.ref('users/'+name).once('value', sn => {
+        const u = sn.val(); if(!u) return; 
+        let nE = (u.exp||0)+e, nL = (u.lv||1), nP = (u.points||0)+p, up = false;
+        
+        while(nE >= 100) { nL++; nE -= 100; up = true; }
+        
+        db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}).then(() => {
+            db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()});
+            // 레벨업 했고, 그게 본인이거나 관리자가 보고 있을 때 룰렛 실행
+            if(up) {
+                // 관리자가 지급해서 애가 레벨업한 경우 혹은 본인이 레벨업한 경우
+                triggerLevelUpRoulette(name, nL);
+            }
+        });
+    });
+}
 
         function triggerLevelUpRoulette(un, lv) {
             if(!giftList.length) return openPopup("🎊 레벨업!", `LV.${lv} 달성!`);
@@ -271,20 +277,20 @@
         function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
         
         function renderHistory() { 
-            let h = ""; 
-            [...allLogs].reverse().slice(0, 50).forEach(l => { 
-                // 연대기 필터링 수정: 선생님(isAdmin)은 본인 것만, 학생도 본인 것만 보이게 함 (개인정보 보호)
-                if(l.name === myName) {
-                    const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-                    h += `<div class="list-item" style="border-left:10px solid ${color};">
-                            <span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span>
-                            <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
-                          </div>`; 
-                }
-            }); 
-            const target = document.getElementById('point-history-list');
-            if(target) target.innerHTML = h || "기록이 아직 없습니다.";
+    let h = ""; 
+    [...allLogs].reverse().slice(0, 50).forEach(l => { 
+        // 관리자면 다 보여주고, 학생이면 자기 이름인 것만 보여줌
+        if(isAdmin || l.name === myName) {
+            const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+            h += `<div class="list-item" style="border-left:10px solid ${color};">
+                    <span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span>
+                    <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
+                  </div>`; 
         }
+    }); 
+    const target = document.getElementById('point-history-list');
+    if(target) target.innerHTML = h || "기록이 아직 없습니다.";
+}
         function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
         function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
         function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
