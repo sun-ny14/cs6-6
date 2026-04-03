@@ -49,6 +49,7 @@
     <div id="loading-screen">🏰 용사 본부 접속 중...</div>
     <div id="common-overlay" class="overlay"><div class="popup-box"><h2 id="pop-title" style="margin:0; text-align:center;">알림</h2><div id="pop-content"></div><button onclick="closePopup()" id="pop-close-btn" style="background:var(--green); color:white; border:none; border-radius:15px; padding:15px; font-size:1.4rem;">확인</button></div></div>
     <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title" style="margin-top:0; text-align:center;">⚖️ 포인트 전령</h2><div id="point-pop-body" style="overflow-y:auto; flex:1; padding-right:10px;"></div><div style="display:flex; gap:15px; margin-top:20px;"><button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px;">닫기</button><button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px;">반영하기</button></div></div></div>
+    
     <div id="login-screen"><div class="login-box"><h1>🏰 6-6 본부</h1><button onclick="handleLogin()" style="background:#4285F4; color:white; border:none; border-radius:15px; padding:20px;">Google 로그인</button></div></div>
 
     <div id="main-app">
@@ -136,7 +137,7 @@
                 let h = ""; snap.forEach(c => {
                     const i = c.val(); 
                     let btns = isAdmin 
-                        ? `<button onclick="editItem('${c.key}', '${i.name}', ${i.price}, ${i.limit||0})" style="width:auto; padding:10px; background:var(--purple); color:white; border:none; border-radius:8px; margin-right:5px;">수정</button>
+                        ? `<button onclick="openEditShopPopup('${c.key}', '${i.name}', ${i.price}, ${i.limit||0})" style="width:auto; padding:10px; background:var(--purple); color:white; border:none; border-radius:8px; margin-right:5px;">수정</button>
                            <button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; padding:10px; background:var(--red); color:white; border:none; border-radius:8px;">삭제</button>`
                         : `<button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px;">구매</button>`;
                     h += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P) ${i.limit>0?`<b style="color:var(--red); font-size:0.9rem;">(인당 ${i.limit}개)</b>`:''}</span><div>${btns}</div></div>`;
@@ -157,18 +158,13 @@
                 let h = ""; snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" onclick="openPointBulkPopup('${g.title}',${g.p},${g.e})"><b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span></div>`; });
                 document.getElementById('guide-list').innerHTML = h || "도감 비어있음";
             });
-            // startApp 함수 내부에 있는 pointLogs 부분을 이걸로 교체!
-db.ref('pointLogs').on('value', snap => { 
-    allLogs = []; 
-    snap.forEach(c => {
-        let log = c.val();
-        log.key = c.key;
-        allLogs.push(log);
-    }); 
-    // 데이터가 들어오면 무조건 연대기를 다시 그려라!
-    renderHistory(); 
-});
-        const renderCheckinBoard = () => {
+            db.ref('pointLogs').on('value', snap => { 
+                allLogs = []; snap.forEach(c => { let log = c.val(); log.key = c.key; allLogs.push(log); }); 
+                renderHistory(); 
+            });
+        }
+
+        function renderCheckinBoard() {
             const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0];
             db.ref('checkinLogs').once('value', snap => {
                 const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
@@ -187,7 +183,7 @@ db.ref('pointLogs').on('value', snap => {
                 });
                 document.getElementById('checkin-history').innerHTML = h;
             });
-        };
+        }
 
         async function buyItem(k, n, p, limit) {
             if(limit > 0) {
@@ -199,26 +195,27 @@ db.ref('pointLogs').on('value', snap => {
                 if((sn.val().points||0) < p) return alert("포인트 부족!");
                 if(confirm(`[${n}] 구매하시겠습니까?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); }
             });
-            // startApp 함수 맨 아래쪽에 넣으세요
-db.ref('pointLogs').on('value', snap => { 
-    allLogs = []; 
-    snap.forEach(c => {
-        let logData = c.val();
-        logData.key = c.key; // 키값 보존
-        allLogs.push(logData);
-    }); 
-    renderHistory(); // 데이터가 들어오면 화면을 다시 그리라는 명령!
-});
         }
 
-        function editItem(key, name, price, limit) {
-            const n = prompt("수정할 물품 이름", name); if(n === null) return;
-            const p = prompt("수정할 가격 (숫자만)", price); if(p === null) return;
-            const l = prompt("1인당 구매 제한 (0은 무제한)", limit); if(l === null) return;
-            db.ref('shop/' + key).update({ name: n, price: parseInt(p) || 0, limit: parseInt(l) || 0 }).then(() => alert("물품 정보가 수정되었습니다!"));
+        function openEditShopPopup(key, name, price, limit) {
+            let h = `
+                <div class="card">
+                    <label>물품명</label><input type="text" id="edit-shop-name" value="${name}">
+                    <label>가격 (P)</label><input type="number" id="edit-shop-price" value="${price}">
+                    <label>인당 제한</label><input type="number" id="edit-shop-limit" value="${limit}">
+                    <button onclick="updateShopItem('${key}')" style="background:var(--purple); color:white;">변경사항 저장</button>
+                </div>`;
+            openPopup('🛒 물품 정보 수정', h);
         }
 
-        function deleteItem(k, n) { if(confirm(`[${n}] 물품을 삭제하시겠습니까?`)) db.ref('shop/' + k).remove(); }
+        function updateShopItem(key) {
+            const n = document.getElementById('edit-shop-name').value;
+            const p = parseInt(document.getElementById('edit-shop-price').value);
+            const l = parseInt(document.getElementById('edit-shop-limit').value);
+            db.ref('shop/' + key).update({ name: n, price: p, limit: l }).then(() => { alert("수정 완료!"); closePopup(); });
+        }
+
+        function deleteItem(k, n) { if(confirm(`[${n}] 삭제하시겠습니까?`)) db.ref('shop/' + k).remove(); }
 
         function openPointBulkPopup(t='', p='', e='') {
             let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유"><div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;"> E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;"></div><div style="display:flex; justify-content:flex-end; gap:5px;"><button onclick="toggleAllCheckboxes(true)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:5px;">전체 선택</button><button onclick="toggleAllCheckboxes(false)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:5px;">해제</button></div></div>`;
@@ -234,40 +231,17 @@ db.ref('pointLogs').on('value', snap => {
         }
 
         function addScore(name, p, e, reason) {
-    db.ref('users/' + name).once('value', sn => {
-        const u = sn.val();
-        if (!u) return;
-
-        let nE = (parseInt(u.exp) || 0) + parseInt(e);
-        let nL = (parseInt(u.lv) || 1);
-        let nP = (parseInt(u.points) || 0) + parseInt(p);
-        let up = false;
-
-        // 경험치 100당 1레벨업 로직
-        while (nE >= 100) {
-            nL++;
-            nE -= 100;
-            up = true;
+            db.ref('users/' + name).once('value', sn => {
+                const u = sn.val(); if (!u) return;
+                let nE = (parseInt(u.exp) || 0) + parseInt(e), nL = (parseInt(u.lv) || 1), nP = (parseInt(u.points) || 0) + parseInt(p), up = false;
+                while (nE >= 100) { nL++; nE -= 100; up = true; }
+                db.ref('users/' + name).update({ exp: nE, lv: nL, points: nP }).then(() => {
+                    db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString() });
+                    if (up) triggerLevelUpRoulette(name, nL);
+                });
+            });
         }
 
-        // 포인트와 레벨, 경험치를 한꺼번에 서버에 전송 (따로따로 보내면 씹힙니다)
-        db.ref('users/' + name).update({
-            exp: nE,
-            lv: nL,
-            points: nP
-        }).then(() => {
-            // 기록 저장
-            db.ref('pointLogs').push({
-                name: name,
-                amount: p,
-                reason: reason,
-                time: new Date().toLocaleString()
-            });
-            // 레벨업 시 룰렛 실행
-            if (up) triggerLevelUpRoulette(name, nL);
-        });
-    });
-}
         function triggerLevelUpRoulette(un, lv) {
             if(!giftList.length) return openPopup("🎊 레벨업!", `LV.${lv} 달성!`);
             openPopup(`🎊 LEVEL UP! 🎊`, `<div style="text-align:center;"><p>LV.<b>${lv}</b> 달성 보상 룰렛!</p><div id="roulette-box">탐색 중...</div></div>`);
@@ -319,23 +293,17 @@ db.ref('pointLogs').on('value', snap => {
         function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
         
         function renderHistory() { 
-    let h = ""; 
-    const target = document.getElementById('point-history-list');
-    if(!target) return;
-
-    // 최신순으로 50개만 끊어서 보여줌
-    [...allLogs].reverse().slice(0, 50).forEach(l => { 
-        // 1. 내가 관리자(선생님)이거나 2. 기록의 주인공이 나(myName)일 때만 보여줌
-        if(isAdmin || l.name === myName) {
-            const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-            h += `<div class="list-item" style="border-left:10px solid ${color};">
-                    <span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span>
-                    <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
-                  </div>`; 
+            let h = ""; 
+            const target = document.getElementById('point-history-list');
+            if(!target) return;
+            [...allLogs].reverse().slice(0, 50).forEach(l => { 
+                if(isAdmin || l.name === myName) {
+                    const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+                    h += `<div class="list-item" style="border-left:10px solid ${color};"><span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; 
+                }
+            }); 
+            target.innerHTML = h || `<div style="text-align:center; padding:20px; color:#999;">표시할 기록이 없습니다. (현재 사용자: ${myName || '확인 중...'})</div>`;
         }
-    }); 
-    target.innerHTML = h || `<div style="text-align:center; padding:20px; color:#999;">표시할 기록이 없습니다. (현재 사용자: ${myName || '확인 중...'})</div>`;
-}
         function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
         function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
         function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
