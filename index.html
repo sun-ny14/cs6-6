@@ -63,7 +63,6 @@
         </nav>
 
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
-        
         <section id="tab-shop" class="tab-content">
             <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);">
                 <h3>📦 물품 등록</h3>
@@ -74,23 +73,19 @@
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청</h3><div id="order-list"></div></div>
         </section>
-
         <section id="tab-guide" class="tab-content">
             <div id="admin-guide-mgr" class="card" style="display:none;"><input type="text" id="guide-title" placeholder="항목"><input type="number" id="guide-p" placeholder="P"><input type="number" id="guide-e" placeholder="E"><button onclick="addGuide()" style="background:var(--primary); color:white; border:none; border-radius:12px;">등록</button></div>
             <div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div>
         </section>
-
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
         <section id="tab-logs" class="tab-content"><div class="card"><h2>📅 등교 기록부</h2><div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;"><span style="font-weight:bold;">날짜 선택:</span><input type="date" id="checkin-date-filter" style="flex:1; padding:10px;"></div><div id="checkin-history" style="width:100%;"></div></div></section>
         <section id="tab-points" class="tab-content"><div id="my-inventory" class="card"><h3>🎁 나의 인벤토리</h3><div id="my-coupon-list"></div></div><div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div></section>
-        
         <section id="tab-admin" class="tab-content">
             <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveSettings()">저장</button></div>
             <div class="card"><h3>🎁 레벨업 보상</h3><textarea id="conf-gifts" rows="4" placeholder="보상을 한 줄씩 입력"></textarea><button onclick="saveGifts()">저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
-
         <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
     </div>
 
@@ -226,6 +221,7 @@
                 while(nE >= 100) { nL++; nE -= 100; up = true; }
                 db.ref('users/'+name).update({exp:nE, lv:nL, points:nP}).then(() => {
                     db.ref('pointLogs').push({name, amount:p, reason, time:new Date().toLocaleString()});
+                    // 룰렛 호출 로직 복구: 본인일 경우에만 룰렛 실행
                     if(up && name === myName) triggerLevelUpRoulette(name, nL);
                 });
             });
@@ -273,10 +269,12 @@
         function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
         function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
+        
         function renderHistory() { 
             let h = ""; 
             [...allLogs].reverse().slice(0, 50).forEach(l => { 
-                if(isAdmin || l.name === myName) {
+                // 연대기 필터링 수정: 선생님(isAdmin)은 본인 것만, 학생도 본인 것만 보이게 함 (개인정보 보호)
+                if(l.name === myName) {
                     const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
                     h += `<div class="list-item" style="border-left:10px solid ${color};">
                             <span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span>
