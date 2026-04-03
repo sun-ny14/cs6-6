@@ -157,9 +157,17 @@
                 let h = ""; snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" onclick="openPointBulkPopup('${g.title}',${g.p},${g.e})"><b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span></div>`; });
                 document.getElementById('guide-list').innerHTML = h || "도감 비어있음";
             });
-            db.ref('pointLogs').on('value', snap => { allLogs = []; snap.forEach(c => allLogs.push(c.val())); renderHistory(); });
-        }
-
+            // startApp 함수 내부에 있는 pointLogs 부분을 이걸로 교체!
+db.ref('pointLogs').on('value', snap => { 
+    allLogs = []; 
+    snap.forEach(c => {
+        let log = c.val();
+        log.key = c.key;
+        allLogs.push(log);
+    }); 
+    // 데이터가 들어오면 무조건 연대기를 다시 그려라!
+    renderHistory(); 
+});
         const renderCheckinBoard = () => {
             const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0];
             db.ref('checkinLogs').once('value', snap => {
@@ -311,16 +319,23 @@ db.ref('pointLogs').on('value', snap => {
         function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
         
         function renderHistory() { 
-            let h = ""; 
-            [...allLogs].reverse().slice(0, 50).forEach(l => { 
-                if(isAdmin || l.name === myName) {
-                    const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-                    h += `<div class="list-item" style="border-left:10px solid ${color};"><span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; 
-                }
-            }); 
-            const target = document.getElementById('point-history-list');
-            if(target) target.innerHTML = h || "기록이 아직 없습니다.";
+    let h = ""; 
+    const target = document.getElementById('point-history-list');
+    if(!target) return;
+
+    // 최신순으로 50개만 끊어서 보여줌
+    [...allLogs].reverse().slice(0, 50).forEach(l => { 
+        // 1. 내가 관리자(선생님)이거나 2. 기록의 주인공이 나(myName)일 때만 보여줌
+        if(isAdmin || l.name === myName) {
+            const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+            h += `<div class="list-item" style="border-left:10px solid ${color};">
+                    <span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span>
+                    <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
+                  </div>`; 
         }
+    }); 
+    target.innerHTML = h || `<div style="text-align:center; padding:20px; color:#999;">표시할 기록이 없습니다. (현재 사용자: ${myName || '확인 중...'})</div>`;
+}
         function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
         function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
         function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
