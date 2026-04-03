@@ -285,7 +285,45 @@
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
         function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display='none'; }
-        function updatePoint(n,a,r) { db.ref('users/'+n).once('value', sn => { db.ref('users/'+n).update({points:(sn.val().points||0)+a}); db.ref('pointLogs').push({name:n, amount:a, reason:r, time:new Date().toLocaleString()}); }); }
+        // 포인트 지급 및 레벨업 통합 함수 (이걸로 교체하세요!)
+function updatePoint(n, a, r) {
+    db.ref('users/' + n).once('value', sn => {
+        const u = sn.val();
+        if (!u) return;
+
+        // 포인트 계산
+        let nP = (parseInt(u.points) || 0) + parseInt(a);
+        
+        // 경험치 계산 (포인트를 받은 만큼 경험치도 1:1로 오르게 설정, 원치 않으시면 0으로!)
+        let nE = (parseInt(u.exp) || 0) + (a > 0 ? parseInt(a) : 0); 
+        let nL = (parseInt(u.lv) || 1);
+        let up = false;
+
+        // 레벨업 판정 (100점당 1렙)
+        while (nE >= 100) {
+            nL++;
+            nE -= 100;
+            up = true;
+        }
+
+        // DB에 한 번에 업데이트 (포인트, 레벨, 경험치)
+        db.ref('users/' + n).update({
+            points: nP,
+            exp: nE,
+            lv: nL
+        }).then(() => {
+            // 연대기에 기록 남기기
+            db.ref('pointLogs').push({
+                name: n,
+                amount: a,
+                reason: r,
+                time: new Date().toLocaleString()
+            });
+            // 레벨업 성공 시 룰렛 가동!
+            if (up) triggerLevelUpRoulette(n, nL);
+        });
+    });
+}
         function requestUseCoupon(k,n) { if(confirm(`[${n}] 사용 요청?`)) db.ref('orders/'+k).update({status:'사용요청'}); }
         function approveOrder(k) { if(confirm("승인?")) db.ref('orders/'+k).update({status:'완료'}); }
         function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
