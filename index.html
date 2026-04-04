@@ -137,7 +137,7 @@
                 let h = ""; snap.forEach(c => {
                     const i = c.val(); 
                     let btns = isAdmin 
-                        ? `<button onclick="editItem('${c.key}', '${i.name}', ${i.price}, ${i.limit||0})" style="width:auto; padding:10px; background:var(--purple); color:white; border:none; border-radius:8px; margin-right:5px;">수정</button>
+                        ? `<button onclick="openEditShopPopup('${c.key}', '${i.name}', ${i.price}, ${i.limit||0})" style="width:auto; padding:10px; background:var(--purple); color:white; border:none; border-radius:8px; margin-right:5px;">수정</button>
                            <button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; padding:10px; background:var(--red); color:white; border:none; border-radius:8px;">삭제</button>`
                         : `<button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px;">구매</button>`;
                     h += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P) ${i.limit>0?`<b style="color:var(--red); font-size:0.9rem;">(인당 ${i.limit}개)</b>`:''}</span><div>${btns}</div></div>`;
@@ -164,7 +164,7 @@
             });
         }
 
-        const renderCheckinBoard = () => {
+        function renderCheckinBoard() {
             const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0];
             db.ref('checkinLogs').once('value', snap => {
                 const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
@@ -183,7 +183,7 @@
                 });
                 document.getElementById('checkin-history').innerHTML = h;
             });
-        };
+        }
 
         async function buyItem(k, n, p, limit) {
             if(limit > 0) {
@@ -197,11 +197,22 @@
             });
         }
 
-        function editItem(key, name, price, limit) {
-            const n = prompt("수정할 물품 이름", name); if(n === null) return;
-            const p = prompt("수정할 가격 (숫자만)", price); if(p === null) return;
-            const l = prompt("1인당 구매 제한 (0은 무제한)", limit); if(l === null) return;
-            db.ref('shop/' + key).update({ name: n, price: parseInt(p) || 0, limit: parseInt(l) || 0 }).then(() => alert("물품 정보가 수정되었습니다!"));
+        function openEditShopPopup(key, name, price, limit) {
+            let h = `
+                <div class="card">
+                    <label>물품명</label><input type="text" id="edit-shop-name" value="${name}">
+                    <label>가격 (P)</label><input type="number" id="edit-shop-price" value="${price}">
+                    <label>인당 제한</label><input type="number" id="edit-shop-limit" value="${limit}">
+                    <button onclick="updateShopItem('${key}')" style="background:var(--purple); color:white;">변경사항 저장</button>
+                </div>`;
+            openPopup('🛒 물품 정보 수정', h);
+        }
+
+        function updateShopItem(key) {
+            const n = document.getElementById('edit-shop-name').value;
+            const p = parseInt(document.getElementById('edit-shop-price').value);
+            const l = parseInt(document.getElementById('edit-shop-limit').value);
+            db.ref('shop/' + key).update({ name: n, price: p, limit: l }).then(() => { alert("수정 완료!"); closePopup(); });
         }
 
         function deleteItem(k, n) { if(confirm(`[${n}] 삭제하시겠습니까?`)) db.ref('shop/' + k).remove(); }
@@ -222,13 +233,25 @@
         function addScore(name, p, e, reason) {
             db.ref('users/' + name).once('value', sn => {
                 const u = sn.val(); if (!u) return;
-                let nE = (parseInt(u.exp) || 0) + parseInt(e), nL = (parseInt(u.lv) || 1), nP = (parseInt(u.points) || 0) + parseInt(p), up = false;
+                let curP = parseInt(u.points) || 0;
+                let curE = parseInt(u.exp) || 0;
+                let curL = parseInt(u.lv) || 1;
+                let addP = parseInt(p) || 0;
+                let addE = parseInt(e) || 0;
+                let nP = curP + addP;
+                let nE = curE + addE;
+                let nL = curL;
+                let up = false;
                 while (nE >= 100) { nL++; nE -= 100; up = true; }
-                db.ref('users/' + name).update({ exp: nE, lv: nL, points: nP }).then(() => {
-                    db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString() });
+                db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL }).then(() => {
+                    db.ref('pointLogs').push({ name: name, amount: addP, reason: reason, time: new Date().toLocaleString() });
                     if (up) triggerLevelUpRoulette(name, nL);
                 });
             });
+        }
+
+        function updatePoint(n, a, r) {
+            addScore(n, a, (a > 0 ? a : 0), r);
         }
 
         function triggerLevelUpRoulette(un, lv) {
@@ -274,22 +297,6 @@
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
         function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display='none'; }
-        
-        function updatePoint(n, a, r) {
-            db.ref('users/' + n).once('value', sn => {
-                const u = sn.val(); if (!u) return;
-                let nP = (parseInt(u.points) || 0) + parseInt(a);
-                let nE = (parseInt(u.exp) || 0) + (a > 0 ? parseInt(a) : 0); 
-                let nL = (parseInt(u.lv) || 1);
-                let up = false;
-                while (nE >= 100) { nL++; nE -= 100; up = true; }
-                db.ref('users/' + n).update({ points: nP, exp: nE, lv: nL }).then(() => {
-                    db.ref('pointLogs').push({ name: n, amount: a, reason: r, time: new Date().toLocaleString() });
-                    if (up) triggerLevelUpRoulette(n, nL);
-                });
-            });
-        }
-
         function requestUseCoupon(k,n) { if(confirm(`[${n}] 사용 요청?`)) db.ref('orders/'+k).update({status:'사용요청'}); }
         function approveOrder(k) { if(confirm("승인?")) db.ref('orders/'+k).update({status:'완료'}); }
         function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
