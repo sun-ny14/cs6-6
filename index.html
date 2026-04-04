@@ -259,7 +259,68 @@
         async function buyItem(k, n, p, limit) { if(limit > 0) { const sn = await db.ref('orders').once('value'); let count = 0; sn.forEach(o => { if(o.val().user === myName && o.val().item === n && o.val().status !== '취소') count++; }); if(count >= limit) return alert("🚫 인당 " + limit + "개까지만 구매 가능합니다!"); } db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("포인트 부족!"); if(confirm(`[${n}] 구매하시겠습니까?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
         function triggerLevelUpRoulette(un, lv) { if(!giftList.length) return openPopup("🎊 레벨업!", `LV.${lv} 달성!`); openPopup(`🎊 LEVEL UP! 🎊`, `<div style="text-align:center;"><p>LV.<b>${lv}</b> 달성 보상 룰렛!</p><div id="roulette-box">탐색 중...</div></div>`); document.getElementById('pop-close-btn').style.display='none'; let c = 0; const iv = setInterval(() => { document.getElementById('roulette-box').innerText = giftList[Math.floor(Math.random()*giftList.length)]; if(++c > 20) { clearInterval(iv); const res = document.getElementById('roulette-box').innerText; document.getElementById('pop-close-btn').style.display='block'; db.ref('orders').push({user:un, item:`[LV.${lv} 보상] ${res}`, status:'대기', time:new Date().toLocaleString()}); } }, 100); }
         function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ds = now.toISOString().split('T')[0], ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감되었습니다."); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:ds}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
-        function openUserHistory(un) { db.ref('users/'+un).once('value', sn => { const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`; if (isAdmin || un === myName) { allLogs.filter(l => l.name === un).reverse().slice(0, 20).forEach(l => { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); } else { h += `<div style="text-align:center; padding:30px; color:#888;"><span style="font-size:3rem;">🔒</span><br>상세 기록은 본인만 열람 가능합니다.</div>`; } openPopup(`${un} 용사 정보`, h); }); }
+        // 1. 레벨업 로직 수정 (관리자 화면에서 룰렛 안 뜨게)
+function triggerLevelUpRoulette(un, lv) {
+    if(!giftList.length) return;
+    
+    // 룰렛 결과 미리 계산
+    const res = giftList[Math.floor(Math.random() * giftList.length)];
+    
+    // DB에 보상 대기 상태로 바로 저장 (룰렛 연출 없이)
+    db.ref('orders').push({
+        user: un,
+        item: `[LV.${lv} 보상] ${res}`,
+        status: '보상대기', // '대기'가 아닌 '보상대기'로 구분
+        time: new Date().toLocaleString()
+    });
+    
+    // 선생님 화면에는 알림만 살짝 (원치 않으시면 삭제 가능)
+    console.log(`${un} 용사 LV.${lv} 달성! 보상: ${res}`);
+}
+
+// 2. 개별 정보창 수정 (보상 받기 버튼 추가)
+function openUserHistory(un) {
+    db.ref('users/'+un).once('value', sn => {
+        const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0;
+        let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`;
+        
+        // ⭐ 레벨업 보상 버튼 체크 (학생 본인이거나 관리자일 때)
+        if (isAdmin || un === myName) {
+            db.ref('orders').once('value', osn => {
+                let giftBtn = "";
+                osn.forEach(o => {
+                    const val = o.val();
+                    if(val.user === un && val.status === '보상대기') {
+                        giftBtn += `<button onclick="receiveGift('${o.key}', '${val.item}')" style="background:var(--purple); color:white; margin-bottom:10px;">🎁 레벨업 보상 확인: ${val.item.split(']')[0]}]</button>`;
+                    }
+                });
+                
+                // 버튼이 있으면 상단에 추가
+                if(giftBtn) h = giftBtn + h;
+
+                // 기존 로그 출력 로직
+                allLogs.filter(l => l.name === un).reverse().slice(0, 20).forEach(l => {
+                    const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+                    h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`;
+                });
+                openPopup(`${un} 용사 정보`, h);
+            });
+        } else {
+            h += `<div style="text-align:center; padding:30px; color:#888;"><span style="font-size:3rem;">🔒</span><br>상세 기록은 본인만 열람 가능합니다.</div>`;
+            openPopup(`${un} 용사 정보`, h);
+        }
+    });
+}
+
+// 3. 보상 받기 실행 함수 (신규 추가)
+function receiveGift(key, item) {
+    if(confirm(`${item}\n보상을 확인하고 사용 요청을 보낼까요?`)) {
+        db.ref('orders/' + key).update({ status: '사용요청' }).then(() => {
+            alert("보상 사용 요청이 전송되었습니다!");
+            closePopup();
+        });
+    }
+}
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
         function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display='none'; }
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
