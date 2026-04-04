@@ -30,13 +30,22 @@
         .popup-box { background: white; padding: 30px; border-radius: 25px; width: 95%; max-width: 700px; display: flex; flex-direction: column; max-height: 85vh; }
         #pop-content { flex: 1; overflow-y: auto; margin: 20px 0; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
         
-        /* 플로팅 버튼 스타일 */
+        /* 플로팅 버튼 설정 */
         .floating-btn { position: fixed; bottom: 25px; width: 85px; height: 85px; border-radius: 45px; color: var(--dark); box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
-        #floating-point-btn { right: 25px; background: var(--gold); } /* 기존 저울 */
-        #floating-multi-btn { right: 120px; background: #2ecc71; color: white; } /* 신규 명부 */
+        #floating-point-btn { right: 25px; background: var(--gold); }
+        #floating-multi-btn { right: 125px; background: #2ecc71; color: white; }
 
         .pixel-avatar { width: 64px; height: 64px; background: url('avatars.png') no-repeat; background-size: 384px 64px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
         .avatar-lv1 { background-position: 0px 0px; } .avatar-lv5 { background-position: -64px 0px; } .avatar-lv10 { background-position: -128px 0px; } .avatar-lv15 { background-position: -192px 0px; } .avatar-lv20 { background-position: -256px 0px; } .avatar-lv30 { background-position: -320px 0px; }
+        #roulette-box { font-size: 2.2rem; font-weight: bold; color: var(--purple); padding: 30px; border: 5px dashed var(--gold); margin: 20px 0; border-radius: 20px; background: #fffceb; text-align: center; }
+        .coupon-card { background: #fff; border: 2.5px solid var(--purple); padding: 18px; border-radius: 18px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .coupon-card span { flex: 1; font-weight: bold; font-size: 1.3rem; margin-right: 10px; word-break: keep-all; }
+        .coupon-card button { width: auto !important; padding: 10px 20px !important; margin: 0 !important; background: var(--purple); color: white; border: none; border-radius: 10px; cursor: pointer; flex-shrink: 0; }
+        .checkin-item { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 10px; font-size: 1.3rem; width: 100%; box-sizing: border-box; }
+        .checkin-no { width: 45px; flex-shrink: 0; font-weight: bold; text-align: center; }
+        .checkin-name { width: 95px; flex-shrink: 0; font-weight: bold; }
+        .checkin-status { flex: 1; text-align: center; font-weight: bold; }
+        .checkin-time { width: 120px; flex-shrink: 0; text-align: right; color: #666; font-size: 1.1rem; }
         
         .multi-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
         .multi-row input[type="checkbox"] { width: 30px; height: 30px; margin-right: 15px; }
@@ -46,13 +55,13 @@
     <div id="loading-screen">🏰 용사 본부 접속 중...</div>
     <div id="common-overlay" class="overlay"><div class="popup-box"><h2 id="pop-title" style="margin:0; text-align:center;">알림</h2><div id="pop-content"></div><button onclick="closePopup()" id="pop-close-btn" style="background:var(--green); color:white; border:none; border-radius:15px; padding:15px; font-size:1.4rem;">확인</button></div></div>
     
-    <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title" style="margin-top:0; text-align:center;">⚖️ 포인트 전령</h2><div id="point-pop-body" style="overflow-y:auto; flex:1;"></div><div style="display:flex; gap:15px; margin-top:20px;"><button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px;">닫기</button><button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px;">반영하기</button></div></div></div>
+    <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title" style="margin-top:0; text-align:center;">⚖️ 포인트 전령</h2><div id="point-pop-body" style="overflow-y:auto; flex:1; padding-right:10px;"></div><div style="display:flex; gap:15px; margin-top:20px;"><button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px;">닫기</button><button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px;">반영하기</button></div></div></div>
 
     <div id="multi-select-popup" class="overlay">
         <div class="popup-box">
-            <h2 style="text-align:center; margin-top:0;">📋 일괄 지급 대상</h2>
+            <h2 style="text-align:center; margin-top:0;">📋 명부 일괄 지급</h2>
             <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px;">
-                <input type="text" id="multi-reason" placeholder="사유 입력">
+                <input type="text" id="multi-reason" placeholder="지급 사유">
                 <div style="display:flex; gap:10px;">
                     <input type="number" id="multi-p" placeholder="P">
                     <input type="number" id="multi-e" placeholder="E">
@@ -65,7 +74,7 @@
             <div id="multi-list" style="flex:1; overflow-y:auto; border:1px solid #ddd; border-radius:10px;"></div>
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button onclick="document.getElementById('multi-select-popup').style.display='none'" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:18px;">취소</button>
-                <button onclick="submitMultiScore()" style="background:#2ecc71; color:white; font-weight:bold; border:none; border-radius:15px; flex:1; padding:18px;">지급 확정</button>
+                <button onclick="submitMultiScore()" style="background:#2ecc71; color:white; font-weight:bold; border:none; border-radius:15px; flex:1; padding:18px;">지급 완료</button>
             </div>
         </div>
     </div>
@@ -107,7 +116,7 @@
             <div class="card"><h3>🎁 레벨업 보상</h3><textarea id="conf-gifts" rows="4" placeholder="보상을 한 줄씩 입력"></textarea><button onclick="saveGifts()">저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
-
+        
         <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
         <button id="floating-multi-btn" class="floating-btn" onclick="openMultiSelectPopup()">📋</button>
     </div>
@@ -186,7 +195,7 @@
             });
         }
 
-        /* ⭐ 신규 일괄 선택 지급 로직 */
+        /* ⭐ 📋 신규 명부 버튼 로직 */
         function openMultiSelectPopup() {
             let h = "";
             currentUsers.forEach(u => {
@@ -201,19 +210,17 @@
             const r = document.getElementById('multi-reason').value;
             const p = parseInt(document.getElementById('multi-p').value) || 0;
             const e = parseInt(document.getElementById('multi-e').value) || 0;
-            if(!r) return alert("지급 사유를 입력하세요!");
-            const selected = [];
-            document.querySelectorAll('.multi-check:checked').forEach(cb => selected.push(cb.dataset.name));
-            if(!selected.length) return alert("지급할 용사를 선택하세요!");
-            if(confirm(`${selected.length}명의 용사에게 포인트와 경험치를 지급할까요?`)) {
-                selected.forEach(name => addScore(name, p, e, r));
-                alert("일괄 지급 완료!");
-                document.getElementById('multi-select-popup').style.display = 'none';
+            if(!r) return alert("사유 입력!");
+            const sel = []; document.querySelectorAll('.multi-check:checked').forEach(cb => sel.push(cb.dataset.name));
+            if(!sel.length) return alert("용사 선택!");
+            if(confirm(`${sel.length}명에게 지급할까요?`)) {
+                sel.forEach(name => addScore(name, p, e, r));
+                alert("반영 완료!"); document.getElementById('multi-select-popup').style.display = 'none';
                 document.getElementById('multi-reason').value = ""; document.getElementById('multi-p').value = ""; document.getElementById('multi-e').value = "";
             }
         }
 
-        /* ⚖️ 기존 저울 일괄 지급 로직 (도감용/원본 보존) */
+        /* ⭐ ⚖️ 기존 저울 일괄 지급 로직 (도감용) */
         function openPointBulkPopup(t='', p='', e='') {
             let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유"><div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;"> E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;"></div><div style="display:flex; justify-content:flex-end; gap:5px;"><button onclick="toggleAllCheckboxes(true)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:5px;">전체 선택</button><button onclick="toggleAllCheckboxes(false)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:5px;">해제</button></div></div>`;
             currentUsers.forEach(u => { if(u.name!=="총사령관") h += `<div class="list-item" style="padding:10px 0;"><span><input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:25px; height:25px;"> <strong>${u.no||''}. ${u.name}</strong></span><span>P <input type="number" class="pop-bulk-p" value="${p}" style="width:65px; height:45px;"> E <input type="number" class="pop-bulk-e" value="${e}" style="width:65px; height:45px;"></span></div>`; });
@@ -227,7 +234,7 @@
             document.getElementById('point-popup').style.display = 'flex';
         }
 
-        /* 🤺 포인트 & 레벨업 핵심 엔진 (반영 안되는 문제 수정) */
+        /* 🤺 포인트 및 레벨업 핵심 엔진 (반영 안 되는 문제 해결) */
         function addScore(name, p, e, reason) {
             db.ref('users/' + name).once('value', sn => {
                 const u = sn.val(); if (!u) return;
@@ -247,7 +254,9 @@
         }
         function updatePoint(n, a, r) { addScore(n, a, (a > 0 ? a : 0), r); }
 
-        /* --- 나머지 원본 로직들 (지각, 루틴, 상점 등 절대 보존) --- */
+        /* --- 원본 기능 보존 파트 (절대 수정 금지) --- */
+        function renderCheckinBoard() { const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0]; db.ref('checkinLogs').once('value', snap => { const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; }); let h = `<div style="margin-bottom:15px; font-weight:bold; font-size:1.2rem;">📌 [${td}] 등교 상태</div>`; currentUsers.forEach(u => { if(u.name === "총사령관") return; const log = logs[u.name]; let color = "#bdc3c7", txt = "미등교", bg = ""; if(log) { color = log.result.includes('정상') ? "var(--green)" : "var(--red)"; txt = log.result; } else { bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; } h += `<div class="checkin-item" style="border-left:15px solid ${color}; ${bg}"><span class="checkin-no">${u.no||''}</span><span class="checkin-name">${u.name}</span><span class="checkin-status" style="color:${color};">${txt}</span><span class="checkin-time">${log?.time || '-'}</span></div>`; }); document.getElementById('checkin-history').innerHTML = h; }); }
+        async function buyItem(k, n, p, limit) { if(limit > 0) { const sn = await db.ref('orders').once('value'); let count = 0; sn.forEach(o => { if(o.val().user === myName && o.val().item === n && o.val().status !== '취소') count++; }); if(count >= limit) return alert("🚫 인당 " + limit + "개까지만 구매 가능합니다!"); } db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("포인트 부족!"); if(confirm(`[${n}] 구매하시겠습니까?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
         function triggerLevelUpRoulette(un, lv) { if(!giftList.length) return openPopup("🎊 레벨업!", `LV.${lv} 달성!`); openPopup(`🎊 LEVEL UP! 🎊`, `<div style="text-align:center;"><p>LV.<b>${lv}</b> 달성 보상 룰렛!</p><div id="roulette-box">탐색 중...</div></div>`); document.getElementById('pop-close-btn').style.display='none'; let c = 0; const iv = setInterval(() => { document.getElementById('roulette-box').innerText = giftList[Math.floor(Math.random()*giftList.length)]; if(++c > 20) { clearInterval(iv); const res = document.getElementById('roulette-box').innerText; document.getElementById('pop-close-btn').style.display='block'; db.ref('orders').push({user:un, item:`[LV.${lv} 보상] ${res}`, status:'대기', time:new Date().toLocaleString()}); } }, 100); }
         function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ds = now.toISOString().split('T')[0], ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감되었습니다."); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:ds}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
         function openUserHistory(un) { db.ref('users/'+un).once('value', sn => { const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`; if (isAdmin || un === myName) { allLogs.filter(l => l.name === un).reverse().slice(0, 20).forEach(l => { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); } else { h += `<div style="text-align:center; padding:30px; color:#888;"><span style="font-size:3rem;">🔒</span><br>상세 기록은 본인만 열람 가능합니다.</div>`; } openPopup(`${un} 용사 정보`, h); }); }
@@ -258,16 +267,17 @@
         function applyToAll(type) { const val = document.getElementById('all-' + type + '-input').value; document.querySelectorAll('.pop-bulk-' + type).forEach(i => i.value = val); }
         function editItem(key, name, price, limit) { const n = prompt("수정할 물품 이름", name); if(n === null) return; const p = prompt("수정할 가격 (숫자만)", price); if(p === null) return; const l = prompt("1인당 구매 제한 (0은 무제한)", limit); if(l === null) return; db.ref('shop/' + key).update({ name: n, price: parseInt(p) || 0, limit: parseInt(l) || 0 }).then(() => alert("물품 정보가 수정되었습니다!")); }
         function deleteItem(k, n) { if(confirm(`[${n}] 삭제하시겠습니까?`)) db.ref('shop/' + k).remove(); }
+        function requestUseCoupon(k,n) { if(confirm(`[${n}] 사용 요청?`)) db.ref('orders/'+k).update({status:'사용요청'}); }
+        function approveOrder(k) { if(confirm("승인?")) db.ref('orders/'+k).update({status:'완료'}); }
+        function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
+        function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
+        function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
         function renderHistory() { let h = ""; const target = document.getElementById('point-history-list'); if(!target) return; [...allLogs].reverse().slice(0, 50).forEach(l => { if(isAdmin || l.name === myName) { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; } }); target.innerHTML = h || `<div style="text-align:center; padding:20px; color:#999;">표시할 기록이 없습니다.</div>`; }
         function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
         function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
         function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
         function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("주입 완료!"); }
-        function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
-        function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
-        function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
-        function renderCheckinBoard() { const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0]; db.ref('checkinLogs').once('value', snap => { const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; }); let h = `<div style="margin-bottom:15px; font-weight:bold; font-size:1.2rem;">📌 [${td}] 등교 상태</div>`; currentUsers.forEach(u => { if(u.name === "총사령관") return; const log = logs[u.name]; let color = "#bdc3c7", txt = "미등교", bg = ""; if(log) { color = log.result.includes('정상') ? "var(--green)" : "var(--red)"; txt = log.result; } else { bg = "background-color: #ffff00; font-weight: bold;"; color = "#f1c40f"; } h += `<div class="checkin-item" style="border-left:15px solid ${color}; ${bg}"><span class="checkin-no">${u.no||''}</span><span class="checkin-name">${u.name}</span><span class="checkin-status" style="color:${color};">${txt}</span><span class="checkin-time">${log?.time || '-'}</span></div>`; }); document.getElementById('checkin-history').innerHTML = h; }); }
     </script>
 </body>
 </html>
