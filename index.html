@@ -27,7 +27,42 @@ input[type="number"] { padding: 10px; text-align: center; font-weight: bold; }
 .hero-card { background: white; border-radius: 20px; padding: 25px 15px; text-align: center; box-shadow: 0 6px 15px rgba(0,0,0,0.1); border: 3px solid transparent; cursor: pointer; }
 .hero-card.me { border-color: var(--gold); background: #fffdf2; transform: scale(1.03); }
 .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
-.popup-box { background: white; padding: 30px; border-radius: 25px; width: 95%; max-width: 700px; display: flex; flex-direction: column; max-height: 85vh; }
+/* 팝업 박스 구조 개선 */
+.popup-box { 
+    background: white; 
+    padding: 20px; 
+    border-radius: 25px; 
+    width: 95%; 
+    max-width: 700px; 
+    display: flex; 
+    flex-direction: column; 
+    max-height: 90vh; /* 화면 높이의 90%까지 사용 */
+}
+
+/* 확인 버튼이 위에 고정되도록 설정 */
+#pop-close-btn { 
+    order: -1; /* 버튼을 맨 위로 강제 이동 */
+    margin-bottom: 15px; 
+    position: sticky; 
+    top: 0; 
+    z-index: 10;
+    background: var(--green); 
+    color: white; 
+    border: none; 
+    border-radius: 15px; 
+    padding: 15px; 
+    font-size: 1.4rem; 
+    font-weight: bold;
+}
+
+/* 내용물만 스크롤되도록 설정 */
+#pop-content { 
+    flex: 1; 
+    overflow-y: auto; /* 내용이 길면 여기서 스크롤 발생 */
+    -webkit-overflow-scrolling: touch; /* 태블릿 스크롤 부드럽게 */
+    padding-right: 5px;
+    border-top: 1px solid #eee;
+}
 .inv-section { margin-top: 20px; border-top: 2px solid #eee; padding-top: 10px; }
 .inv-section h4 { margin: 10px 0; color: var(--dark); border-left: 5px solid var(--primary); padding-left: 10px; }
 .coupon-card { background: #fff; border: 2px solid #eee; padding: 12px; border-radius: 15px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
@@ -309,7 +344,49 @@ auth.onAuthStateChanged(user => {
 
 // [기타 기능들]
 function triggerLevelUpRoulette(un, lv) { if(!giftList.length) return; const res = giftList[Math.floor(Math.random() * giftList.length)]; db.ref('orders').push({ user: un, item: `[LV.${lv} 보상] ${res}`, status: '보상대기', time: new Date().toLocaleString() }); }
-function openUserHistory(un) { db.ref('users/'+un).once('value', sn => { const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`; if (isAdmin || un === myName) { db.ref('orders').once('value', osn => { let giftBtn = ""; osn.forEach(o => { const v = o.val(); if(v.user === un && v.status === '보상대기') giftBtn += `<button onclick="receiveGift('${o.key}', '${v.item}')" style="background:var(--purple); color:white; margin-bottom:10px;">🎁 레벨업 보상 받기</button>`; }); h = giftBtn + h; db.ref('pointLogs').once('value', lsn => { let uL = []; lsn.forEach(l => { if(l.val().name === un) uL.push(l.val()); }); uL.reverse().slice(0, 20).forEach(l => { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); openPopup(`${un} 용사 정보`, h); }); }); } else { h += `<div style="text-align:center; padding:30px; color:#888;">본인만 열람 가능합니다.</div>`; openPopup(`${un} 용사 정보`, h); } }); }
+function openUserHistory(un) {
+    db.ref('users/' + un).once('value', sn => {
+        const u = sn.val(), exp = u.exp || 0, lv = u.lv || 1, pts = u.points || 0;
+        // 상단 용사 정보
+        let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;">
+                    <strong>LV.${lv} ${un} 용사</strong>
+                    <div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div>
+                    <div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;">
+                        <div style="background:var(--primary); width:${exp}%; height:100%;"></div>
+                    </div>
+                    EXP ${exp}/100
+                 </div>`;
+
+        if (isAdmin || un === myName) {
+            db.ref('orders').once('value', osn => {
+                let giftBtn = "";
+                osn.forEach(o => {
+                    const v = o.val();
+                    if (v.user === un && v.status === '보상대기') 
+                        giftBtn += `<button onclick="receiveGift('${o.key}', '${v.item}')" style="background:var(--purple); color:white; margin-bottom:10px; width:100%; padding:15px; border-radius:12px; border:none;">🎁 레벨업 보상 받기</button>`;
+                });
+                h = giftBtn + h;
+
+                // 로그 데이터 가져오기
+                db.ref('pointLogs').once('value', lsn => {
+                    let uL = [];
+                    lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); });
+                    uL.reverse().slice(0, 30).forEach(l => {
+                        const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
+                        h += `<div class="list-item" style="border-left:10px solid ${color}; margin-bottom:5px; background:#fff;">
+                                <span>${l.reason}<br><small style="color:#888;">${l.time}</small></span>
+                                <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
+                              </div>`;
+                    });
+                    openPopup(`${un} 용사 정보`, h);
+                });
+            });
+        } else {
+            h += `<div style="text-align:center; padding:30px; color:#888;">상세 기록은 본인만 열람 가능합니다.</div>`;
+            openPopup(`${un} 용사 정보`, h);
+        }
+    });
+}
 function receiveGift(key, item) { if(confirm(`${item}\n보관함에 넣을까요?`)) { db.ref('orders/' + key).update({ status: '대기' }).then(() => { alert("보관함 이동 완료!"); closePopup(); }); } }
 function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감!"); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:new Date().toLocaleDateString('sv-SE')}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
 async function buyItem(k, n, p, limit) { if(limit > 0) { const sn = await db.ref('orders').once('value'); let count = 0; sn.forEach(o => { if(o.val().user === myName && o.val().item === n && o.val().status !== '취소') count++; }); if(count >= limit) return alert("🚫 인당 " + limit + "개 한정!"); } db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("포인트 부족!"); if(confirm(`[${n}] 구매?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
