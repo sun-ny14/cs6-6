@@ -302,44 +302,55 @@
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ds = now.toISOString().split('T')[0], ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감되었습니다."); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:ds}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
-        function renderCheckinBoard() {
+        // 📅 날짜 변경 시 바로 리스트 갱신되도록 이벤트 리스너 연결 (startApp 함수 안에 넣거나 스크립트 하단에 추가)
+document.getElementById('checkin-date-filter').addEventListener('change', renderCheckinBoard);
+
+function renderCheckinBoard() {
+    // 1. 선택된 날짜 가져오기 (날짜를 바꿀 때마다 이 값을 새로 읽음)
     const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0];
+    
     db.ref('checkinLogs').once('value', snap => {
         const logs = {};
-        snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
+        snap.forEach(c => { 
+            const l = c.val(); 
+            if(l.date === td) logs[l.name] = l; 
+        });
         
         let h = `<div style="margin-bottom:20px; font-weight:bold; font-size:1.6rem; text-align:center; border-bottom:2px solid var(--dark); padding-bottom:10px;">📌 [${td}] 등교 용사 명부</div>`;
         
         currentUsers.forEach(u => {
             if(u.name === "총사령관") return;
             const log = logs[u.name];
-            let statusClass = "none";
-            let statusText = "미등교";
-            let highlightColor = "#f1c40f"; // 미등교: 노랑 형광펜
             
+            // ⭐ 상태별 형광펜 색상 정의
+            let bgColor = "rgba(241, 196, 15, 0.15)"; // 미등교 (연한 노랑)
+            let statusText = "🚩 미등교";
+            let textColor = "#967117";
+
             if(log) {
                 if(log.result.includes('정상')) {
-                    statusClass = "present";
+                    bgColor = "rgba(46, 204, 113, 0.2)"; // 정상 (연한 초록)
                     statusText = "⚔️ 정상 등교";
-                    highlightColor = "#2ecc71"; // 정상: 초록 형광펜
+                    textColor = "#1e8449";
                 } else {
-                    statusClass = "late";
+                    bgColor = "rgba(231, 76, 60, 0.15)"; // 지각 (연한 빨강)
                     statusText = "⚠️ " + log.result;
-                    highlightColor = "#e74c3c"; // 지각: 빨강 형광펜
+                    textColor = "#c0392b";
                 }
             }
 
-            h += `<div class="checkin-item ${statusClass}" style="display:flex; align-items:center; justify-content:center; padding:15px; border-bottom:1px solid #eee; font-size:1.5rem;">
-                    <span class="checkin-no" style="width:50px; text-align:right; margin-right:15px; color:#888;">${u.no||''}</span>
-                    <span class="checkin-name" style="width:110px; font-weight:bold; text-align:left;">${u.name}</span>
-                    <span class="checkin-status" style="flex:1; text-align:center;">
-                        <span style="background-color:${highlightColor}33; padding:2px 10px; border-radius:10px; border:1px solid ${highlightColor}; color:${highlightColor === '#f1c40f' ? '#967117' : highlightColor};">
-                            ${statusText}
-                        </span>
-                    </span>
-                    <span class="checkin-time" style="width:120px; text-align:right; font-size:1.2rem; color:#666;">${log?.time || '-'}</span>
-                  </div>`;
+            // ⭐ div 전체에 배경색(bgColor)을 입혀서 '칸 전체 형광펜' 효과 구현
+            h += `
+            <div class="checkin-item" style="display:flex; align-items:center; justify-content:center; padding:18px; border-bottom:2px solid #fff; font-size:1.5rem; background-color:${bgColor};">
+                <span style="width:50px; text-align:right; margin-right:15px; color:#666; font-weight:bold;">${u.no||''}</span>
+                <span style="width:110px; font-weight:bold; text-align:left;">${u.name}</span>
+                <span style="flex:1; text-align:center; font-weight:bold; color:${textColor};">
+                    ${statusText}
+                </span>
+                <span style="width:120px; text-align:right; font-size:1.2rem; color:#666; font-weight:normal;">${log?.time || '-'}</span>
+            </div>`;
         });
+        
         document.getElementById('checkin-history').innerHTML = h;
     });
 }
