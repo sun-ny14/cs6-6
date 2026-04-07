@@ -8,37 +8,35 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
-        :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; --bg: #ecf0f1; }
-        body { font-family: 'Pretendard', sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; font-size: 1.4rem; }
-        input, button, textarea, select { width: 100%; padding: 18px; margin: 10px 0; border-radius: 12px; border: 2px solid #ccc; box-sizing: border-box; font-size: 1.4rem; }
-        input[type="number"] { padding: 10px; text-align: center; font-weight: bold; }
-        #loading-screen { display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); color: white; z-index: 3000; font-size: 1.8rem; }
-        #login-screen { display: none; justify-content: center; align-items: center; min-height: 100vh; background: var(--dark); padding: 20px; }
-        .login-box { background: white; padding: 50px 40px; border-radius: 30px; text-align: center; width: 100%; max-width: 450px; }
-        #main-app { display: none; }
-        .tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; overflow-x: auto; }
-        .tab-menu button { flex: 1; min-width: 95px; padding: 20px 10px; border: none; background: none; color: #95a5a6; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
-        .tab-menu button.active { color: white; border-bottom: 5px solid var(--gold); }
-        .tab-content { display: none; padding: 20px; max-width: 1200px; margin: auto; }
-        .tab-content.active { display: block; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 15px; font-size: 1.4rem; }
-        .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 20px; margin-top: 20px; }
-        .hero-card { background: white; border-radius: 20px; padding: 25px 15px; text-align: center; box-shadow: 0 6px 15px rgba(0,0,0,0.1); border: 3px solid transparent; cursor: pointer; }
-        .hero-card.me { border-color: var(--gold); background: #fffdf2; transform: scale(1.03); }
-        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
-        .popup-box { background: white; padding: 30px; border-radius: 25px; width: 95%; max-width: 700px; display: flex; flex-direction: column; max-height: 85vh; }
-        #pop-content { flex: 1; overflow-y: auto; margin: 20px 0; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+       :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; --bg: #ecf0f1; }
+body { font-family: 'Pretendard', sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; font-size: 1.4rem; }
+input, button, textarea, select { width: 100%; padding: 18px; margin: 10px 0; border-radius: 12px; border: 2px solid #ccc; box-sizing: border-box; font-size: 1.4rem; }
+input[type="number"] { padding: 10px; text-align: center; font-weight: bold; }
+#loading-screen { display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); color: white; z-index: 3000; font-size: 1.8rem; }
+#login-screen { display: none; justify-content: center; align-items: center; min-height: 100vh; background: var(--dark); padding: 20px; }
+.login-box { background: white; padding: 50px 40px; border-radius: 30px; text-align: center; width: 100%; max-width: 450px; }
+#main-app { display: none; }
+.tab-menu { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 1000; overflow-x: auto; }
+.tab-menu button { flex: 1; min-width: 95px; padding: 20px 10px; border: none; background: none; color: #95a5a6; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+.tab-menu button.active { color: white; border-bottom: 5px solid var(--gold); }
+.tab-content { display: none; padding: 20px; max-width: 1200px; margin: auto; }
+.tab-content.active { display: block; }
+.card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+.list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #eee; gap: 10px; font-size: 1.3rem; }
+.hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 20px; margin-top: 20px; }
+.hero-card { background: white; border-radius: 20px; padding: 25px 15px; text-align: center; box-shadow: 0 6px 15px rgba(0,0,0,0.1); border: 3px solid transparent; cursor: pointer; }
+.hero-card.me { border-color: var(--gold); background: #fffdf2; transform: scale(1.03); }
+.overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
+.popup-box { background: white; padding: 30px; border-radius: 25px; width: 95%; max-width: 700px; display: flex; flex-direction: column; max-height: 85vh; }
+.inv-section { margin-top: 20px; border-top: 2px solid #eee; padding-top: 10px; }
+.inv-section h4 { margin: 10px 0; color: var(--dark); border-left: 5px solid var(--primary); padding-left: 10px; }
+.coupon-card { background: #fff; border: 2px solid #eee; padding: 12px; border-radius: 15px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.floating-btn { position: fixed; bottom: 25px; width: 85px; height: 85px; border-radius: 45px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
+#floating-point-btn { right: 25px; background: var(--gold); color: var(--dark); }
+#floating-multi-btn { right: 120px; background: #2ecc71; color: white; }
+.pixel-avatar { width: 64px; height: 64px; background: url('avatars.png') no-repeat; background-size: 384px 64px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
+ 
         
-        .inv-section { margin-top: 20px; border-top: 2px solid #eee; padding-top: 10px; }
-        .inv-section h4 { margin: 10px 0; color: var(--dark); border-left: 5px solid var(--primary); padding-left: 10px; }
-        .coupon-card { background: #fff; border: 2px solid #eee; padding: 15px; border-radius: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        
-        .floating-btn { position: fixed; bottom: 25px; width: 85px; height: 85px; border-radius: 45px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
-        #floating-point-btn { right: 25px; background: var(--gold); color: var(--dark); }
-        #floating-multi-btn { right: 120px; background: #2ecc71; color: white; }
-        
-        .pixel-avatar { width: 64px; height: 64px; background: url('avatars.png') no-repeat; background-size: 384px 64px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
     </style>
 </head>
 <body>
@@ -111,47 +109,19 @@
 
     <script>
         const firebaseConfig = { apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", authDomain: "cs6-6class.firebaseapp.com", databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", projectId: "cs6-6class", storageBucket: "cs6-6class.firebasestorage.app", messagingSenderId: "644235499537", appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" };
-const adminEmail = "ksosuny@cberi.go.kr"; 
-firebase.initializeApp(firebaseConfig); 
-const db = firebase.database(); 
-const auth = firebase.auth(); 
-const provider = new firebase.auth.GoogleAuthProvider();
-
-let myName = "", isAdmin = false, isHelper = false, currentUsers = [], allLogs = [], routineItems = [], giftList = [], rIdx = 0;
-let currentTab = sessionStorage.getItem('activeTab') || 'main';
-
-// [공통 유틸]
-function getAvatar(lv) { let c = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1"; return `<div class="pixel-avatar ${c}"></div>`; }
-function handleLogin() { auth.signInWithPopup(provider); }
-function showTab(t) { currentTab = t; sessionStorage.setItem('activeTab', t); document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); }
-function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
-function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display='none'; }
-function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
-function closeMultiPopup() { document.getElementById('multi-popup').style.display = 'none'; }
-function checkAllMulti(s) { document.querySelectorAll('.multi-check').forEach(c => c.checked = s); }
-function toggleAllCheckboxes(status) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = status); }
-function applyToAll(type) { const val = document.getElementById('all-' + type + '-input').value; document.querySelectorAll('.pop-bulk-' + type).forEach(i => i.value = val); }
-
-// ⭐ [등교 명부] 날짜 보정 및 전체 형광펜 디자인
+        const adminEmail = "ksosuny@cberi.go.kr"; firebase.initializeApp(firebaseConfig); const db = firebase.database(); const auth = firebase.auth(); const provider = new firebase.auth.GoogleAuthProvider();
+        let myName = "", isAdmin = false, isHelper = false, currentUsers = [], allLogs = [], routineItems = [], giftList = [], rIdx = 0;
+        // ⭐ [등교 명부] 날짜 보정 + 칸 전체 형광펜
 function renderCheckinBoard() {
     const kstDate = new Date().toLocaleDateString('sv-SE');
-    const filter = document.getElementById('checkin-date-filter');
-    const td = (filter && filter.value) ? filter.value : kstDate;
-    
+    const td = document.getElementById('checkin-date-filter').value || kstDate;
     db.ref('checkinLogs').once('value', snap => {
-        const logs = {};
-        snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
+        const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
         let h = `<div style="margin-bottom:20px; font-weight:bold; font-size:1.8rem; text-align:center; border-bottom:4px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
-        
         currentUsers.forEach(u => {
             if(u.name === "총사령관") return;
-            const log = logs[u.name];
-            let bgColor = "#ffff00", statusText = "🚩 미등교", textColor = "#000", fontWeight = "900";
-            if(log) {
-                fontWeight = "bold";
-                if(log.result.includes('정상')) { bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; textColor = "#0b511d"; }
-                else { bgColor = "#ffadad"; statusText = "⚠️ " + log.result; textColor = "#7e121a"; }
-            }
+            const log = logs[u.name]; let bgColor = "#ffff00", statusText = "🚩 미등교", textColor = "#000", fontWeight = "900";
+            if(log) { fontWeight = "bold"; if(log.result.includes('정상')) { bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; textColor = "#0b511d"; } else { bgColor = "#ffadad"; statusText = "⚠️ " + log.result; textColor = "#7e121a"; } }
             h += `<div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1); box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
                     <span style="width:50px; text-align:right; margin-right:20px; color:rgba(0,0,0,0.5); font-weight:bold;">${u.no||''}</span>
                     <span style="width:120px; font-weight:bold; text-align:left; color:#000;">${u.name}</span>
@@ -159,129 +129,179 @@ function renderCheckinBoard() {
                     <span style="width:130px; text-align:right; font-size:1.3rem; color:rgba(0,0,0,0.6);">${log?.time || '-'}</span>
                 </div>`;
         });
-        const target = document.getElementById('checkin-history');
-        if(target) target.innerHTML = h;
+        if(document.getElementById('checkin-history')) document.getElementById('checkin-history').innerHTML = h;
     });
 }
 
-// [핵심 엔진]
-function addScore(name, p, e, reason) {
-    db.ref('users/' + name).once('value', sn => {
-        const u = sn.val(); if (!u) return;
-        let nP = (parseInt(u.points) || 0) + parseInt(p), nE = (parseInt(u.exp) || 0) + parseInt(e), nL = (parseInt(u.lv) || 1), up = false;
-        while (nE >= 100) { nL++; nE -= 100; up = true; }
-        db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL }).then(() => {
-            db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString() });
-            if (up) triggerLevelUpRoulette(name, nL);
+// ⭐ [상점] 수정/삭제는 선생님(isAdmin) 전용
+function renderShop() {
+    db.ref('shop').on('value', snap => {
+        let h = ""; snap.forEach(c => { const i = c.val(); 
+            let btns = isAdmin ? `<div style="display:flex; gap:5px;"><button onclick="editItem('${c.key}', '${i.name}', ${i.price}, ${i.limit||0})" style="width:auto; padding:8px 12px; background:var(--purple); color:white; border:none; border-radius:8px;">수정</button><button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; padding:8px 12px; background:var(--red); color:white; border:none; border-radius:8px;">삭제</button></div>` : `<button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:8px;">구매</button>`;
+            h += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span><div>${btns}</div></div>`; 
         });
+        document.getElementById('shop-list').innerHTML = h;
     });
 }
-function updatePoint(n, a, r) { addScore(n, a, (a > 0 ? a : 0), r); }
 
-// ⭐ [팝업 연결] 도감 클릭 시 일괄 지급창으로
-function openMultiPopup(reason = '', p = '', e = '') {
-    let h = "";
-    currentUsers.forEach(u => {
-        if(u.name === "총사령관") return;
-        h += `<div class="list-item" style="padding:10px;"><input type="checkbox" class="multi-check" data-name="${u.name}" style="width:30px; height:30px;"><span style="font-size:1.4rem; margin-left:10px;">${u.no||''}. ${u.name}</span></div>`;
-    });
-    document.getElementById('multi-list').innerHTML = h;
-    document.getElementById('multi-reason').value = reason;
-    document.getElementById('multi-p').value = p;
-    document.getElementById('multi-e').value = e;
-    document.getElementById('multi-popup').style.display = 'flex';
-}
+        let currentTab = sessionStorage.getItem('activeTab') || 'main';
 
-function applyMultiScores() {
-    const r = document.getElementById('multi-reason').value, p = parseInt(document.getElementById('multi-p').value)||0, e = parseInt(document.getElementById('multi-e').value)||0;
-    if(!r) return alert("사유 입력!");
-    const sel = []; document.querySelectorAll('.multi-check:checked').forEach(cb => sel.push(cb.dataset.name));
-    if(!sel.length) return alert("대상 선택!");
-    sel.forEach(name => addScore(name, p, e, r));
-    alert("지급 완료!"); closeMultiPopup();
-}
+        function getAvatar(lv) { let c = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1"; return `<div class="pixel-avatar ${c}"></div>`; }
+        function handleLogin() { auth.signInWithPopup(provider); }
+        function showTab(t) { currentTab = t; sessionStorage.setItem('activeTab', t); document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); }
+        function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
+        function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display='none'; }
+        function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
+        function closeMultiPopup() { document.getElementById('multi-popup').style.display = 'none'; }
 
-// [초기화 및 데이터 바인딩]
-function startApp() {
-    db.ref('settings').on('value', snap => { const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || []; document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`; });
-    db.ref('users').on('value', snap => {
-        let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
-        currentUsers = users.sort((a,b) => (a.no||99)-(b.no||99));
-        let h = ""; currentUsers.forEach(u => { if(u.name!=="총사령관") h += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openUserHistory('${u.name}')"><span class="card-avatar">${getAvatar(u.lv||1)}</span><b>LV.${u.lv||1} ${u.name}</b><br>${u.points||0}P</div>`; });
-        document.getElementById('hero-grid').innerHTML = h;
-        if(isAdmin) {
-            let aH = ""; currentUsers.forEach(u => { if(u.name!=="총사령관") aH += `<div class="list-item" style="padding:20px;"><input type="number" value="${u.no||''}" onchange="updateNo('${u.name}', this.value)" style="width:70px; height:50px; margin:0; text-align:center; border:2px solid var(--primary);"><span style="flex:1; margin-left:15px;"><strong>${u.name}</strong></span><div><button onclick="toggleHelper('${u.name}',${u.isHelper||false})">권한</button><button onclick="delUser('${u.name}')" style="background:var(--red); color:white;">제거</button></div></div>`; });
-            document.getElementById('student-admin-list').innerHTML = aH;
-        }
-        renderCheckinBoard();
-    });
-    db.ref('pointGuide').on('value', snap => {
-        let h = ""; snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})"><b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span></div>`; });
-        document.getElementById('guide-list').innerHTML = h || "도감 비어있음";
-    });
-    db.ref('orders').on('value', snap => {
-        let uH = "", wH = "", dH = "", adminH = "";
-        snap.forEach(c => {
-            const o = c.val();
-            const card = `<div class="coupon-card ${o.status === '대기' ? 'unused' : (o.status === '사용요청' ? 'waiting' : 'done')}"><span>${o.item}<br><small>${o.time}</small></span>${o.status === '대기' ? `<button onclick="requestUseCoupon('${c.key}','${o.item}')" style="background:var(--purple); color:white; padding:8px 15px;">사용하기</button>` : `<span style="font-weight:bold; color:${o.status === '사용요청' ? 'var(--red)' : '#888'}">${o.status}</span>`}</div>`;
-            if(o.user === myName) { if(o.status === '대기') uH += card; else if(o.status === '사용요청') wH += card; else if(o.status === '완료') dH += card; }
-            if((isAdmin || isHelper) && o.status === '사용요청') adminH += `<div class="list-item"><span>${o.user}: ${o.item}</span><button onclick="approveOrder('${c.key}')" style="background:var(--green); color:white; padding:10px;">승인</button></div>`;
-        });
-        const targetUn = document.getElementById('inv-unused'); if(targetUn) targetUn.querySelector('.list').innerHTML = uH || "비어있음";
-        const targetWa = document.getElementById('inv-waiting'); if(targetWa) targetWa.querySelector('.list').innerHTML = wH || "비어있음";
-        const targetDo = document.getElementById('inv-done'); if(targetDo) targetDo.querySelector('.list').innerHTML = dH || "기록 없음";
-        const targetAd = document.getElementById('order-list'); if(targetAd) targetAd.innerHTML = adminH || "사용 요청 없음";
-    });
-    const filter = document.getElementById('checkin-date-filter');
-    if(filter) filter.onchange = renderCheckinBoard;
-}
-
-auth.onAuthStateChanged(user => {
-    if (user) {
-        isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
-        db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
-            if (snap.exists() || isAdmin) {
-                myName = snap.val() || "총사령관";
-                db.ref('users/' + myName).once('value', uSnap => {
-                    isHelper = uSnap.val()?.isHelper || false;
-                    document.getElementById('loading-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'none'; document.getElementById('main-app').style.display = 'block';
-                    if(isAdmin) { ['floating-point-btn','floating-multi-btn','btn-guide','btn-logs','btn-admin'].forEach(id=>document.getElementById(id).style.display = id.includes('btn')?'block':'flex'); document.querySelectorAll('#admin-shop-mgr, #admin-guide-mgr').forEach(el=>el.style.display='block'); }
-                    if(isAdmin || isHelper) document.getElementById('admin-order-mgr').style.display='block';
-                    startApp(); showTab(currentTab);
+        function renderCheckinBoard() {
+            const kstDate = new Date().toLocaleDateString('sv-SE');
+            const filter = document.getElementById('checkin-date-filter');
+            const td = (filter && filter.value) ? filter.value : kstDate;
+            db.ref('checkinLogs').once('value', snap => {
+                const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
+                let h = `<div style="margin-bottom:20px; font-weight:bold; font-size:1.8rem; text-align:center; border-bottom:4px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
+                currentUsers.forEach(u => {
+                    if(u.name === "총사령관") return;
+                    const log = logs[u.name]; let bgColor = "#ffff00", statusText = "🚩 미등교", textColor = "#000", fontWeight = "900";
+                    if(log) { fontWeight = "bold"; if(log.result.includes('정상')) { bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; textColor = "#0b511d"; } else { bgColor = "#ffadad"; statusText = "⚠️ " + log.result; textColor = "#7e121a"; } }
+                    h += `<div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1); box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                            <span style="width:50px; text-align:right; margin-right:20px; color:rgba(0,0,0,0.5); font-weight:bold;">${u.no||''}</span>
+                            <span style="width:120px; font-weight:bold; text-align:left; color:#000;">${u.name}</span>
+                            <span style="flex:1; text-align:center; font-weight:${fontWeight}; color:${textColor}; text-shadow: 0.5px 0.5px 0px rgba(255,255,255,0.5);">${statusText}</span>
+                            <span style="width:130px; text-align:right; font-size:1.3rem; color:rgba(0,0,0,0.6);">${log?.time || '-'}</span>
+                        </div>`;
                 });
-            } else { alert("미등록!"); auth.signOut(); }
-        });
-    } else { document.getElementById('loading-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; document.getElementById('main-app').style.display = 'none'; }
-});
+                if(document.getElementById('checkin-history')) document.getElementById('checkin-history').innerHTML = h;
+            });
+        }
 
-// [기타 기능들 - 보존]
-function triggerLevelUpRoulette(un, lv) { if(!giftList.length) return; const res = giftList[Math.floor(Math.random() * giftList.length)]; db.ref('orders').push({ user: un, item: `[LV.${lv} 보상] ${res}`, status: '보상대기', time: new Date().toLocaleString() }); }
-function openUserHistory(un) { db.ref('users/'+un).once('value', sn => { const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`; if (isAdmin || un === myName) { db.ref('orders').once('value', osn => { let giftBtn = ""; osn.forEach(o => { const v = o.val(); if(v.user === un && v.status === '보상대기') giftBtn += `<button onclick="receiveGift('${o.key}', '${v.item}')" style="background:var(--purple); color:white; margin-bottom:10px;">🎁 레벨업 보상 받기</button>`; }); h = giftBtn + h; db.ref('pointLogs').once('value', lsn => { let uL = []; lsn.forEach(l => { if(l.val().name === un) uL.push(l.val()); }); uL.reverse().slice(0, 20).forEach(l => { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); openPopup(`${un} 용사 정보`, h); }); }); } else { h += `<div style="text-align:center; padding:30px; color:#888;">본인만 열람 가능합니다.</div>`; openPopup(`${un} 용사 정보`, h); } }); }
-function receiveGift(key, item) { if(confirm(`${item}\n보관함에 넣을까요?`)) { db.ref('orders/' + key).update({ status: '대기' }).then(() => { alert("보관함 이동 완료!"); closePopup(); }); } }
-function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감!"); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:new Date().toLocaleDateString('sv-SE')}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
-async function buyItem(k, n, p, limit) { if(limit > 0) { const sn = await db.ref('orders').once('value'); let count = 0; sn.forEach(o => { if(o.val().user === myName && o.val().item === n && o.val().status !== '취소') count++; }); if(count >= limit) return alert("🚫 인당 " + limit + "개 한정!"); } db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("포인트 부족!"); if(confirm(`[${n}] 구매?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
-function approveOrder(k) { if(confirm("승인?")) db.ref('orders/'+k).update({status:'완료'}); }
-function requestUseCoupon(k,n) { if(confirm(`[${n}] 사용 요청?`)) db.ref('orders/'+k).update({status:'사용요청'}); }
-function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장!"); }
-function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장!"); }
-function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
-function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
-function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("주입 완료!"); }
-function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
-function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
-function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
-function openPointBulkPopup(t='', p='', e='') {
-    let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유"><div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;"> E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;"></div><div style="display:flex; justify-content:flex-end; gap:5px;"><button onclick="toggleAllCheckboxes(true)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:5px;">전체 선택</button><button onclick="toggleAllCheckboxes(false)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:5px;">해제</button></div></div>`;
-    currentUsers.forEach(u => { if(u.name!=="총사령관") h += `<div class="list-item" style="padding:10px 0;"><span><input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:25px; height:25px;"> <strong>${u.no||''}. ${u.name}</strong></span><span>P <input type="number" class="pop-bulk-p" value="${p}" style="width:65px; height:45px;"> E <input type="number" class="pop-bulk-e" value="${e}" style="width:65px; height:45px;"></span></div>`; });
-    document.getElementById('point-pop-body').innerHTML = h;
-    document.getElementById('point-apply-btn').onclick = () => {
-        const r = document.getElementById('pop-bulk-reason').value; if(!r) return alert("사유 입력!");
-        const cbs = document.querySelectorAll('.student-select'), ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e');
-        cbs.forEach((cb, i) => { if(cb.checked) addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r); });
-        closePointPopup();
-    };
-    document.getElementById('point-popup').style.display = 'flex';
-}
+        function openMultiPopup(reason = '', p = '', e = '') {
+            let h = ""; currentUsers.forEach(u => { if(u.name === "총사령관") return; h += `<div class="list-item" style="padding:10px;"><input type="checkbox" class="multi-check" data-name="${u.name}" style="width:30px; height:30px;"><span style="font-size:1.4rem; margin-left:10px;">${u.no||''}. ${u.name}</span></div>`; });
+            document.getElementById('multi-list').innerHTML = h;
+            document.getElementById('multi-reason').value = reason; document.getElementById('multi-p').value = p; document.getElementById('multi-e').value = e;
+            document.getElementById('multi-popup').style.display = 'flex';
+        }
+
+        function checkAllMulti(s) { document.querySelectorAll('.multi-check').forEach(c => c.checked = s); }
+        function applyMultiScores() {
+            const r = document.getElementById('multi-reason').value, p = parseInt(document.getElementById('multi-p').value)||0, e = parseInt(document.getElementById('multi-e').value)||0;
+            if(!r) return alert("사유 입력!");
+            const sel = []; document.querySelectorAll('.multi-check:checked').forEach(cb => sel.push(cb.dataset.name));
+            if(!sel.length) return alert("대상 선택!");
+            sel.forEach(name => addScore(name, p, e, r));
+            alert("지급 완료!"); closeMultiPopup();
+        }
+
+        function addScore(name, p, e, reason) {
+            db.ref('users/' + name).once('value', sn => {
+                const u = sn.val(); if (!u) return;
+                let nP = (parseInt(u.points) || 0) + parseInt(p), nE = (parseInt(u.exp) || 0) + parseInt(e), nL = (parseInt(u.lv) || 1), up = false;
+                while (nE >= 100) { nL++; nE -= 100; up = true; }
+                db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL }).then(() => {
+                    db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString() });
+                    if (up) triggerLevelUpRoulette(name, nL);
+                });
+            });
+        }
+        function updatePoint(n, a, r) { addScore(n, a, (a > 0 ? a : 0), r); }
+
+        function startApp() {
+            db.ref('settings').on('value', snap => { const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || []; document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`; });
+            db.ref('users').on('value', snap => {
+                let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
+                currentUsers = users.sort((a,b) => (a.no||99)-(b.no||99));
+                let h = ""; currentUsers.forEach(u => { 
+                    if(u.name==="총사령관") return;
+                    let roleTag = ""; if(u.name === "총사령관" || u.email === adminEmail) roleTag = " <small style='color:var(--red);'>[관리자]</small>"; else if(u.isHelper) roleTag = " <small style='color:var(--primary);'>[도우미]</small>";
+                    h += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openUserHistory('${u.name}')"><span class="card-avatar">${getAvatar(u.lv||1)}</span><b>LV.${u.lv||1} ${u.name}${roleTag}</b><br>${u.points||0}P</div>`; 
+                });
+                document.getElementById('hero-grid').innerHTML = h;
+                if(isAdmin) {
+                    let aH = ""; currentUsers.forEach(u => { if(u.name!=="총사령관") aH += `<div class="list-item" style="padding:20px;"><input type="number" value="${u.no||''}" onchange="updateNo('${u.name}', this.value)" style="width:70px; height:50px; margin:0; text-align:center; border:2px solid var(--primary);"><span style="flex:1; margin-left:15px;"><strong>${u.name}</strong></span><div><button onclick="toggleHelper('${u.name}',${u.isHelper||false})">권한</button><button onclick="delUser('${u.name}')" style="background:var(--red); color:white;">제거</button></div></div>`; });
+                    document.getElementById('student-admin-list').innerHTML = aH;
+                }
+                renderCheckinBoard();
+            });
+            db.ref('shop').on('value', snap => {
+                let h = ""; snap.forEach(c => { const i = c.val(); 
+                    let btns = isAdmin ? `<div style="display:flex; gap:5px;"><button onclick="editItem('${c.key}', '${i.name}', ${i.price}, ${i.limit||0})" style="width:auto; padding:8px 12px; background:var(--purple); color:white; border:none; border-radius:8px;">수정</button><button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; padding:8px 12px; background:var(--red); color:white; border:none; border-radius:8px;">삭제</button></div>` : `<button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:8px;">구매</button>`;
+                    h += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span><div>${btns}</div></div>`; 
+                });
+                document.getElementById('shop-list').innerHTML = h;
+            });
+            db.ref('pointGuide').on('value', snap => {
+                let h = ""; snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})"><b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span></div>`; });
+                document.getElementById('guide-list').innerHTML = h || "도감 비어있음";
+            });
+                    // ⭐ [승인 목록] 태블릿 최적화 레이아웃
+            db.ref('orders').on('value', snap => {
+                let uH = "", wH = "", dH = "", adminH = "";
+                snap.forEach(c => {
+                    const o = c.val();
+                    const card = `<div class="coupon-card ${o.status === '대기' ? 'unused' : (o.status === '사용요청' ? 'waiting' : 'done')}"><span>${o.item}<br><small style="color:#888;">${o.time}</small></span>${o.status === '대기' ? `<button onclick="requestUseCoupon('${c.key}','${o.item}')" style="background:var(--purple); color:white; padding:6px 12px; width:auto; margin:0;">사용하기</button>` : `<span style="font-weight:bold; color:${o.status === '사용요청' ? 'var(--red)' : '#888'}">${o.status}</span>`}</div>`;
+                    if(o.user === myName) { if(o.status === '대기') uH += card; else if(o.status === '사용요청') wH += card; else if(o.status === '완료') dH += card; }
+                    
+                    // ⭐ 도우미/관리자 전용 승인칸 (컴팩트 디자인)
+                    if((isAdmin || isHelper) && o.status === '사용요청') {
+                        adminH += `<div class="list-item" style="padding:8px 12px; background:#fff5f5; border-radius:10px; margin-bottom:6px; border:1px solid #ffe3e3;"><span><b>${o.user}</b>: ${o.item}</span><button onclick="approveOrder('${c.key}')" style="width:auto; padding:6px 12px; background:var(--green); color:white; border:none; border-radius:6px; font-weight:bold; margin:0;">승인</button></div>`;
+                    }
+                });
+                const setInner = (id, html) => { const el = document.getElementById(id); if(el) { const list = el.querySelector('.list') || el; list.innerHTML = html || "<div style='color:#ccc; text-align:center; padding:10px;'>내용 없음</div>"; } };
+                setInner('inv-unused', uH); setInner('inv-waiting', wH); setInner('inv-done', dH);
+                if(document.getElementById('order-list')) document.getElementById('order-list').innerHTML = adminH || "<div style='color:#ccc; text-align:center; padding:20px;'>승인 대기 중인 항목이 없습니다.</div>";
+            });
+            if(document.getElementById('checkin-date-filter')) document.getElementById('checkin-date-filter').onchange = renderCheckinBoard;
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
+                db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
+                    if (snap.exists() || isAdmin) {
+                        myName = snap.val() || "총사령관";
+                        db.ref('users/' + myName).once('value', uSnap => {
+                            isHelper = uSnap.val()?.isHelper || false;
+                            document.getElementById('loading-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'none'; document.getElementById('main-app').style.display = 'block';
+                            if(isAdmin) { ['floating-point-btn','floating-multi-btn','btn-guide','btn-logs','btn-admin'].forEach(id=>document.getElementById(id).style.display = id.includes('btn')?'block':'flex'); document.querySelectorAll('#admin-shop-mgr, #admin-guide-mgr').forEach(el=>el.style.display='block'); }
+                            if(isAdmin || isHelper) document.getElementById('admin-order-mgr').style.display='block';
+                            startApp(); showTab(currentTab);
+                        });
+                    } else { alert("미등록!"); auth.signOut(); }
+                });
+            } else { document.getElementById('loading-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; document.getElementById('main-app').style.display = 'none'; }
+        });
+
+        function triggerLevelUpRoulette(un, lv) { if(!giftList.length) return; const res = giftList[Math.floor(Math.random() * giftList.length)]; db.ref('orders').push({ user: un, item: `[LV.${lv} 보상] ${res}`, status: '보상대기', time: new Date().toLocaleString() }); }
+        function openUserHistory(un) { db.ref('users/'+un).once('value', sn => { const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`; if (isAdmin || un === myName) { db.ref('orders').once('value', osn => { let giftBtn = ""; osn.forEach(o => { const v = o.val(); if(v.user === un && v.status === '보상대기') giftBtn += `<button onclick="receiveGift('${o.key}', '${v.item}')" style="background:var(--purple); color:white; margin-bottom:10px;">🎁 레벨업 보상 받기</button>`; }); h = giftBtn + h; db.ref('pointLogs').once('value', lsn => { let uL = []; lsn.forEach(l => { if(l.val().name === un) uL.push(l.val()); }); uL.reverse().slice(0, 20).forEach(l => { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); openPopup(`${un} 용사 정보`, h); }); }); } else { h += `<div style="text-align:center; padding:30px; color:#888;">본인만 열람 가능합니다.</div>`; openPopup(`${un} 용사 정보`, h); } }); }
+        function receiveGift(key, item) { if(confirm(`${item}\n보관함에 넣을까요?`)) { db.ref('orders/' + key).update({ status: '대기' }).then(() => { alert("보관함 이동 완료!"); closePopup(); }); } }
+        function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감!"); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:new Date().toLocaleDateString('sv-SE')}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
+        async function buyItem(k, n, p, limit) { if(limit > 0) { const sn = await db.ref('orders').once('value'); let count = 0; sn.forEach(o => { if(o.val().user === myName && o.val().item === n && o.val().status !== '취소') count++; }); if(count >= limit) return alert("🚫 인당 " + limit + "개 한정!"); } db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("포인트 부족!"); if(confirm(`[${n}] 구매?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
+        function approveOrder(k) { if(confirm("승인?")) db.ref('orders/'+k).update({status:'완료'}); }
+        function requestUseCoupon(k,n) { if(confirm(`[${n}] 지금 사용 요청하시겠습니까?`)) db.ref('orders/'+k).update({status:'사용요청'}); }
+        function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장!"); }
+        function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장!"); }
+        function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
+        function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
+        function editItem(k, n, p, l) { const nn = prompt("이름", n); if(nn===null) return; const np = prompt("가격", p); const nl = prompt("제한", l); db.ref('shop/'+k).update({name:nn, price:parseInt(np)||0, limit:parseInt(nl)||0}); }
+        function deleteItem(k, n) { if(confirm(n+" 삭제?")) db.ref('shop/'+k).remove(); }
+        function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("주입 완료!"); }
+        function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
+        function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
+        function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
+        function openPointBulkPopup(t='', p='', e='') {
+            let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유"><div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;"> E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;"></div><div style="display:flex; justify-content:flex-end; gap:5px;"><button onclick="toggleAllCheckboxes(true)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:5px;">전체 선택</button><button onclick="toggleAllCheckboxes(false)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:5px;">해제</button></div></div>`;
+            currentUsers.forEach(u => { if(u.name!=="총사령관") h += `<div class="list-item" style="padding:10px 0;"><span><input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:25px; height:25px;"> <strong>${u.no||''}. ${u.name}</strong></span><span>P <input type="number" class="pop-bulk-p" value="${p}" style="width:65px; height:45px;"> E <input type="number" class="pop-bulk-e" value="${e}" style="width:65px; height:45px;"></span></div>`; });
+            document.getElementById('point-pop-body').innerHTML = h;
+            document.getElementById('point-apply-btn').onclick = () => {
+                const r = document.getElementById('pop-bulk-reason').value; if(!r) return alert("사유 입력!");
+                const cbs = document.querySelectorAll('.student-select'), ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e');
+                cbs.forEach((cb, i) => { if(cb.checked) addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r); });
+                closePointPopup();
+            };
+            document.getElementById('point-popup').style.display = 'flex';
+        }
+        function toggleAllCheckboxes(s) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = s); }
+        function applyToAll(t) { const v = document.getElementById('all-'+t+'-input').value; document.querySelectorAll('.pop-bulk-'+t).forEach(i => i.value = v); }
     </script>
 </body>
 </html>
