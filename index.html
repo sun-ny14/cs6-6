@@ -129,24 +129,53 @@ function closeMultiPopup() { document.getElementById('multi-popup').style.displa
 
 // [등교 명부 렌더링]
 function renderCheckinBoard() {
-    const kstDate = new Date().toLocaleDateString('sv-SE');
-    const filter = document.getElementById('checkin-date-filter');
-    const td = (filter && filter.value) ? filter.value : kstDate;
+    // 1. 한국 시간 기준으로 yyyy-mm-dd 직접 생성 (ISO 보정 방식)
+    const now = new Date();
+    const krTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // 9시간 더하기
+    const kstDate = krTime.toISOString().split('T')[0];
+    
+    // 2. 날짜 선택기(input) 값 확인
+    const filterEl = document.getElementById('checkin-date-filter');
+    const td = (filterEl && filterEl.value) ? filterEl.value : kstDate;
+    
     db.ref('checkinLogs').once('value', snap => {
-        const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
+        const logs = {};
+        snap.forEach(c => { 
+            const l = c.val(); 
+            if(l.date === td) logs[l.name] = l; 
+        });
+        
         let h = `<div style="margin-bottom:20px; font-weight:bold; font-size:1.8rem; text-align:center; border-bottom:4px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
+        
         currentUsers.forEach(u => {
             if(u.name === "총사령관") return;
-            const log = logs[u.name]; let bgColor = "#ffff00", statusText = "🚩 미등교", textColor = "#000", fontWeight = "900";
-            if(log) { fontWeight = "bold"; if(log.result.includes('정상')) { bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; textColor = "#0b511d"; } else { bgColor = "#ffadad"; statusText = "⚠️ " + log.result; textColor = "#7e121a"; } }
-            h += `<div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1); box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
-                    <span style="width:50px; text-align:right; margin-right:20px; color:rgba(0,0,0,0.5); font-weight:bold;">${u.no||''}</span>
-                    <span style="width:120px; font-weight:bold; text-align:left; color:#000;">${u.name}</span>
-                    <span style="flex:1; text-align:center; font-weight:${fontWeight}; color:${textColor}; text-shadow: 0.5px 0.5px 0px rgba(255,255,255,0.5);">${statusText}</span>
-                    <span style="width:130px; text-align:right; font-size:1.3rem; color:rgba(0,0,0,0.6);">${log?.time || '-'}</span>
-                </div>`;
+            const log = logs[u.name];
+            
+            // ⭐ 미등교 강조 디자인 (진한 노랑 형광펜)
+            let bgColor = "#ffff00", statusText = "🚩 미등교", textColor = "#000", fontWeight = "900";
+
+            if(log) {
+                fontWeight = "bold";
+                if(log.result.includes('정상')) { 
+                    bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; textColor = "#0b511d"; 
+                } else { 
+                    bgColor = "#ffadad"; statusText = "⚠️ " + log.result; textColor = "#7e121a"; 
+                }
+            }
+
+            h += `
+            <div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1); box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                <span style="width:50px; text-align:right; margin-right:20px; color:rgba(0,0,0,0.5); font-weight:bold;">${u.no||''}</span>
+                <span style="width:120px; font-weight:bold; text-align:left; color:#000;">${u.name}</span>
+                <span style="flex:1; text-align:center; font-weight:${fontWeight}; color:${textColor}; text-shadow: 0.5px 0.5px 0px rgba(255,255,255,0.5);">
+                    ${statusText}
+                </span>
+                <span style="width:130px; text-align:right; font-size:1.3rem; color:rgba(0,0,0,0.6);">${log?.time || '-'}</span>
+            </div>`;
         });
-        if(document.getElementById('checkin-history')) document.getElementById('checkin-history').innerHTML = h;
+        
+        const target = document.getElementById('checkin-history');
+        if(target) target.innerHTML = h;
     });
 }
 
