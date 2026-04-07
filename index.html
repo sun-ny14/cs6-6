@@ -129,10 +129,12 @@ function closeMultiPopup() { document.getElementById('multi-popup').style.displa
 
 // [등교 명부 렌더링]
 function renderCheckinBoard() {
-    // 1. 한국 시간 기준으로 yyyy-mm-dd 직접 생성 (ISO 보정 방식)
+   // 기존 133~135줄을 지우고 아래 3줄을 넣으세요
     const now = new Date();
-    const krTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // 9시간 더하기
-    const kstDate = krTime.toISOString().split('T')[0];
+    const krTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const kstDate = krTime.getUTCFullYear() + "-" + 
+                    String(krTime.getUTCMonth() + 1).padStart(2, '0') + "-" + 
+                    String(krTime.getUTCDate()).padStart(2, '0');
     
     // 2. 날짜 선택기(input) 값 확인
     const filterEl = document.getElementById('checkin-date-filter');
