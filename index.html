@@ -30,20 +30,15 @@
         .popup-box { background: white; padding: 30px; border-radius: 25px; width: 95%; max-width: 700px; display: flex; flex-direction: column; max-height: 85vh; }
         #pop-content { flex: 1; overflow-y: auto; margin: 20px 0; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
         
-        /* 인벤토리 분류 스타일 */
         .inv-section { margin-top: 20px; border-top: 2px solid #eee; padding-top: 10px; }
         .inv-section h4 { margin: 10px 0; color: var(--dark); border-left: 5px solid var(--primary); padding-left: 10px; }
         .coupon-card { background: #fff; border: 2px solid #eee; padding: 15px; border-radius: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .coupon-card.unused { border-color: var(--purple); background: #fcfaff; }
-        .coupon-card.waiting { border-color: var(--red); background: #fffdfd; }
-        .coupon-card.done { background: #f9f9f9; opacity: 0.7; }
         
         .floating-btn { position: fixed; bottom: 25px; width: 85px; height: 85px; border-radius: 45px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
         #floating-point-btn { right: 25px; background: var(--gold); color: var(--dark); }
         #floating-multi-btn { right: 120px; background: #2ecc71; color: white; }
         
         .pixel-avatar { width: 64px; height: 64px; background: url('avatars.png') no-repeat; background-size: 384px 64px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
-        .avatar-lv1 { background-position: 0px 0px; } .avatar-lv5 { background-position: -64px 0px; } .avatar-lv10 { background-position: -128px 0px; } .avatar-lv15 { background-position: -192px 0px; } .avatar-lv20 { background-position: -256px 0px; } .avatar-lv30 { background-position: -320px 0px; }
     </style>
 </head>
 <body>
@@ -115,7 +110,7 @@
     </div>
 
     <script>
-       const firebaseConfig = { apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", authDomain: "cs6-6class.firebaseapp.com", databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", projectId: "cs6-6class", storageBucket: "cs6-6class.firebasestorage.app", messagingSenderId: "644235499537", appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" };
+        const firebaseConfig = { apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", authDomain: "cs6-6class.firebaseapp.com", databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", projectId: "cs6-6class", storageBucket: "cs6-6class.firebasestorage.app", messagingSenderId: "644235499537", appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" };
 const adminEmail = "ksosuny@cberi.go.kr"; 
 firebase.initializeApp(firebaseConfig); 
 const db = firebase.database(); 
@@ -125,19 +120,23 @@ const provider = new firebase.auth.GoogleAuthProvider();
 let myName = "", isAdmin = false, isHelper = false, currentUsers = [], allLogs = [], routineItems = [], giftList = [], rIdx = 0;
 let currentTab = sessionStorage.getItem('activeTab') || 'main';
 
-// --- [보존된 핵심 로직들] ---
+// [공통 유틸]
 function getAvatar(lv) { let c = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1"; return `<div class="pixel-avatar ${c}"></div>`; }
 function handleLogin() { auth.signInWithPopup(provider); }
 function showTab(t) { currentTab = t; sessionStorage.setItem('activeTab', t); document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); }
 function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
 function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display='none'; }
 function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
+function closeMultiPopup() { document.getElementById('multi-popup').style.display = 'none'; }
+function checkAllMulti(s) { document.querySelectorAll('.multi-check').forEach(c => c.checked = s); }
+function toggleAllCheckboxes(status) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = status); }
+function applyToAll(type) { const val = document.getElementById('all-' + type + '-input').value; document.querySelectorAll('.pop-bulk-' + type).forEach(i => i.value = val); }
 
-// ⭐ 등교 기록부 렌더링 (보정된 날짜 + 칸 전체 형광펜)
+// ⭐ [등교 명부] 날짜 보정 및 전체 형광펜 디자인
 function renderCheckinBoard() {
     const kstDate = new Date().toLocaleDateString('sv-SE');
-    const filterEl = document.getElementById('checkin-date-filter');
-    const td = (filterEl && filterEl.value) ? filterEl.value : kstDate;
+    const filter = document.getElementById('checkin-date-filter');
+    const td = (filter && filter.value) ? filter.value : kstDate;
     
     db.ref('checkinLogs').once('value', snap => {
         const logs = {};
@@ -165,30 +164,7 @@ function renderCheckinBoard() {
     });
 }
 
-// ⭐ 포인트 일괄 지급창 (도감에서 바로 연결)
-function openMultiPopup(reason = '', p = '', e = '') {
-    let h = "";
-    currentUsers.forEach(u => {
-        if(u.name === "총사령관") return;
-        h += `<div class="list-item" style="padding:10px;"><input type="checkbox" class="multi-check" data-name="${u.name}" style="width:30px; height:30px;"><span style="font-size:1.4rem; margin-left:10px;">${u.no||''}. ${u.name}</span></div>`;
-    });
-    document.getElementById('multi-list').innerHTML = h;
-    document.getElementById('multi-reason').value = reason;
-    document.getElementById('multi-p').value = p;
-    document.getElementById('multi-e').value = e;
-    document.getElementById('multi-popup').style.display = 'flex';
-}
-function closeMultiPopup() { document.getElementById('multi-popup').style.display = 'none'; }
-function checkAllMulti(s) { document.querySelectorAll('.multi-check').forEach(c => c.checked = s); }
-function applyMultiScores() {
-    const r = document.getElementById('multi-reason').value, p = parseInt(document.getElementById('multi-p').value)||0, e = parseInt(document.getElementById('multi-e').value)||0;
-    if(!r) return alert("사유 입력!");
-    const sel = []; document.querySelectorAll('.multi-check:checked').forEach(cb => sel.push(cb.dataset.name));
-    if(!sel.length) return alert("대상 선택!");
-    sel.forEach(name => addScore(name, p, e, r));
-    alert("지급 완료!"); closeMultiPopup();
-}
-
+// [핵심 엔진]
 function addScore(name, p, e, reason) {
     db.ref('users/' + name).once('value', sn => {
         const u = sn.val(); if (!u) return;
@@ -202,10 +178,32 @@ function addScore(name, p, e, reason) {
 }
 function updatePoint(n, a, r) { addScore(n, a, (a > 0 ? a : 0), r); }
 
-// --- [앱 시작 및 인증] ---
+// ⭐ [팝업 연결] 도감 클릭 시 일괄 지급창으로
+function openMultiPopup(reason = '', p = '', e = '') {
+    let h = "";
+    currentUsers.forEach(u => {
+        if(u.name === "총사령관") return;
+        h += `<div class="list-item" style="padding:10px;"><input type="checkbox" class="multi-check" data-name="${u.name}" style="width:30px; height:30px;"><span style="font-size:1.4rem; margin-left:10px;">${u.no||''}. ${u.name}</span></div>`;
+    });
+    document.getElementById('multi-list').innerHTML = h;
+    document.getElementById('multi-reason').value = reason;
+    document.getElementById('multi-p').value = p;
+    document.getElementById('multi-e').value = e;
+    document.getElementById('multi-popup').style.display = 'flex';
+}
+
+function applyMultiScores() {
+    const r = document.getElementById('multi-reason').value, p = parseInt(document.getElementById('multi-p').value)||0, e = parseInt(document.getElementById('multi-e').value)||0;
+    if(!r) return alert("사유 입력!");
+    const sel = []; document.querySelectorAll('.multi-check:checked').forEach(cb => sel.push(cb.dataset.name));
+    if(!sel.length) return alert("대상 선택!");
+    sel.forEach(name => addScore(name, p, e, r));
+    alert("지급 완료!"); closeMultiPopup();
+}
+
+// [초기화 및 데이터 바인딩]
 function startApp() {
     db.ref('settings').on('value', snap => { const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || []; document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`; });
-    
     db.ref('users').on('value', snap => {
         let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
         currentUsers = users.sort((a,b) => (a.no||99)-(b.no||99));
@@ -217,12 +215,10 @@ function startApp() {
         }
         renderCheckinBoard();
     });
-
     db.ref('pointGuide').on('value', snap => {
         let h = ""; snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})"><b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span></div>`; });
         document.getElementById('guide-list').innerHTML = h || "도감 비어있음";
     });
-
     db.ref('orders').on('value', snap => {
         let uH = "", wH = "", dH = "", adminH = "";
         snap.forEach(c => {
@@ -231,11 +227,13 @@ function startApp() {
             if(o.user === myName) { if(o.status === '대기') uH += card; else if(o.status === '사용요청') wH += card; else if(o.status === '완료') dH += card; }
             if((isAdmin || isHelper) && o.status === '사용요청') adminH += `<div class="list-item"><span>${o.user}: ${o.item}</span><button onclick="approveOrder('${c.key}')" style="background:var(--green); color:white; padding:10px;">승인</button></div>`;
         });
-        const uTarget = document.getElementById('inv-unused'); if(uTarget) uTarget.querySelector('.list').innerHTML = uH || "비어있음";
-        const wTarget = document.getElementById('inv-waiting'); if(wTarget) wTarget.querySelector('.list').innerHTML = wH || "비어있음";
-        const dTarget = document.getElementById('inv-done'); if(dTarget) dTarget.querySelector('.list').innerHTML = dH || "기록 없음";
-        const oTarget = document.getElementById('order-list'); if(oTarget) oTarget.innerHTML = adminH || "사용 요청 없음";
+        const targetUn = document.getElementById('inv-unused'); if(targetUn) targetUn.querySelector('.list').innerHTML = uH || "비어있음";
+        const targetWa = document.getElementById('inv-waiting'); if(targetWa) targetWa.querySelector('.list').innerHTML = wH || "비어있음";
+        const targetDo = document.getElementById('inv-done'); if(targetDo) targetDo.querySelector('.list').innerHTML = dH || "기록 없음";
+        const targetAd = document.getElementById('order-list'); if(targetAd) targetAd.innerHTML = adminH || "사용 요청 없음";
     });
+    const filter = document.getElementById('checkin-date-filter');
+    if(filter) filter.onchange = renderCheckinBoard;
 }
 
 auth.onAuthStateChanged(user => {
@@ -250,30 +248,40 @@ auth.onAuthStateChanged(user => {
                     if(isAdmin) { ['floating-point-btn','floating-multi-btn','btn-guide','btn-logs','btn-admin'].forEach(id=>document.getElementById(id).style.display = id.includes('btn')?'block':'flex'); document.querySelectorAll('#admin-shop-mgr, #admin-guide-mgr').forEach(el=>el.style.display='block'); }
                     if(isAdmin || isHelper) document.getElementById('admin-order-mgr').style.display='block';
                     startApp(); showTab(currentTab);
-                    if(document.getElementById('checkin-date-filter')) document.getElementById('checkin-date-filter').onchange = renderCheckinBoard;
                 });
             } else { alert("미등록!"); auth.signOut(); }
         });
     } else { document.getElementById('loading-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; document.getElementById('main-app').style.display = 'none'; }
 });
 
-// --- [보존된 나머지 함수들] ---
+// [기타 기능들 - 보존]
 function triggerLevelUpRoulette(un, lv) { if(!giftList.length) return; const res = giftList[Math.floor(Math.random() * giftList.length)]; db.ref('orders').push({ user: un, item: `[LV.${lv} 보상] ${res}`, status: '보상대기', time: new Date().toLocaleString() }); }
-function openUserHistory(un) { db.ref('users/'+un).once('value', sn => { const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`; if (isAdmin || un === myName) { db.ref('orders').once('value', osn => { let giftBtn = ""; osn.forEach(o => { const v = o.val(); if(v.user === un && v.status === '보상대기') giftBtn += `<button onclick="receiveGift('${o.key}', '${v.item}')" style="background:var(--purple); color:white; margin-bottom:10px;">🎁 레벨업 보상 받기</button>`; }); h = giftBtn + h; db.ref('pointLogs').once('value', lsn => { allLogs = []; lsn.forEach(l => { let log = l.val(); if(log.name === un) allLogs.push(log); }); allLogs.reverse().slice(0, 20).forEach(l => { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); openPopup(`${un} 용사 정보`, h); }); }); } else { h += `<div style="text-align:center; padding:30px; color:#888;">상세 기록은 본인만 열람 가능합니다.</div>`; openPopup(`${un} 용사 정보`, h); } }); }
-function receiveGift(key, item) { if(confirm(`${item}\n보상을 보관함에 넣을까요?`)) { db.ref('orders/' + key).update({ status: '대기' }).then(() => { alert("보관함(미사용)으로 이동되었습니다!"); closePopup(); }); } }
-function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ds = now.toISOString().split('T')[0], ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감되었습니다."); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:ds}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
-function renderHistory() { let h = ""; const target = document.getElementById('point-history-list'); if(!target) return; db.ref('pointLogs').limitToLast(50).once('value', snap => { let logs = []; snap.forEach(c => logs.push(c.val())); logs.reverse().forEach(l => { if(isAdmin || l.name === myName) { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; } }); target.innerHTML = h || "표시할 기록이 없습니다."; }); }
-async function buyItem(k, n, p, limit) { if(limit > 0) { const sn = await db.ref('orders').once('value'); let count = 0; sn.forEach(o => { if(o.val().user === myName && o.val().item === n && o.val().status !== '취소') count++; }); if(count >= limit) return alert("🚫 인당 " + limit + "개까지만 구매 가능합니다!"); } db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("포인트 부족!"); if(confirm(`[${n}] 구매하시겠습니까?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
-function approveOrder(k) { if(confirm("사용 승인하시겠습니까?")) db.ref('orders/'+k).update({status:'완료'}); }
-function requestUseCoupon(k,n) { if(confirm(`[${n}] 지금 사용 요청하시겠습니까?`)) db.ref('orders/'+k).update({status:'사용요청'}); }
-function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장 완료!"); }
-function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장 완료!"); }
+function openUserHistory(un) { db.ref('users/'+un).once('value', sn => { const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`; if (isAdmin || un === myName) { db.ref('orders').once('value', osn => { let giftBtn = ""; osn.forEach(o => { const v = o.val(); if(v.user === un && v.status === '보상대기') giftBtn += `<button onclick="receiveGift('${o.key}', '${v.item}')" style="background:var(--purple); color:white; margin-bottom:10px;">🎁 레벨업 보상 받기</button>`; }); h = giftBtn + h; db.ref('pointLogs').once('value', lsn => { let uL = []; lsn.forEach(l => { if(l.val().name === un) uL.push(l.val()); }); uL.reverse().slice(0, 20).forEach(l => { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); openPopup(`${un} 용사 정보`, h); }); }); } else { h += `<div style="text-align:center; padding:30px; color:#888;">본인만 열람 가능합니다.</div>`; openPopup(`${un} 용사 정보`, h); } }); }
+function receiveGift(key, item) { if(confirm(`${item}\n보관함에 넣을까요?`)) { db.ref('orders/' + key).update({ status: '대기' }).then(() => { alert("보관함 이동 완료!"); closePopup(); }); } }
+function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감!"); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:new Date().toLocaleDateString('sv-SE')}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
+async function buyItem(k, n, p, limit) { if(limit > 0) { const sn = await db.ref('orders').once('value'); let count = 0; sn.forEach(o => { if(o.val().user === myName && o.val().item === n && o.val().status !== '취소') count++; }); if(count >= limit) return alert("🚫 인당 " + limit + "개 한정!"); } db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("포인트 부족!"); if(confirm(`[${n}] 구매?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
+function approveOrder(k) { if(confirm("승인?")) db.ref('orders/'+k).update({status:'완료'}); }
+function requestUseCoupon(k,n) { if(confirm(`[${n}] 사용 요청?`)) db.ref('orders/'+k).update({status:'사용요청'}); }
+function saveSettings() { db.ref('settings').update({password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value}); alert("저장!"); }
+function saveGifts() { db.ref('settings').update({giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim())}); alert("저장!"); }
 function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
 function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
 function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("주입 완료!"); }
 function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
 function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
 function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
+function openPointBulkPopup(t='', p='', e='') {
+    let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유"><div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;"> E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;"></div><div style="display:flex; justify-content:flex-end; gap:5px;"><button onclick="toggleAllCheckboxes(true)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:5px;">전체 선택</button><button onclick="toggleAllCheckboxes(false)" style="width:auto; padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:5px;">해제</button></div></div>`;
+    currentUsers.forEach(u => { if(u.name!=="총사령관") h += `<div class="list-item" style="padding:10px 0;"><span><input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:25px; height:25px;"> <strong>${u.no||''}. ${u.name}</strong></span><span>P <input type="number" class="pop-bulk-p" value="${p}" style="width:65px; height:45px;"> E <input type="number" class="pop-bulk-e" value="${e}" style="width:65px; height:45px;"></span></div>`; });
+    document.getElementById('point-pop-body').innerHTML = h;
+    document.getElementById('point-apply-btn').onclick = () => {
+        const r = document.getElementById('pop-bulk-reason').value; if(!r) return alert("사유 입력!");
+        const cbs = document.querySelectorAll('.student-select'), ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e');
+        cbs.forEach((cb, i) => { if(cb.checked) addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r); });
+        closePointPopup();
+    };
+    document.getElementById('point-popup').style.display = 'flex';
+}
     </script>
 </body>
 </html>
