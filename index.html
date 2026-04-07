@@ -302,12 +302,17 @@
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ds = now.toISOString().split('T')[0], ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감되었습니다."); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:ds}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
-        // 📅 날짜 변경 시 바로 리스트 갱신되도록 이벤트 리스너 연결 (startApp 함수 안에 넣거나 스크립트 하단에 추가)
+        // 날짜 변경 시 즉시 반영되도록 이벤트 리스너 (기존에 없다면 추가)
 document.getElementById('checkin-date-filter').addEventListener('change', renderCheckinBoard);
 
 function renderCheckinBoard() {
-    // 1. 선택된 날짜 가져오기 (날짜를 바꿀 때마다 이 값을 새로 읽음)
-    const td = document.getElementById('checkin-date-filter').value || new Date().toISOString().split('T')[0];
+    // 1. 한국 시간 기준 오늘 날짜 구하기 (ISO 8601 보정)
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const kstDate = new Date(now.getTime() - offset).toISOString().split('T')[0];
+    
+    // 2. 선택된 날짜 가져오기 (없으면 보정된 오늘 날짜 사용)
+    const td = document.getElementById('checkin-date-filter').value || kstDate;
     
     db.ref('checkinLogs').once('value', snap => {
         const logs = {};
@@ -316,38 +321,40 @@ function renderCheckinBoard() {
             if(l.date === td) logs[l.name] = l; 
         });
         
-        let h = `<div style="margin-bottom:20px; font-weight:bold; font-size:1.6rem; text-align:center; border-bottom:2px solid var(--dark); padding-bottom:10px;">📌 [${td}] 등교 용사 명부</div>`;
+        let h = `<div style="margin-bottom:20px; font-weight:bold; font-size:1.7rem; text-align:center; border-bottom:3px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
         
         currentUsers.forEach(u => {
             if(u.name === "총사령관") return;
             const log = logs[u.name];
             
-            // ⭐ 상태별 형광펜 색상 정의
-            let bgColor = "rgba(241, 196, 15, 0.15)"; // 미등교 (연한 노랑)
+            // ⭐ 상태별 전체 배경색(형광펜) 및 텍스트 설정
+            let bgColor = "#fdfd96"; // 미등교 (노랑 형광펜)
             let statusText = "🚩 미등교";
-            let textColor = "#967117";
+            let textColor = "#856404";
+            let opacity = "0.6"; // 미등교는 살짝 흐리게
 
             if(log) {
+                opacity = "1";
                 if(log.result.includes('정상')) {
-                    bgColor = "rgba(46, 204, 113, 0.2)"; // 정상 (연한 초록)
+                    bgColor = "#98fb98"; // 정상 (연초록 형광펜)
                     statusText = "⚔️ 정상 등교";
-                    textColor = "#1e8449";
+                    textColor = "#155724";
                 } else {
-                    bgColor = "rgba(231, 76, 60, 0.15)"; // 지각 (연한 빨강)
+                    bgColor = "#ffcccb"; // 지각 (연분홍 형광펜)
                     statusText = "⚠️ " + log.result;
-                    textColor = "#c0392b";
+                    textColor = "#721c24";
                 }
             }
 
-            // ⭐ div 전체에 배경색(bgColor)을 입혀서 '칸 전체 형광펜' 효과 구현
+            // ⭐ 칸 전체(div)에 background-color를 줘서 형광펜 효과 확실히 적용
             h += `
-            <div class="checkin-item" style="display:flex; align-items:center; justify-content:center; padding:18px; border-bottom:2px solid #fff; font-size:1.5rem; background-color:${bgColor};">
-                <span style="width:50px; text-align:right; margin-right:15px; color:#666; font-weight:bold;">${u.no||''}</span>
-                <span style="width:110px; font-weight:bold; text-align:left;">${u.name}</span>
-                <span style="flex:1; text-align:center; font-weight:bold; color:${textColor};">
+            <div style="display:flex; align-items:center; justify-content:center; padding:20px; margin-bottom:8px; border-radius:15px; font-size:1.6rem; background-color:${bgColor}; opacity:${opacity}; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                <span style="width:50px; text-align:right; margin-right:20px; color:rgba(0,0,0,0.4); font-weight:bold;">${u.no||''}</span>
+                <span style="width:120px; font-weight:bold; text-align:left; color:#333;">${u.name}</span>
+                <span style="flex:1; text-align:center; font-weight:bold; color:${textColor}; letter-spacing:-1px;">
                     ${statusText}
                 </span>
-                <span style="width:120px; text-align:right; font-size:1.2rem; color:#666; font-weight:normal;">${log?.time || '-'}</span>
+                <span style="width:130px; text-align:right; font-size:1.3rem; color:rgba(0,0,0,0.5); font-weight:normal;">${log?.time || '-'}</span>
             </div>`;
         });
         
