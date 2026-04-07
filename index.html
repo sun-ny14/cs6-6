@@ -303,15 +303,16 @@
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ds = now.toISOString().split('T')[0], ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감되었습니다."); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:ds}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
         // 날짜 변경 시 즉시 반영되도록 이벤트 리스너 (기존에 없다면 추가)
-document.getElementById('checkin-date-filter').addEventListener('change', renderCheckinBoard);
+// 날짜 변경 시 즉시 반영 (중복 선언 방지 확인)
+if(document.getElementById('checkin-date-filter')) {
+    document.getElementById('checkin-date-filter').onchange = renderCheckinBoard;
+}
 
 function renderCheckinBoard() {
-    // 1. 한국 시간 기준 오늘 날짜 구하기 (ISO 8601 보정)
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    const kstDate = new Date(now.getTime() - offset).toISOString().split('T')[0];
+    // 1. 한국 표준시(KST)로 '오늘' 날짜를 yyyy-mm-dd 형식으로 정확히 추출
+    const kstDate = new Date().toLocaleDateString('sv-SE'); // sv-SE 포맷은 yyyy-mm-dd를 반환함
     
-    // 2. 선택된 날짜 가져오기 (없으면 보정된 오늘 날짜 사용)
+    // 2. 필터에서 선택된 날짜가 있으면 쓰고, 없으면 오늘 날짜 사용
     const td = document.getElementById('checkin-date-filter').value || kstDate;
     
     db.ref('checkinLogs').once('value', snap => {
@@ -321,40 +322,40 @@ function renderCheckinBoard() {
             if(l.date === td) logs[l.name] = l; 
         });
         
-        let h = `<div style="margin-bottom:20px; font-weight:bold; font-size:1.7rem; text-align:center; border-bottom:3px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
+        let h = `<div style="margin-bottom:20px; font-weight:bold; font-size:1.8rem; text-align:center; border-bottom:4px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
         
         currentUsers.forEach(u => {
             if(u.name === "총사령관") return;
             const log = logs[u.name];
             
-            // ⭐ 상태별 전체 배경색(형광펜) 및 텍스트 설정
-            let bgColor = "#fdfd96"; // 미등교 (노랑 형광펜)
+            // ⭐ 상태별 칸 전체 배경색 (더 진한 형광펜 효과)
+            let bgColor = "#ffff00"; // 미등교: 아주 진한 노랑 (강조)
             let statusText = "🚩 미등교";
-            let textColor = "#856404";
-            let opacity = "0.6"; // 미등교는 살짝 흐리게
+            let textColor = "#000"; // 글씨도 아주 진하게
+            let fontWeight = "900"; // 미등교는 더 굵게
 
             if(log) {
-                opacity = "1";
+                fontWeight = "bold";
                 if(log.result.includes('정상')) {
-                    bgColor = "#98fb98"; // 정상 (연초록 형광펜)
+                    bgColor = "#a2fca2"; // 정상: 진한 연두
                     statusText = "⚔️ 정상 등교";
-                    textColor = "#155724";
+                    textColor = "#0b511d";
                 } else {
-                    bgColor = "#ffcccb"; // 지각 (연분홍 형광펜)
+                    bgColor = "#ffadad"; // 지각: 진한 분홍
                     statusText = "⚠️ " + log.result;
-                    textColor = "#721c24";
+                    textColor = "#7e121a";
                 }
             }
 
-            // ⭐ 칸 전체(div)에 background-color를 줘서 형광펜 효과 확실히 적용
+            // ⭐ 투명도(opacity) 제거하고 박스 전체에 진한 배경색 적용
             h += `
-            <div style="display:flex; align-items:center; justify-content:center; padding:20px; margin-bottom:8px; border-radius:15px; font-size:1.6rem; background-color:${bgColor}; opacity:${opacity}; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                <span style="width:50px; text-align:right; margin-right:20px; color:rgba(0,0,0,0.4); font-weight:bold;">${u.no||''}</span>
-                <span style="width:120px; font-weight:bold; text-align:left; color:#333;">${u.name}</span>
-                <span style="flex:1; text-align:center; font-weight:bold; color:${textColor}; letter-spacing:-1px;">
+            <div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1); box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                <span style="width:50px; text-align:right; margin-right:20px; color:rgba(0,0,0,0.5); font-weight:bold;">${u.no||''}</span>
+                <span style="width:120px; font-weight:bold; text-align:left; color:#000;">${u.name}</span>
+                <span style="flex:1; text-align:center; font-weight:${fontWeight}; color:${textColor}; text-shadow: 0.5px 0.5px 0px rgba(255,255,255,0.5);">
                     ${statusText}
                 </span>
-                <span style="width:130px; text-align:right; font-size:1.3rem; color:rgba(0,0,0,0.5); font-weight:normal;">${log?.time || '-'}</span>
+                <span style="width:130px; text-align:right; font-size:1.3rem; color:rgba(0,0,0,0.6); font-weight:normal;">${log?.time || '-'}</span>
             </div>`;
         });
         
