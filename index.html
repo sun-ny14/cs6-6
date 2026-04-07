@@ -115,7 +115,7 @@
     </div>
 
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", authDomain: "cs6-6class.firebaseapp.com", databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", projectId: "cs6-6class", storageBucket: "cs6-6class.firebasestorage.app", messagingSenderId: "644235499537", appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" };
+       const firebaseConfig = { apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", authDomain: "cs6-6class.firebaseapp.com", databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", projectId: "cs6-6class", storageBucket: "cs6-6class.firebasestorage.app", messagingSenderId: "644235499537", appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" };
 const adminEmail = "ksosuny@cberi.go.kr"; 
 firebase.initializeApp(firebaseConfig); 
 const db = firebase.database(); 
@@ -125,20 +125,19 @@ const provider = new firebase.auth.GoogleAuthProvider();
 let myName = "", isAdmin = false, isHelper = false, currentUsers = [], allLogs = [], routineItems = [], giftList = [], rIdx = 0;
 let currentTab = sessionStorage.getItem('activeTab') || 'main';
 
-// 1. 기초 유틸리티 함수들
+// --- [보존된 핵심 로직들] ---
 function getAvatar(lv) { let c = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1"; return `<div class="pixel-avatar ${c}"></div>`; }
 function handleLogin() { auth.signInWithPopup(provider); }
 function showTab(t) { currentTab = t; sessionStorage.setItem('activeTab', t); document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); }
 function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
 function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else document.getElementById('common-overlay').style.display='none'; }
 function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
-function toggleAllCheckboxes(status) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = status); }
-function applyToAll(type) { const val = document.getElementById('all-' + type + '-input').value; document.querySelectorAll('.pop-bulk-' + type).forEach(i => i.value = val); }
 
-// 2. 등교 기록부 렌더링 (한국 시간 보정 및 형광펜 효과)
+// ⭐ 등교 기록부 렌더링 (보정된 날짜 + 칸 전체 형광펜)
 function renderCheckinBoard() {
     const kstDate = new Date().toLocaleDateString('sv-SE');
-    const td = document.getElementById('checkin-date-filter').value || kstDate;
+    const filterEl = document.getElementById('checkin-date-filter');
+    const td = (filterEl && filterEl.value) ? filterEl.value : kstDate;
     
     db.ref('checkinLogs').once('value', snap => {
         const logs = {};
@@ -149,13 +148,11 @@ function renderCheckinBoard() {
             if(u.name === "총사령관") return;
             const log = logs[u.name];
             let bgColor = "#ffff00", statusText = "🚩 미등교", textColor = "#000", fontWeight = "900";
-
             if(log) {
                 fontWeight = "bold";
                 if(log.result.includes('정상')) { bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; textColor = "#0b511d"; }
                 else { bgColor = "#ffadad"; statusText = "⚠️ " + log.result; textColor = "#7e121a"; }
             }
-
             h += `<div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1); box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
                     <span style="width:50px; text-align:right; margin-right:20px; color:rgba(0,0,0,0.5); font-weight:bold;">${u.no||''}</span>
                     <span style="width:120px; font-weight:bold; text-align:left; color:#000;">${u.name}</span>
@@ -163,24 +160,12 @@ function renderCheckinBoard() {
                     <span style="width:130px; text-align:right; font-size:1.3rem; color:rgba(0,0,0,0.6);">${log?.time || '-'}</span>
                 </div>`;
         });
-        document.getElementById('checkin-history').innerHTML = h;
+        const target = document.getElementById('checkin-history');
+        if(target) target.innerHTML = h;
     });
 }
 
-// 3. 포인트 엔진 및 팝업 제어
-function addScore(name, p, e, reason) {
-    db.ref('users/' + name).once('value', sn => {
-        const u = sn.val(); if (!u) return;
-        let nP = (parseInt(u.points) || 0) + parseInt(p), nE = (parseInt(u.exp) || 0) + parseInt(e), nL = (parseInt(u.lv) || 1), up = false;
-        while (nE >= 100) { nL++; nE -= 100; up = true; }
-        db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL }).then(() => {
-            db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString() });
-            if (up) triggerLevelUpRoulette(name, nL);
-        });
-    });
-}
-function updatePoint(n, a, r) { addScore(n, a, (a > 0 ? a : 0), r); }
-
+// ⭐ 포인트 일괄 지급창 (도감에서 바로 연결)
 function openMultiPopup(reason = '', p = '', e = '') {
     let h = "";
     currentUsers.forEach(u => {
@@ -204,7 +189,20 @@ function applyMultiScores() {
     alert("지급 완료!"); closeMultiPopup();
 }
 
-// 4. 앱 시작 및 데이터 바인딩
+function addScore(name, p, e, reason) {
+    db.ref('users/' + name).once('value', sn => {
+        const u = sn.val(); if (!u) return;
+        let nP = (parseInt(u.points) || 0) + parseInt(p), nE = (parseInt(u.exp) || 0) + parseInt(e), nL = (parseInt(u.lv) || 1), up = false;
+        while (nE >= 100) { nL++; nE -= 100; up = true; }
+        db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL }).then(() => {
+            db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString() });
+            if (up) triggerLevelUpRoulette(name, nL);
+        });
+    });
+}
+function updatePoint(n, a, r) { addScore(n, a, (a > 0 ? a : 0), r); }
+
+// --- [앱 시작 및 인증] ---
 function startApp() {
     db.ref('settings').on('value', snap => { const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || []; document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`; });
     
@@ -225,13 +223,21 @@ function startApp() {
         document.getElementById('guide-list').innerHTML = h || "도감 비어있음";
     });
 
-    // 날짜 필터 이벤트 연결
-    if(document.getElementById('checkin-date-filter')) {
-        document.getElementById('checkin-date-filter').onchange = renderCheckinBoard;
-    }
+    db.ref('orders').on('value', snap => {
+        let uH = "", wH = "", dH = "", adminH = "";
+        snap.forEach(c => {
+            const o = c.val();
+            const card = `<div class="coupon-card ${o.status === '대기' ? 'unused' : (o.status === '사용요청' ? 'waiting' : 'done')}"><span>${o.item}<br><small>${o.time}</small></span>${o.status === '대기' ? `<button onclick="requestUseCoupon('${c.key}','${o.item}')" style="background:var(--purple); color:white; padding:8px 15px;">사용하기</button>` : `<span style="font-weight:bold; color:${o.status === '사용요청' ? 'var(--red)' : '#888'}">${o.status}</span>`}</div>`;
+            if(o.user === myName) { if(o.status === '대기') uH += card; else if(o.status === '사용요청') wH += card; else if(o.status === '완료') dH += card; }
+            if((isAdmin || isHelper) && o.status === '사용요청') adminH += `<div class="list-item"><span>${o.user}: ${o.item}</span><button onclick="approveOrder('${c.key}')" style="background:var(--green); color:white; padding:10px;">승인</button></div>`;
+        });
+        const uTarget = document.getElementById('inv-unused'); if(uTarget) uTarget.querySelector('.list').innerHTML = uH || "비어있음";
+        const wTarget = document.getElementById('inv-waiting'); if(wTarget) wTarget.querySelector('.list').innerHTML = wH || "비어있음";
+        const dTarget = document.getElementById('inv-done'); if(dTarget) dTarget.querySelector('.list').innerHTML = dH || "기록 없음";
+        const oTarget = document.getElementById('order-list'); if(oTarget) oTarget.innerHTML = adminH || "사용 요청 없음";
+    });
 }
 
-// 초기 인증 및 실행 (Hoisting 방지를 위해 마지막에 배치)
 auth.onAuthStateChanged(user => {
     if (user) {
         isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
@@ -244,18 +250,19 @@ auth.onAuthStateChanged(user => {
                     if(isAdmin) { ['floating-point-btn','floating-multi-btn','btn-guide','btn-logs','btn-admin'].forEach(id=>document.getElementById(id).style.display = id.includes('btn')?'block':'flex'); document.querySelectorAll('#admin-shop-mgr, #admin-guide-mgr').forEach(el=>el.style.display='block'); }
                     if(isAdmin || isHelper) document.getElementById('admin-order-mgr').style.display='block';
                     startApp(); showTab(currentTab);
+                    if(document.getElementById('checkin-date-filter')) document.getElementById('checkin-date-filter').onchange = renderCheckinBoard;
                 });
             } else { alert("미등록!"); auth.signOut(); }
         });
     } else { document.getElementById('loading-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; document.getElementById('main-app').style.display = 'none'; }
 });
 
-/* --- 원본 나머지 로직 (지각, 상점 등 보존) --- */
+// --- [보존된 나머지 함수들] ---
 function triggerLevelUpRoulette(un, lv) { if(!giftList.length) return; const res = giftList[Math.floor(Math.random() * giftList.length)]; db.ref('orders').push({ user: un, item: `[LV.${lv} 보상] ${res}`, status: '보상대기', time: new Date().toLocaleString() }); }
-function openUserHistory(un) { db.ref('users/'+un).once('value', sn => { const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`; if (isAdmin || un === myName) { db.ref('orders').once('value', osn => { let giftBtn = ""; osn.forEach(o => { const v = o.val(); if(v.user === un && v.status === '보상대기') giftBtn += `<button onclick="receiveGift('${o.key}', '${v.item}')" style="background:var(--purple); color:white; margin-bottom:10px;">🎁 레벨업 보상 받기</button>`; }); h = giftBtn + h; allLogs.filter(l => l.name === un).reverse().slice(0, 20).forEach(l => { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); openPopup(`${un} 용사 정보`, h); }); } else { h += `<div style="text-align:center; padding:30px; color:#888;">상세 기록은 본인만 열람 가능합니다.</div>`; openPopup(`${un} 용사 정보`, h); } }); }
+function openUserHistory(un) { db.ref('users/'+un).once('value', sn => { const u = sn.val(), exp = u.exp||0, lv = u.lv||1, pts = u.points||0; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold; margin-top:5px;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`; if (isAdmin || un === myName) { db.ref('orders').once('value', osn => { let giftBtn = ""; osn.forEach(o => { const v = o.val(); if(v.user === un && v.status === '보상대기') giftBtn += `<button onclick="receiveGift('${o.key}', '${v.item}')" style="background:var(--purple); color:white; margin-bottom:10px;">🎁 레벨업 보상 받기</button>`; }); h = giftBtn + h; db.ref('pointLogs').once('value', lsn => { allLogs = []; lsn.forEach(l => { let log = l.val(); if(log.name === un) allLogs.push(log); }); allLogs.reverse().slice(0, 20).forEach(l => { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; }); openPopup(`${un} 용사 정보`, h); }); }); } else { h += `<div style="text-align:center; padding:30px; color:#888;">상세 기록은 본인만 열람 가능합니다.</div>`; openPopup(`${un} 용사 정보`, h); } }); }
 function receiveGift(key, item) { if(confirm(`${item}\n보상을 보관함에 넣을까요?`)) { db.ref('orders/' + key).update({ status: '대기' }).then(() => { alert("보관함(미사용)으로 이동되었습니다!"); closePopup(); }); } }
 function submitCheckIn() { const pw = document.getElementById('checkin-pass').value, now = new Date(), ds = now.toISOString().split('T')[0], ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0'); db.ref('settings').once('value', sn => { const s = sn.val(); if(pw !== s.password) return alert("암호 오류!"); let res = "정상 등교", p = 0; if(ct > s.closeTime) return alert("마감되었습니다."); if(ct > s.lateTime) { const [lh, lm] = s.lateTime.split(':').map(Number); const diff = (now.getHours()*60+now.getMinutes())-(lh*60+lm); p = -diff; res = `지각(${diff}분)`; } updatePoint(myName, p, res); db.ref('checkinLogs').push({name:myName, result:res, time:now.toLocaleTimeString(), date:ds}); rIdx = 0; if(routineItems.length) openPopup("✨ 성공", `[루틴 1단계]\n${routineItems[0]}`, true); else alert("등교 완료!"); document.getElementById('checkin-pass').value = ""; }); }
-function renderHistory() { let h = ""; const target = document.getElementById('point-history-list'); if(!target) return; [...allLogs].reverse().slice(0, 50).forEach(l => { if(isAdmin || l.name === myName) { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; } }); target.innerHTML = h || "표시할 기록이 없습니다."; }
+function renderHistory() { let h = ""; const target = document.getElementById('point-history-list'); if(!target) return; db.ref('pointLogs').limitToLast(50).once('value', snap => { let logs = []; snap.forEach(c => logs.push(c.val())); logs.reverse().forEach(l => { if(isAdmin || l.name === myName) { const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888"); h += `<div class="list-item" style="border-left:10px solid ${color};"><span><strong>${l.name}</strong>: ${l.reason} <small style="color:#888;">(${l.time})</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; } }); target.innerHTML = h || "표시할 기록이 없습니다."; }); }
 async function buyItem(k, n, p, limit) { if(limit > 0) { const sn = await db.ref('orders').once('value'); let count = 0; sn.forEach(o => { if(o.val().user === myName && o.val().item === n && o.val().status !== '취소') count++; }); if(count >= limit) return alert("🚫 인당 " + limit + "개까지만 구매 가능합니다!"); } db.ref('users/'+myName).once('value', sn => { if((sn.val().points||0) < p) return alert("포인트 부족!"); if(confirm(`[${n}] 구매하시겠습니까?`)) { updatePoint(myName, -p, n + " 구매"); db.ref('orders').push({user:myName, item:n, status:'대기', time:new Date().toLocaleString()}); } }); }
 function approveOrder(k) { if(confirm("사용 승인하시겠습니까?")) db.ref('orders/'+k).update({status:'완료'}); }
 function requestUseCoupon(k,n) { if(confirm(`[${n}] 지금 사용 요청하시겠습니까?`)) db.ref('orders/'+k).update({status:'사용요청'}); }
