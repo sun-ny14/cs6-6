@@ -192,21 +192,52 @@ function startApp() {
             h += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openUserHistory('${u.name}')"><span class="card-avatar">${getAvatar(u.lv||1)}</span><b>LV.${u.lv||1} ${u.name}${roleTag}</b><br>${u.points||0}P</div>`; 
         });
         document.getElementById('hero-grid').innerHTML = h;
-        if(isAdmin) {
-            let aH = ""; currentUsers.forEach(u => { if(u.name!=="총사령관") aH += `<div class="list-item" style="padding:20px;"><input type="number" value="${u.no||''}" onchange="updateNo('${u.name}', this.value)" style="width:70px; height:50px; margin:0; text-align:center; border:2px solid var(--primary);"><span style="flex:1; margin-left:15px;"><strong>${u.name}</strong></span><div><button onclick="toggleHelper('${u.name}',${u.isHelper||false})">권한</button><button onclick="delUser('${u.name}')" style="background:var(--red); color:white;">제거</button></div></div>`; });
+
+        // 🛡️ 관리자 전용 명단 관리 (이름 크게, 권한 옆으로, 제거 오른쪽 끝)
+        if (isAdmin) {
+            let aH = "";
+            currentUsers.forEach(u => {
+                if (u.name === "총사령관") return;
+                aH += `
+                <div class="list-item" style="padding:15px; background:#fff; border-bottom:2px solid #eee; display:flex; align-items:center; gap:10px;">
+                    <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:60px; height:50px; margin:0; text-align:center; flex-shrink:0;">
+                    <div style="flex:1; display:flex; align-items:center; gap:12px;">
+                        <strong style="font-size:1.8rem; min-width:90px;">${u.name}</strong>
+                        <button onclick="toggleHelper('${u.name}',${u.isHelper || false})" style="width:auto; padding:8px 15px; margin:0; font-size:1.1rem; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border:none; border-radius:8px; cursor:pointer;">
+                            ${u.isHelper ? '도우미' : '일반'}
+                        </button>
+                    </div>
+                    <button onclick="delUser('${u.name}')" style="width:auto; padding:8px 15px; margin:0; background:var(--red); color:white; border:none; border-radius:8px; font-size:1.1rem; flex-shrink:0; cursor:pointer;">
+                        제거
+                    </button>
+                </div>`;
+            });
             document.getElementById('student-admin-list').innerHTML = aH;
         }
         renderCheckinBoard();
     });
+
+    // 🛍️ 상점 로직 (기능 보존)
     db.ref('shop').on('value', snap => {
-        let h = ""; snap.forEach(c => { const i = c.val(); 
-            let btns = isAdmin ? `<div style="display:flex; gap:5px;"><button onclick="editItem('${c.key}', '${i.name}', ${i.price}, ${i.limit||0})" style="width:auto; padding:8px 12px; background:var(--purple); color:white; border:none; border-radius:8px;">수정</button><button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; padding:8px 12px; background:var(--red); color:white; border:none; border-radius:8px;">삭제</button></div>` : `<button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:8px;">구매</button>`;
-            h += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)</span><div>${btns}</div></div>`; 
+        let h = "";
+        snap.forEach(c => {
+            const i = c.val();
+            let btns = isAdmin ? `<div style="display:flex; gap:5px;"><button onclick="editItem('${c.key}', '${i.name}', ${i.price}, ${i.limit || 0})" style="width:auto; padding:8px 12px; background:var(--purple); color:white; border:none; border-radius:8px;">수정</button><button onclick="deleteItem('${c.key}', '${i.name}')" style="width:auto; padding:8px 12px; background:var(--red); color:white; border:none; border-radius:8px;">삭제</button></div>` : `<button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit || 0})" style="width:auto; padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:8px;">구매</button>`;
+            h += `<div class="list-item"><span>[${i.cat || '✨'}] ${i.name} (${i.price}P)</span><div>${btns}</div></div>`;
         });
         document.getElementById('shop-list').innerHTML = h;
     });
+
+    // 📜 도감 로직 (클릭 시 일괄지급창 연결)
     db.ref('pointGuide').on('value', snap => {
-        let h = ""; snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})"><b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span></div>`; });
+        let h = "";
+        snap.forEach(c => {
+            const g = c.val();
+            h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})">
+                    <b>${g.title}</b><br>
+                    <span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span>
+                  </div>`;
+        });
         document.getElementById('guide-list').innerHTML = h || "도감 비어있음";
     });
     db.ref('orders').on('value', snap => {
