@@ -11,7 +11,6 @@
         :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; --bg: #ecf0f1; }
         body { font-family: 'Pretendard', sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; font-size: 1.4rem; }
         input, button, textarea, select { width: 100%; padding: 18px; margin: 10px 0; border-radius: 12px; border: 2px solid #ccc; box-sizing: border-box; font-size: 1.4rem; }
-        input[type="number"] { padding: 10px; text-align: center; font-weight: bold; }
         #loading-screen { display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); color: white; z-index: 3000; font-size: 1.8rem; }
         #login-screen { display: none; justify-content: center; align-items: center; min-height: 100vh; background: var(--dark); padding: 20px; }
         .login-box { background: white; padding: 50px 40px; border-radius: 30px; text-align: center; width: 100%; max-width: 450px; }
@@ -32,7 +31,6 @@
         #pop-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 5px; border-top: 1px solid #eee; }
         .floating-btn { position: fixed; bottom: 25px; width: 85px; height: 85px; border-radius: 45px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
         #floating-point-btn { right: 25px; background: var(--gold); color: var(--dark); }
-        #floating-multi-btn { right: 120px; background: #2ecc71; color: white; }
         .pixel-avatar { width: 64px; height: 64px; background: url('avatars.png') no-repeat; background-size: 384px 64px; display: inline-block; image-rendering: pixelated; vertical-align: middle; }
     </style>
 </head>
@@ -42,26 +40,12 @@
     
     <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title" style="margin-top:0; text-align:center;">⚖️ 포인트 전령</h2><div id="point-pop-body" style="overflow-y:auto; flex:1;"></div><div style="display:flex; gap:15px; margin-top:20px;"><button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px;">닫기</button><button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px;">반영하기</button></div></div></div>
 
-    <div id="multi-popup" class="overlay">
-        <div class="popup-box">
-            <h2 style="text-align:center; margin-top:0;">📋 일괄 지급</h2>
-            <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px;">
-                <input type="text" id="multi-reason" placeholder="사유">
-                <div style="display:flex; gap:10px;"><input type="number" id="multi-p" placeholder="P"><input type="number" id="multi-e" placeholder="E"></div>
-                <div style="display:flex; justify-content:space-between; margin-top:10px;"><button onclick="checkAllMulti(true)" style="width:48%; background:var(--dark); color:white; padding:10px;">전체 선택</button><button onclick="checkAllMulti(false)" style="width:48%; background:#95a5a6; color:white; padding:10px;">해제</button></div>
-            </div>
-            <div id="multi-list" style="flex:1; overflow-y:auto; border:1px solid #ddd; border-radius:10px; padding:5px;"></div>
-            <div style="display:flex; gap:10px; margin-top:20px;"><button onclick="closeMultiPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:18px;">취소</button><button onclick="applyMultiScores()" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:18px;">지급 완료</button></div>
-        </div>
-    </div>
-
     <div id="login-screen"><div class="login-box"><h1>🏰 6-6 본부</h1><button onclick="handleLogin()" style="background:#4285F4; color:white; border:none; border-radius:15px; padding:20px;">Google 로그인</button></div></div>
 
     <div id="main-app">
         <nav class="tab-menu">
             <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
             <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
-            <button id="btn-guide" style="display:none;" onclick="showTab('guide')">📜 도감</button>
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
             <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
             <button id="btn-points" onclick="showTab('points')">💰 연대기</button>
@@ -72,47 +56,41 @@
         <section id="tab-shop" class="tab-content">
             <div id="admin-shop-mgr" class="card" style="display:none; border:3px solid var(--purple);">
                 <h3>📦 물품 등록</h3>
-                <select id="item-cat-in"><option value="🍕 먹거리">🍕 먹거리</option><option value="🎫 쿠폰">🎫 쿠폰</option><option value="🎲 뽑기">🎲 뽑기</option><option value="✏️ 학용품">✏️ 학용품</option><option value="✨ 기타">✨ 기타</option></select>
-                <input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격(P)"><input type="number" id="item-limit-in" placeholder="인당 제한(0:무제한)">
-                <button onclick="addItem()" style="background:var(--purple); color:white; border:none; border-radius:12px;">진열</button>
+                <input type="text" id="item-name-in" placeholder="상품명"><input type="number" id="item-price-in" placeholder="가격(P)"><input type="number" id="item-limit-in" placeholder="인당 제한">
+                <button onclick="addItem()" style="background:var(--purple); color:white;">진열</button>
             </div>
             <div class="card"><h2>🛍️ 용사 보급소</h2><div id="shop-list"></div></div>
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 승인</h3><div id="order-list"></div></div>
         </section>
-        <section id="tab-guide" class="tab-content">
-            <div id="admin-guide-mgr" class="card" style="display:none;"><input type="text" id="guide-title" placeholder="항목"><input type="number" id="guide-p" placeholder="P"><input type="number" id="guide-e" placeholder="E"><button onclick="addGuide()" style="background:var(--primary); color:white; border:none; border-radius:12px;">등록</button></div>
-            <div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div>
-        </section>
-        <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
+
+        <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="background:var(--primary); color:white; padding:20px;">본부 소환!</button></div></section>
+        
         <section id="tab-logs" class="tab-content"><div class="card"><h2>📅 등교 기록부</h2><div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;"><span style="font-weight:bold;">날짜 선택:</span><input type="date" id="checkin-date-filter" style="flex:1; padding:10px;"></div><div id="checkin-history" style="width:100%;"></div></div></section>
+
         <section id="tab-points" class="tab-content">
-            <div id="my-inventory" class="card">
-                <h3>🎁 나의 인벤토리</h3>
-                <div id="inv-unused" class="inv-section"><h4>📦 미사용 보관함</h4><div class="list"></div></div>
-                <div id="inv-waiting" class="inv-section"><h4>⏳ 사용 대기중</h4><div class="list"></div></div>
+            <div id="my-status-card" class="card" style="text-align:center; background:var(--dark); color:white;">
+                <h2 id="my-name-display">용사 정보 로딩중...</h2>
+                <div id="my-stats-display" style="font-size:1.8rem; margin:15px 0; color:var(--gold); font-weight:bold;"></div>
+                <div style="background:#444; height:15px; border-radius:10px; overflow:hidden;"><div id="my-exp-bar" style="background:var(--primary); width:0%; height:100%;"></div></div>
             </div>
-            <div class="card"><h3>📜 나의 포인트 연대기</h3><div id="point-history-list"></div></div>
+            <div class="card"><h3>📜 나의 포인트 연대기</h3><div id="my-point-history"></div></div>
+            <div id="my-inventory" class="card"><h3>🎁 나의 인벤토리</h3><div id="inv-unused" class="inv-section"><h4>📦 미사용 보관함</h4><div class="list"></div></div><div id="inv-waiting" class="inv-section"><h4>⏳ 사용 대기중</h4><div class="list"></div></div></div>
         </section>
+
         <section id="tab-admin" class="tab-content">
-            <div class="card"><h3>👥 명단 관리 (번호/권한)</h3><div id="student-admin-list"></div></div>
-            <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 
-                루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveSettings()">시스템 저장</button></div>
-            <div class="card"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4"></textarea><button onclick="saveGifts()">보상 저장</button></div>
+            <div class="card"><h3>👥 명단 관리</h3><div id="student-admin-list"></div></div>
+            <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveSettings()">저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
         <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
-        <button id="floating-multi-btn" class="floating-btn" onclick="openMultiPopup()">📋</button>
     </div>
 
     <script>
         const firebaseConfig = { apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", authDomain: "cs6-6class.firebaseapp.com", databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", projectId: "cs6-6class", storageBucket: "cs6-6class.firebasestorage.app", messagingSenderId: "644235499537", appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" };
         const adminEmail = "ksosuny@cberi.go.kr"; 
-        firebase.initializeApp(firebaseConfig); 
-        const db = firebase.database(); 
-        const auth = firebase.auth(); 
-        const provider = new firebase.auth.GoogleAuthProvider();
+        firebase.initializeApp(firebaseConfig); const db = firebase.database(); const auth = firebase.auth(); const provider = new firebase.auth.GoogleAuthProvider();
 
-        let myName = "", isAdmin = false, isHelper = false, currentUsers = [], routineItems = [], giftList = [], rIdx = 0;
+        let myName = "", isAdmin = false, currentUsers = [], routineItems = [], rIdx = 0;
         let currentTab = sessionStorage.getItem('activeTab') || 'main';
 
         function getTodayKST() { const now = new Date(); const krTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); return krTime.getUTCFullYear() + "-" + String(krTime.getUTCMonth() + 1).padStart(2, '0') + "-" + String(krTime.getUTCDate()).padStart(2, '0'); }
@@ -132,14 +110,13 @@
             document.getElementById('tab-'+t).classList.add('active'); 
             if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); 
             if(t==='points') loadMyLogs(); 
-            if(t==='logs') renderCheckinBoard();
+            if(t==='logs') renderCheckinBoard(); 
         }
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
         function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else { document.getElementById('common-overlay').style.display='none'; rIdx = 0; } }
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
-        function closeMultiPopup() { document.getElementById('multi-popup').style.display = 'none'; }
 
-        // [버전 4.6 이식] 등교기록부 명부 렌더링
+        // [4.6 기반] 등교기록부 렌더링
         function renderCheckinBoard() {
             const td = document.getElementById('checkin-date-filter').value || getTodayKST();
             db.ref('checkinLogs').once('value', snap => {
@@ -151,7 +128,7 @@
                     if(log) { if(log.result.includes('정상')) { bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; } else { bgColor = "#ffadad"; statusText = "⚠️ " + log.result; } }
                     h += `<div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1);"><span style="width:50px; text-align:right; margin-right:20px; font-weight:bold;">${u.no||''}</span><span style="width:120px; font-weight:bold;">${u.name}</span><span style="flex:1; text-align:center;">${statusText}</span><span style="width:130px; text-align:right; font-size:1.3rem;">${log?.time || '-'}</span></div>`;
                 });
-                if(document.getElementById('checkin-history')) document.getElementById('checkin-history').innerHTML = h;
+                document.getElementById('checkin-history').innerHTML = h;
             });
         }
 
@@ -166,21 +143,26 @@
             });
         }
 
-        // [버전 4.4 이식] 연대기 탭에서 로그 불러오기
         function loadMyLogs() {
+            db.ref('users/' + myName).once('value', sn => {
+                const u = sn.val() || {};
+                document.getElementById('my-name-display').innerText = `LV.${u.lv||1} ${myName} 용사`;
+                document.getElementById('my-stats-display').innerText = `${u.points||0}P | ${u.exp||0}E`;
+                document.getElementById('my-exp-bar').style.width = (u.exp||0) + "%";
+            });
             db.ref('pointLogs').orderByChild('name').equalTo(myName).once('value', snap => {
                 let h = ""; let logs = []; snap.forEach(l => { logs.push(l.val()); });
                 logs.reverse().slice(0, 30).forEach(l => {
                     const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
                     h += `<div class="list-item" style="border-left:8px solid ${color};"><span><b>${l.reason}</b><br><small>${l.time}</small></span><strong>${l.amount>=0?'+':''}${l.amount}P</strong></div>`;
                 });
-                document.getElementById('point-history-list').innerHTML = h || "<p style='text-align:center; padding:20px;'>기록 없음</p>";
+                document.getElementById('my-point-history').innerHTML = h || "기록 없음";
             });
         }
 
         function startApp() {
             db.ref('settings').on('value', snap => {
-                const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
+                const s = snap.val() || {}; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
                 if(isAdmin) { document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('conf-routine').value = s.routineText || ""; }
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
             });
@@ -189,17 +171,13 @@
                 currentUsers = users.sort((a,b) => (a.no||99)-(b.no||99));
                 let h = ""; currentUsers.forEach(u => { if(u.name==="총사령관") return; h += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openUserHistory('${u.name}')"><span>${getAvatar(u.lv||1)}</span><br><b>LV.${u.lv||1} ${u.name}</b><br>${u.points||0}P</div>`; });
                 document.getElementById('hero-grid').innerHTML = h;
-                if (isAdmin) { // [버전 4.0 이식] 명단 관리 (번호/도우미)
+                if (isAdmin) { // [4.0 기반 명단 관리]
                     let aH = ""; currentUsers.forEach(u => { if(u.name==="총사령관") return; aH += `<div class="list-item"><input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:60px; height:50px; margin:0; text-align:center;"><div style="flex:1; display:flex; align-items:center; gap:12px;"><strong style="font-size:1.8rem;">${u.name}</strong><button onclick="toggleHelper('${u.name}',${u.isHelper || false})" style="width:auto; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border-radius:8px; padding:5px 10px;">${u.isHelper?'도우미':'일반'}</button></div><button onclick="delUser('${u.name}')" style="width:auto; background:var(--red); color:white;">제거</button></div>`; });
                     document.getElementById('student-admin-list').innerHTML = aH;
                 }
-                renderCheckinBoard();
             });
             db.ref('shop').on('value', snap => { 
-                let h = ""; snap.forEach(c => { const i = c.val(); 
-                    let limitText = i.limit > 0 ? `<br><small style="color:var(--red);">[인당 ${i.limit}개 제한]</small>` : "";
-                    h += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)${limitText}</span><button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto;">구매</button></div>`; 
-                }); document.getElementById('shop-list').innerHTML = h; 
+                let h = ""; snap.forEach(c => { const i = c.val(); let limit = i.limit > 0 ? `<br><small style="color:var(--red)">[인당 ${i.limit}개 제한]</small>` : ""; h += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)${limit}</span><button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto;">구매</button></div>`; }); document.getElementById('shop-list').innerHTML = h; 
             });
             db.ref('orders').on('value', snap => {
                 let uH = "", wH = "", adminH = ""; snap.forEach(c => {
@@ -209,20 +187,18 @@
                 document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "없음"; document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
                 if(isAdmin) document.getElementById('order-list').innerHTML = adminH || "요청 없음";
             });
-            if(document.getElementById('checkin-date-filter')) document.getElementById('checkin-date-filter').onchange = renderCheckinBoard;
         }
 
         auth.onAuthStateChanged(user => {
             if (user) {
-                isAdmin = (user.email.toLowerCase() === adminEmail.toLowerCase());
+                isAdmin = (user.email === adminEmail);
                 db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
-                    if (snap.exists() || isAdmin) { myName = snap.val() || "총사령관"; forceScreenDisplay('app'); if(isAdmin) { document.getElementById('floating-point-btn').style.display='flex'; document.getElementById('floating-multi-btn').style.display='flex'; ['btn-logs','btn-admin','admin-shop-mgr','admin-order-mgr'].forEach(id=> { const el=document.getElementById(id); if(el) el.style.display='block'; }); } startApp(); showTab(currentTab); }
+                    if (snap.exists() || isAdmin) { myName = snap.val() || "총사령관"; forceScreenDisplay('app'); if(isAdmin) { document.getElementById('floating-point-btn').style.display='flex'; ['btn-logs','btn-admin','admin-shop-mgr','admin-order-mgr'].forEach(id=> { const el=document.getElementById(id); if(el) el.style.display='block'; }); } startApp(); showTab(currentTab); }
                     else { alert("미등록!"); auth.signOut(); }
                 });
             } else { forceScreenDisplay('login'); }
         });
 
-        // [버전 4.4 이식] 용사 클릭 시 상세 기록 팝업
         function openUserHistory(un) {
             db.ref('users/' + un).once('value', sn => {
                 const u = sn.val() || {}; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${u.lv||1} ${un}</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold;">${u.points||0}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${u.exp||0}%; height:100%;"></div></div>EXP ${u.exp||0}/100</div>`;
@@ -251,7 +227,7 @@
             });
         }
 
-        // [버전 4.4 이식] 포인트 일괄 등록 팝업
+        // [4.4 기반 포인트 일괄 등록]
         function openPointBulkPopup() {
             let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="bulk-reason" placeholder="사유"><div style="display:flex; gap:10px; align-items:center; justify-content:center; margin-top:10px;">P <input type="number" id="bulk-p" value="0" style="width:80px;"> E <input type="number" id="bulk-e" value="0" style="width:80px;"></div></div>`;
             currentUsers.forEach(u => { if(u.name!=="총사령관") h += `<div class="list-item"><span><input type="checkbox" class="sel-u" data-name="${u.name}" checked> <strong>${u.name}</strong></span></div>`; });
@@ -272,6 +248,7 @@
         async function buyItem(k, n, p, l) { const sn = await db.ref('users/'+myName).once('value'); if((sn.val().points||0) < p) return alert("부족!"); if(l > 0) { const os = await db.ref('orders').once('value'); let cnt = 0; os.forEach(o => { if(o.val().user===myName && o.val().item===n && o.val().status!=='취소') cnt++; }); if(cnt >= l) return alert("한도 초과!"); } if(confirm(`${n} 구매?`)) { addScore(myName, -p, 0, `${n} 구매`); db.ref('orders').push({ user: myName, item: n, status: '대기', time: new Date().toLocaleString() }); } }
         function reqUse(k) { if(confirm("사용 요청?")) db.ref('orders/'+k).update({status:'사용요청'}); }
         function approve(k) { if(confirm("승인?")) db.ref('orders/'+k).update({status:'완료'}); }
+        if(document.getElementById('checkin-date-filter')) document.getElementById('checkin-date-filter').onchange = renderCheckinBoard;
     </script>
 </body>
 </html>
