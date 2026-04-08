@@ -317,25 +317,26 @@ aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-
             // 1. 암호 체크
             if(pw !== s.password) return alert("오늘의 암호가 틀렸습니다! 🔒");
 
-            // 2. 마감 시간 체크 (마감 시간 이후면 아예 기록 차단)
+            // 2. 마감 시간 체크 (마감 시간 이후면 여기서 로직 종료!)
             if(ct > s.closeTime) {
-                return alert(`마감 시간(${s.closeTime})이 지났습니다! 본부에 소환될 수 없습니다. 🚫`);
+                alert(`마감 시간(${s.closeTime})이 지났습니다! 본부 접속이 불가능합니다. 🚫`);
+                return; // ★ 여기서 return을 해야 뒤에 addScore가 안 일어납니다!
             }
 
             let res = "정상 등교";
             let p = 0;
             let e = 10;
 
-            // 3. 지각 시간 체크
+            // 3. 지각 시간 체크 (정상 등교와 마감 시간 사이)
             if(ct > s.lateTime) {
                 const [lh, lm] = s.lateTime.split(':').map(Number);
                 const diff = (now.getHours() * 60 + now.getMinutes()) - (lh * 60 + lm);
                 p = -diff; // 지각한 분수만큼 포인트 감점
                 res = `지각(${diff}분)`;
-                e = 0; // 지각하면 경험치 없음
+                e = 0; 
             }
 
-            // DB에 등교 기록 저장
+            // --- 여기부터는 시간이 유효할 때만 실행됨 ---
             addScore(myName, p, e, res);
             db.ref('checkinLogs').push({
                 name: myName,
@@ -344,7 +345,6 @@ aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-
                 date: today
             });
 
-            // 성공 시 루틴 팝업
             if(routineItems.length) {
                 rIdx = 0;
                 openPopup("⚔️ 등교 성공!", `[루틴 1단계]\n${routineItems[0]}`, true);
