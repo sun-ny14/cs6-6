@@ -164,15 +164,48 @@
         }
 
         function loadMyLogs() {
-            db.ref('pointLogs').orderByChild('name').equalTo(myName).once('value', snap => {
-                let h = ""; let logs = []; snap.forEach(l => { logs.push(l.val()); });
-                logs.reverse().slice(0, 30).forEach(l => {
-                    const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
-                    h += `<div class="list-item" style="border-left:8px solid ${color};"><span><b>${l.reason}</b><br><small>${l.time}</small></span><strong>${l.amount>=0?'+':''}${l.amount}P</strong></div>`;
-                });
-                document.getElementById('point-history-list').innerHTML = h || "기록 없음";
+    // 관리자라면 전체 로그를 가져오고, 학생이라면 본인 로그만 필터링
+    let logQuery = isAdmin ? db.ref('pointLogs') : db.ref('pointLogs').orderByChild('name').equalTo(myName);
+
+    logQuery.once('value', snap => {
+        let h = "";
+        let logs = [];
+        snap.forEach(l => { logs.push(l.val()); });
+        
+        // 최신순 정렬 (최근 기록이 위로)
+        logs.reverse();
+
+        if (isAdmin) {
+            // [관리자용] 전체 학생의 기록을 이름과 함께 표시
+            h += `<div style="background:var(--dark); color:white; padding:15px; border-radius:15px; margin-bottom:15px; text-align:center; font-weight:bold;">🛡️ 실시간 전체 용사 연대기</div>`;
+            logs.slice(0, 50).forEach(l => { // 너무 많으면 느려지니 최근 50개만
+                const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
+                h += `
+                    <div class="list-item" style="border-left:10px solid ${color}; background:#fff; margin-bottom:8px; padding:15px;">
+                        <span style="flex:1;">
+                            <strong style="font-size:1.5rem; color:var(--dark);">[${l.name}]</strong> ${l.reason}
+                            <br><small style="color:#888;">${l.time}</small>
+                        </span>
+                        <div style="text-align:right; min-width:80px;">
+                            <strong style="color:${color}; font-size:1.5rem;">${l.amount >= 0 ? '+' : ''}${l.amount}P</strong>
+                        </div>
+                    </div>`;
+            });
+        } else {
+            // [학생용] 본인 기록만 표시
+            logs.slice(0, 30).forEach(l => {
+                const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
+                h += `
+                    <div class="list-item" style="border-left:8px solid ${color};">
+                        <span><b>${l.reason}</b><br><small>${l.time}</small></span>
+                        <strong>${l.amount >= 0 ? '+' : ''}${l.amount}P</strong>
+                    </div>`;
             });
         }
+        
+        document.getElementById('point-history-list').innerHTML = h || "<p style='text-align:center; padding:20px; color:#999;'>기록이 아직 없습니다.</p>";
+    });
+}
 
         function startApp() {
             db.ref('settings').on('value', snap => {
