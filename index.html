@@ -188,20 +188,21 @@
                 if (isAdmin) {
                     let aH = ""; currentUsers.forEach(u => { if(u.name==="총사령관") return; 
                         // startApp 내부 isAdmin 조건문 안의 aH 부분 수정 (글자 크기 미세 조정 버전)
-aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
+// startApp 내부 isAdmin 명단 생성 로직 찾아서 교체
+aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-bottom:1px solid #eee; display:flex; align-items:center; gap:12px;">
         <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" 
-               style="width:70px; height:55px; margin:0; text-align:center; font-size:1.6rem; border:2px solid var(--primary); font-weight:bold; background:#f0f8ff;">
+               style="width:100px; height:60px; margin:0; text-align:center; font-size:1.8rem; border:3px solid var(--primary); font-weight:bold; background:#f0f8ff; border-radius:10px;">
         
         <div style="flex:1; display:flex; align-items:center; gap:10px;">
-            <strong style="font-size:1.6rem; min-width:80px;">${u.name}</strong>
+            <strong style="font-size:1.7rem; min-width:85px;">${u.name}</strong>
             <button onclick="toggleHelper('${u.name}',${u.isHelper || false})" 
-                    style="width:auto; padding:6px 12px; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border:none; border-radius:8px; font-size:1.1rem; font-weight:bold;">
+                    style="width:auto; padding:8px 15px; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold;">
                 ${u.isHelper ? '도우미' : '일반'}
             </button>
         </div>
         
         <button onclick="delUser('${u.name}')" 
-                style="width:auto; padding:6px 12px; background:var(--red); color:white; border:none; border-radius:8px; font-size:1.1rem; font-weight:bold;">
+                style="width:auto; padding:8px 15px; background:var(--red); color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold;">
             제거
         </button>
        </div>`;
@@ -255,21 +256,64 @@ aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-
         }
 
         function submitCheckIn() {
-            const pw = document.getElementById('checkin-pass').value, today = getTodayKST(), now = new Date();
-            const ct = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
-            db.ref('checkinLogs').once('value', snap => {
-                let done = false; snap.forEach(c => { if(c.val().name===myName && c.val().date===today) done=true; });
-                if(done) return alert("이미 등교 완료!");
-                db.ref('settings').once('value', sn => {
-                    const s = sn.val(); if(pw !== s.password) return alert("암호 오류!");
-                    if(ct > s.closeTime) return alert("마감됨!");
-                    let res = "정상 등교", p = 0, e = 10; if(ct > s.lateTime) { res = "지각"; p = -10; e = 0; }
-                    addScore(myName, p, e, res); db.ref('checkinLogs').push({ name: myName, result: res, time: now.toLocaleTimeString(), date: today });
-                    if(routineItems.length) { rIdx=0; openPopup("성공", `[루틴 1단계]\n${routineItems[0]}`, true); } else alert("등교 완료!");
-                    document.getElementById('checkin-pass').value = "";
-                });
+        function submitCheckIn() {
+    const pw = document.getElementById('checkin-pass').value;
+    const now = new Date();
+    const today = getTodayKST();
+    
+    // 현재 시간을 HH:mm 형식으로 변환 (예: 09:05)
+    const ct = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
+
+    db.ref('checkinLogs').once('value', snap => {
+        let done = false; 
+        snap.forEach(c => { if(c.val().name === myName && c.val().date === today) done = true; });
+        
+        if(done) return alert("이미 오늘의 등교 보고를 마쳤습니다! 🛡️");
+
+        db.ref('settings').once('value', sn => {
+            const s = sn.val() || {};
+            
+            // 1. 암호 체크
+            if(pw !== s.password) return alert("오늘의 암호가 틀렸습니다! 🔒");
+
+            // 2. 마감 시간 체크 (마감 시간 이후면 아예 기록 차단)
+            if(ct > s.closeTime) {
+                return alert(`마감 시간(${s.closeTime})이 지났습니다! 본부에 소환될 수 없습니다. 🚫`);
+            }
+
+            let res = "정상 등교";
+            let p = 0;
+            let e = 10;
+
+            // 3. 지각 시간 체크
+            if(ct > s.lateTime) {
+                const [lh, lm] = s.lateTime.split(':').map(Number);
+                const diff = (now.getHours() * 60 + now.getMinutes()) - (lh * 60 + lm);
+                p = -diff; // 지각한 분수만큼 포인트 감점
+                res = `지각(${diff}분)`;
+                e = 0; // 지각하면 경험치 없음
+            }
+
+            // DB에 등교 기록 저장
+            addScore(myName, p, e, res);
+            db.ref('checkinLogs').push({
+                name: myName,
+                result: res,
+                time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                date: today
             });
-        }
+
+            // 성공 시 루틴 팝업
+            if(routineItems.length) {
+                rIdx = 0;
+                openPopup("⚔️ 등교 성공!", `[루틴 1단계]\n${routineItems[0]}`, true);
+            } else {
+                alert(`${res} 완료! 본부에 합류했습니다.`);
+            }
+            document.getElementById('checkin-pass').value = "";
+        });
+    });
+}
 
         function openPointBulkPopup(t='', p='', e='') {
     let h = `
@@ -335,13 +379,28 @@ aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-
         function applyToAll(t) { const v = document.getElementById('all-'+t+'-input').value; document.querySelectorAll('.pop-bulk-'+t).forEach(i => i.value = v); }
 
         function openMultiPopup(t, p, e) {
-            document.getElementById('multi-reason').value = t;
-            document.getElementById('multi-p').value = p;
-            document.getElementById('multi-e').value = e;
-            let h = ""; currentUsers.forEach(u => { if(u.name!=="총사령관") h += `<div class="list-item"><label><input type="checkbox" class="multi-sel-u" data-name="${u.name}" checked> ${u.name}</label></div>`; });
-            document.getElementById('multi-list').innerHTML = h;
-            document.getElementById('multi-popup').style.display = 'flex';
+    document.getElementById('multi-reason').value = t || "";
+    document.getElementById('multi-p').value = p || 0;
+    document.getElementById('multi-e').value = e || 0;
+    
+    // 이름을 가로세로 바둑판식으로 배열 (이름 글자 키움)
+    let h = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 10px;">`;
+    
+    currentUsers.forEach(u => { 
+        if(u.name !== "총사령관") {
+            h += `
+                <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#fff; border:2px solid #ddd; border-radius:15px; padding:12px; cursor:pointer; min-height:80px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <input type="checkbox" class="multi-sel-u" data-name="${u.name}" checked style="width:25px; height:25px; margin-bottom:8px;">
+                    <strong style="font-size:1.5rem; color:var(--dark);">${u.name}</strong>
+                </label>
+            `;
         }
+    });
+    
+    h += `</div>`;
+    document.getElementById('multi-list').innerHTML = h;
+    document.getElementById('multi-popup').style.display = 'flex';
+}
         function checkAllMulti(s) { document.querySelectorAll('.multi-sel-u').forEach(cb => cb.checked = s); }
         function applyMultiScores() {
             const r = document.getElementById('multi-reason').value;
