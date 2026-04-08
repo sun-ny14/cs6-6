@@ -154,10 +154,19 @@
         function addScore(name, p, e, reason) {
             db.ref('users/' + name).once('value', sn => {
                 const u = sn.val(); if (!u) return;
-                let nP = (parseInt(u.points) || 0) + parseInt(p), nE = (parseInt(u.exp) || 0) + parseInt(e), nL = (parseInt(u.lv) || 1), up = false;
+                // 1. 포인트 합산
+                let nP = (parseInt(u.points) || 0) + parseInt(p);
+                // 2. 경험치 합산 (선생님 코드에 이게 빠져있었습니다!)
+                let nE = (parseInt(u.exp) || 0) + parseInt(e);
+                let nL = (parseInt(u.lv) || 1);
+                let up = false; // 3. 변수 선언 (이게 없어서 로딩이 멈췄던 겁니다!)
+
                 while (nE >= 100) { nL++; nE -= 100; up = true; }
+                
                 db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL }).then(() => {
-                    if (reason !== "정상 등교") db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString(), date: getTodayKST() });
+                    if (reason !== "정상 등교") {
+                        db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString(), date: getTodayKST() });
+                    }
                     if (up) triggerLevelUpRoulette(name, nL); 
                 });
             });
