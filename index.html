@@ -242,42 +242,34 @@
 
         // 개인 기록 팝업
         function openUserHistory(un) {
-    db.ref('users/' + un).once('value', sn => {
-        const u = sn.val(), exp = u.exp || 0, lv = u.lv || 1, pts = u.points || 0;
-        let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;">
-                    <strong>LV.${lv} ${un} 용사</strong>
-                    <div style="font-size:1.6rem; color:var(--primary); font-weight:bold;">현재: ${pts}P</div>
-                    <div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>
-                    EXP ${exp}/100
-                 </div>`;
-        
-        if (isAdmin || un === myName) {
-            // 포인트 로그 불러오기 (pointLogs 경로 확인)
-            // 기존 openUserHistory 내부의 pointLogs 호출 부분을 이걸로 바꾸세요
-db.ref('pointLogs').once('value', lsn => {
-    let uL = [];
-    lsn.forEach(l => { 
-        const log = l.val();
-        if (log.name === un) uL.push(log); // 이름이 일치하는 로그만 수집
-    });
-    
-    let logHtml = "";
-    uL.reverse().slice(0, 30).forEach(l => {
-        const color = l.amount > 0 ? "var(--green)" : (l.amount < 0 ? "var(--red)" : "#888");
-        logHtml += `<div class="list-item" style="border-left:10px solid ${color}; background:#fff; margin-bottom:5px;">
-                        <span>${l.reason}<br><small style="color:#888;">${l.time}</small></span>
-                        <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
-                      </div>`;
-    });
-    // h(용사정보) 뒤에 logHtml을 붙여서 팝업창에 띄움
-    openPopup(`${un} 용사 기록`, h + (logHtml || "<p style='text-align:center; padding:20px;'>기록이 없습니다.</p>"));
-});
-        } else {
-            h += `<div style="text-align:center; padding:30px; color:#888;">상세 기록은 본인만 열람 가능합니다.</div>`;
-            openPopup(`${un} 용사 정보`, h);
+            db.ref('users/' + un).once('value', sn => {
+                const u = sn.val() || {};
+                const pts = u.points || 0, exp = u.exp || 0, lv = u.lv || 1;
+                
+                let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;">
+                            <strong>LV.${lv} ${un} 용사</strong>
+                            <div style="font-size:1.6rem; color:var(--primary); font-weight:bold;">현재: ${pts}P</div>
+                            <div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>
+                            EXP ${exp}/100
+                         </div>`;
+
+                // 포인트 연대기(로그) 불러오기
+                db.ref('pointLogs').once('value', lsn => {
+                    let logHtml = "";
+                    let uL = [];
+                    lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); });
+                    
+                    uL.reverse().slice(0, 30).forEach(l => {
+                        const color = l.amount > 0 ? "var(--green)" : "var(--red)";
+                        logHtml += `<div class="list-item" style="border-left:10px solid ${color}; background:#fff; margin-bottom:5px;">
+                                        <span>${l.reason}<br><small style="color:#888;">${l.time}</small></span>
+                                        <strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
+                                    </div>`;
+                    });
+                    openPopup(`${un} 용사 정보`, h + (logHtml || "<p style='text-align:center; padding:20px;'>기록이 없습니다.</p>"));
+                });
+            });
         }
-    });
-}
 
         // 설정 저장
         function saveSettings() { db.ref('settings').update({ password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value }).then(() => alert("저장 완료!")); }
@@ -384,37 +376,38 @@ function saveEditItem(k) {
         function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
         function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function delUser(n) { if(confirm(`${n} 제거?`)) db.ref('users/'+n).remove(); }
-       function openPointBulkPopup(t='', p='', e='') {
-    let h = `<div style="position:sticky; top:0; background:white; padding-bottom:10px; border-bottom:2px solid var(--gold); z-index:10;">
-                <input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유 입력">
-                <div style="display:flex; gap:10px; align-items:center; justify-content:center;">
-                    P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px;">
-                    E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px;">
-                </div>
-             </div>`;
-    
-    currentUsers.forEach(u => { 
-        if(u.name !== "총사령관") {
-            h += `<div class="list-item">
-                    <span><input type="checkbox" class="student-select" data-name="${u.name}" checked> <strong>${u.name}</strong></span>
-                    <span>P <input type="number" class="pop-bulk-p" value="${p}" style="width:60px;"> E <input type="number" class="pop-bulk-e" value="${e}" style="width:60px;"></span>
-                  </div>`;
+        function openPointBulkPopup(t='', p='', e='') {
+            let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;">
+                        <input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유 입력">
+                        <div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center;">
+                            P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px;">
+                            E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px;">
+                        </div>
+                     </div>`;
+            
+            currentUsers.forEach(u => { 
+                if(u.name !== "총사령관") {
+                    h += `<div class="list-item">
+                            <span><input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:25px; height:25px;"> <strong>${u.name}</strong></span>
+                            <span>P <input type="number" class="pop-bulk-p" value="${p}" style="width:65px;"> E <input type="number" class="pop-bulk-e" value="${e}" style="width:65px;"></span>
+                          </div>`;
+                }
+            });
+
+            document.getElementById('point-pop-body').innerHTML = h;
+            const targetPopup = document.getElementById('point-popup');
+            if(targetPopup) targetPopup.style.display = 'flex';
+
+            document.getElementById('point-apply-btn').onclick = () => {
+                const r = document.getElementById('pop-bulk-reason').value;
+                if(!r) return alert("사유를 입력해주세요!");
+                const cbs = document.querySelectorAll('.student-select'), ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e');
+                cbs.forEach((cb, i) => { if(cb.checked) addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r); });
+                alert("일괄 지급 완료!");
+                closePointPopup();
+            };
         }
-    });
 
-    document.getElementById('point-pop-body').innerHTML = h;
-    document.getElementById('point-popup').style.display = 'flex'; // ⭐ 이 줄이 있어야 창이 뜹니다!
-}
-
-    document.getElementById('point-apply-btn').onclick = () => {
-        const r = document.getElementById('pop-bulk-reason').value;
-        if(!r) return alert("사유를 입력해주세요!");
-        const cbs = document.querySelectorAll('.student-select'), ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e');
-        cbs.forEach((cb, i) => { if(cb.checked) addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r); });
-        alert("일괄 지급 완료!");
-        closePointPopup();
-    };
-}
         function toggleAllCheckboxes(s) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = s); }
         function applyToAll(t) { const v = document.getElementById('all-'+t+'-input').value; document.querySelectorAll('.pop-bulk-'+t).forEach(i => i.value = v); }
     </script>
