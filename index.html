@@ -243,17 +243,71 @@
             });
         }
 
-        function openPointBulkPopup() {
-            let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="bulk-reason" placeholder="사유"><div style="display:flex; gap:10px; align-items:center; justify-content:center; margin-top:10px;">P <input type="number" id="bulk-p" value="0" style="width:80px;"> E <input type="number" id="bulk-e" value="0" style="width:80px;"></div></div>`;
-            currentUsers.forEach(u => { if(u.name!=="총사령관") h += `<div class="list-item"><span><input type="checkbox" class="sel-u" data-name="${u.name}" checked> <strong>${u.name}</strong></span></div>`; });
-            document.getElementById('point-pop-body').innerHTML = h; document.getElementById('point-popup').style.display='flex';
-            document.getElementById('point-apply-btn').onclick = () => {
-                const r = document.getElementById('bulk-reason').value; if(!r) return alert("사유 입력!");
-                const p = parseInt(document.getElementById('bulk-p').value), e = parseInt(document.getElementById('bulk-e').value);
-                document.querySelectorAll('.sel-u:checked').forEach(cb => addScore(cb.dataset.name, p, e, r));
-                alert("지급 완료!"); closePointPopup();
-            };
+        // [버전 4.18] 포인트 전령 - 바둑판식 UI 개선 및 4.0 로직 복구
+function openPointBulkPopup(t='', p='', e='') {
+    let h = `
+        <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;">
+            <input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유 입력 (예: 일기 검사)">
+            <div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">
+                P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;">
+                E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;">
+            </div>
+            <div style="display:flex; justify-content:space-between; gap:10px;">
+                <button onclick="toggleAllCheckboxes(true)" style="background:var(--dark); color:white; padding:10px; font-size:1.1rem;">전체 선택</button>
+                <button onclick="toggleAllCheckboxes(false)" style="background:#95a5a6; color:white; padding:10px; font-size:1.1rem;">해제</button>
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 15px; padding-bottom: 20px;">
+    `;
+
+    currentUsers.forEach(u => { 
+        if(u.name !== "총사령관") {
+            h += `
+                <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8f9fa; border:2px solid #eee; border-radius:15px; padding:15px; cursor:pointer; min-height:100px;">
+                    <input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:25px; height:25px; margin-bottom:8px;">
+                    <strong style="font-size:1.5rem; color:var(--dark);">${u.no || ''} ${u.name}</strong>
+                    <div style="display:none;"> <input type="number" class="pop-bulk-p" value="${p}">
+                        <input type="number" class="pop-bulk-e" value="${e}">
+                    </div>
+                </label>
+            `;
         }
+    });
+
+    h += `</div>`;
+
+    document.getElementById('point-pop-body').innerHTML = h;
+    document.getElementById('point-popup').style.display = 'flex';
+
+    // 반영하기 버튼 클릭 시 로직 (4.0 버전 방식)
+    document.getElementById('point-apply-btn').onclick = () => {
+        const r = document.getElementById('pop-bulk-reason').value;
+        if(!r) return alert("사유를 입력해주세요!");
+        
+        const cbs = document.querySelectorAll('.student-select');
+        const ps = document.querySelectorAll('.pop-bulk-p');
+        const es = document.querySelectorAll('.pop-bulk-e');
+        
+        let count = 0;
+        cbs.forEach((cb, i) => { 
+            if(cb.checked) {
+                addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r);
+                count++;
+            }
+        });
+        
+        alert(count + "명의 용사에게 지급 완료! ⚖️");
+        closePointPopup();
+    };
+}
+
+// 전체 선택/해제 및 일괄 입력 보조 함수
+function toggleAllCheckboxes(s) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = s); }
+function applyToAll(t) { 
+    const v = document.getElementById('all-'+t+'-input').value; 
+    document.querySelectorAll('.pop-bulk-'+t).forEach(i => i.value = v); 
+}
 
         function openMultiPopup(t, p, e) {
             document.getElementById('multi-reason').value = t;
