@@ -26,7 +26,7 @@
         .hero-card { background: white; border-radius: 20px; padding: 25px 15px; text-align: center; box-shadow: 0 6px 15px rgba(0,0,0,0.1); border: 3px solid transparent; cursor: pointer; }
         .hero-card.me { border-color: var(--gold); background: #fffdf2; transform: scale(1.03); }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
-        .popup-box { background: white; padding: 20px; border-radius: 25px; width: 95%; max-width: 700px; display: flex; flex-direction: column; max-height: 90vh; }
+        .popup-box { background: white; padding: 20px; border-radius: 25px; width: 95%; max-width: 700px; display: flex; flex-direction: column; max-height: 95vh; }
         #pop-close-btn { order: -1; margin-bottom: 15px; background: var(--green); color: white; border: none; border-radius: 15px; padding: 15px; font-size: 1.4rem; font-weight: bold; }
         #pop-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 5px; border-top: 1px solid #eee; }
         .floating-btn { position: fixed; bottom: 25px; width: 85px; height: 85px; border-radius: 45px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
@@ -102,6 +102,7 @@
             <div class="card"><h3>👥 명단 관리 (번호/도우미)</h3><div id="student-admin-list"></div></div>
             <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 
                 루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveSettings()">시스템 저장</button></div>
+            <div class="card"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4"></textarea><button onclick="saveGifts()">보상 저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
         <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
@@ -116,7 +117,7 @@
         const auth = firebase.auth(); 
         const provider = new firebase.auth.GoogleAuthProvider();
 
-        let myName = "", isAdmin = false, isHelper = false, currentUsers = [], routineItems = [], rIdx = 0;
+        let myName = "", isAdmin = false, isHelper = false, currentUsers = [], routineItems = [], giftList = [], rIdx = 0;
         let currentTab = sessionStorage.getItem('activeTab') || 'main';
 
         function getTodayKST() { const now = new Date(); const krTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); return krTime.getUTCFullYear() + "-" + String(krTime.getUTCMonth() + 1).padStart(2, '0') + "-" + String(krTime.getUTCDate()).padStart(2, '0'); }
@@ -153,10 +154,11 @@
         function addScore(name, p, e, reason) {
             db.ref('users/' + name).once('value', sn => {
                 const u = sn.val(); if (!u) return;
-                let nP = (parseInt(u.points) || 0) + parseInt(p), nE = (parseInt(u.exp) || 0) + parseInt(e), nL = (parseInt(u.lv) || 1);
-                while (nE >= 100) { nL++; nE -= 100; }
+                let nP = (parseInt(u.points) || 0) + parseInt(p), nE = (parseInt(u.exp) || 0) + parseInt(e), nL = (parseInt(u.lv) || 1), up = false;
+                while (nE >= 100) { nL++; nE -= 100; up = true; }
                 db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL }).then(() => {
                     if (reason !== "정상 등교") db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString(), date: getTodayKST() });
+                    if (up) triggerLevelUpRoulette(name, nL); 
                 });
             });
         }
@@ -174,8 +176,8 @@
 
         function startApp() {
             db.ref('settings').on('value', snap => {
-                const s = snap.val() || {}; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
-                if(isAdmin) { document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('conf-routine').value = s.routineText || ""; }
+                const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
+                if(isAdmin) { document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('conf-routine').value = s.routineText || ""; document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; }
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
             });
             db.ref('users').on('value', snap => {
@@ -184,9 +186,21 @@
                 let h = ""; currentUsers.forEach(u => { if(u.name==="총사령관") return; let rt = u.isHelper ? " <small>[도우미]</small>" : ""; h += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openUserHistory('${u.name}')"><span>${getAvatar(u.lv||1)}</span><br><b>LV.${u.lv||1} ${u.name}${rt}</b><br>${u.points||0}P</div>`; });
                 document.getElementById('hero-grid').innerHTML = h;
                 if (isAdmin) {
-                    let aH = ""; currentUsers.forEach(u => { if(u.name==="총사령관") return; aH += `<div class="list-item"><input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:60px; height:50px; margin:0; text-align:center;"><div style="flex:1; display:flex; align-items:center; gap:12px;"><strong style="font-size:1.8rem;">${u.name}</strong><button onclick="toggleHelper('${u.name}',${u.isHelper || false})" style="width:auto; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border-radius:8px; padding:5px 10px;">${u.isHelper?'도우미':'일반'}</button></div><button onclick="delUser('${u.name}')" style="width:auto; background:var(--red); color:white;">제거</button></div>`; });
+                    let aH = ""; currentUsers.forEach(u => { if(u.name==="총사령관") return; 
+                        aH += `<div class="list-item" style="padding:15px; background:#fff; border-bottom:2px solid #eee; display:flex; align-items:center; gap:10px;">
+                                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" 
+                                       style="width:85px; height:70px; margin:0; text-align:center; font-size:2.2rem; border:3px solid var(--primary); font-weight:900; background:#f0f8ff;">
+                                <div style="flex:1; display:flex; align-items:center; gap:12px;">
+                                    <strong style="font-size:2rem; min-width:100px;">${u.name}</strong>
+                                    <button onclick="toggleHelper('${u.name}',${u.isHelper || false})" 
+                                            style="width:auto; padding:10px 18px; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border:none; border-radius:10px; font-weight:bold;">${u.isHelper?'도우미':'일반'}</button>
+                                </div>
+                                <button onclick="delUser('${u.name}')" style="width:auto; padding:10px 18px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold;">제거</button>
+                               </div>`;
+                    });
                     document.getElementById('student-admin-list').innerHTML = aH;
                 }
+                renderCheckinBoard();
             });
             db.ref('shop').on('value', snap => { 
                 let h = ""; snap.forEach(c => { const i = c.val(); let limit = i.limit > 0 ? `<br><small style="color:var(--red)">[인당 ${i.limit}개 제한]</small>` : ""; h += `<div class="list-item"><span>[${i.cat||'✨'}] ${i.name} (${i.price}P)${limit}</span><button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto;">구매</button></div>`; }); document.getElementById('shop-list').innerHTML = h; 
@@ -217,12 +231,18 @@
 
         function openUserHistory(un) {
             db.ref('users/' + un).once('value', sn => {
-                const u = sn.val() || {}; let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${u.lv||1} ${un}</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold;">${u.points||0}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${u.exp||0}%; height:100%;"></div></div>EXP ${u.exp||0}/100</div>`;
-                db.ref('pointLogs').once('value', lsn => {
-                    let logH = ""; let uL = []; lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); });
-                    uL.reverse().slice(0, 20).forEach(l => { const color = l.amount >= 0 ? "var(--green)" : "var(--red)"; logH += `<div class="list-item" style="border-left:10px solid ${color};"><span>${l.reason}<br><small>${l.time}</small></span><strong>${l.amount>=0?'+':''}${l.amount}P</strong></div>`; });
-                    openPopup(`${un} 용사 정보`, h + logH);
-                });
+                const u = sn.val() || {}, exp = u.exp || 0, lv = u.lv || 1, pts = u.points || 0;
+                let h = `<div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:20px; margin-bottom:15px;"><strong>LV.${lv} ${un} 용사</strong><div style="font-size:1.6rem; color:var(--primary); font-weight:bold;">현재: ${pts}P</div><div style="background:#ddd; height:20px; border-radius:10px; margin:15px 0; overflow:hidden;"><div style="background:var(--primary); width:${exp}%; height:100%;"></div></div>EXP ${exp}/100</div>`;
+                if (isAdmin || un === myName) {
+                    db.ref('pointLogs').once('value', lsn => {
+                        let uL = []; lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); });
+                        let logHtml = ""; uL.reverse().slice(0, 30).forEach(l => { const color = l.amount > 0 ? "var(--green)" : "var(--red)"; logHtml += `<div class="list-item" style="border-left:10px solid ${color}; background:#fff; margin-bottom:5px;"><span>${l.reason}<br><small>${l.time}</small></span><strong>${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; });
+                        openPopup(`${un} 용사 정보`, h + logHtml);
+                    });
+                } else {
+                    h += `<div style="text-align:center; padding:30px; color:#888;">⚠️ 보안상 다른 용사의 연대기는 볼 수 없습니다.</div>`;
+                    openPopup(`${un} 정보`, h);
+                }
             });
         }
 
@@ -243,71 +263,52 @@
             });
         }
 
-        // [버전 4.18] 포인트 전령 - 바둑판식 UI 개선 및 4.0 로직 복구
-function openPointBulkPopup(t='', p='', e='') {
-    let h = `
-        <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;">
-            <input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유 입력 (예: 일기 검사)">
-            <div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">
-                P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;">
-                E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;">
-            </div>
-            <div style="display:flex; justify-content:space-between; gap:10px;">
-                <button onclick="toggleAllCheckboxes(true)" style="background:var(--dark); color:white; padding:10px; font-size:1.1rem;">전체 선택</button>
-                <button onclick="toggleAllCheckboxes(false)" style="background:#95a5a6; color:white; padding:10px; font-size:1.1rem;">해제</button>
-            </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 15px; padding-bottom: 20px;">
-    `;
-
-    currentUsers.forEach(u => { 
-        if(u.name !== "총사령관") {
-            h += `
-                <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8f9fa; border:2px solid #eee; border-radius:15px; padding:15px; cursor:pointer; min-height:100px;">
-                    <input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:25px; height:25px; margin-bottom:8px;">
-                    <strong style="font-size:1.5rem; color:var(--dark);">${u.no || ''} ${u.name}</strong>
-                    <div style="display:none;"> <input type="number" class="pop-bulk-p" value="${p}">
-                        <input type="number" class="pop-bulk-e" value="${e}">
+        function openPointBulkPopup(t='', p='', e='') {
+            let h = `
+                <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;">
+                    <input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유 입력">
+                    <div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">
+                        P <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px; height:50px;">
+                        E <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px; height:50px;">
                     </div>
-                </label>
+                    <div style="display:flex; justify-content:space-between; gap:10px;">
+                        <button onclick="toggleAllCheckboxes(true)" style="background:var(--dark); color:white; padding:10px; flex:1;">전체 선택</button>
+                        <button onclick="toggleAllCheckboxes(false)" style="background:#95a5a6; color:white; padding:10px; flex:1;">해제</button>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 15px; padding-bottom: 20px;">
             `;
+
+            currentUsers.forEach(u => { 
+                if(u.name !== "총사령관") {
+                    h += `
+                        <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8f9fa; border:2px solid #eee; border-radius:15px; padding:10px; cursor:pointer; min-height:110px;">
+                            <input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:25px; height:25px; margin-bottom:5px;">
+                            <strong style="font-size:1.4rem; color:var(--dark); text-align:center;">${u.no || ''}<br>${u.name}</strong>
+                            <div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">
+                                <input type="number" class="pop-bulk-p" value="${p}" style="width:65px; height:35px; padding:2px; font-size:1rem;">
+                                <input type="number" class="pop-bulk-e" value="${e}" style="width:65px; height:35px; padding:2px; font-size:1rem;">
+                            </div>
+                        </label>
+                    `;
+                }
+            });
+
+            h += `</div>`;
+            document.getElementById('point-pop-body').innerHTML = h;
+            document.getElementById('point-popup').style.display = 'flex';
+
+            document.getElementById('point-apply-btn').onclick = () => {
+                const r = document.getElementById('pop-bulk-reason').value;
+                if(!r) return alert("사유를 입력해주세요!");
+                const cbs = document.querySelectorAll('.student-select'), ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e');
+                cbs.forEach((cb, i) => { if(cb.checked) addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r); });
+                alert("일괄 지급 완료! ⚖️"); closePointPopup();
+            };
         }
-    });
 
-    h += `</div>`;
-
-    document.getElementById('point-pop-body').innerHTML = h;
-    document.getElementById('point-popup').style.display = 'flex';
-
-    // 반영하기 버튼 클릭 시 로직 (4.0 버전 방식)
-    document.getElementById('point-apply-btn').onclick = () => {
-        const r = document.getElementById('pop-bulk-reason').value;
-        if(!r) return alert("사유를 입력해주세요!");
-        
-        const cbs = document.querySelectorAll('.student-select');
-        const ps = document.querySelectorAll('.pop-bulk-p');
-        const es = document.querySelectorAll('.pop-bulk-e');
-        
-        let count = 0;
-        cbs.forEach((cb, i) => { 
-            if(cb.checked) {
-                addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r);
-                count++;
-            }
-        });
-        
-        alert(count + "명의 용사에게 지급 완료! ⚖️");
-        closePointPopup();
-    };
-}
-
-// 전체 선택/해제 및 일괄 입력 보조 함수
-function toggleAllCheckboxes(s) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = s); }
-function applyToAll(t) { 
-    const v = document.getElementById('all-'+t+'-input').value; 
-    document.querySelectorAll('.pop-bulk-'+t).forEach(i => i.value = v); 
-}
+        function toggleAllCheckboxes(s) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = s); }
+        function applyToAll(t) { const v = document.getElementById('all-'+t+'-input').value; document.querySelectorAll('.pop-bulk-'+t).forEach(i => i.value = v); }
 
         function openMultiPopup(t, p, e) {
             document.getElementById('multi-reason').value = t;
@@ -327,10 +328,22 @@ function applyToAll(t) {
             alert("일괄 지급 완료!"); closeMultiPopup();
         }
 
+        function triggerLevelUpRoulette(name, newLv) {
+            if (!giftList || giftList.length === 0) {
+                alert(`${name} 용사 LV.${newLv} 달성! 🎊\n(보상 목록이 설정되지 않았습니다.)`);
+                return;
+            }
+            const pick = giftList[Math.floor(Math.random() * giftList.length)];
+            db.ref('orders').push({ user: name, item: `[레벨업 보상] ${pick}`, status: '대기', time: new Date().toLocaleString() });
+            if (name === myName) { openPopup("🎊 LEVEL UP!", `<h3>축하합니다! LV.${newLv} 달성!</h3><p>레벨업 선물로 <strong>[${pick}]</strong> 당첨!</p><br><p>보관함에서 확인하세요.</p>`); } 
+            else if (isAdmin) { alert(`${name} 용사가 LV.${newLv}이 되어 [${pick}]을(를) 뽑았습니다!`); }
+        }
+
         function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
         function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function delUser(n) { if(confirm(n+" 제거?")) db.ref('users/'+n).remove(); }
         function saveSettings() { db.ref('settings').update({ password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value }).then(()=>alert("저장됨")); }
+        function saveGifts() { db.ref('settings').update({ giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim()) }).then(() => alert("보상 저장 완료!")); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         async function buyItem(k, n, p, l) { const sn = await db.ref('users/'+myName).once('value'); if((sn.val().points||0) < p) return alert("부족!"); if(l > 0) { const os = await db.ref('orders').once('value'); let cnt = 0; os.forEach(o => { if(o.val().user===myName && o.val().item===n && o.val().status!=='취소') cnt++; }); if(cnt >= l) return alert("한도 초과!"); } if(confirm(`${n} 구매?`)) { addScore(myName, -p, 0, `${n} 구매`); db.ref('orders').push({ user: myName, item: n, status: '대기', time: new Date().toLocaleString() }); } }
         function reqUse(k) { if(confirm("사용 요청?")) db.ref('orders/'+k).update({status:'사용요청'}); }
