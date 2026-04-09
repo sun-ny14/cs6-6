@@ -270,15 +270,51 @@ aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-
             });
         }
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                isAdmin = (user.email === adminEmail);
-                db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
-                    if (snap.exists() || isAdmin) { myName = snap.val() || "총사령관"; forceScreenDisplay('app'); if(isAdmin) { document.getElementById('floating-point-btn').style.display='flex'; document.getElementById('floating-multi-btn').style.display='flex'; ['btn-logs','btn-admin','admin-shop-mgr','admin-order-mgr','btn-guide','admin-guide-mgr'].forEach(id=> { const el=document.getElementById(id); if(el) el.style.display='block'; }); } startApp(); showTab(currentTab); }
-                    else { alert("미등록!"); auth.signOut(); }
+        // 1. 로그인 감지 및 권한 설정 부분 (auth.onAuthStateChanged 내부)
+auth.onAuthStateChanged(user => {
+    if (user) {
+        isAdmin = (user.email === adminEmail);
+        db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
+            if (snap.exists() || isAdmin) {
+                myName = snap.val() || "총사령관";
+                
+                // 해당 유저가 도우미인지 확인
+                db.ref('users/' + myName).once('value', uSnap => {
+                    const uData = uSnap.val() || {};
+                    isHelper = uData.isHelper || false;
+
+                    forceScreenDisplay('app');
+
+                    // [권한 제어 핵심]
+                    if (isAdmin) {
+                        // 전체 관리자: 모든 버튼 활성화
+                        ['btn-logs', 'btn-admin', 'admin-shop-mgr', 'admin-order-mgr', 'btn-guide', 'admin-guide-mgr', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
+                            const el = document.getElementById(id); if (el) el.style.display = 'block';
+                        });
+                    } else if (isHelper) {
+                        // 도우미 학생: 상점 승인 관련만 노출, 나머지는 철저히 숨김
+                        ['btn-shop', 'admin-order-mgr'].forEach(id => {
+                            const el = document.getElementById(id); if (el) el.style.display = 'block';
+                        });
+                        // 도우미가 건드리면 안 되는 것들 숨기기
+                        ['btn-logs', 'btn-admin', 'admin-shop-mgr', 'btn-guide', 'admin-guide-mgr', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
+                            const el = document.getElementById(id); if (el) el.style.display = 'none';
+                        });
+                    }
+
+                    startApp();
+                    showTab(currentTab);
                 });
-            } else { forceScreenDisplay('login'); }
+            } else {
+                alert("미등록 용사입니다!");
+                auth.signOut();
+            }
         });
+    } else {
+        forceScreenDisplay('login');
+    }
+});
+
 
         function openUserHistory(un) {
             db.ref('users/' + un).once('value', sn => {
@@ -420,11 +456,17 @@ aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-
         function applyToAll(t) { const v = document.getElementById('all-'+t+'-input').value; document.querySelectorAll('.pop-bulk-'+t).forEach(i => i.value = v); }
 
         function openMultiPopup(t, p, e) {
+    // [권한 보안] 사령관(선생님)이 아니면 실행 즉시 중단
+    if (!isAdmin) {
+        alert("이 기능은 총사령관 선생님만 사용하실 수 있습니다! ⛔");
+        return;
+    }
+
+    // --- 아래는 선생님이 주신 기존 디자인 코드 그대로입니다 ---
     document.getElementById('multi-reason').value = t || "";
     document.getElementById('multi-p').value = p || 0;
     document.getElementById('multi-e').value = e || 0;
     
-    // 이름을 가로세로 바둑판식으로 배열 (이름 글자 키움)
     let h = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 10px;">`;
     
     currentUsers.forEach(u => { 
