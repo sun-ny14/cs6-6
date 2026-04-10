@@ -141,37 +141,59 @@
     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
     const dayOfWeek = dayNames[new Date(td).getDay()];
 
-    // 1. DB에서 선생님이 홈페이지에서 저장한 제외 사유를 먼저 가져옵니다.
     db.ref('settings/excludeList').once('value', exSnap => {
         const excludeData = exSnap.val() || {};
-        const todayExcludes = excludeData[dayOfWeek] || "없음";
+        const todayExcludesStr = excludeData[dayOfWeek] || ""; // 예: "홍길동(방과후), 김철수(봉사)"
 
-        // 2. 기존 등교 기록(logs)을 가져오는 로직 (유지)
         db.ref('checkinLogs').once('value', snap => {
             const logs = {}; 
             snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
 
-            // [추가] 요일별 사유 표시 박스 + 설정 버튼
+            // 상단 요일별 사유 박스
             let exH = `
                 <div style="padding:15px; background:#fff3cd; border-radius:15px; margin-bottom:15px; border:2px solid #ffeeba; display:flex; justify-content:space-between; align-items:center; font-size:1.2rem;">
-                    <div><strong>📅 ${dayOfWeek}요일 제외:</strong> <span style="color:#856404;">${todayExcludes}</span></div>
+                    <div><strong>📅 ${dayOfWeek}요일 제외:</strong> <span style="color:#856404;">${todayExcludesStr || '없음'}</span></div>
                     ${isAdmin ? `<button onclick="openExcludeSettingPopup()" style="width:auto; padding:8px 15px; background:var(--dark); color:white; border:none; border-radius:10px; font-size:1rem; cursor:pointer;">설정 ⚙️</button>` : ''}
                 </div>
             `;
 
-            // [유지] 기존 등교 명부 헤더
             let h = exH + `<div style="margin-bottom:20px; font-weight:bold; font-size:1.8rem; text-align:center; border-bottom:4px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
             
-            // [유지] 기존 학생별 등교 상태 출력 루프
             currentUsers.forEach(u => {
                 if(u.name === "총사령관") return;
-                const log = logs[u.name]; 
-                let bgColor = "#ffff00", statusText = "🚩 미등교";
-                if(log) { 
-                    if(log.result.includes('정상')) { bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; } 
-                    else { bgColor = "#ffadad"; statusText = "⚠️ " + log.result; } 
+                const log = logs[u.name];
+                
+                // 기본 상태: 미등교 (노란색)
+                let bgColor = "#ffff00"; 
+                let statusText = "🚩 미등교";
+                let textColor = "#333";
+
+                // [추가] 오늘 제외 대상인지 확인 (문자열에 이름이 포함되어 있는지 체크)
+                const isExcluded = todayExcludesStr.includes(u.name);
+
+                if (log) {
+                    // 등교 완료 상태 (초록색 또는 빨간색)
+                    if(log.result.includes('정상')) { 
+                        bgColor = "#a2fca2"; 
+                        statusText = "⚔️ 정상 등교"; 
+                    } else { 
+                        bgColor = "#ffadad"; 
+                        statusText = "⚠️ " + log.result; 
+                    }
+                } else if (isExcluded) {
+                    // 등교 전인데 제외 대상인 경우 (파란색)
+                    bgColor = "#d1ecf1"; // 연한 파란색
+                    statusText = "🔵 제외 대상";
+                    textColor = "#0c5460";
                 }
-                h += `<div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1);"><span style="width:50px; text-align:right; margin-right:20px; font-weight:bold;">${u.no||''}</span><span style="width:120px; font-weight:bold;">${u.name}</span><span style="flex:1; text-align:center;">${statusText}</span><span style="width:130px; text-align:right; font-size:1.3rem;">${log?.time || '-'}</span></div>`;
+
+                h += `
+                    <div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1); color:${textColor};">
+                        <span style="width:50px; text-align:right; margin-right:20px; font-weight:bold;">${u.no||''}</span>
+                        <span style="width:120px; font-weight:bold;">${u.name}</span>
+                        <span style="flex:1; text-align:center;">${statusText}</span>
+                        <span style="width:130px; text-align:right; font-size:1.3rem;">${log?.time || (isExcluded ? '사유확인' : '-')}</span>
+                    </div>`;
             });
 
             if(document.getElementById('checkin-history')) document.getElementById('checkin-history').innerHTML = h;
