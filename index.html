@@ -137,19 +137,47 @@
         function closeMultiPopup() { document.getElementById('multi-popup').style.display = 'none'; }
 
         function renderCheckinBoard() {
-            const td = document.getElementById('checkin-date-filter').value || getTodayKST();
-            db.ref('checkinLogs').once('value', snap => {
-                const logs = {}; snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
-                let h = `<div style="margin-bottom:20px; font-weight:bold; font-size:1.8rem; text-align:center; border-bottom:4px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
-                currentUsers.forEach(u => {
-                    if(u.name === "총사령관") return;
-                    const log = logs[u.name]; let bgColor = "#ffff00", statusText = "🚩 미등교";
-                    if(log) { if(log.result.includes('정상')) { bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; } else { bgColor = "#ffadad"; statusText = "⚠️ " + log.result; } }
-                    h += `<div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1);"><span style="width:50px; text-align:right; margin-right:20px; font-weight:bold;">${u.no||''}</span><span style="width:120px; font-weight:bold;">${u.name}</span><span style="flex:1; text-align:center;">${statusText}</span><span style="width:130px; text-align:right; font-size:1.3rem;">${log?.time || '-'}</span></div>`;
-                });
-                if(document.getElementById('checkin-history')) document.getElementById('checkin-history').innerHTML = h;
+    const td = document.getElementById('checkin-date-filter').value || getTodayKST();
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayOfWeek = dayNames[new Date(td).getDay()];
+
+    // 1. DB에서 선생님이 홈페이지에서 저장한 제외 사유를 먼저 가져옵니다.
+    db.ref('settings/excludeList').once('value', exSnap => {
+        const excludeData = exSnap.val() || {};
+        const todayExcludes = excludeData[dayOfWeek] || "없음";
+
+        // 2. 기존 등교 기록(logs)을 가져오는 로직 (유지)
+        db.ref('checkinLogs').once('value', snap => {
+            const logs = {}; 
+            snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
+
+            // [추가] 요일별 사유 표시 박스 + 설정 버튼
+            let exH = `
+                <div style="padding:15px; background:#fff3cd; border-radius:15px; margin-bottom:15px; border:2px solid #ffeeba; display:flex; justify-content:space-between; align-items:center; font-size:1.2rem;">
+                    <div><strong>📅 ${dayOfWeek}요일 제외:</strong> <span style="color:#856404;">${todayExcludes}</span></div>
+                    ${isAdmin ? `<button onclick="openExcludeSettingPopup()" style="width:auto; padding:8px 15px; background:var(--dark); color:white; border:none; border-radius:10px; font-size:1rem; cursor:pointer;">설정 ⚙️</button>` : ''}
+                </div>
+            `;
+
+            // [유지] 기존 등교 명부 헤더
+            let h = exH + `<div style="margin-bottom:20px; font-weight:bold; font-size:1.8rem; text-align:center; border-bottom:4px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
+            
+            // [유지] 기존 학생별 등교 상태 출력 루프
+            currentUsers.forEach(u => {
+                if(u.name === "총사령관") return;
+                const log = logs[u.name]; 
+                let bgColor = "#ffff00", statusText = "🚩 미등교";
+                if(log) { 
+                    if(log.result.includes('정상')) { bgColor = "#a2fca2"; statusText = "⚔️ 정상 등교"; } 
+                    else { bgColor = "#ffadad"; statusText = "⚠️ " + log.result; } 
+                }
+                h += `<div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1);"><span style="width:50px; text-align:right; margin-right:20px; font-weight:bold;">${u.no||''}</span><span style="width:120px; font-weight:bold;">${u.name}</span><span style="flex:1; text-align:center;">${statusText}</span><span style="width:130px; text-align:right; font-size:1.3rem;">${log?.time || '-'}</span></div>`;
             });
-        }
+
+            if(document.getElementById('checkin-history')) document.getElementById('checkin-history').innerHTML = h;
+        });
+    });
+}
 
         function addScore(name, p, e, reason) {
             db.ref('users/' + name).once('value', sn => {
@@ -524,6 +552,62 @@ auth.onAuthStateChanged(user => {
         function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
         function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
         if(document.getElementById('checkin-date-filter')) document.getElementById('checkin-date-filter').onchange = renderCheckinBoard;
+        function openExcludeSettingPopup() {
+    db.ref('settings/excludeList').once('value', snap => {
+        const data = snap.val() || {};
+        const days = ['월', '화', '수', '목', '금'];
+        let h = `<p style="font-size:1rem; color:red; margin-bottom:15px;">※ 예: 홍길동(방과후), 김철수(도서관)</p>`;
+        
+        days.forEach(d => {
+            h += `<div style="margin-bottom:15px;">
+                    <strong style="font-size:1.2rem;">${d}요일:</strong>
+                    <input type="text" id="ex-in-${d}" value="${data[d] || ''}" placeholder="${d}요일 제외 사유 입력" style="margin-top:5px;">
+                  </div>`;
+        });
+        
+        h += `<button onclick="saveExcludeList()" style="background:var(--primary); color:white; font-weight:bold; padding:20px; margin-top:10px; border-radius:15px; border:none;">내용 저장하기 ✨</button>`;
+        openPopup("⚙️ 요일별 제외 사유 관리", h);
+    });
+}
+
+function saveExcludeList() {
+    const days = ['월', '화', '수', '목', '금'];
+    const newData = {};
+    days.forEach(d => {
+        newData[d] = document.getElementById(`ex-in-${d}`).value;
+    });
+    
+    db.ref('settings/excludeList').update(newData).then(() => {
+        alert("성공적으로 저장되었습니다! 이제 아침마다 헷갈리지 마세요. 😊");
+        closePopup();
+        renderCheckinBoard(); // 저장 즉시 화면 갱신
+    });
+}
+    // 8시 50분에 미등교자 자동 체크
+setInterval(() => {
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+    
+    // 매일 08:50에 딱 한 번 실행
+    if (timeStr === "08:50" && now.getSeconds() === 0) {
+        const today = getTodayKST();
+        db.ref('checkinLogs').once('value', snap => {
+            const attended = [];
+            snap.forEach(c => { if (c.val().date === today) attended.push(c.val().name); });
+
+            const missing = currentUsers
+                .filter(u => u.name !== "총사령관" && !attended.includes(u.name))
+                .map(u => u.name);
+
+            if (missing.length > 0) {
+                const msg = `⚠️ 미등교 용사 발생 (${missing.length}명)\n\n명단: ${missing.join(', ')}\n\n보호자 연락 여부를 확인하세요!`;
+                // 알람 소리와 함께 팝업 (선택 사항)
+                alert(msg); 
+                if(typeof openPopup === 'function') openPopup("🚨 등교 미확인 알림", msg.replace(/\n/g, '<br>'));
+            }
+        });
+    }
+}, 1000); // 1초마다 체크
     </script>
 </body>
 </html>
