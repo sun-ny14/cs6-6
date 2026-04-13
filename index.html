@@ -513,13 +513,12 @@ auth.onAuthStateChanged(user => {
         function applyToAll(t) { const v = document.getElementById('all-'+t+'-input').value; document.querySelectorAll('.pop-bulk-'+t).forEach(i => i.value = v); }
 
         function openMultiPopup(t, p, e) {
-    // [권한 보안] 사령관(선생님)이 아니면 실행 즉시 중단
+    // [권한 보안] 도우미나 학생은 이 함수를 아예 실행할 수 없음
     if (!isAdmin) {
         alert("이 기능은 총사령관 선생님만 사용하실 수 있습니다! ⛔");
         return;
     }
 
-    // --- 아래는 선생님이 주신 기존 디자인 코드 그대로입니다 ---
     document.getElementById('multi-reason').value = t || "";
     document.getElementById('multi-p').value = p || 0;
     document.getElementById('multi-e').value = e || 0;
@@ -605,13 +604,18 @@ function saveExcludeList() {
         renderCheckinBoard(); // 저장 즉시 화면 갱신
     });
 }
-    // 8시 50분에 미등교자 자동 체크
+// [수정] 중복 실행 방지 변수 추가
+let isAlertedToday = false;
+
 setInterval(() => {
     const now = new Date();
-    const timeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+    const h = now.getHours();
+    const m = now.getMinutes();
+    const timeStr = h.toString().padStart(2, '0') + ":" + m.toString().padStart(2, '0');
     
-    // 매일 08:50에 딱 한 번 실행
-    if (timeStr === "08:50" && now.getSeconds() === 0) {
+    // 매일 08:50에 딱 한 번만 실행 (10초에 한 번 체크하여 부하 감소)
+    if (timeStr === "08:50" && !isAlertedToday) {
+        isAlertedToday = true; 
         const today = getTodayKST();
         db.ref('checkinLogs').once('value', snap => {
             const attended = [];
@@ -623,13 +627,24 @@ setInterval(() => {
 
             if (missing.length > 0) {
                 const msg = `⚠️ 미등교 용사 발생 (${missing.length}명)\n\n명단: ${missing.join(', ')}\n\n보호자 연락 여부를 확인하세요!`;
-                // 알람 소리와 함께 팝업 (선택 사항)
+                
+                // 알람 소리 (비프음) 추가
+                try {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = audioCtx.createOscillator();
+                    osc.connect(audioCtx.destination);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+                } catch(e) {}
+
                 alert(msg); 
-                if(typeof openPopup === 'function') openPopup("🚨 등교 미확인 알림", msg.replace(/\n/g, '<br>'));
+                openPopup("🚨 등교 미확인 알림", msg.replace(/\n/g, '<br>'));
             }
         });
     }
-}, 1000); // 1초마다 체크
+
+    // 자정(00:00)에 알림 초기화
+    if (h === 0 && m === 0) isAlertedToday = false;
+}, 10000); // 10초 간격으로 가볍게 실행
     </script>
 </body>
 </html>
