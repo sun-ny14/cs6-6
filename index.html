@@ -607,44 +607,6 @@ function saveExcludeList() {
 // [수정] 중복 실행 방지 변수 추가
 let isAlertedToday = false;
 
-setInterval(() => {
-    const now = new Date();
-    const h = now.getHours();
-    const m = now.getMinutes();
-    const timeStr = h.toString().padStart(2, '0') + ":" + m.toString().padStart(2, '0');
-    
-    // 매일 08:50에 딱 한 번만 실행 (10초에 한 번 체크하여 부하 감소)
-    if (timeStr === "08:50" && !isAlertedToday) {
-        isAlertedToday = true; 
-        const today = getTodayKST();
-        db.ref('checkinLogs').once('value', snap => {
-            const attended = [];
-            snap.forEach(c => { if (c.val().date === today) attended.push(c.val().name); });
-
-            const missing = currentUsers
-                .filter(u => u.name !== "총사령관" && !attended.includes(u.name))
-                .map(u => u.name);
-
-            if (missing.length > 0) {
-                const msg = `⚠️ 미등교 용사 발생 (${missing.length}명)\n\n명단: ${missing.join(', ')}\n\n보호자 연락 여부를 확인하세요!`;
-                
-                // 알람 소리 (비프음) 추가
-                try {
-                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = audioCtx.createOscillator();
-                    osc.connect(audioCtx.destination);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
-                } catch(e) {}
-
-                alert(msg); 
-                openPopup("🚨 등교 미확인 알림", msg.replace(/\n/g, '<br>'));
-            }
-        });
-    }
-
-    // 자정(00:00)에 알림 초기화
-    if (h === 0 && m === 0) isAlertedToday = false;
-}, 10000); // 10초 간격으로 가볍게 실행
     </script>
 </body>
 </html>
