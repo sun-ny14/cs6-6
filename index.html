@@ -518,6 +518,77 @@
                 });
             }
         }
+        // [1] 개별/일괄 지급 팝업 열기 (플로팅 버튼 ⚖️)
+        function openPointBulkPopup(t='', p='', e='') {
+            let h = `
+                <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;">
+                    <input type="text" id="pop-bulk-reason" value="${t}" placeholder="지급 사유 입력">
+                    <div style="background:#fffdf2; padding:10px; border-radius:15px; border:2px dashed var(--gold); display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px;">
+                        <div style="text-align:center;">
+                            <span style="font-size:0.9rem; color:var(--primary); font-weight:bold;">포인트(P)</span>
+                            <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:85px; height:50px; margin:0; text-align:center;">
+                        </div>
+                        <div style="text-align:center;">
+                            <span style="font-size:0.9rem; color:var(--purple); font-weight:bold;">경험치(E)</span>
+                            <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:85px; height:50px; margin:0; text-align:center;">
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; gap:10px;">
+                        <button onclick="toggleAllCheckboxes(true)" style="background:var(--dark); color:white; padding:10px; flex:1; font-size:1.1rem; border-radius:10px;">전체 선택</button>
+                        <button onclick="toggleAllCheckboxes(false)" style="background:#95a5a6; color:white; padding:10px; flex:1; font-size:1.1rem; border-radius:10px;">해제</button>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 15px; padding-bottom: 20px;">`;
+
+            currentUsers.forEach(u => { 
+                if(u.name !== "총사령관") {
+                    h += `
+                        <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8f9fa; border:2px solid #eee; border-radius:15px; padding:12px; cursor:pointer; min-height:130px;">
+                            <input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:25px; height:25px; margin-bottom:5px;">
+                            <strong style="font-size:1.2rem;">${u.no || ''} ${u.name}</strong>
+                            <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
+                                <input type="number" class="pop-bulk-p" value="${p}" style="width:70px; height:35px; text-align:center; border:1px solid var(--primary); border-radius:5px;">
+                                <input type="number" class="pop-bulk-e" value="${e}" style="width:70px; height:35px; text-align:center; border:1px solid var(--purple); border-radius:5px;">
+                            </div>
+                        </label>`;
+                }
+            });
+            h += `</div>`;
+            document.getElementById('point-pop-body').innerHTML = h;
+            document.getElementById('point-popup').style.display = 'flex';
+
+            document.getElementById('point-apply-btn').onclick = () => {
+                const reason = document.getElementById('pop-bulk-reason').value;
+                if(!reason) return alert("사유를 입력해주세요!");
+                const cbs = document.querySelectorAll('.student-select');
+                const ps = document.querySelectorAll('.pop-bulk-p');
+                const es = document.querySelectorAll('.pop-bulk-e');
+                
+                let count = 0;
+                cbs.forEach((cb, i) => { 
+                    if(cb.checked) {
+                        addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, reason);
+                        count++;
+                    }
+                });
+                alert(`${count}명의 용사에게 지급 완료! ⚖️`);
+                closePointPopup();
+            };
+        }
+
+        // [2] 도감 연동 일괄 지급 (플로팅 버튼 📋)
+        function openMultiPopup(title='', p=0, e=0) {
+            // 도감에서 클릭했을 때 바로 지급 팝업으로 연결되도록 설정
+            openPointBulkPopup(title, p, e);
+        }
+
+        // [3] 유틸리티 함수들
+        function toggleAllCheckboxes(s) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = s); }
+        function applyToAll(type) { 
+            const val = document.getElementById('all-'+type+'-input').value; 
+            document.querySelectorAll('.pop-bulk-'+type).forEach(input => input.value = val); 
+        }
+        function closePointPopup() { document.getElementById('point-popup').style.display = 'none'; }
     </script>
 </body>
 </html>
