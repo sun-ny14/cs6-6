@@ -127,8 +127,13 @@
             if(status === 'app') { if(login) login.style.display = 'none'; if(app) app.style.display = 'block'; }
             else { if(login) login.style.display = 'flex'; if(app) app.style.display = 'none'; }
         }
+function getAvatar(lv) {
+    // DiceBear의 오픈 API를 활용해 레벨별로 다른 픽셀 캐릭터를 생성합니다 (seed값에 레벨 사용)
+    // 레벨이 올라갈수록 캐릭터 모양이 자동으로 변합니다.
+    const avatarUrl = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${lv}&backgroundColor=b6e3f4,c0aede,d1d4f9`; 
+    return `<img src="${avatarUrl}" style="width:80px; height:80px; image-rendering: pixelated; border-radius:10px; background:white; padding:5px; border:2px solid #eee;">`;
+}
 
-        function getAvatar(lv) { let c = lv >= 30 ? "avatar-lv30" : lv >= 20 ? "avatar-lv20" : lv >= 15 ? "avatar-lv15" : lv >= 10 ? "avatar-lv10" : lv >= 5 ? "avatar-lv5" : "avatar-lv1"; return `<div class="pixel-avatar ${c}"></div>`; }
         function handleLogin() { auth.signInWithPopup(provider); }
         function showTab(t) { currentTab = t; sessionStorage.setItem('activeTab', t); document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); if(t==='points') loadMyLogs(); if(t==='logs') renderCheckinBoard(); }
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
@@ -272,13 +277,36 @@
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
             });
 
-            db.ref('users').on('value', snap => {
-                let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
-                currentUsers = users.sort((a,b) => (a.no||99)-(b.no||99));
-                let h = ""; currentUsers.forEach(u => { if(u.name==="총사령관") return; let rt = u.isHelper ? " <small>[도우미]</small>" : ""; h += `<div class="hero-card ${u.name===myName?'me':''}" onclick="openUserHistory('${u.name}')"><span>${getAvatar(u.lv||1)}</span><br><b>LV.${u.lv||1} ${u.name}${rt}</b><br>${u.points||0}P</div>`; });
+                        db.ref('users').on('value', snap => {
+                let users = []; 
+                snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
+                
+                // [정렬 로직] 1순위: 나(myName), 2순위: 번호순
+                currentUsers = users.sort((a, b) => {
+                    if (a.name === myName) return -1;
+                    if (b.name === myName) return 1;
+                    return (a.no || 99) - (b.no || 99);
+                });
+
+                let h = ""; 
+                currentUsers.forEach(u => { 
+                    if(u.name === "총사령관") return; 
+                    const isMe = (u.name === myName);
+                    // 본인일 경우 카드 스타일 강조 및 별 표시
+                    h += `
+                        <div class="hero-card ${isMe ? 'me' : ''}" onclick="openUserHistory('${u.name}')" 
+                             style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2; transform: scale(1.05);' : ''}">
+                            <span>${getAvatar(u.lv || 1)}</span><br>
+                            <b style="font-size:1.3rem;">${isMe ? '⭐ ' : ''}LV.${u.lv || 1} ${u.name}</b><br>
+                            <span style="color:var(--primary); font-weight:bold;">${u.points || 0}P</span>
+                        </div>`; 
+                });
                 document.getElementById('hero-grid').innerHTML = h;
+
                 if (isAdmin) {
-                    let aH = ""; currentUsers.forEach(u => { if(u.name==="총사령관") return; 
+                    let aH = ""; 
+                    currentUsers.forEach(u => { 
+                        if(u.name === "총사령관") return;
                         aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-bottom:1px solid #eee; display:flex; align-items:center; gap:12px;">
                                 <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:100px; height:60px; margin:0; text-align:center; font-size:1.8rem; border:3px solid var(--primary); font-weight:bold; background:#f0f8ff; border-radius:10px;">
                                 <div style="flex:1; display:flex; align-items:center; gap:10px;"><strong style="font-size:1.7rem; min-width:85px;">${u.name}</strong>
@@ -289,6 +317,7 @@
                 }
                 renderCheckinBoard();
             });
+
 
             // --- 상점 카테고리 로직 ---
             let currentShopCat = "전체";
@@ -399,6 +428,53 @@
         function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
         function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
         function triggerLevelUpRoulette(name, newLv) { if (!giftList.length) return; const pick = giftList[Math.floor(Math.random() * giftList.length)]; db.ref('orders').push({ user: name, item: `[레벨업 보상] ${pick}`, status: '대기', time: new Date().toLocaleString() }); if (name === myName) openPopup("LEVEL UP!", `LV.${newLv} 달성! 보상: [${pick}]`); }
+           // [개인 정보창 팝업 함수 - 설계도 반영 버전]
+        function openUserHistory(un) {
+            db.ref('users/' + un).once('value', sn => {
+                const u = sn.val() || {}, exp = u.exp || 0, lv = u.lv || 1, pts = u.points || 0;
+                
+                // 가로형 레이아웃 (캐릭터와 정보 나란히 배치)
+                let h = `
+                    <div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; margin-bottom:15px; border:2px solid #eee;">
+                        <div style="flex: 0 0 100px; text-align:center;">
+                            ${getAvatar(lv)}
+                            <div style="margin-top:8px; font-weight:bold; color:var(--dark); font-size:1.2rem;">LV.${lv}</div>
+                        </div>
+                        <div style="flex:1;">
+                            <h3 style="margin:0 0 10px 0; font-size:1.6rem;">${un} 용사</h3>
+                            <div style="font-size:1.4rem; margin-bottom:5px; color:var(--primary);">💰 <b>${pts}P</b></div>
+                            <div style="font-size:1.2rem; color:#666;">✨ EXP: <b>${exp} / 100</b></div>
+                            <div style="background:#ddd; height:15px; border-radius:10px; margin-top:10px; overflow:hidden; border:1px solid #ccc;">
+                                <div style="background:var(--primary); width:${exp}%; height:100%;"></div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                // 로그 표시 로직 (관리자나 본인만 확인 가능)
+                if (isAdmin || un === myName) {
+                    db.ref('pointLogs').once('value', lsn => {
+                        let uL = []; 
+                        lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); });
+                        
+                        let logHtml = `<div style="max-height:300px; overflow-y:auto; border-top:2px solid #eee; padding-top:10px;">`;
+                        uL.reverse().slice(0, 20).forEach(l => { 
+                            const color = l.amount > 0 ? "var(--green)" : "var(--red)"; 
+                            logHtml += `
+                                <div class="list-item" style="border-left:8px solid ${color}; background:#fff; margin-bottom:5px; padding:10px;">
+                                    <span>${l.reason}<br><small style="color:#999;">${l.time}</small></span>
+                                    <strong style="color:${color};">${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
+                                </div>`; 
+                        });
+                        logHtml += `</div>`;
+                        openPopup(`${un} 용사 상세 정보`, h + logHtml);
+                    });
+                } else {
+                    h += `<p style="text-align:center; color:#999; padding:20px;">🛡️ 보안상 다른 용사의 연대기는 볼 수 없습니다.</p>`;
+                    openPopup(`${un} 용사 정보`, h);
+                }
+            });
+        }
+
     </script>
 </body>
 </html>
