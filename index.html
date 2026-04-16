@@ -397,6 +397,127 @@
         function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
         function toggleHelper(n, s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function delUser(n) { if(confirm(n+" 용사를 제명하시겠습니까?")) db.ref('users/'+n).remove(); }
+        // [1] 포인트 연대기 (전체 및 개인 기록)
+        function loadMyLogs() {
+            const listEl = document.getElementById('point-history-list');
+            if(!listEl) return;
+
+            let query = isAdmin ? db.ref('pointLogs') : db.ref('pointLogs').orderByChild('name').equalTo(myName);
+            
+            query.once('value', snap => {
+                let logs = [];
+                snap.forEach(l => { logs.push(l.val()); });
+                logs.reverse(); // 최신순 정렬
+
+                let html = isAdmin ? `<div style="background:#444; color:white; padding:8px; text-align:center; border-radius:5px; margin-bottom:10px;">🛡️ 전체 관리자 모드</div>` : "";
+                
+                if (logs.length === 0) {
+                    html += `<div style="text-align:center; padding:20px; color:#999;">아직 기록된 연대기가 없습니다.</div>`;
+                } else {
+                    logs.slice(0, 50).forEach(l => {
+                        const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
+                        const sign = l.amount >= 0 ? "+" : "";
+                        html += `
+                            <div class="list-item" style="border-left:8px solid ${color}; margin-bottom:8px; background:white; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                <span>
+                                    <b style="font-size:1.1rem;">${isAdmin ? '['+l.name+'] ' : ''}${l.reason}</b><br>
+                                    <small style="color:#888;">${l.time}</small>
+                                </span>
+                                <strong style="color:${color}; font-size:1.2rem;">${sign}${l.amount}P</strong>
+                            </div>`;
+                    });
+                }
+                listEl.innerHTML = html;
+            });
+        }
+
+        // [2] 등교기록부 (요일별 제외 사유 포함)
+        function renderCheckinBoard() {
+            const historyEl = document.getElementById('checkin-history');
+            if(!historyEl) return;
+
+            const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
+            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+            const dayName = dayNames[new Date(targetDate).getDay()];
+
+            // 설정에서 제외 명단 먼저 가져오기
+            db.ref('settings/excludeList').once('value', exSnap => {
+                const exData = exSnap.val() || {};
+                const excludeStr = exData[dayName] || ""; // 해당 요일 제외 학생들
+
+                // 실제 등교 로그 가져오기
+                db.ref('checkinLogs').once('value', snap => {
+                    const logs = {};
+                    snap.forEach(c => {
+                        const val = c.val();
+                        if(val.date === targetDate) logs[val.name] = val;
+                    });
+
+                    let html = `<div style="padding:12px; background:#e3f2fd; border-radius:10px; margin-bottom:15px; border:1px solid #bbdefb; font-weight:bold;">📅 ${targetDate} (${dayName}) 등교 현황</div>`;
+                    
+                    if(excludeStr) {
+                        html += `<div style="padding:8px; background:#fff3cd; border-radius:5px; margin-bottom:10px; font-size:0.9rem;">💡 제외 대상: ${excludeStr}</div>`;
+                    }
+
+                    currentUsers.forEach(u => {
+                        if(u.name === "총사령관") return;
+
+                        const log = logs[u.name];
+                        const isExcluded = excludeStr.includes(u.name);
+                        
+                        // 배경색 결정: 등교완료(초록), 지각(빨강), 제외대상(하늘), 미등교(노랑)
+                        let bgColor = "#ffff00"; // 기본 미등교
+                        let statusText = "미등교";
+                        
+                        if(log) {
+                            if(log.result.includes('정상')) { bgColor = "#ccffcc"; statusText = "정상 등교"; }
+                            else { bgColor = "#ffcccc"; statusText = "지각"; }
+                        } else if(isExcluded) {
+                            bgColor = "#e1f5fe"; statusText = "제외(방과후 등)";
+                        }
+
+                        html += `
+                            <div style="display:flex; align-items:center; padding:12px; margin-bottom:6px; border-radius:12px; background:${bgColor}; border:1px solid #eee; font-weight:bold;">
+                                <span style="width:35px; color:#666;">${u.no || '-'}</span>
+                                <span style="width:90px;">${u.name}</span>
+                                <span style="flex:1; text-align:center;">${statusText}</span>
+                                <span style="width:70px; text-align:right; font-size:0.8rem; color:#555;">${log ? log.time : ''}</span>
+                            </div>`;
+                    });
+                    historyEl.innerHTML = html;
+                });
+            });
+        }
+        // [캐릭터 선택 팝업 - 최종 확인용]
+        function openAvatarPicker() {
+            const animals = ["🐹", "🐰", "🐥", "🐻", "🐼", "🦁", "🐯", "🦖", "🐨", "🐧", "🐘", "🦛", "🐮", "🐷", "🐑", "🦉", "🐿️", "🦊", "🐱", "🐶"];
+            db.ref('users/' + myName).once('value', snap => {
+                const lv = snap.val().lv || 1;
+                // 레벨 1이면 1마리, 레벨 20이면 20마리 전체 해금
+                const availableCount = Math.min(lv, animals.length);
+                
+                let h = `<p style="text-align:center;">현재 레벨(${lv})에서 선택 가능한 모습입니다!</p>`;
+                h += `<div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; padding:10px;">`;
+                
+                for(let i=0; i < availableCount; i++) {
+                    h += `
+                        <div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:2px solid #eee; border-radius:10px; padding:10px; background:white;">
+                            <div style="font-size: 40px;">${animals[i]}</div>
+                        </div>`;
+                }
+                h += `</div>`;
+                openPopup("🎭 용사 모습 선택", h);
+            });
+        }
+
+        function selectAnimal(animalName) {
+            if(confirm(`${animalName}(으)로 변신하시겠습니까?`)) {
+                db.ref('users/' + myName).update({ selectedAnimal: animalName }).then(() => {
+                    alert("변신 완료! ✨");
+                    closePopup();
+                });
+            }
+        }
     </script>
 </body>
 </html>
