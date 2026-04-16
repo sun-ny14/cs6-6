@@ -127,187 +127,45 @@
             if(status === 'app') { if(login) login.style.display = 'none'; if(app) app.style.display = 'block'; }
             else { if(login) login.style.display = 'flex'; if(app) app.style.display = 'none'; }
         }
-// 1. 캐릭터 이미지 가져오기 (DB에 저장된 동물이 있으면 그걸 보여줌)
-function getAvatar(lv, selectedAnimal) {
-    const animals = ["hamster", "rabbit", "duck", "bear", "panda", "lion", "tiger", "dino", "koala", "penguin", "elephant", "hippo", "cow", "pig", "sheep", "platypus", "quokka", "fox", "cat", "dog"];
-    
-    // 선택한 동물이 없으면 레벨에 맞는 기본 동물 배정
-    const animalName = selectedAnimal || animals[Math.min(lv - 1, animals.length - 1)];
-    const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${animalName}&backgroundColor=b6e3f4`;
-    
-    return `<img src="${avatarUrl}" style="width:100px; height:100px; border-radius:15px; background:white; border:2px solid #eee; padding:5px;">`;
-}
 
-// 2. 캐릭터 선택 팝업 열기
-function openAvatarPicker() {
-    const animals = ["hamster", "rabbit", "duck", "bear", "panda", "lion", "tiger", "dino", "koala", "penguin", "elephant", "hippo", "cow", "pig", "sheep", "platypus", "quokka", "fox", "cat", "dog"];
-    
-    // 현재 레벨까지 고를 수 있는 동물 제한 (예: 5레벨이면 앞의 5마리만 선택 가능)
-    db.ref('users/' + myName).once('value', snap => {
-        const lv = snap.val().lv || 1;
-        const availableCount = Math.min(lv, animals.length);
-        
-        let h = `<p style="text-align:center;">현재 레벨(${lv})에서 선택 가능한 용사 모습입니다!</p>`;
-        h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; padding:10px;">`;
-        
-        for(let i=0; i < availableCount; i++) {
-            h += `
-                <div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:1px solid #eee; border-radius:10px; padding:5px;">
-                    <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=${animals[i]}&backgroundColor=b6e3f4" style="width:100%; border-radius:10px;">
-                    <small>${animals[i]}</small>
-                </div>`;
+        // 1. 캐릭터 이미지 가져오기 (동물 농장 버전)
+        function getAvatar(lv, selectedAnimal) {
+            const animals = ["hamster", "rabbit", "duck", "bear", "panda", "lion", "tiger", "dino", "koala", "penguin", "elephant", "hippo", "cow", "pig", "sheep", "platypus", "quokka", "fox", "cat", "dog"];
+            const animalName = selectedAnimal || animals[Math.min(lv - 1, animals.length - 1)];
+            const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${animalName}&backgroundColor=b6e3f4`;
+            return `<img src="${avatarUrl}" style="width:100px; height:100px; border-radius:15px; background:white; border:2px solid #eee; padding:5px;">`;
         }
-        h += `</div>`;
-        openPopup("🎭 용사 모습 선택", h);
-    });
-}
 
-// 3. 선택한 동물 DB 저장
-function selectAnimal(animalName) {
-    if(confirm(`${animalName}(으)로 변신하시겠습니까?`)) {
-        db.ref('users/' + myName).update({ selectedAnimal: animalName }).then(() => {
-            alert("변신 완료! ✨");
-            closePopup();
-        });
-    }
-}
+        // 2. 캐릭터 선택 팝업
+        function openAvatarPicker() {
+            const animals = ["hamster", "rabbit", "duck", "bear", "panda", "lion", "tiger", "dino", "koala", "penguin", "elephant", "hippo", "cow", "pig", "sheep", "platypus", "quokka", "fox", "cat", "dog"];
+            db.ref('users/' + myName).once('value', snap => {
+                const lv = snap.val().lv || 1;
+                const availableCount = Math.min(lv, animals.length);
+                let h = `<p style="text-align:center;">현재 레벨(${lv})에서 선택 가능한 모습입니다!</p>`;
+                h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; padding:10px;">`;
+                for(let i=0; i < availableCount; i++) {
+                    h += `<div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:1px solid #eee; border-radius:10px; padding:5px;">
+                            <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=${animals[i]}&backgroundColor=b6e3f4" style="width:100%; border-radius:10px;">
+                            <small>${animals[i]}</small></div>`;
+                }
+                h += `</div>`;
+                openPopup("🎭 용사 모습 선택", h);
+            });
+        }
+
+        function selectAnimal(animalName) {
+            if(confirm(`${animalName}(으)로 변신하시겠습니까?`)) {
+                db.ref('users/' + myName).update({ selectedAnimal: animalName }).then(() => { alert("변신 완료! ✨"); closePopup(); });
+            }
+        }
 
         function handleLogin() { auth.signInWithPopup(provider); }
         function showTab(t) { currentTab = t; sessionStorage.setItem('activeTab', t); document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); if(t==='points') loadMyLogs(); if(t==='logs') renderCheckinBoard(); }
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
         function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else { document.getElementById('common-overlay').style.display='none'; rIdx = 0; } }
-        function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
-        function closeMultiPopup() { document.getElementById('multi-popup').style.display = 'none'; }
-
-        function renderCheckinBoard() {
-    const td = document.getElementById('checkin-date-filter').value || getTodayKST();
-    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const dayOfWeek = dayNames[new Date(td).getDay()];
-
-    db.ref('settings/excludeList').once('value', exSnap => {
-        const excludeData = exSnap.val() || {};
-        const todayExcludesStr = excludeData[dayOfWeek] || ""; // 예: "홍길동(방과후), 김철수(봉사)"
-
-        db.ref('checkinLogs').once('value', snap => {
-            const logs = {}; 
-            snap.forEach(c => { const l = c.val(); if(l.date === td) logs[l.name] = l; });
-
-            // 상단 요일별 사유 박스
-            let exH = `
-                <div style="padding:15px; background:#fff3cd; border-radius:15px; margin-bottom:15px; border:2px solid #ffeeba; display:flex; justify-content:space-between; align-items:center; font-size:1.2rem;">
-                    <div><strong>📅 ${dayOfWeek}요일 제외:</strong> <span style="color:#856404;">${todayExcludesStr || '없음'}</span></div>
-                    ${isAdmin ? `<button onclick="openExcludeSettingPopup()" style="width:auto; padding:8px 15px; background:var(--dark); color:white; border:none; border-radius:10px; font-size:1rem; cursor:pointer;">설정 ⚙️</button>` : ''}
-                </div>
-            `;
-
-            let h = exH + `<div style="margin-bottom:20px; font-weight:bold; font-size:1.8rem; text-align:center; border-bottom:4px solid var(--dark); padding-bottom:15px; color:var(--dark);">📌 [${td}] 등교 용사 명부</div>`;
-            
-            currentUsers.forEach(u => {
-                if(u.name === "총사령관") return;
-                const log = logs[u.name];
-                
-                // 기본 상태: 미등교 (노란색)
-                let bgColor = "#ffff00"; 
-                let statusText = "🚩 미등교";
-                let textColor = "#333";
-
-                // [추가] 오늘 제외 대상인지 확인 (문자열에 이름이 포함되어 있는지 체크)
-                const isExcluded = todayExcludesStr.includes(u.name);
-
-                if (log) {
-                    // 등교 완료 상태 (초록색 또는 빨간색)
-                    if(log.result.includes('정상')) { 
-                        bgColor = "#a2fca2"; 
-                        statusText = "⚔️ 정상 등교"; 
-                    } else { 
-                        bgColor = "#ffadad"; 
-                        statusText = "⚠️ " + log.result; 
-                    }
-                } else if (isExcluded) {
-                    // 등교 전인데 제외 대상인 경우 (파란색)
-                    bgColor = "#d1ecf1"; // 연한 파란색
-                    statusText = "🔵 제외 대상";
-                    textColor = "#0c5460";
-                }
-
-                h += `
-                    <div style="display:flex; align-items:center; justify-content:center; padding:22px; margin-bottom:10px; border-radius:12px; font-size:1.7rem; background-color:${bgColor}; border:2px solid rgba(0,0,0,0.1); color:${textColor};">
-                        <span style="width:50px; text-align:right; margin-right:20px; font-weight:bold;">${u.no||''}</span>
-                        <span style="width:120px; font-weight:bold;">${u.name}</span>
-                        <span style="flex:1; text-align:center;">${statusText}</span>
-                        <span style="width:130px; text-align:right; font-size:1.3rem;">${log?.time || (isExcluded ? '사유확인' : '-')}</span>
-                    </div>`;
-            });
-
-            if(document.getElementById('checkin-history')) document.getElementById('checkin-history').innerHTML = h;
-        });
-    });
-}
-
-        function addScore(name, p, e, reason) {
-            db.ref('users/' + name).once('value', sn => {
-                const u = sn.val(); if (!u) return;
-                // 1. 포인트 합산
-                let nP = (parseInt(u.points) || 0) + parseInt(p);
-                // 2. 경험치 합산 (선생님 코드에 이게 빠져있었습니다!)
-                let nE = (parseInt(u.exp) || 0) + parseInt(e);
-                let nL = (parseInt(u.lv) || 1);
-                let up = false; // 3. 변수 선언 (이게 없어서 로딩이 멈췄던 겁니다!)
-
-                while (nE >= 100) { nL++; nE -= 100; up = true; }
-                
-                db.ref('users/' + name).update({ points: nP, exp: nE, lv: nL }).then(() => {
-                    if (reason !== "정상 등교") {
-                        db.ref('pointLogs').push({ name, amount: p, reason, time: new Date().toLocaleString(), date: getTodayKST() });
-                    }
-                    if (up) triggerLevelUpRoulette(name, nL); 
-                });
-            });
-        }
-
-        function loadMyLogs() {
-    // 관리자라면 전체 로그를 가져오고, 학생이라면 본인 로그만 필터링
-    let logQuery = isAdmin ? db.ref('pointLogs') : db.ref('pointLogs').orderByChild('name').equalTo(myName);
-
-    logQuery.once('value', snap => {
-        let h = "";
-        let logs = [];
-        snap.forEach(l => { logs.push(l.val()); });
         
-        // 최신순 정렬 (최근 기록이 위로)
-        logs.reverse();
-
-        if (isAdmin) {
-            // [관리자용] 전체 학생의 기록을 이름과 함께 표시
-            h += `<div style="background:var(--dark); color:white; padding:15px; border-radius:15px; margin-bottom:15px; text-align:center; font-weight:bold;">🛡️ 실시간 전체 용사 연대기</div>`;
-            logs.slice(0, 50).forEach(l => { // 너무 많으면 느려지니 최근 50개만
-                const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
-                h += `
-                    <div class="list-item" style="border-left:10px solid ${color}; background:#fff; margin-bottom:8px; padding:15px;">
-                        <span style="flex:1;">
-                            <strong style="font-size:1.5rem; color:var(--dark);">[${l.name}]</strong> ${l.reason}
-                            <br><small style="color:#888;">${l.time}</small>
-                        </span>
-                        <div style="text-align:right; min-width:80px;">
-                            <strong style="color:${color}; font-size:1.5rem;">${l.amount >= 0 ? '+' : ''}${l.amount}P</strong>
-                        </div>
-                    </div>`;
-            });
-        } else {
-            // [학생용] 본인 기록만 표시
-            logs.slice(0, 30).forEach(l => {
-                const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
-                h += `
-                    <div class="list-item" style="border-left:8px solid ${color};">
-                        <span><b>${l.reason}</b><br><small>${l.time}</small></span>
-                        <strong>${l.amount >= 0 ? '+' : ''}${l.amount}P</strong>
-                    </div>`;
-            });
-        }
-        
-        document.getElementById('point-history-list').innerHTML = h || "<p style='text-align:center; padding:20px; color:#999;'>기록이 아직 없습니다.</p>";
-    });
-}
+        // --- 데이터 로직 시작 ---
         function startApp() {
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
@@ -315,11 +173,8 @@ function selectAnimal(animalName) {
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
             });
 
-                        db.ref('users').on('value', snap => {
-                let users = []; 
-                snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
-                
-                // [정렬] 1순위: 나, 2순위: 번호순
+            db.ref('users').on('value', snap => {
+                let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
                 currentUsers = users.sort((a, b) => {
                     if (a.name === myName) return -1;
                     if (b.name === myName) return 1;
@@ -330,16 +185,11 @@ function selectAnimal(animalName) {
                 currentUsers.forEach(u => { 
                     if(u.name === "총사령관") return; 
                     const isMe = (u.name === myName);
-                    // 본인만 포인트 보이고, 친구들은 비밀!
                     const infoText = isMe ? `${u.points || 0}P` : `??? P`;
-                    
-                    h += `
-                        <div class="hero-card" onclick="openUserHistory('${u.name}')" 
-                             style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2; transform: scale(1.05);' : ''}">
+                    h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2; transform: scale(1.05);' : ''}">
                             <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
                             <b style="font-size:1.3rem;">${isMe ? '⭐ ' : ''}LV.${u.lv || 1} ${u.name}</b><br>
-                            <span style="color:var(--primary); font-weight:bold;">${infoText}</span>
-                        </div>`; 
+                            <span style="color:var(--primary); font-weight:bold;">${infoText}</span></div>`; 
                 });
                 document.getElementById('hero-grid').innerHTML = h;
 
@@ -347,42 +197,24 @@ function selectAnimal(animalName) {
                     let aH = ""; 
                     currentUsers.forEach(u => { 
                         if(u.name === "총사령관") return;
-                        aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-bottom:1px solid #eee; display:flex; align-items:center; gap:12px;">
-                                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:100px; height:60px; margin:0; text-align:center; font-size:1.8rem; border:3px solid var(--primary); font-weight:bold; background:#f0f8ff; border-radius:10px;">
-                                <div style="flex:1; display:flex; align-items:center; gap:10px;"><strong style="font-size:1.7rem; min-width:85px;">${u.name}</strong>
-                                <button onclick="toggleHelper('${u.name}',${u.isHelper || false})" style="width:auto; padding:8px 15px; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold;">${u.isHelper ? '도우미' : '일반'}</button></div>
-                                <button onclick="delUser('${u.name}')" style="width:auto; padding:8px 15px; background:var(--red); color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold;">제거</button></div>`;
-                    });
-                    document.getElementById('student-admin-list').innerHTML = aH;
-                }
-                renderCheckinBoard();
-            });
-                document.getElementById('hero-grid').innerHTML = h;
-
-                if (isAdmin) {
-                    let aH = ""; 
-                    currentUsers.forEach(u => { 
-                        if(u.name === "총사령관") return;
-                        aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-bottom:1px solid #eee; display:flex; align-items:center; gap:12px;">
-                                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:100px; height:60px; margin:0; text-align:center; font-size:1.8rem; border:3px solid var(--primary); font-weight:bold; background:#f0f8ff; border-radius:10px;">
-                                <div style="flex:1; display:flex; align-items:center; gap:10px;"><strong style="font-size:1.7rem; min-width:85px;">${u.name}</strong>
-                                <button onclick="toggleHelper('${u.name}',${u.isHelper || false})" style="width:auto; padding:8px 15px; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold;">${u.isHelper ? '도우미' : '일반'}</button></div>
-                                <button onclick="delUser('${u.name}')" style="width:auto; padding:8px 15px; background:var(--red); color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold;">제거</button></div>`;
+                        aH += `<div class="list-item">
+                                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:80px; text-align:center;">
+                                <strong style="flex:1; margin-left:10px;">${u.name}</strong>
+                                <button onclick="toggleHelper('${u.name}',${u.isHelper || false})" style="width:auto; padding:5px 10px;">${u.isHelper ? '도우미' : '일반'}</button>
+                                <button onclick="delUser('${u.name}')" style="width:auto; background:var(--red); color:white; padding:5px 10px; margin-left:5px;">제거</button></div>`;
                     });
                     document.getElementById('student-admin-list').innerHTML = aH;
                 }
                 renderCheckinBoard();
             });
 
-
-            // --- 상점 카테고리 로직 ---
+            // 상점/도감 로직 (생략 없이 통합)
             let currentShopCat = "전체";
             db.ref('shop').on('value', snap => { window.shopData = snap; renderShop(); });
-
             window.renderShop = function() {
                 if (!window.shopData) return;
                 const cats = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
-                let tabH = `<div style="display:flex; overflow-x:auto; gap:10px; margin-bottom:15px; padding-bottom:10px; -webkit-overflow-scrolling:touch;">`;
+                let tabH = `<div style="display:flex; overflow-x:auto; gap:10px; margin-bottom:15px; padding-bottom:10px;">`;
                 cats.forEach(c => {
                     const activeStyle = (currentShopCat === c) ? 'background:var(--primary); color:white;' : 'background:#eee;';
                     tabH += `<button onclick="filterShop('${c}')" style="width:auto; padding:10px 20px; border-radius:12px; font-weight:bold; border:none; ${activeStyle} white-space:nowrap;">${c}</button>`;
@@ -395,7 +227,6 @@ function selectAnimal(animalName) {
                 }); 
                 document.getElementById('shop-list').innerHTML = tabH + (itemH || "<p style='padding:20px;'>물품 없음</p>"); 
             };
-
             window.filterShop = function(cat) { currentShopCat = cat; renderShop(); };
 
             db.ref('pointGuide').on('value', snap => { 
@@ -426,8 +257,48 @@ function selectAnimal(animalName) {
                 document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
                 if (isAdmin) document.getElementById('order-list').innerHTML = adminH || "요청 없음";
             });
-        } // startApp 종료
+        } // startApp 끝
 
+        // 개인 정보창 (설계도 반영 + 보안 강화)
+        function openUserHistory(un) {
+            db.ref('users/' + un).once('value', sn => {
+                const u = sn.val() || {}, exp = u.exp || 0, lv = u.lv || 1, pts = u.points || 0;
+                const isMeOrAdmin = (isAdmin || un === myName);
+                let h = `
+                    <div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; margin-bottom:15px; border:2px solid #eee;">
+                        <div style="flex: 0 0 100px; text-align:center;">
+                            ${getAvatar(lv, u.selectedAnimal)}
+                            <div style="margin-top:8px; font-weight:bold; color:var(--dark); font-size:1.2rem;">LV.${lv}</div>
+                            ${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; margin-top:5px; background:var(--gold); border:none; border-radius:5px; cursor:pointer;">모습 변경</button>` : ''}
+                        </div>
+                        <div style="flex:1;">
+                            <h3 style="margin:0 0 10px 0; font-size:1.6rem;">${un} 용사</h3>
+                            ${isMeOrAdmin ? `
+                                <div style="font-size:1.4rem; margin-bottom:5px; color:var(--primary);">💰 <b>${pts}P</b></div>
+                                <div style="font-size:1.2rem; color:#666;">✨ EXP: <b>${exp} / 100</b></div>
+                                <div style="background:#ddd; height:15px; border-radius:10px; margin-top:10px; overflow:hidden; border:1px solid #ccc;">
+                                    <div style="background:var(--primary); width:${exp}%; height:100%;"></div>
+                                </div>
+                            ` : `<p style="color:#e74c3c; font-weight:bold; margin-top:20px;">🛡️ 상세 정보는 비밀입니다!</p>`}
+                        </div>
+                    </div>`;
+
+                if (isMeOrAdmin) {
+                    db.ref('pointLogs').once('value', lsn => {
+                        let uL = []; lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); });
+                        let logHtml = `<div style="max-height:300px; overflow-y:auto; border-top:2px solid #eee; padding-top:10px;">`;
+                        uL.reverse().slice(0, 20).forEach(l => { 
+                            const color = l.amount > 0 ? "var(--green)" : "var(--red)"; 
+                            logHtml += `<div class="list-item" style="border-left:8px solid ${color}; background:#fff; margin-bottom:5px; padding:10px;"><span>${l.reason}<br><small style="color:#999;">${l.time}</small></span><strong style="color:${color};">${l.amount > 0 ? '+' : ''}${l.amount}P</strong></div>`; 
+                        });
+                        logHtml += `</div>`;
+                        openPopup(`${un} 용사 정보`, h + logHtml);
+                    });
+                } else { openPopup(`${un} 용사 정보`, h); }
+            });
+        }
+
+        // --- 인증 및 기타 함수 (유지) ---
         auth.onAuthStateChanged(user => {
             if (user) {
                 isAdmin = (user.email === adminEmail);
@@ -445,34 +316,7 @@ function selectAnimal(animalName) {
                 });
             } else { forceScreenDisplay('login'); }
         });
-
-        function openEditShopPopup(key) {
-            db.ref('shop/' + key).once('value', snap => {
-                const i = snap.val();
-                let h = `<h3>🛍️ 물품 수정</h3>상품명: <input type="text" id="edit-shop-name" value="${i.name}">가격: <input type="number" id="edit-shop-price" value="${i.price}">카테고리: <select id="edit-shop-cat"><option value="🍕 먹거리" ${i.cat==='🍕 먹거리'?'selected':''}>🍕 먹거리</option><option value="🎫 쿠폰" ${i.cat==='🎫 쿠폰'?'selected':''}>🎫 쿠폰</option><option value="🎲 뽑기" ${i.cat==='🎲 뽑기'?'selected':''}>🎲 뽑기</option><option value="✏️ 학용품" ${i.cat==='✏️ 학용품'?'selected':''}>✏️ 학용품</option><option value="✨ 기타" ${i.cat==='✨ 기타'?'selected':''}>✨ 기타</option></select>
-                <button onclick="db.ref('shop/${key}').update({name:document.getElementById('edit-shop-name').value, price:parseInt(document.getElementById('edit-shop-price').value), cat:document.getElementById('edit-shop-cat').value}).then(()=>{alert('수정됨');closePopup();})" style="background:var(--primary); color:white;">저장</button>
-                <button onclick="if(confirm('삭제?')) db.ref('shop/${key}').remove().then(()=>{closePopup();})" style="background:var(--red); color:white;">삭제</button>`;
-                openPopup("물품 관리", h);
-            });
-        }
-
-        function openEditGuidePopup(key) {
-            db.ref('pointGuide/' + key).once('value', snap => {
-                const g = snap.val();
-                let h = `<h3>📜 도감 수정</h3>항목: <input type="text" id="edit-guide-title" value="${g.title}">P: <input type="number" id="edit-guide-p" value="${g.p}">E: <input type="number" id="edit-guide-e" value="${g.e}">
-                <button onclick="db.ref('pointGuide/${key}').update({title:document.getElementById('edit-guide-title').value, p:parseInt(document.getElementById('edit-guide-p').value), e:parseInt(document.getElementById('edit-guide-e').value)}).then(()=>{alert('수정됨');closePopup();})" style="background:var(--primary); color:white;">저장</button>
-                <button onclick="if(confirm('삭제?')) db.ref('pointGuide/${key}').remove().then(()=>{closePopup();})" style="background:var(--red); color:white;">삭제</button>`;
-                openPopup("도감 관리", h);
-            });
-        }
-
-        function approveMulti(keysStr) {
-            if (confirm("모두 승인하시겠습니까?")) {
-                const updates = {}; keysStr.split(',').forEach(k => { updates[`orders/${k}/status`] = '완료'; });
-                db.ref().update(updates).then(() => alert("일괄 승인 완료!"));
-            }
-        }
-
+        
         function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
         function toggleHelper(n,s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function delUser(n) { if(confirm(n+" 제거?")) db.ref('users/'+n).remove(); }
@@ -481,56 +325,10 @@ function selectAnimal(animalName) {
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         async function buyItem(k, n, p, l) { const sn = await db.ref('users/'+myName).once('value'); if((sn.val().points||0) < p) return alert("부족!"); db.ref('orders').push({ user: myName, item: n, status: '대기', time: new Date().toLocaleString() }); addScore(myName, -p, 0, `${n} 구매`); }
         function reqUse(k) { if(confirm("사용 요청?")) db.ref('orders/'+k).update({status:'사용요청'}); }
+        function approveMulti(keysStr) { if (confirm("모두 승인하시겠습니까?")) { const updates = {}; keysStr.split(',').forEach(k => { updates[`orders/${k}/status`] = '완료'; }); db.ref().update(updates).then(() => alert("일괄 승인 완료!")); } }
         function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
         function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
         function triggerLevelUpRoulette(name, newLv) { if (!giftList.length) return; const pick = giftList[Math.floor(Math.random() * giftList.length)]; db.ref('orders').push({ user: name, item: `[레벨업 보상] ${pick}`, status: '대기', time: new Date().toLocaleString() }); if (name === myName) openPopup("LEVEL UP!", `LV.${newLv} 달성! 보상: [${pick}]`); }
-           // [개인 정보창 팝업 함수 - 설계도 반영 버전]
-        function openUserHistory(un) {
-            db.ref('users/' + un).once('value', sn => {
-                const u = sn.val() || {}, exp = u.exp || 0, lv = u.lv || 1, pts = u.points || 0;
-                
-                // 가로형 레이아웃 (캐릭터와 정보 나란히 배치)
-                let h = `
-                    <div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; margin-bottom:15px; border:2px solid #eee;">
-                        <div style="flex: 0 0 100px; text-align:center;">
-                            ${getAvatar(lv)}
-                            <div style="margin-top:8px; font-weight:bold; color:var(--dark); font-size:1.2rem;">LV.${lv}</div>
-                        </div>
-                        <div style="flex:1;">
-                            <h3 style="margin:0 0 10px 0; font-size:1.6rem;">${un} 용사</h3>
-                            <div style="font-size:1.4rem; margin-bottom:5px; color:var(--primary);">💰 <b>${pts}P</b></div>
-                            <div style="font-size:1.2rem; color:#666;">✨ EXP: <b>${exp} / 100</b></div>
-                            <div style="background:#ddd; height:15px; border-radius:10px; margin-top:10px; overflow:hidden; border:1px solid #ccc;">
-                                <div style="background:var(--primary); width:${exp}%; height:100%;"></div>
-                            </div>
-                        </div>
-                    </div>`;
-
-                // 로그 표시 로직 (관리자나 본인만 확인 가능)
-                if (isAdmin || un === myName) {
-                    db.ref('pointLogs').once('value', lsn => {
-                        let uL = []; 
-                        lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); });
-                        
-                        let logHtml = `<div style="max-height:300px; overflow-y:auto; border-top:2px solid #eee; padding-top:10px;">`;
-                        uL.reverse().slice(0, 20).forEach(l => { 
-                            const color = l.amount > 0 ? "var(--green)" : "var(--red)"; 
-                            logHtml += `
-                                <div class="list-item" style="border-left:8px solid ${color}; background:#fff; margin-bottom:5px; padding:10px;">
-                                    <span>${l.reason}<br><small style="color:#999;">${l.time}</small></span>
-                                    <strong style="color:${color};">${l.amount > 0 ? '+' : ''}${l.amount}P</strong>
-                                </div>`; 
-                        });
-                        logHtml += `</div>`;
-                        openPopup(`${un} 용사 상세 정보`, h + logHtml);
-                    });
-                } else {
-                    h += `<p style="text-align:center; color:#999; padding:20px;">🛡️ 보안상 다른 용사의 연대기는 볼 수 없습니다.</p>`;
-                    openPopup(`${un} 용사 정보`, h);
-                }
-            });
-        }
-
     </script>
 </body>
 </html>
