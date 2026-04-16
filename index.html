@@ -130,10 +130,9 @@
 
         // 1. 캐릭터 이미지 가져오기 (동물 농장 버전)
         function getAvatar(lv, selectedAnimal) {
-            const animals = ["hamster", "rabbit", "duck", "bear", "panda", "lion", "tiger", "dino", "koala", "penguin", "elephant", "hippo", "cow", "pig", "sheep", "platypus", "quokka", "fox", "cat", "dog"];
-            const animalName = selectedAnimal || animals[Math.min(lv - 1, animals.length - 1)];
-            const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${animalName}&backgroundColor=b6e3f4`;
-            return `<img src="${avatarUrl}" style="width:100px; height:100px; border-radius:15px; background:white; border:2px solid #eee; padding:5px;">`;
+            const animals = ["🐹", "🐰", "🐥", "🐻", "🐼", "🦁", "🐯", "🦖", "🐨", "🐧", "🐘", "🦛", "🐮", "🐷", "🐑", "🦉", "🐿️", "🦊", "🐱", "🐶"];
+            const animalDisplay = selectedAnimal || animals[Math.min(lv - 1, animals.length - 1)];
+            return `<div style="font-size: 70px; text-align:center; border: 2px solid #eee; border-radius: 15px; background: white; width: 100px; height: 100px; display:flex; align-items:center; justify-content:center;">${animalDisplay}</div>`;
         }
 
         // 2. 캐릭터 선택 팝업
@@ -174,7 +173,10 @@
             });
 
             db.ref('users').on('value', snap => {
-                let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
+                let users = []; 
+                snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
+                
+                // 정렬: 1순위 나, 2순위 번호순
                 currentUsers = users.sort((a, b) => {
                     if (a.name === myName) return -1;
                     if (b.name === myName) return 1;
@@ -185,11 +187,16 @@
                 currentUsers.forEach(u => { 
                     if(u.name === "총사령관") return; 
                     const isMe = (u.name === myName);
-                    const infoText = isMe ? `${u.points || 0}P` : `??? P`;
-                    h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2; transform: scale(1.05);' : ''}">
+                    // [보안] 본인 혹은 관리자만 포인트 표시 (나머지는 아예 출력 안함)
+                    const infoText = (isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold;">${u.points || 0}P</span>` : "";
+                    
+                    h += `
+                        <div class="hero-card" onclick="openUserHistory('${u.name}')" 
+                             style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2; transform: scale(1.05);' : ''}">
                             <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
                             <b style="font-size:1.3rem;">${isMe ? '⭐ ' : ''}LV.${u.lv || 1} ${u.name}</b><br>
-                            <span style="color:var(--primary); font-weight:bold;">${infoText}</span></div>`; 
+                            ${infoText}
+                        </div>`; 
                 });
                 document.getElementById('hero-grid').innerHTML = h;
 
@@ -197,24 +204,24 @@
                     let aH = ""; 
                     currentUsers.forEach(u => { 
                         if(u.name === "총사령관") return;
-                        aH += `<div class="list-item">
-                                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:80px; text-align:center;">
-                                <strong style="flex:1; margin-left:10px;">${u.name}</strong>
-                                <button onclick="toggleHelper('${u.name}',${u.isHelper || false})" style="width:auto; padding:5px 10px;">${u.isHelper ? '도우미' : '일반'}</button>
-                                <button onclick="delUser('${u.name}')" style="width:auto; background:var(--red); color:white; padding:5px 10px; margin-left:5px;">제거</button></div>`;
+                        aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-bottom:1px solid #eee; display:flex; align-items:center; gap:12px;">
+                                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:100px; height:60px; margin:0; text-align:center; font-size:1.8rem; border:3px solid var(--primary); font-weight:bold; background:#f0f8ff; border-radius:10px;">
+                                <div style="flex:1; display:flex; align-items:center; gap:10px;"><strong style="font-size:1.7rem; min-width:85px;">${u.name}</strong>
+                                <button onclick="toggleHelper('${u.name}',${u.isHelper || false})" style="width:auto; padding:8px 15px; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold;">${u.isHelper ? '도우미' : '일반'}</button></div>
+                                <button onclick="delUser('${u.name}')" style="width:auto; padding:8px 15px; background:var(--red); color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold;">제거</button></div>`;
                     });
                     document.getElementById('student-admin-list').innerHTML = aH;
                 }
                 renderCheckinBoard();
             });
 
-            // 상점/도감 로직 (생략 없이 통합)
+            // 상점 카테고리
             let currentShopCat = "전체";
             db.ref('shop').on('value', snap => { window.shopData = snap; renderShop(); });
             window.renderShop = function() {
                 if (!window.shopData) return;
                 const cats = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
-                let tabH = `<div style="display:flex; overflow-x:auto; gap:10px; margin-bottom:15px; padding-bottom:10px;">`;
+                let tabH = `<div style="display:flex; overflow-x:auto; gap:10px; margin-bottom:15px; padding-bottom:10px; -webkit-overflow-scrolling:touch;">`;
                 cats.forEach(c => {
                     const activeStyle = (currentShopCat === c) ? 'background:var(--primary); color:white;' : 'background:#eee;';
                     tabH += `<button onclick="filterShop('${c}')" style="width:auto; padding:10px 20px; border-radius:12px; font-weight:bold; border:none; ${activeStyle} white-space:nowrap;">${c}</button>`;
@@ -257,7 +264,7 @@
                 document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
                 if (isAdmin) document.getElementById('order-list').innerHTML = adminH || "요청 없음";
             });
-        } // startApp 끝
+        }
 
         // 개인 정보창 (설계도 반영 + 보안 강화)
         function openUserHistory(un) {
@@ -269,7 +276,7 @@
                         <div style="flex: 0 0 100px; text-align:center;">
                             ${getAvatar(lv, u.selectedAnimal)}
                             <div style="margin-top:8px; font-weight:bold; color:var(--dark); font-size:1.2rem;">LV.${lv}</div>
-                            ${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; margin-top:5px; background:var(--gold); border:none; border-radius:5px; cursor:pointer;">모습 변경</button>` : ''}
+                            ${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; margin-top:5px; background:var(--gold); border:none; border-radius:5px;">모습 변경</button>` : ''}
                         </div>
                         <div style="flex:1;">
                             <h3 style="margin:0 0 10px 0; font-size:1.6rem;">${un} 용사</h3>
@@ -296,6 +303,17 @@
                     });
                 } else { openPopup(`${un} 용사 정보`, h); }
             });
+        }
+
+        async function buyItem(k, n, p, l) {
+            const sn = await db.ref('users/'+myName).once('value');
+            if((sn.val().points||0) < p) return alert("포인트가 부족합니다!");
+            if(confirm(`[${n}]을(를) ${p}P에 구매하시겠습니까?`)) {
+                db.ref('orders').push({ user: myName, item: n, status: '대기', time: new Date().toLocaleString() }).then(() => {
+                    addScore(myName, -p, 0, `${n} 구매`);
+                    alert(`✅ [${n}] 구매 완료!`);
+                });
+            }
         }
 
         // --- 인증 및 기타 함수 (유지) ---
