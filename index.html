@@ -218,6 +218,7 @@
             // 상점 카테고리
             let currentShopCat = "전체";
             db.ref('shop').on('value', snap => { window.shopData = snap; renderShop(); });
+           // --- 상점 시스템 (관리 버튼 & 제한 표시 복구) ---
             window.renderShop = function() {
                 if (!window.shopData) return;
                 const cats = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
@@ -227,44 +228,64 @@
                     tabH += `<button onclick="filterShop('${c}')" style="width:auto; padding:10px 20px; border-radius:12px; font-weight:bold; border:none; ${activeStyle} white-space:nowrap;">${c}</button>`;
                 });
                 tabH += `</div>`;
+
+                // [추가] 관리자일 때만 보이는 새 물품 등록 버튼
+                let addH = isAdmin ? `<button onclick="openAddShopPopup()" style="width:100%; padding:15px; margin-bottom:15px; background:var(--gold); color:var(--dark); font-weight:bold; border:none; border-radius:12px;">+ 새 보급품 등록하기</button>` : "";
+                
                 let itemH = ""; 
                 window.shopData.forEach(c => { 
-                    const i = c.val(); if (currentShopCat !== "전체" && i.cat !== currentShopCat) return; 
-                    itemH += `<div class="list-item"><span>[${i.cat||'✨'}] <b>${i.name}</b> (${i.price}P)</span><div style="display:flex; gap:8px;"><button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 18px;">구매</button>${isAdmin ? `<button onclick="openEditShopPopup('${c.key}')" style="width:auto; padding:10px 18px; background:var(--dark); color:white;">관리</button>` : ''}</div></div>`; 
+                    const i = c.val(); 
+                    if (currentShopCat !== "전체" && i.cat !== currentShopCat) return; 
+
+                    // [복구] 제한(Limit) 표시 로직
+                    const limitText = (i.limit && i.limit > 0) ? `<br><small style="color:red;">(1인당 ${i.limit}개 제한)</small>` : "";
+
+                    itemH += `
+                        <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>[${i.cat||'✨'}] <b>${i.name}</b> (${i.price}P)${limitText}</span>
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 18px;">구매</button>
+                                ${isAdmin ? `<button onclick="openEditShopPopup('${c.key}')" style="width:auto; padding:10px 18px; background:var(--dark); color:white;">관리 ⚙️</button>` : ''}
+                            </div>
+                        </div>`; 
                 }); 
-                document.getElementById('shop-list').innerHTML = tabH + (itemH || "<p style='padding:20px;'>물품 없음</p>"); 
+                document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "<p style='padding:20px;'>물품 없음</p>"); 
             };
-            window.filterShop = function(cat) { currentShopCat = cat; renderShop(); };
 
-            db.ref('pointGuide').on('value', snap => { 
-                let h = ""; snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" style="position:relative;"><div onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})"><b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span></div>${isAdmin ? `<button onclick="openEditGuidePopup('${c.key}')" style="margin-top:10px; padding:5px; font-size:1.1rem; background:#eee; border:none; border-radius:5px;">수정 ⚙️</button>` : ''}</div>`; }); 
-                document.getElementById('guide-list').innerHTML = h;
-            });
+            // [복구] 새 물품 등록 팝업 함수
+            window.openAddShopPopup = function() {
+                let h = `
+                    <div style="text-align:left;">
+                        <p>상품명:</p><input type="text" id="add-item-name" placeholder="예: 컵떡볶이">
+                        <p>가격(P):</p><input type="number" id="add-item-price" placeholder="0">
+                        <p>구매 제한(0은 무제한):</p><input type="number" id="add-item-limit" value="0">
+                        <p>카테고리:</p>
+                        <select id="add-item-cat">
+                            <option value="🍕 먹거리">🍕 먹거리</option>
+                            <option value="🎫 쿠폰">🎫 쿠폰</option>
+                            <option value="🎲 뽑기">🎲 뽑기</option>
+                            <option value="✏️ 학용품">✏️ 학용품</option>
+                            <option value="✨ 기타">✨ 기타</option>
+                        </select>
+                        <button onclick="saveNewItem()" style="background:var(--primary); color:white; margin-top:15px;">등록하기</button>
+                    </div>`;
+                openPopup("🎁 새 보급품 추가", h);
+            };
 
-            db.ref('orders').on('value', snap => {
-                let uH = "", wH = "", adminH = ""; let myInv = {}, myWait = {}, adminReq = {};
-                snap.forEach(c => {
-                    const o = c.val(); const key = c.key;
-                    if (o.user === myName) {
-                        if (o.status === '대기') { myInv[o.item] = (myInv[o.item] || 0) + 1; myInv[o.item + "_key"] = key; } 
-                        else if (o.status === '사용요청') { myWait[o.item] = (myWait[o.item] || 0) + 1; }
-                    }
-                    if (isAdmin && o.status === '사용요청') {
-                        const adminKey = o.user + "||" + o.item;
-                        if (!adminReq[adminKey]) adminReq[adminKey] = { user: o.user, item: o.item, count: 0, keys: [] };
-                        adminReq[adminKey].count++; adminReq[adminKey].keys.push(key);
-                    }
-                });
-                Object.keys(myInv).forEach(item => { if (item.endsWith("_key")) return; uH += `<div class="list-item"><span>${item} <b>x ${myInv[item]}</b></span><button onclick="reqUse('${myInv[item + "_key"]}')" style="width:auto;">1개 사용</button></div>`; });
-                Object.keys(myWait).forEach(item => { wH += `<div class="list-item"><span>${item} <b>x ${myWait[item]}</b></span><b style="color:#888;">대기중</b></div>`; });
-                if (isAdmin) {
-                    Object.keys(adminReq).forEach(k => { const req = adminReq[k]; adminH += `<div class="list-item"><span><b>${req.user}</b>: ${req.item} <b>x ${req.count}</b></span><button onclick="approveMulti('${req.keys.join(',')}')" style="width:auto; background:var(--red); color:white;">전체승인</button></div>`; });
+            window.saveNewItem = function() {
+                const n = document.getElementById('add-item-name').value;
+                const p = parseInt(document.getElementById('add-item-price').value);
+                const l = parseInt(document.getElementById('add-item-limit').value) || 0;
+                const c = document.getElementById('add-item-cat').value;
+                if(n && p) {
+                    db.ref('shop').push({cat:c, name:n, price:p, limit:l}).then(() => {
+                        alert("등록 완료!");
+                        closePopup();
+                    });
+                } else {
+                    alert("이름과 가격을 입력해주세요.");
                 }
-                document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "없음";
-                document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
-                if (isAdmin) document.getElementById('order-list').innerHTML = adminH || "요청 없음";
-            });
-        }
+            };
 
         // 개인 정보창 (설계도 반영 + 보안 강화)
         function openUserHistory(un) {
@@ -347,6 +368,58 @@
         function addGuide() { const t=document.getElementById('guide-title').value, p=parseInt(document.getElementById('guide-p').value)||0, e=parseInt(document.getElementById('guide-e').value)||0; if(t) db.ref('pointGuide').push({title:t, p, e}); }
         function addItem() { const n=document.getElementById('item-name-in').value, p=parseInt(document.getElementById('item-price-in').value), l=parseInt(document.getElementById('item-limit-in').value)||0, c=document.getElementById('item-cat-in').value; if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}); }
         function triggerLevelUpRoulette(name, newLv) { if (!giftList.length) return; const pick = giftList[Math.floor(Math.random() * giftList.length)]; db.ref('orders').push({ user: name, item: `[레벨업 보상] ${pick}`, status: '대기', time: new Date().toLocaleString() }); if (name === myName) openPopup("LEVEL UP!", `LV.${newLv} 달성! 보상: [${pick}]`); }
+    // [복구] 기존 도감 항목 수정 팝업
+        window.openEditGuidePopup = function(key) {
+            db.ref('pointGuide/' + key).once('value', snap => {
+                const g = snap.val();
+                if(!g) return;
+                
+                let h = `
+                    <div style="text-align:left;">
+                        <h3 style="margin-bottom:15px;">📜 도감 항목 수정</h3>
+                        <p>항목명:</p>
+                        <input type="text" id="edit-guide-title" value="${g.title}">
+                        <p>지급 포인트(P):</p>
+                        <input type="number" id="edit-guide-p" value="${g.p || 0}">
+                        <p>지급 경험치(E):</p>
+                        <input type="number" id="edit-guide-e" value="${g.e || 0}">
+                        
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button onclick="saveEditGuide('${key}')" style="background:var(--primary); color:white; flex:1;">저장하기</button>
+                            <button onclick="deleteGuide('${key}')" style="background:var(--red); color:white; flex:1;">삭제</button>
+                        </div>
+                    </div>`;
+                openPopup("도감 관리 ⚙️", h);
+            });
+        };
+
+        // 수정 저장 함수
+        window.saveEditGuide = function(key) {
+            const t = document.getElementById('edit-guide-title').value;
+            const p = parseInt(document.getElementById('edit-guide-p').value) || 0;
+            const e = parseInt(document.getElementById('edit-guide-e').value) || 0;
+            
+            if(t) {
+                db.ref('pointGuide/' + key).update({
+                    title: t,
+                    p: p,
+                    e: e
+                }).then(() => {
+                    alert("수정되었습니다. ✨");
+                    closePopup();
+                });
+            }
+        };
+
+        // 삭제 함수
+        window.deleteGuide = function(key) {
+            if(confirm("이 기준을 정말 삭제하시겠습니까?")) {
+                db.ref('pointGuide/' + key).remove().then(() => {
+                    alert("삭제 완료.");
+                    closePopup();
+                });
+            }
+        };
     </script>
 </body>
 </html>
