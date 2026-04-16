@@ -589,6 +589,69 @@
             document.querySelectorAll('.pop-bulk-'+type).forEach(input => input.value = val); 
         }
         function closePointPopup() { document.getElementById('point-popup').style.display = 'none'; }
+        // [등교 확인 메인 함수]
+        async function submitCheckIn() {
+            const passInput = document.getElementById('checkin-pass');
+            const pass = passInput.value.trim();
+            
+            if (!pass) return alert("오늘의 암호를 입력해주세요!");
+
+            // 1. 설정 및 유저 데이터 가져오기
+            const sSnap = await db.ref('settings').once('value');
+            const settings = sSnap.val() || {};
+            const uSnap = await db.ref('users/' + myName).once('value');
+            const userData = uSnap.val() || {};
+
+            // 2. 암호 확인
+            if (pass !== settings.password) {
+                return alert("암호가 틀렸습니다! 다시 확인해보세요. 🛡️");
+            }
+
+            // 3. 오늘 이미 등교했는지 확인
+            const today = getTodayKST();
+            const logSnap = await db.ref('checkinLogs').once('value');
+            let alreadyDone = false;
+            logSnap.forEach(l => {
+                if (l.val().name === myName && l.val().date === today) alreadyDone = true;
+            });
+
+            if (alreadyDone) return alert("오늘은 이미 본부에 소환되었습니다! 🏰");
+
+            // 4. 시간 판정 (정상/지각)
+            const now = new Date();
+            const nowStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+            
+            let result = "정상 등교";
+            let p = 5, e = 10; // 기본 보상
+
+            if (nowStr > (settings.closeTime || "09:00")) {
+                return alert("등교 시간이 마감되었습니다. 선생님께 말씀드리세요!");
+            } else if (nowStr > (settings.lateTime || "08:40")) {
+                result = "지각 등교";
+                p = 2; e = 5; // 지각 보상 감소
+            }
+
+            // 5. 로그 기록 및 점수 반영
+            const logData = {
+                name: myName,
+                date: today,
+                time: nowStr,
+                result: result
+            };
+
+            db.ref('checkinLogs').push(logData).then(() => {
+                addScore(myName, p, e, result);
+                passInput.value = ""; // 입력창 비우기
+                
+                // 6. 루틴 팝업 띄우기 (설정된 루틴이 있을 경우)
+                if (routineItems.length > 0) {
+                    rIdx = 0;
+                    openPopup("🌅 아침 루틴 시작!", `[루틴 1단계]\n${routineItems[0]}`, true);
+                } else {
+                    alert(`⚔️ ${result} 완료! ${p}P와 ${e}E를 획득했습니다.`);
+                }
+            });
+        }
     </script>
 </body>
 </html>
