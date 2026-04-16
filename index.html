@@ -329,6 +329,74 @@
         function addScore(n, p, e, r) { db.ref('users/'+n).once('value', sn => { const u=sn.val(); if(!u) return; let nP=(u.points||0)+p, nE=(u.exp||0)+e, nL=(u.lv||1), up=false; while(nE>=100){ nL++; nE-=100; up=true; } db.ref('users/'+n).update({points:nP, exp:nE, lv:nL}).then(()=>{ if(r!=="정상 등교") db.ref('pointLogs').push({name:n, amount:p, reason:r, time:new Date().toLocaleString(), date:getTodayKST()}); if(up) triggerLevelUpRoulette(n, nL); }); }); }
         function triggerLevelUpRoulette(n, l) { if(!giftList.length) return; const pick=giftList[Math.floor(Math.random()*giftList.length)]; db.ref('orders').push({user:n, item:`[레벨업] ${pick}`, status:'대기', time:new Date().toLocaleString()}); if(n===myName) openPopup("LEVEL UP!", `LV.${l} 달성! 보상: ${pick}`); }
         function renderCheckinBoard() { /* 기존 로직 유지 - 코드 길이상 핵심 로직 포함됨 */ }
+    // [상점 물품 수정 팝업]
+        window.openEditShopPopup = function(key) {
+            db.ref('shop/' + key).once('value', snap => {
+                const i = snap.val(); if(!i) return;
+                let h = `
+                    <div style="text-align:left;">
+                        <h3>🛍️ 물품 수정</h3>
+                        상품명: <input type="text" id="edit-shop-name" value="${i.name}">
+                        가격(P): <input type="number" id="edit-shop-price" value="${i.price}">
+                        제한: <input type="number" id="edit-shop-limit" value="${i.limit || 0}">
+                        카테고리: <select id="edit-shop-cat">
+                            <option value="🍕 먹거리" ${i.cat==='🍕 먹거리'?'selected':''}>🍕 먹거리</option>
+                            <option value="🎫 쿠폰" ${i.cat==='🎫 쿠폰'?'selected':''}>🎫 쿠폰</option>
+                            <option value="🎲 뽑기" ${i.cat==='🎲 뽑기'?'selected':''}>🎲 뽑기</option>
+                            <option value="✏️ 학용품" ${i.cat==='✏️ 학용품'?'selected':''}>✏️ 학용품</option>
+                            <option value="✨ 기타" ${i.cat==='✨ 기타'?'selected':''}>✨ 기타</option>
+                        </select>
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button onclick="saveEditShop('${key}')" style="background:var(--primary); color:white; flex:1;">저장</button>
+                            <button onclick="deleteShopItem('${key}')" style="background:var(--red); color:white; flex:1;">삭제</button>
+                        </div>
+                    </div>`;
+                openPopup("보급품 관리", h);
+            });
+        };
+
+        window.saveEditShop = function(k) {
+            const n = document.getElementById('edit-shop-name').value;
+            const p = parseInt(document.getElementById('edit-shop-price').value);
+            const l = parseInt(document.getElementById('edit-shop-limit').value);
+            const c = document.getElementById('edit-shop-cat').value;
+            db.ref('shop/'+k).update({name:n, price:p, limit:l, cat:c}).then(() => { alert("수정 완료!"); closePopup(); });
+        };
+
+        window.deleteShopItem = function(k) { if(confirm("물품을 삭제하시겠습니까?")) db.ref('shop/'+k).remove().then(() => { alert("삭제됨"); closePopup(); }); };
+
+        // [도감 항목 수정 팝업]
+        window.openEditGuidePopup = function(key) {
+            db.ref('pointGuide/' + key).once('value', snap => {
+                const g = snap.val(); if(!g) return;
+                let h = `
+                    <div style="text-align:left;">
+                        <h3>📜 도감 수정</h3>
+                        항목명: <input type="text" id="edit-guide-title" value="${g.title}">
+                        포인트(P): <input type="number" id="edit-guide-p" value="${g.p}">
+                        경험치(E): <input type="number" id="edit-guide-e" value="${g.e}">
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button onclick="saveEditGuide('${key}')" style="background:var(--primary); color:white; flex:1;">저장</button>
+                            <button onclick="deleteGuide('${key}')" style="background:var(--red); color:white; flex:1;">삭제</button>
+                        </div>
+                    </div>`;
+                openPopup("도감 기준 수정", h);
+            });
+        };
+
+        window.saveEditGuide = function(k) {
+            const t = document.getElementById('edit-guide-title').value;
+            const p = parseInt(document.getElementById('edit-guide-p').value);
+            const e = parseInt(document.getElementById('edit-guide-e').value);
+            db.ref('pointGuide/'+k).update({title:t, p:p, e:e}).then(() => { alert("수정 완료!"); closePopup(); });
+        };
+
+        window.deleteGuide = function(k) { if(confirm("기준을 삭제하시겠습니까?")) db.ref('pointGuide/'+k).remove().then(() => { alert("삭제됨"); closePopup(); }); };
+
+        // [기타 누락 함수 보완]
+        function updateNo(n, v) { db.ref('users/' + n).update({ no: v }); }
+        function toggleHelper(n, s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
+        function delUser(n) { if(confirm(n+" 용사를 제명하시겠습니까?")) db.ref('users/'+n).remove(); }
     </script>
 </body>
 </html>
