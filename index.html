@@ -252,11 +252,10 @@ function openAvatarPicker() {
         renderCheckinBoard();
     });
 
-    // 4. 상점(용사보급소) 데이터 복구
+    // 4. [복구] 상점 데이터 및 제한 개수 표시
     let currentShopCat = "전체";
     db.ref('shop').on('value', snap => { 
         window.shopData = snap; 
-        // 전역 필터 함수와 렌더링 함수를 startApp 내부에 정의
         window.filterShop = function(cat) { currentShopCat = cat; renderShop(); };
         window.renderShop = function() {
             if (!window.shopData) return;
@@ -267,13 +266,24 @@ function openAvatarPicker() {
                 tabH += `<button onclick="filterShop('${c}')" style="width:auto; padding:10px 20px; border-radius:12px; font-weight:bold; border:none; ${activeStyle} white-space:nowrap;">${c}</button>`;
             });
             tabH += `</div>`;
+            
             let addH = isAdmin ? `<button onclick="openAddShopPopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px;">+ 새 보급품 등록</button>` : "";
             let itemH = ""; 
             window.shopData.forEach(c => { 
                 const i = c.val(); if (currentShopCat !== "전체" && i.cat !== currentShopCat) return; 
-                itemH += `<div class="list-item"><span>[${i.cat||'✨'}] <b>${i.name}</b> (${i.price}P)</span><button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto;">구매</button></div>`; 
+                
+                // [복구] 제한 개수 표시 로직
+                const limitText = (i.limit && i.limit > 0) ? `<br><small style="color:var(--red); font-weight:bold;">(1인당 ${i.limit}개 제한)</small>` : "";
+                
+                itemH += `<div class="list-item">
+                            <span>[${i.cat||'✨'}] <b>${i.name}</b> (${i.price}P)${limitText}</span>
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 18px;">구매</button>
+                                ${isAdmin ? `<button onclick="openEditShopPopup('${c.key}')" style="width:auto; padding:10px 18px; background:var(--dark); color:white;">관리</button>` : ''}
+                            </div>
+                          </div>`; 
             }); 
-            document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "물품 없음"); 
+            document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "<p style='padding:20px;'>물품 없음</p>"); 
         };
         renderShop();
     });
