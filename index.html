@@ -432,7 +432,7 @@
         }
 
         // [2] 등교기록부 (요일별 제외 사유 포함)
-        function renderCheckinBoard() {
+       function renderCheckinBoard() {
             const historyEl = document.getElementById('checkin-history');
             if(!historyEl) return;
 
@@ -440,12 +440,10 @@
             const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
             const dayName = dayNames[new Date(targetDate).getDay()];
 
-            // 설정에서 제외 명단 먼저 가져오기
             db.ref('settings/excludeList').once('value', exSnap => {
                 const exData = exSnap.val() || {};
-                const excludeStr = exData[dayName] || ""; // 해당 요일 제외 학생들
+                const excludeStr = exData[dayName] || ""; 
 
-                // 실제 등교 로그 가져오기
                 db.ref('checkinLogs').once('value', snap => {
                     const logs = {};
                     snap.forEach(c => {
@@ -453,10 +451,10 @@
                         if(val.date === targetDate) logs[val.name] = val;
                     });
 
-                    let html = `<div style="padding:12px; background:#e3f2fd; border-radius:10px; margin-bottom:15px; border:1px solid #bbdefb; font-weight:bold;">📅 ${targetDate} (${dayName}) 등교 현황</div>`;
+                    let html = `<div style="padding:15px; background:#e3f2fd; border-radius:12px; margin-bottom:15px; font-weight:bold; font-size:1.3rem;">📅 ${targetDate} (${dayName}) 등교 명부</div>`;
                     
                     if(excludeStr) {
-                        html += `<div style="padding:8px; background:#fff3cd; border-radius:5px; margin-bottom:10px; font-size:0.9rem;">💡 제외 대상: ${excludeStr}</div>`;
+                        html += `<div style="padding:10px; background:#fff3cd; border-radius:8px; margin-bottom:10px; font-size:1.1rem; border:1px solid #ffeeba;">💡 오늘의 제외 대상: ${excludeStr}</div>`;
                     }
 
                     currentUsers.forEach(u => {
@@ -465,23 +463,30 @@
                         const log = logs[u.name];
                         const isExcluded = excludeStr.includes(u.name);
                         
-                        // 배경색 결정: 등교완료(초록), 지각(빨강), 제외대상(하늘), 미등교(노랑)
-                        let bgColor = "#ffff00"; // 기본 미등교
+                        // [기존 배경색 로직 그대로 유지]
+                        let bgColor = "#ffff00"; // 기본 미등교 (노랑)
                         let statusText = "미등교";
                         
                         if(log) {
-                            if(log.result.includes('정상')) { bgColor = "#ccffcc"; statusText = "정상 등교"; }
-                            else { bgColor = "#ffcccc"; statusText = "지각"; }
+                            if(log.result.includes('정상')) { 
+                                bgColor = "#ccffcc"; statusText = "정상 등교"; // 정상 (초록)
+                            } else { 
+                                bgColor = "#ffcccc"; statusText = "지각"; // 지각 (빨강)
+                            }
                         } else if(isExcluded) {
-                            bgColor = "#e1f5fe"; statusText = "제외(방과후 등)";
+                            bgColor = "#e1f5fe"; statusText = "제외 대상"; // 제외 (하늘)
                         }
 
+                        // [시간 표시 수정] 상태 텍스트 바로 옆에 빨간색 대왕 글씨로 배치
+                        let timeDisplay = log ? `<span style="margin-left:12px; font-size:1.8rem; color:#e84118; font-weight:900; vertical-align:middle;">[${log.time}]</span>` : "";
+
                         html += `
-                            <div style="display:flex; align-items:center; padding:12px; margin-bottom:6px; border-radius:12px; background:${bgColor}; border:1px solid #eee; font-weight:bold;">
-                                <span style="width:35px; color:#666;">${u.no || '-'}</span>
-                                <span style="width:90px;">${u.name}</span>
-                                <span style="flex:1; text-align:center;">${statusText}</span>
-                                <span style="width:70px; text-align:right; font-size:0.8rem; color:#555;">${log ? log.time : ''}</span>
+                            <div style="display:flex; align-items:center; padding:18px; margin-bottom:8px; border-radius:15px; background:${bgColor}; border:2px solid rgba(0,0,0,0.05); box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                                <span style="width:45px; font-size:1.4rem; font-weight:bold; color:#666;">${u.no || '-'}</span>
+                                <span style="width:110px; font-size:1.6rem; font-weight:900;">${u.name}</span>
+                                <span style="flex:1; text-align:left; font-size:1.6rem; font-weight:800; display:flex; align-items:center;">
+                                    ${statusText} ${timeDisplay}
+                                </span>
                             </div>`;
                     });
                     historyEl.innerHTML = html;
