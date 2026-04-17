@@ -273,13 +273,13 @@ function openAvatarPicker() {
     });
 
     // 5. [핵심] 일괄 사용 및 일괄 승인 로직
+    // 6. [수정 완료] 주문 감시 및 도우미 일괄 승인 (버튼 코드 노출 해결)
     db.ref('orders').on('value', snap => {
         let uH = "", wH = "", adminH = ""; 
         let myUnused = {}, myWaiting = {}, adminWaiting = {};
 
         snap.forEach(c => {
             const o = c.val(); const key = c.key;
-            // 내 물품 정리
             if (o.user === myName) {
                 if (o.status === '대기') {
                     if (!myUnused[o.item]) myUnused[o.item] = [];
@@ -288,14 +288,45 @@ function openAvatarPicker() {
                     myWaiting[o.item] = (myWaiting[o.item] || 0) + 1;
                 }
             }
-            // 도우미/관리자 승인 대기 정리
             if ((isAdmin || isHelper) && o.status === '사용요청') {
-                const gKey = `${o.user}_${o.item}`;
+                const gKey = o.user + "_" + o.item;
                 if (!adminWaiting[gKey]) adminWaiting[gKey] = { user: o.user, item: o.item, keys: [] };
                 adminWaiting[gKey].keys.push(key);
             }
         });
 
+        // 학생용: 내 보관함
+        for (let item in myUnused) {
+            const keys = myUnused[item];
+            uH += '<div class="list-item">' +
+                    '<span>' + item + ' <b style="color:var(--primary);">x' + keys.length + '</b></span>' +
+                    '<button onclick="if(confirm(\'' + item + ' 1개를 사용하시겠습니까?\')) db.ref(\'orders/' + keys[0] + '\').update({status:\'사용요청\'})" style="width:auto; padding:8px 15px;">사용</button>' +
+                  '</div>';
+        }
+        for (let item in myWaiting) {
+            wH += '<div class="list-item"><span>' + item + ' <b style="color:#e74c3c;">x' + myWaiting[item] + '</b></span><b style="color:#888;">승인 대기중</b></div>';
+        }
+
+        // 도우미/관리자용: 일괄 승인 (이 부분의 따옴표 오류를 해결했습니다)
+        // 관리자/도우미용: 일괄 승인 리스트 생성 로직
+for (let g in adminWaiting) {
+    const d = adminWaiting[g];
+    const keyString = d.keys.join(','); // 키들을 쉼표로 연결
+    
+    // 코드가 노출되지 않도록 함수 호출 방식으로 버튼 생성
+    adminH += '<div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5;">' +
+                '<span><b>' + d.user + '</b>: ' + d.item + ' <b style="color:var(--red); font-size:1.4rem;">x' + d.keys.length + '</b></span>' +
+                '<button onclick="approveBulk(\'' + keyString + '\', \'' + d.user + '\', \'' + d.item + '\')" ' +
+                'style="width:auto; padding:10px 20px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold;">' +
+                '일괄 승인</button>' +
+              '</div>';
+}
+
+        document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "보관함이 비어있습니다.";
+        document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "대기 중인 요청이 없습니다.";
+        const adminOrderEl = document.getElementById('order-list');
+        if (adminOrderEl) adminOrderEl.innerHTML = adminH || "새로운 요청이 없습니다.";
+    });
         // 학생용: 미사용 물품 (수량 표시 및 일괄 사용 버튼)
         for (let item in myUnused) {
             const keys = myUnused[item];
@@ -826,6 +857,17 @@ function openAvatarPicker() {
         // 3. 번호 수정 함수
         function updateNo(n, v) { 
             db.ref('users/' + n).update({ no: parseInt(v) || 0 }); 
+            // 일괄 승인 실행 함수
+function approveBulk(keyString, user, item) {
+    if(confirm(user + "의 " + item + " 요청을 모두 승인하시겠습니까?")) {
+        const keys = keyString.split(',');
+        const updates = {};
+        keys.forEach(k => {
+            updates['orders/' + k + '/status'] = '완료';
+        });
+        db.ref().update(updates).then(() => alert("일괄 승인 완료! ✨"));
+    }
+}
         }
     </script>
 </body>
