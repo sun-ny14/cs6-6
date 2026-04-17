@@ -128,27 +128,74 @@
             else { if(login) login.style.display = 'flex'; if(app) app.style.display = 'none'; }
         }
 
-        function getAvatar(lv, selectedAnimal) {
-            const animals = ["🐹", "🐰", "🐥", "🐻", "🐼", "🦁", "🐯", "🦖", "🐨", "🐧", "🐘", "🦛", "🐮", "🐷", "🐑", "🦉", "🐿️", "🦊", "🐱", "🐶"];
-            const animalDisplay = selectedAnimal || animals[Math.min(lv - 1, animals.length - 1)];
-            return `<div style="font-size: 70px; text-align:center; border: 2px solid #eee; border-radius: 15px; background: white; width: 100px; height: 100px; display:flex; align-items:center; justify-content:center;">${animalDisplay}</div>`;
-        }
+       // [수정] 픽셀 육육이 이미지 가져오기 함수
+function getAvatar(lv, selectedAnimal) {
+    // 선생님, 위에서 생성된 '최종 20종 이미지'의 주소(URL)를 복사해서 아래 따옴표 안에 꼭 넣어주세요!
+    const yukyukImageUrl = "여기에_이미지_주소를_복사해서_넣으세요"; 
+    
+    // 20종 육육이 이름 순서 (이미지 시트 배치 순서와 동일)
+    const animals = [
+        "귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는",
+        "날쌘돌이", "즐거운", "행복한", "정의로운", "천사",
+        "닌자", "왕자", "공주", "근육맨", "마법사",
+        "용사", "공부하는", "춤추는", "노래하는", "무지개"
+    ];
 
-        function openAvatarPicker() {
-            const animals = ["🐹", "🐰", "🐥", "🐻", "🐼", "🦁", "🐯", "🦖", "🐨", "🐧", "🐘", "🦛", "🐮", "🐷", "🐑", "🦉", "🐿️", "🦊", "🐱", "🐶"];
-            db.ref('users/' + myName).once('value', snap => {
-                const lv = snap.val().lv || 1;
-                const availableCount = Math.min(lv, animals.length);
-                let h = `<p style="text-align:center;">현재 레벨(${lv})에서 선택 가능한 모습입니다!</p>`;
-                h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; padding:10px;">`;
-                for(let i=0; i < availableCount; i++) {
-                    h += `<div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:1px solid #eee; border-radius:10px; padding:5px; background:white;">
-                            <div style="font-size: 40px;">${animals[i]}</div></div>`;
-                }
-                h += `</div>`;
-                openPopup("🎭 용사 모습 선택", h);
-            });
+    // 선택한 동물이 없으면 현재 레벨에 맞는 기본 육육이 지정
+    const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
+    const index = animals.indexOf(name);
+    
+    // 이미지 시트 구조: 가로 5명, 세로 4명
+    const row = Math.floor(index / 5);
+    const col = index % 5;
+
+    // 픽셀 이미지에서 해당 캐릭터만 잘라내는 설정
+    const size = 120; // 개별 육육이 칸 크기 (이미지에 따라 100~130 사이 조정 가능)
+    const x = col * size;
+    const y = row * size;
+
+    return `<div style="width: 80px; height: 80px; overflow: hidden; border: 2px solid #ddd; border-radius: 12px; background: white; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                <img src="${yukyukImageUrl}" style="position: relative; left: -${x}px; top: -${y}px; width: ${size * 5}px; height: ${size * 4}px; image-rendering: pixelated; transform: scale(0.7);">
+            </div>`;
+}
+
+// [수정] 육육이 전직 팝업 (레벨에 따른 선택 제한)
+function openAvatarPicker() {
+    const animals = [
+        "귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는",
+        "날쌘돌이", "즐거운", "행복한", "정의로운", "천사",
+        "닌자", "왕자", "공주", "근육맨", "마법사",
+        "용사", "공부하는", "춤추는", "노래하는", "무지개"
+    ];
+    
+    db.ref('users/' + myName).once('value', snap => {
+        const lv = snap.val().lv || 1;
+        // 레벨 1이면 1번까지, 레벨 20이면 20번까지 선택 가능
+        const availableCount = Math.min(lv, 20);
+        
+        let h = `<p style="text-align:center; font-weight:bold; color:var(--primary);">✨ 현재 레벨: ${lv} (선택 가능: ${availableCount}종)</p>`;
+        h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; padding:10px;">`;
+        
+        for(let i=0; i < 20; i++) {
+            if(i < availableCount) {
+                // 선택 가능한 육육이
+                h += `
+                    <div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:2px solid var(--gold); border-radius:10px; padding:8px; background:#fffdf2;">
+                        ${getAvatar(i + 1, animals[i])}
+                        <div style="font-size:0.8rem; font-weight:bold; margin-top:5px;">${animals[i]}</div>
+                    </div>`;
+            } else {
+                // 아직 잠겨있는 육육이
+                h += `
+                    <div style="text-align:center; border:1px solid #eee; border-radius:10px; padding:8px; background:#f5f5f5; filter: grayscale(100%); opacity: 0.5;">
+                        <div style="width: 80px; height: 80px; display:flex; align-items:center; justify-content:center; margin: 0 auto; font-size:1.5rem;">🔒</div>
+                        <div style="font-size:0.7rem; color:#999; margin-top:5px;">LV.${i+1} 필요</div>
+                    </div>`;
+            }
         }
+        openPopup("🎭 육육이 전직 본부", h + `</div>`);
+    });
+}
 
         function selectAnimal(animalName) {
             if(confirm(`${animalName}(으)로 변신하시겠습니까?`)) {
