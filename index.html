@@ -583,53 +583,66 @@
 
         // [2] 도감 연동 일괄 지급 (플로팅 버튼 📋)
         function openMultiPopup(t = '', p = '', e = '') {
+            // [수정] 중복된 하단 입력창 제거, 상단으로 통합 및 5열 배치
             let h = `
                 <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--green); z-index:10;">
-                    <input type="text" id="multi-reason" value="${t}" placeholder="일괄 지급 사유">
-                    <div style="background:#e8f5e9; padding:15px; border-radius:15px; border:2px dashed var(--green); display:flex; gap:15px; align-items:center; justify-content:center; margin-bottom:10px;">
+                    <h3 style="text-align:center; margin:10px 0;">📋 일괄 지급 전령</h3>
+                    <input type="text" id="multi-reason" value="${t}" placeholder="사유를 입력하세요" style="margin-bottom:10px;">
+                    
+                    <div style="background:#e8f5e9; padding:15px; border-radius:15px; border:2px dashed var(--green); display:flex; gap:15px; align-items:center; justify-content:center; margin-bottom:15px;">
                         <div style="text-align:center;">
-                            <span style="font-weight:bold;">P:</span>
-                            <input type="number" id="multi-p-val" value="${p}" style="width:80px; text-align:center; font-size:1.4rem;">
+                            <span style="font-weight:bold; font-size:1.1rem; color:var(--dark);">P:</span>
+                            <input type="number" id="multi-p-val" value="${p}" style="width:90px; height:50px; text-align:center; font-size:1.5rem; font-weight:bold; border-radius:10px; border:2px solid var(--green);">
                         </div>
                         <div style="text-align:center;">
-                            <span style="font-weight:bold;">E:</span>
-                            <input type="number" id="multi-e-val" value="${e}" style="width:80px; text-align:center; font-size:1.4rem;">
+                            <span style="font-weight:bold; font-size:1.1rem; color:var(--dark);">E:</span>
+                            <input type="number" id="multi-e-val" value="${e}" style="width:90px; height:50px; text-align:center; font-size:1.5rem; font-weight:bold; border-radius:10px; border:2px solid var(--green);">
                         </div>
                     </div>
+
                     <div style="display:flex; gap:10px;">
-                        <button onclick="checkAllMulti(true)" style="background:var(--dark); color:white; flex:1;">전체 선택</button>
-                        <button onclick="checkAllMulti(false)" style="background:#95a5a6; color:white; flex:1;">해제</button>
+                        <button onclick="checkAllMulti(true)" style="background:var(--dark); color:white; flex:1; padding:12px; border-radius:10px; font-weight:bold;">전체 선택</button>
+                        <button onclick="checkAllMulti(false)" style="background:#95a5a6; color:white; flex:1; padding:12px; border-radius:10px; font-weight:bold;">해제</button>
                     </div>
                 </div>
-                <div id="multi-list-body" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:10px; margin-top:20px;">`;
+
+                <div id="multi-list-body" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-top:20px; padding-bottom:20px;">`;
 
             currentUsers.forEach(u => {
                 if(u.name !== "총사령관") {
                     h += `
-                        <label style="display:flex; flex-direction:column; align-items:center; background:#f1f8e9; border:1px solid #c8e6c9; border-radius:12px; padding:10px;">
-                            <input type="checkbox" class="multi-select" data-name="${u.name}" checked style="width:25px; height:25px;">
-                            <strong style="font-size:1.2rem;">${u.no||''}<br>${u.name}</strong>
+                        <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f1f8e9; border:1px solid #c8e6c9; border-radius:12px; padding:10px; cursor:pointer; min-height:90px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <input type="checkbox" class="multi-select" data-name="${u.name}" checked style="width:28px; height:28px; margin-bottom:8px;">
+                            <strong style="font-size:1.4rem; color:var(--dark); text-align:center; line-height:1.2;">${u.no||''}<br>${u.name}</strong>
                         </label>`;
                 }
             });
             
-            // multi-popup 이라는 ID를 가진 오버레이에 주입
-            document.getElementById('multi-list').innerHTML = h + `</div>`;
-            document.getElementById('multi-popup').style.display = 'flex';
+            // 기존 팝업 구조 유지하며 내용 주입
+            const popupBody = document.getElementById('multi-list');
+            if(popupBody) {
+                popupBody.innerHTML = h + `</div>`;
+                document.getElementById('multi-popup').style.display = 'flex';
+            }
         }
 
-        // 일괄 지급 실행 버튼 (지급 완료 버튼)
+        // 지급 완료 실행 함수 (기존 로직 유지)
         function applyMultiScores() {
-            const r = document.getElementById('multi-reason').value;
+            const reason = document.getElementById('multi-reason').value;
             const p = parseInt(document.getElementById('multi-p-val').value) || 0;
             const e = parseInt(document.getElementById('multi-e-val').value) || 0;
-            if(!r) return alert("사유 입력!");
+            
+            if(!reason) return alert("지급 사유를 입력해야 합니다! 🛡️");
             
             const selects = document.querySelectorAll('.multi-select');
+            let count = 0;
             selects.forEach(cb => {
-                if(cb.checked) addScore(cb.dataset.name, p, e, r);
+                if(cb.checked) {
+                    addScore(cb.dataset.name, p, e, reason);
+                    count++;
+                }
             });
-            alert("일괄 지급 완료! 📋");
+            alert(`✅ ${count}명의 용사에게 일괄 지급 완료!`);
             closeMultiPopup();
         }
         function checkAllMulti(s) { document.querySelectorAll('.multi-select').forEach(cb => cb.checked = s); }
