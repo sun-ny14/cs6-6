@@ -275,30 +275,48 @@ function openAvatarPicker() {
                 document.getElementById('guide-list').innerHTML = addH + h;
             });
 
+            // 주문/아이템 사용 요청 감시 및 렌더링
             db.ref('orders').on('value', snap => {
-                let uH = "", wH = "", adminH = ""; let myInv = {}, myWait = {}, adminReq = {};
+                let uH = "", wH = "", adminH = ""; 
+                let myInv = {}, myWait = {};
+
                 snap.forEach(c => {
-                    const o = c.val(); const key = c.key;
+                    const o = c.val(); 
+                    const key = c.key;
+
+                    // 1. 내 인벤토리 로직
                     if (o.user === myName) {
-                        if (o.status === '대기') { myInv[o.item] = (myInv[o.item] || 0) + 1; myInv[o.item + "_key"] = key; } 
-                        else if (o.status === '사용요청') { myWait[o.item] = (myWait[o.item] || 0) + 1; }
+                        if (o.status === '대기') { 
+                            uH += `<div class="list-item"><span>${o.item}</span><button onclick="db.ref('orders/${key}').update({status:'사용요청'})" style="width:auto; padding:8px 15px;">사용</button></div>`; 
+                        } else if (o.status === '사용요청') { 
+                            wH += `<div class="list-item"><span>${o.item}</span><b style="color:#888;">대기중</b></div>`; 
+                        }
                     }
-                    if (isAdmin && o.status === '사용요청') {
-                        const adminKey = o.user + "||" + o.item;
-                        if (!adminReq[adminKey]) adminReq[adminKey] = { user: o.user, item: o.item, count: 0, keys: [] };
-                        adminReq[adminKey].count++; adminReq[adminKey].keys.push(key);
+
+                    // 2. [핵심] 관리자 또는 도우미인 경우 승인 대기 목록 표시
+                    // isAdmin 뿐만 아니라 isHelper도 승인 버튼이 보이도록 수정했습니다.
+                    if ((isAdmin || isHelper) && o.status === '사용요청') {
+                        adminH += `
+                            <div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5;">
+                                <span><b>${o.user}</b>: ${o.item}</span>
+                                <button onclick="if(confirm('승인하시겠습니까?')) db.ref('orders/${key}').update({status:'완료'})" 
+                                        style="width:auto; padding:10px 20px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold;">
+                                    승인
+                                </button>
+                            </div>`;
                     }
                 });
-                Object.keys(myInv).forEach(item => { if (item.endsWith("_key")) return; uH += `<div class="list-item"><span>${item} <b>x ${myInv[item]}</b></span><button onclick="reqUse('${myInv[item + "_key"]}')" style="width:auto;">1개 사용</button></div>`; });
-                Object.keys(myWait).forEach(item => { wH += `<div class="list-item"><span>${item} <b>x ${myWait[item]}</b></span><b style="color:#888;">대기중</b></div>`; });
-                if (isAdmin) {
-                    Object.keys(adminReq).forEach(k => { const req = adminReq[k]; adminH += `<div class="list-item"><span><b>${req.user}</b>: ${req.item} <b>x ${req.count}</b></span><button onclick="approveMulti('${req.keys.join(',')}')" style="width:auto; background:var(--red); color:white;">전체승인</button></div>`; });
+
+                // 화면에 반영
+                document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "보관함이 비어있습니다.";
+                document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "대기 중인 요청이 없습니다.";
+                
+                // 관리자/도우미용 목록 출력
+                const adminOrderEl = document.getElementById('order-list');
+                if (adminOrderEl) {
+                    adminOrderEl.innerHTML = adminH || "새로운 요청이 없습니다.";
                 }
-                document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "없음";
-                document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
-                if (isAdmin) document.getElementById('order-list').innerHTML = adminH || "요청 없음";
             });
-        }
 
         function openUserHistory(un) {
             db.ref('users/' + un).once('value', sn => {
