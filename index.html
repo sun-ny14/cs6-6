@@ -580,17 +580,19 @@
                 closePointPopup();
             };
         }
-function openMultiPopup(t = '', p = '', e = '') {
-            // 1. HTML에 이미 존재하는 입력창들에 값을 직접 주입 (중복 생성 방지)
+// 1. 도감 클릭 시 & 일괄지급 버튼 클릭 시 팝업 열기
+        function openMultiPopup(t = '', p = '', e = '') {
+            // HTML에 이미 있는 입력창들 찾기
             const reasonInput = document.getElementById('multi-reason');
             const pInput = document.getElementById('multi-p');
             const eInput = document.getElementById('multi-e');
             
+            // 값 주입 (도감 연동 핵심)
             if(reasonInput) reasonInput.value = t;
-            if(pInput) pInput.value = p;
-            if(eInput) eInput.value = e;
+            if(pInput) pInput.value = (p === '') ? '' : p;
+            if(eInput) eInput.value = (e === '') ? '' : e;
 
-            // 2. 명단이 들어갈 영역(multi-list)을 5열 배치 스타일로 변경
+            // 명단 영역 스타일 조정 (5열 배치)
             const listContainer = document.getElementById('multi-list');
             listContainer.style.display = "grid";
             listContainer.style.gridTemplateColumns = "repeat(5, 1fr)";
@@ -608,18 +610,17 @@ function openMultiPopup(t = '', p = '', e = '') {
                 }
             });
             
-            // 3. 명단 주입 및 팝업 열기
             listContainer.innerHTML = h;
             document.getElementById('multi-popup').style.display = 'flex';
         }
 
-        // [중요] 일괄 지급 완료 버튼(applyMultiScores)도 HTML 구조에 맞게 수정
+        // 2. 일괄 지급 완료 버튼 실행
         function applyMultiScores() {
             const r = document.getElementById('multi-reason').value;
             const p = parseInt(document.getElementById('multi-p').value) || 0;
             const e = parseInt(document.getElementById('multi-e').value) || 0;
             
-            if(!r) return alert("사유를 입력해주세요! 🛡️");
+            if(!r) return alert("지급 사유를 입력해주세요! 🛡️");
             
             const checks = document.querySelectorAll('.multi-select-check');
             let count = 0;
@@ -634,7 +635,12 @@ function openMultiPopup(t = '', p = '', e = '') {
             closeMultiPopup();
         }
 
-        // 전체 선택/해제 함수도 HTML 구조에 맞게 연결
+        // 3. 팝업 닫기 (취소 버튼용)
+        function closeMultiPopup() {
+            document.getElementById('multi-popup').style.display = 'none';
+        }
+
+        // 4. 전체 선택/해제
         function checkAllMulti(status) {
             document.querySelectorAll('.multi-select-check').forEach(cb => cb.checked = status);
         }
