@@ -131,24 +131,17 @@
        // [수정] 픽셀 육육이 이미지 가져오기 함수
         
 // [수정] 픽셀 육육이 이미지 가져오기 함수
-function getAvatar(lv, selectedAnimal) {
-    // 직통 다운로드 주소로 수정함
-    const yukyukImageUrl = "https://drive.google.com/uc?export=view&id=1WJN2X4Me_fPu5MtuFxS4PO1s3zPl4vSt"; 
+function getAvatar(lv, animal) {
+    let url = "https://drive.google.com/file/d/1WJN2X4Me_fPu5MtuFxS4PO1s3zPl4vSt/view?usp=drive_link";
     
-    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
-    const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
-    const index = animals.indexOf(name);
-    const row = Math.floor(index / 5);
-    const col = index % 5;
-    const size = 120;
-    const x = col * size;
-    const y = row * size;
-
-    return `<div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #ddd; border-radius: 12px; background: white; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                <img src="${yukyukImageUrl}" style="position: relative; left: -${x}px; top: -${y}px; width: ${size * 5}px; height: ${size * 4}px; image-rendering: pixelated; transform: scale(0.7);" onerror="this.src='https://via.placeholder.com/80?text=Error'">
-            </div>`;
+    // 드라이브 공유 링크를 이미지 주소로 자동 변환
+    if (url.includes("file/d/")) {
+        const id = url.split("file/d/")[1].split("/")[0];
+        url = `https://drive.google.com/uc?export=view&id=${id}`;
+    }
+    
+    return `<img src="${url}" style="width:50px; height:50px; border-radius:50%;">`;
 }
-
 function openAvatarPicker() {
     const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
     db.ref('users/' + myName).once('value', snap => {
