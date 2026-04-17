@@ -207,6 +207,13 @@ function openAvatarPicker() {
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         
         function startApp() {
+            // [추가] 도우미 권한에 따른 화면 설정
+            if (isHelper) {
+                const helperElements = ['btn-shop', 'admin-order-mgr'];
+                helperElements.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'block';
+                });
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
                 if(isAdmin) { document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('conf-routine').value = s.routineText || ""; document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; }
@@ -776,6 +783,46 @@ function openAvatarPicker() {
                     alert(`⚔️ ${result} 완료! ${p}P와 ${e}E를 획득했습니다.`);
                 }
             });
+        }
+                // 1. 관리자 탭 - 학생 명단 및 도우미 설정 렌더링
+        function renderAdminList() {
+            let h = ""; 
+            currentUsers.forEach(u => { 
+                if(u.name === "총사령관") return; 
+                // 도우미 여부에 따라 버튼 색상 변경 (파란색: 도우미, 회색: 일반)
+                const helperBtnColor = u.isHelper ? 'var(--primary)' : '#95a5a6';
+                const helperText = u.isHelper ? '🛡️ 도우미' : '👤 일반';
+
+                h += `
+                    <div class="list-item" style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
+                        <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" 
+                               style="width:70px; height:50px; text-align:center; font-size:1.4rem; border:2px solid var(--primary); border-radius:10px; font-weight:bold;">
+                        <strong style="font-size:1.5rem; flex:1;">${u.name}</strong>
+                        <button onclick="toggleHelperRole('${u.name}', ${u.isHelper || false})" 
+                                style="width:auto; padding:10px 15px; background:${helperBtnColor}; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem;">
+                            ${helperText}
+                        </button>
+                        <button onclick="if(confirm('${u.name} 용사를 제명하시겠습니까?')) db.ref('users/${u.name}').remove()" 
+                                style="width:auto; padding:10px 15px; background:var(--red); color:white; border:none; border-radius:10px; font-size:1.1rem;">제거</button>
+                    </div>`; 
+            }); 
+            document.getElementById('student-admin-list').innerHTML = h || "등록된 학생이 없습니다."; 
+        }
+
+        // 2. 도우미 권한 토글 (DB 업데이트 연동)
+        function toggleHelperRole(name, currentStatus) {
+            if(confirm(`${name} 용사의 권한을 변경하시겠습니까?`)) {
+                db.ref('users/' + name).update({ isHelper: !currentStatus })
+                .then(() => {
+                    alert("권한 변경 완료! ✨");
+                    // 페이지 새로고침 없이 즉시 반영되도록 startApp 등에서 감시 중이므로 자동 업데이트됨
+                });
+            }
+        }
+
+        // 3. 번호 수정 함수
+        function updateNo(n, v) { 
+            db.ref('users/' + n).update({ no: parseInt(v) || 0 }); 
         }
     </script>
 </body>
