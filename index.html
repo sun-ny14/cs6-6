@@ -582,11 +582,57 @@
         }
 
         // [2] 도감 연동 일괄 지급 (플로팅 버튼 📋)
-        function openMultiPopup(title='', p=0, e=0) {
-            // 도감에서 클릭했을 때 바로 지급 팝업으로 연결되도록 설정
-            openPointBulkPopup(title, p, e);
+        function openMultiPopup(t = '', p = '', e = '') {
+            let h = `
+                <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--green); z-index:10;">
+                    <input type="text" id="multi-reason" value="${t}" placeholder="일괄 지급 사유">
+                    <div style="background:#e8f5e9; padding:15px; border-radius:15px; border:2px dashed var(--green); display:flex; gap:15px; align-items:center; justify-content:center; margin-bottom:10px;">
+                        <div style="text-align:center;">
+                            <span style="font-weight:bold;">P:</span>
+                            <input type="number" id="multi-p-val" value="${p}" style="width:80px; text-align:center; font-size:1.4rem;">
+                        </div>
+                        <div style="text-align:center;">
+                            <span style="font-weight:bold;">E:</span>
+                            <input type="number" id="multi-e-val" value="${e}" style="width:80px; text-align:center; font-size:1.4rem;">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="checkAllMulti(true)" style="background:var(--dark); color:white; flex:1;">전체 선택</button>
+                        <button onclick="checkAllMulti(false)" style="background:#95a5a6; color:white; flex:1;">해제</button>
+                    </div>
+                </div>
+                <div id="multi-list-body" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:10px; margin-top:20px;">`;
+
+            currentUsers.forEach(u => {
+                if(u.name !== "총사령관") {
+                    h += `
+                        <label style="display:flex; flex-direction:column; align-items:center; background:#f1f8e9; border:1px solid #c8e6c9; border-radius:12px; padding:10px;">
+                            <input type="checkbox" class="multi-select" data-name="${u.name}" checked style="width:25px; height:25px;">
+                            <strong style="font-size:1.2rem;">${u.no||''}<br>${u.name}</strong>
+                        </label>`;
+                }
+            });
+            
+            // multi-popup 이라는 ID를 가진 오버레이에 주입
+            document.getElementById('multi-list').innerHTML = h + `</div>`;
+            document.getElementById('multi-popup').style.display = 'flex';
         }
 
+        // 일괄 지급 실행 버튼 (지급 완료 버튼)
+        function applyMultiScores() {
+            const r = document.getElementById('multi-reason').value;
+            const p = parseInt(document.getElementById('multi-p-val').value) || 0;
+            const e = parseInt(document.getElementById('multi-e-val').value) || 0;
+            if(!r) return alert("사유 입력!");
+            
+            const selects = document.querySelectorAll('.multi-select');
+            selects.forEach(cb => {
+                if(cb.checked) addScore(cb.dataset.name, p, e, r);
+            });
+            alert("일괄 지급 완료! 📋");
+            closeMultiPopup();
+        }
+        function checkAllMulti(s) { document.querySelectorAll('.multi-select').forEach(cb => cb.checked = s); }
         // [3] 유틸리티 함수들
         function toggleAllCheckboxes(s) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = s); }
         function applyToAll(type) { 
