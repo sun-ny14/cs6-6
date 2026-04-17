@@ -132,7 +132,8 @@
         
 function getAvatar(lv, selectedAnimal) {
     // [수정 완료] 구글 드라이브 직통 이미지 주소입니다.
-    const yukyukImageUrl = "https://drive.google.com/uc?export=view&id=1WJN2X4Me_fPu5MtuFxS4PO1s3zPl4vSt"; 
+    // getAvatar 함수 내부의 주소를 이걸로 교체하세요
+const yukyukImageUrl = "https://drive.google.com/uc?export=view&id=1WJN2X4Me_fPu5MtuFxS4PO1s3zPl4vSt";
     
     const animals = [
         "귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는",
@@ -203,20 +204,32 @@ function openAvatarPicker() {
         function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else { document.getElementById('common-overlay').style.display='none'; rIdx = 0; } }
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         
-        function startApp() {
-            // [추가] 도우미 권한에 따른 화면 설정
+       function startApp() {
+            // 1. 도우미 권한에 따른 화면 설정 (도우미면 승인창 보여주기)
             if (isHelper) {
                 const helperElements = ['btn-shop', 'admin-order-mgr'];
                 helperElements.forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.style.display = 'block';
                 });
+            } // <--- 여기가 빠져있던 중괄호입니다!
+
+            // 2. 시스템 설정 감시
             db.ref('settings').on('value', snap => {
-                const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
-                if(isAdmin) { document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('conf-routine').value = s.routineText || ""; document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; }
+                const s = snap.val() || {}; 
+                giftList = s.giftList || []; 
+                routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
+                if(isAdmin) { 
+                    document.getElementById('conf-pass').value = s.password || ""; 
+                    document.getElementById('conf-late').value = s.lateTime || "08:40"; 
+                    document.getElementById('conf-close').value = s.closeTime || "09:00"; 
+                    document.getElementById('conf-routine').value = s.routineText || ""; 
+                    document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; 
+                }
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
             });
 
+            // 3. 용사들 명단 감시 및 렌더링
             db.ref('users').on('value', snap => {
                 let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
                 currentUsers = users.sort((a, b) => {
@@ -235,43 +248,15 @@ function openAvatarPicker() {
                 });
                 document.getElementById('hero-grid').innerHTML = h;
 
-                if (isAdmin) {
-                    let aH = ""; 
-                    currentUsers.forEach(u => { 
-                        if(u.name === "총사령관") return;
-                        aH += `<div class="list-item" style="padding:10px 15px; background:#fff; border-bottom:1px solid #eee; display:flex; align-items:center; gap:12px;">
-                                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:100px; height:60px; text-align:center; font-size:1.8rem; border:3px solid var(--primary); font-weight:bold; background:#f0f8ff; border-radius:10px;">
-                                <div style="flex:1; display:flex; align-items:center; gap:10px;"><strong style="font-size:1.7rem; min-width:85px;">${u.name}</strong>
-                                <button onclick="toggleHelper('${u.name}',${u.isHelper || false})" style="width:auto; padding:8px 15px; background:${u.isHelper ? 'var(--primary)' : '#95a5a6'}; color:white; border:none; border-radius:10px;">${u.isHelper ? '도우미' : '일반'}</button></div>
-                                <button onclick="delUser('${u.name}')" style="width:auto; padding:8px 15px; background:var(--red); color:white; border:none; border-radius:10px;">제거</button></div>`;
-                    });
-                    document.getElementById('student-admin-list').innerHTML = aH;
-                }
+                if (isAdmin) renderAdminList(); // 관리자면 명단 관리 렌더링
                 renderCheckinBoard();
             });
 
+            // 4. 상점 데이터 로드
             let currentShopCat = "전체";
             db.ref('shop').on('value', snap => { window.shopData = snap; renderShop(); });
-            window.renderShop = function() {
-                if (!window.shopData) return;
-                const cats = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
-                let tabH = `<div style="display:flex; overflow-x:auto; gap:10px; margin-bottom:15px; padding-bottom:10px;">`;
-                cats.forEach(c => {
-                    const activeStyle = (currentShopCat === c) ? 'background:var(--primary); color:white;' : 'background:#eee;';
-                    tabH += `<button onclick="filterShop('${c}')" style="width:auto; padding:10px 20px; border-radius:12px; font-weight:bold; border:none; ${activeStyle} white-space:nowrap;">${c}</button>`;
-                });
-                tabH += `</div>`;
-                let addH = isAdmin ? `<button onclick="openAddShopPopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px;">+ 새 보급품 등록</button>` : "";
-                let itemH = ""; 
-                window.shopData.forEach(c => { 
-                    const i = c.val(); if (currentShopCat !== "전체" && i.cat !== currentShopCat) return; 
-                    const limitText = (i.limit && i.limit > 0) ? `<br><small style="color:red;">(1인당 ${i.limit}개 제한)</small>` : "";
-                    itemH += `<div class="list-item"><span>[${i.cat||'✨'}] <b>${i.name}</b> (${i.price}P)${limitText}</span><div style="display:flex; gap:8px;"><button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 18px;">구매</button>${isAdmin ? `<button onclick="openEditShopPopup('${c.key}')" style="width:auto; padding:10px 18px; background:var(--dark); color:white;">관리</button>` : ''}</div></div>`; 
-                }); 
-                document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "<p style='padding:20px;'>물품 없음</p>"); 
-            };
-            window.filterShop = function(cat) { currentShopCat = cat; renderShop(); };
-
+            
+            // 5. 포인트 도감 로드
             db.ref('pointGuide').on('value', snap => { 
                 let h = ""; 
                 let addH = isAdmin ? `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px;">+ 새 도감 기준 등록</button>` : "";
@@ -279,49 +264,25 @@ function openAvatarPicker() {
                 document.getElementById('guide-list').innerHTML = addH + h;
             });
 
-            // 주문/아이템 사용 요청 감시 및 렌더링
+            // 6. 주문/사용 요청 감시 (도우미/관리자 승인 로직 포함)
             db.ref('orders').on('value', snap => {
                 let uH = "", wH = "", adminH = ""; 
-                let myInv = {}, myWait = {};
-
                 snap.forEach(c => {
-                    const o = c.val(); 
-                    const key = c.key;
-
-                    // 1. 내 인벤토리 로직
+                    const o = c.val(); const key = c.key;
                     if (o.user === myName) {
-                        if (o.status === '대기') { 
-                            uH += `<div class="list-item"><span>${o.item}</span><button onclick="db.ref('orders/${key}').update({status:'사용요청'})" style="width:auto; padding:8px 15px;">사용</button></div>`; 
-                        } else if (o.status === '사용요청') { 
-                            wH += `<div class="list-item"><span>${o.item}</span><b style="color:#888;">대기중</b></div>`; 
-                        }
+                        if (o.status === '대기') uH += `<div class="list-item"><span>${o.item}</span><button onclick="db.ref('orders/${key}').update({status:'사용요청'})" style="width:auto; padding:8px 15px;">사용</button></div>`;
+                        else if (o.status === '사용요청') wH += `<div class="list-item"><span>${o.item}</span><b style="color:#888;">대기중</b></div>`;
                     }
-
-                    // 2. [핵심] 관리자 또는 도우미인 경우 승인 대기 목록 표시
-                    // isAdmin 뿐만 아니라 isHelper도 승인 버튼이 보이도록 수정했습니다.
                     if ((isAdmin || isHelper) && o.status === '사용요청') {
-                        adminH += `
-                            <div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5;">
-                                <span><b>${o.user}</b>: ${o.item}</span>
-                                <button onclick="if(confirm('승인하시겠습니까?')) db.ref('orders/${key}').update({status:'완료'})" 
-                                        style="width:auto; padding:10px 20px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold;">
-                                    승인
-                                </button>
-                            </div>`;
+                        adminH += `<div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5;"><span><b>${o.user}</b>: ${o.item}</span><button onclick="if(confirm('승인하시겠습니까?')) db.ref('orders/${key}').update({status:'완료'})" style="width:auto; padding:10px 20px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold;">승인</button></div>`;
                     }
                 });
-
-                // 화면에 반영
                 document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "보관함이 비어있습니다.";
                 document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "대기 중인 요청이 없습니다.";
-                
-                // 관리자/도우미용 목록 출력
                 const adminOrderEl = document.getElementById('order-list');
-                if (adminOrderEl) {
-                    adminOrderEl.innerHTML = adminH || "새로운 요청이 없습니다.";
-                }
+                if (adminOrderEl) adminOrderEl.innerHTML = adminH || "새로운 요청이 없습니다.";
             });
-
+        }
         function openUserHistory(un) {
             db.ref('users/' + un).once('value', sn => {
                 const u = sn.val() || {}, exp = u.exp || 0, lv = u.lv || 1, pts = u.points || 0;
