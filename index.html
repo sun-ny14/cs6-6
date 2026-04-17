@@ -287,19 +287,36 @@ function openAvatarPicker() {
     });
 
     // 6. 주문 감시 및 도우미 승인 로직 통합
+    // 6. 주문 감시 및 도우미 승인 로직 (물품 수량 합산 기능 복구)
     db.ref('orders').on('value', snap => {
         let uH = "", wH = "", adminH = ""; 
+        let myUnused = {}, myWaiting = {}; // 내 물품 수량 카운트용
+
         snap.forEach(c => {
             const o = c.val(); const key = c.key;
             if (o.user === myName) {
-                if (o.status === '대기') uH += `<div class="list-item"><span>${o.item}</span><button onclick="db.ref('orders/${key}').update({status:'사용요청'})" style="width:auto;">사용</button></div>`;
-                else if (o.status === '사용요청') wH += `<div class="list-item"><span>${o.item}</span><b style="color:#888;">대기중</b></div>`;
+                if (o.status === '대기') {
+                    myUnused[o.item] = (myUnused[o.item] || 0) + 1;
+                } else if (o.status === '사용요청') {
+                    myWaiting[o.item] = (myWaiting[o.item] || 0) + 1;
+                }
             }
-            // 관리자나 도우미에게 승인 버튼 표시
             if ((isAdmin || isHelper) && o.status === '사용요청') {
-                adminH += `<div class="list-item"><span><b>${o.user}</b>: ${o.item}</span><button onclick="if(confirm('승인?')) db.ref('orders/${key}').update({status:'완료'})" style="background:var(--red); color:white; width:auto;">승인</button></div>`;
+                adminH += `<div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5;"><span><b>${o.user}</b>: ${o.item}</span><button onclick="if(confirm('승인?')) db.ref('orders/${key}').update({status:'완료'})" style="background:var(--red); color:white; width:auto;">승인</button></div>`;
             }
         });
+
+        // 내 인벤토리 화면에 수량 포함해서 렌더링
+        for (let item in myUnused) {
+            // 해당 아이템 중 '대기' 상태인 첫 번째 키를 찾아 '사용' 버튼에 연결
+            let firstKey = "";
+            snap.forEach(c => { if(c.val().user === myName && c.val().item === item && c.val().status === '대기') firstKey = c.key; });
+            uH += `<div class="list-item"><span>${item} <b style="color:var(--primary);">x${myUnused[item]}</b></span><button onclick="db.ref('orders/${firstKey}').update({status:'사용요청'})" style="width:auto;">사용</button></div>`;
+        }
+        for (let item in myWaiting) {
+            wH += `<div class="list-item"><span>${item} <b style="color:#e74c3c;">x${myWaiting[item]}</b></span><b style="color:#888;">대기중</b></div>`;
+        }
+
         document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "없음";
         document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
         const adminOrderEl = document.getElementById('order-list');
@@ -767,28 +784,30 @@ function openAvatarPicker() {
         }
                 // 1. 관리자 탭 - 학생 명단 및 도우미 설정 렌더링
         function renderAdminList() {
-            let h = ""; 
-            currentUsers.forEach(u => { 
-                if(u.name === "총사령관") return; 
-                // 도우미 여부에 따라 버튼 색상 변경 (파란색: 도우미, 회색: 일반)
-                const helperBtnColor = u.isHelper ? 'var(--primary)' : '#95a5a6';
-                const helperText = u.isHelper ? '🛡️ 도우미' : '👤 일반';
+    let h = ""; 
+    currentUsers.forEach(u => { 
+        if(u.name === "총사령관") return; 
+        const helperBtnColor = u.isHelper ? 'var(--primary)' : '#95a5a6';
+        const helperText = u.isHelper ? '🛡️ 도우미' : '👤 일반';
 
-                h += `
-                    <div class="list-item" style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
-                        <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" 
-                               style="width:70px; height:50px; text-align:center; font-size:1.4rem; border:2px solid var(--primary); border-radius:10px; font-weight:bold;">
-                        <strong style="font-size:1.5rem; flex:1;">${u.name}</strong>
-                        <button onclick="toggleHelperRole('${u.name}', ${u.isHelper || false})" 
-                                style="width:auto; padding:10px 15px; background:${helperBtnColor}; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem;">
-                            ${helperText}
-                        </button>
-                        <button onclick="if(confirm('${u.name} 용사를 제명하시겠습니까?')) db.ref('users/${u.name}').remove()" 
-                                style="width:auto; padding:10px 15px; background:var(--red); color:white; border:none; border-radius:10px; font-size:1.1rem;">제거</button>
-                    </div>`; 
-            }); 
-            document.getElementById('student-admin-list').innerHTML = h || "등록된 학생이 없습니다."; 
-        }
+        h += `
+            <div class="list-item" style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:15px; background:white;">
+                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" 
+                       style="width:100px; height:60px; text-align:center; font-size:1.8rem; border:3px solid var(--primary); border-radius:10px; font-weight:bold; background:#f0f8ff;">
+                
+                <strong style="font-size:1.6rem; flex:1;">${u.name}</strong>
+                
+                <button onclick="toggleHelperRole('${u.name}', ${u.isHelper || false})" 
+                        style="width:auto; padding:12px 20px; background:${helperBtnColor}; color:white; border:none; border-radius:12px; font-weight:bold; font-size:1.2rem;">
+                    ${helperText}
+                </button>
+                
+                <button onclick="if(confirm('${u.name} 용사를 제명하시겠습니까?')) db.ref('users/${u.name}').remove()" 
+                        style="width:auto; padding:12px 20px; background:var(--red); color:white; border:none; border-radius:12px; font-size:1.2rem;">제거</button>
+            </div>`; 
+    }); 
+    document.getElementById('student-admin-list').innerHTML = h || "용사가 없습니다."; 
+}
 
         // 2. 도우미 권한 토글 (DB 업데이트 연동)
         function toggleHelperRole(name, currentStatus) {
