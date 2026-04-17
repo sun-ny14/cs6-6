@@ -286,41 +286,68 @@ function openAvatarPicker() {
         document.getElementById('guide-list').innerHTML = addH + h;
     });
 
-    // 6. 주문 감시 및 도우미 승인 로직 통합
-    // 6. 주문 감시 및 도우미 승인 로직 (물품 수량 합산 기능 복구)
+    // 6. 주문 감시 및 도우미/관리자 승인 로직 (일괄 수량 표시 버전)
     db.ref('orders').on('value', snap => {
         let uH = "", wH = "", adminH = ""; 
-        let myUnused = {}, myWaiting = {}; // 내 물품 수량 카운트용
+        let myUnused = {}, myWaiting = {}; // 내 인벤토리 카운트용
+        let adminWaiting = {}; // 도우미/관리자 승인 대기 카운트용 (유저별+아이템별)
 
         snap.forEach(c => {
             const o = c.val(); const key = c.key;
+            
+            // 1. 내 인벤토리 로직 (학생용)
             if (o.user === myName) {
                 if (o.status === '대기') {
-                    myUnused[o.item] = (myUnused[o.item] || 0) + 1;
+                    myUnused[o.item] = myUnused[o.item] || { count: 0, keys: [] };
+                    myUnused[o.item].count++;
+                    myUnused[o.item].keys.push(key);
                 } else if (o.status === '사용요청') {
                     myWaiting[o.item] = (myWaiting[o.item] || 0) + 1;
                 }
             }
+
+            // 2. 관리자/도우미 승인 대기 로직 (일괄 표시 핵심)
             if ((isAdmin || isHelper) && o.status === '사용요청') {
-                adminH += `<div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5;"><span><b>${o.user}</b>: ${o.item}</span><button onclick="if(confirm('승인?')) db.ref('orders/${key}').update({status:'완료'})" style="background:var(--red); color:white; width:auto;">승인</button></div>`;
+                const groupKey = `${o.user}_${o.item}`; // 유저와 아이템을 묶어서 관리
+                if (!adminWaiting[groupKey]) {
+                    adminWaiting[groupKey] = { user: o.user, item: o.item, count: 0, keys: [] };
+                }
+                adminWaiting[groupKey].count++;
+                adminWaiting[groupKey].keys.push(key);
             }
         });
 
-        // 내 인벤토리 화면에 수량 포함해서 렌더링
+        // [화면 출력] 내 인벤토리: 사용하지 않은 물품
         for (let item in myUnused) {
-            // 해당 아이템 중 '대기' 상태인 첫 번째 키를 찾아 '사용' 버튼에 연결
-            let firstKey = "";
-            snap.forEach(c => { if(c.val().user === myName && c.val().item === item && c.val().status === '대기') firstKey = c.key; });
-            uH += `<div class="list-item"><span>${item} <b style="color:var(--primary);">x${myUnused[item]}</b></span><button onclick="db.ref('orders/${firstKey}').update({status:'사용요청'})" style="width:auto;">사용</button></div>`;
+            const data = myUnused[item];
+            uH += `<div class="list-item"><span>${item} <b style="color:var(--primary);">x${data.count}</b></span>
+                   <button onclick="db.ref('orders/${data.keys[0]}').update({status:'사용요청'})" style="width:auto; padding:8px 15px;">사용</button></div>`;
         }
+        // [화면 출력] 내 인벤토리: 사용 요청 중인 물품
         for (let item in myWaiting) {
             wH += `<div class="list-item"><span>${item} <b style="color:#e74c3c;">x${myWaiting[item]}</b></span><b style="color:#888;">대기중</b></div>`;
         }
 
-        document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "없음";
-        document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
+        // [화면 출력] 도우미/관리자: 승인 대기 목록 (일괄 표시)
+        for (let gKey in adminWaiting) {
+            const data = adminWaiting[gKey];
+            adminH += `
+                <div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5;">
+                    <span><b>${data.user}</b>: ${data.item} <b style="color:var(--red); font-size:1.4rem;">x${data.count}</b></span>
+                    <button onclick="if(confirm('${data.user}의 ${data.item} ${data.count}개를 모두 승인하시겠습니까?')) { 
+                        ${JSON.stringify(data.keys)}.forEach(k => db.ref('orders/'+k).update({status:'완료'})); 
+                    }" style="width:auto; padding:10px 20px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold;">
+                        일괄 승인
+                    </button>
+                </div>`;
+        }
+
+        document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "보관함이 비어있습니다.";
+        document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "대기 중인 요청이 없습니다.";
         const adminOrderEl = document.getElementById('order-list');
-        if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
+        if (adminOrderEl) {
+            adminOrderEl.innerHTML = adminH || "새로운 요청이 없습니다.";
+        }
     });
 }
         function openUserHistory(un) {
