@@ -205,7 +205,7 @@ function openAvatarPicker() {
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         
        function startApp() {
-    // 1. 도우미 권한에 따른 화면 설정
+    // 1. 도우미 권한에 따른 화면 설정 (도우미면 승인창 보여주기)
     if (isHelper) {
         const helperElements = ['btn-shop', 'admin-order-mgr'];
         helperElements.forEach(id => {
@@ -214,7 +214,7 @@ function openAvatarPicker() {
         });
     }
 
-    // 2. 시스템 설정 감시
+    // 2. 시스템 설정 감시 (암호, 시간, 루틴 등)
     db.ref('settings').on('value', snap => {
         const s = snap.val() || {}; 
         giftList = s.giftList || []; 
@@ -229,7 +229,7 @@ function openAvatarPicker() {
         document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
     });
 
-    // 3. 용사 명단 감시 및 메인 그리드 렌더링
+    // 3. 용사들 명단 감시 및 메인 그리드 렌더링
     db.ref('users').on('value', snap => {
         let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
         currentUsers = users.sort((a, b) => {
@@ -242,6 +242,7 @@ function openAvatarPicker() {
             if(u.name === "총사령관") return; 
             const isMe = (u.name === myName);
             const infoText = (isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold;">${u.points || 0}P</span>` : "";
+            // 아바타 함수 호출
             h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2; transform: scale(1.05);' : ''}">
                     <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
                     <b style="font-size:1.3rem;">${isMe ? '⭐ ' : ''}LV.${u.lv || 1} ${u.name}</b><br>${infoText}</div>`; 
@@ -251,11 +252,12 @@ function openAvatarPicker() {
         renderCheckinBoard();
     });
 
-    // 4. [복구] 상점(용사보급소) 데이터 및 카테고리 렌더링
+    // 4. 상점(용사보급소) 데이터 복구
     let currentShopCat = "전체";
     db.ref('shop').on('value', snap => { 
         window.shopData = snap; 
-        
+        // 전역 필터 함수와 렌더링 함수를 startApp 내부에 정의
+        window.filterShop = function(cat) { currentShopCat = cat; renderShop(); };
         window.renderShop = function() {
             if (!window.shopData) return;
             const cats = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
@@ -269,41 +271,39 @@ function openAvatarPicker() {
             let itemH = ""; 
             window.shopData.forEach(c => { 
                 const i = c.val(); if (currentShopCat !== "전체" && i.cat !== currentShopCat) return; 
-                const limitText = (i.limit && i.limit > 0) ? `<br><small style="color:red;">(1인당 ${i.limit}개 제한)</small>` : "";
-                itemH += `<div class="list-item"><span>[${i.cat||'✨'}] <b>${i.name}</b> (${i.price}P)${limitText}</span><div style="display:flex; gap:8px;"><button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 18px;">구매</button>${isAdmin ? `<button onclick="openEditShopPopup('${c.key}')" style="width:auto; padding:10px 18px; background:var(--dark); color:white;">관리</button>` : ''}</div></div>`; 
+                itemH += `<div class="list-item"><span>[${i.cat||'✨'}] <b>${i.name}</b> (${i.price}P)</span><button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto;">구매</button></div>`; 
             }); 
-            document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "<p style='padding:20px;'>물품 없음</p>"); 
+            document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "물품 없음"); 
         };
-        
-        window.filterShop = function(cat) { currentShopCat = cat; renderShop(); };
-        renderShop(); // 즉시 실행
+        renderShop();
     });
 
     // 5. 도감 데이터 감시
     db.ref('pointGuide').on('value', snap => { 
         let h = ""; 
         let addH = isAdmin ? `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px;">+ 새 도감 기준 등록</button>` : "";
-        snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" style="position:relative;"><div onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})"><b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span></div>${isAdmin ? `<button onclick="openEditGuidePopup('${c.key}')" style="margin-top:10px; padding:5px; font-size:1.1rem; background:#eee; border:none; border-radius:5px;">수정 ⚙️</button>` : ''}</div>`; }); 
+        snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})"><b>${g.title}</b><br>${g.p}P / ${g.e}E</div>`; }); 
         document.getElementById('guide-list').innerHTML = addH + h;
     });
 
-    // 6. 주문 감시 (승인 기능 통합)
+    // 6. 주문 감시 및 도우미 승인 로직 통합
     db.ref('orders').on('value', snap => {
         let uH = "", wH = "", adminH = ""; 
         snap.forEach(c => {
             const o = c.val(); const key = c.key;
             if (o.user === myName) {
-                if (o.status === '대기') uH += `<div class="list-item"><span>${o.item}</span><button onclick="db.ref('orders/${key}').update({status:'사용요청'})" style="width:auto; padding:8px 15px;">사용</button></div>`;
+                if (o.status === '대기') uH += `<div class="list-item"><span>${o.item}</span><button onclick="db.ref('orders/${key}').update({status:'사용요청'})" style="width:auto;">사용</button></div>`;
                 else if (o.status === '사용요청') wH += `<div class="list-item"><span>${o.item}</span><b style="color:#888;">대기중</b></div>`;
             }
+            // 관리자나 도우미에게 승인 버튼 표시
             if ((isAdmin || isHelper) && o.status === '사용요청') {
-                adminH += `<div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5;"><span><b>${o.user}</b>: ${o.item}</span><button onclick="if(confirm('승인하시겠습니까?')) db.ref('orders/${key}').update({status:'완료'})" style="width:auto; padding:10px 20px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold;">승인</button></div>`;
+                adminH += `<div class="list-item"><span><b>${o.user}</b>: ${o.item}</span><button onclick="if(confirm('승인?')) db.ref('orders/${key}').update({status:'완료'})" style="background:var(--red); color:white; width:auto;">승인</button></div>`;
             }
         });
-        document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "보관함이 비어있습니다.";
-        document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "대기 중인 요청이 없습니다.";
+        document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "없음";
+        document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
         const adminOrderEl = document.getElementById('order-list');
-        if (adminOrderEl) adminOrderEl.innerHTML = adminH || "새로운 요청이 없습니다.";
+        if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
     });
 }
         function openUserHistory(un) {
