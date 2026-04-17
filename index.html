@@ -580,72 +580,65 @@
                 closePointPopup();
             };
         }
+function openMultiPopup(t = '', p = '', e = '') {
+            // 1. HTML에 이미 존재하는 입력창들에 값을 직접 주입 (중복 생성 방지)
+            const reasonInput = document.getElementById('multi-reason');
+            const pInput = document.getElementById('multi-p');
+            const eInput = document.getElementById('multi-e');
+            
+            if(reasonInput) reasonInput.value = t;
+            if(pInput) pInput.value = p;
+            if(eInput) eInput.value = e;
 
-        // [2] 도감 연동 일괄 지급 (플로팅 버튼 📋)
-        function openMultiPopup(t = '', p = '', e = '') {
-            // [수정] 중복된 하단 입력창 제거, 상단으로 통합 및 5열 배치
-            let h = `
-                <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--green); z-index:10;">
-                    <h3 style="text-align:center; margin:10px 0;">📋 일괄 지급 전령</h3>
-                    <input type="text" id="multi-reason" value="${t}" placeholder="사유를 입력하세요" style="margin-bottom:10px;">
-                    
-                    <div style="background:#e8f5e9; padding:15px; border-radius:15px; border:2px dashed var(--green); display:flex; gap:15px; align-items:center; justify-content:center; margin-bottom:15px;">
-                        <div style="text-align:center;">
-                            <span style="font-weight:bold; font-size:1.1rem; color:var(--dark);">P:</span>
-                            <input type="number" id="multi-p-val" value="${p}" style="width:90px; height:50px; text-align:center; font-size:1.5rem; font-weight:bold; border-radius:10px; border:2px solid var(--green);">
-                        </div>
-                        <div style="text-align:center;">
-                            <span style="font-weight:bold; font-size:1.1rem; color:var(--dark);">E:</span>
-                            <input type="number" id="multi-e-val" value="${e}" style="width:90px; height:50px; text-align:center; font-size:1.5rem; font-weight:bold; border-radius:10px; border:2px solid var(--green);">
-                        </div>
-                    </div>
+            // 2. 명단이 들어갈 영역(multi-list)을 5열 배치 스타일로 변경
+            const listContainer = document.getElementById('multi-list');
+            listContainer.style.display = "grid";
+            listContainer.style.gridTemplateColumns = "repeat(5, 1fr)";
+            listContainer.style.gap = "8px";
+            listContainer.style.padding = "10px";
 
-                    <div style="display:flex; gap:10px;">
-                        <button onclick="checkAllMulti(true)" style="background:var(--dark); color:white; flex:1; padding:12px; border-radius:10px; font-weight:bold;">전체 선택</button>
-                        <button onclick="checkAllMulti(false)" style="background:#95a5a6; color:white; flex:1; padding:12px; border-radius:10px; font-weight:bold;">해제</button>
-                    </div>
-                </div>
-
-                <div id="multi-list-body" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-top:20px; padding-bottom:20px;">`;
-
+            let h = "";
             currentUsers.forEach(u => {
                 if(u.name !== "총사령관") {
                     h += `
-                        <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f1f8e9; border:1px solid #c8e6c9; border-radius:12px; padding:10px; cursor:pointer; min-height:90px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <input type="checkbox" class="multi-select" data-name="${u.name}" checked style="width:28px; height:28px; margin-bottom:8px;">
-                            <strong style="font-size:1.4rem; color:var(--dark); text-align:center; line-height:1.2;">${u.no||''}<br>${u.name}</strong>
+                        <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f1f8e9; border:1px solid #c8e6c9; border-radius:12px; padding:12px; cursor:pointer; min-height:100px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <input type="checkbox" class="multi-select-check" data-name="${u.name}" checked style="width:30px; height:30px; margin-bottom:8px;">
+                            <strong style="font-size:1.5rem; color:var(--dark); text-align:center; line-height:1.2;">${u.no||''}<br>${u.name}</strong>
                         </label>`;
                 }
             });
             
-            // 기존 팝업 구조 유지하며 내용 주입
-            const popupBody = document.getElementById('multi-list');
-            if(popupBody) {
-                popupBody.innerHTML = h + `</div>`;
-                document.getElementById('multi-popup').style.display = 'flex';
-            }
+            // 3. 명단 주입 및 팝업 열기
+            listContainer.innerHTML = h;
+            document.getElementById('multi-popup').style.display = 'flex';
         }
 
-        // 지급 완료 실행 함수 (기존 로직 유지)
+        // [중요] 일괄 지급 완료 버튼(applyMultiScores)도 HTML 구조에 맞게 수정
         function applyMultiScores() {
-            const reason = document.getElementById('multi-reason').value;
-            const p = parseInt(document.getElementById('multi-p-val').value) || 0;
-            const e = parseInt(document.getElementById('multi-e-val').value) || 0;
+            const r = document.getElementById('multi-reason').value;
+            const p = parseInt(document.getElementById('multi-p').value) || 0;
+            const e = parseInt(document.getElementById('multi-e').value) || 0;
             
-            if(!reason) return alert("지급 사유를 입력해야 합니다! 🛡️");
+            if(!r) return alert("사유를 입력해주세요! 🛡️");
             
-            const selects = document.querySelectorAll('.multi-select');
+            const checks = document.querySelectorAll('.multi-select-check');
             let count = 0;
-            selects.forEach(cb => {
+            checks.forEach(cb => {
                 if(cb.checked) {
-                    addScore(cb.dataset.name, p, e, reason);
+                    addScore(cb.dataset.name, p, e, r);
                     count++;
                 }
             });
+            
             alert(`✅ ${count}명의 용사에게 일괄 지급 완료!`);
             closeMultiPopup();
         }
-        function checkAllMulti(s) { document.querySelectorAll('.multi-select').forEach(cb => cb.checked = s); }
+
+        // 전체 선택/해제 함수도 HTML 구조에 맞게 연결
+        function checkAllMulti(status) {
+            document.querySelectorAll('.multi-select-check').forEach(cb => cb.checked = status);
+        }
+       
         // [3] 유틸리티 함수들
         function toggleAllCheckboxes(s) { document.querySelectorAll('.student-select').forEach(cb => cb.checked = s); }
         function applyToAll(type) { 
