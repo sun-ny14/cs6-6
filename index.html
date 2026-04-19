@@ -122,28 +122,21 @@
 
         // [수정] 🤺 용사들 탭 프로필 이미지 복구 함수
 function getAvatar(lv, selectedAnimal) {
-    // [핵심] 구글 드라이브 직통 다운로드 주소입니다.
-    const yukyukImageUrl = "https://drive.google.com/uc?export=view&id=1WJN2X4Me_fPu5MtuFxS4PO1s3zPl4vSt";
+    // [중요] 여기에 방금 복사한 raw 주소를 넣으세요!
+    const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.jpg?raw=true";
     
-    const animals = [
-        "귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는",
-        "날쌘돌이", "즐거운", "행복한", "정의로운", "천사",
-        "닌자", "왕자", "공주", "근육맨", "마법사",
-        "용사", "공부하는", "춤추는", "노래하는", "무지개"
-    ];
-
+    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
     const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
     const index = animals.indexOf(name);
     
     const row = Math.floor(index / 5);
     const col = index % 5;
-    const size = 120; // 원래 쓰시던 픽셀 그리드 크기
+    const size = 120; 
     const x = col * size;
     const y = row * size;
 
-    // 원래의 픽셀 아트 스타일 그대로 유지 (Object-fit 대신 background/clip 방식)
     return `<div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #ddd; border-radius: 12px; background: white; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                <img src="${yukyukImageUrl}" style="position: relative; left: -${x}px; top: -${y}px; width: ${size * 5}px; height: ${size * 4}px; image-rendering: pixelated; transform: scale(0.7);" onerror="this.src='https://via.placeholder.com/80?text=Error'">
+                <img src="${githubImageUrl}" style="position: relative; left: -${x}px; top: -${y}px; width: ${size * 5}px; height: ${size * 4}px; image-rendering: pixelated; transform: scale(0.7);" onerror="this.src='https://via.placeholder.com/80?text=Error'">
             </div>`;
 }
 
