@@ -121,20 +121,28 @@
         }
 
         // [수정] 🤺 용사들 탭 프로필 이미지 복구 함수
+// [최종] 깃허브 이미지를 사용한 픽셀 아바타 복구 함수
 function getAvatar(lv, selectedAnimal) {
-    // [중요] 여기에 방금 복사한 raw 주소를 넣으세요!
+    // 선생님이 보내주신 깃허브 주소입니다.
     const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.jpg?raw=true";
     
-    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
+    const animals = [
+        "귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는",
+        "날쌘돌이", "즐거운", "행복한", "정의로운", "천사",
+        "닌자", "왕자", "공주", "근육맨", "마법사",
+        "용사", "공부하는", "춤추는", "노래하는", "무지개"
+    ];
+
     const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
     const index = animals.indexOf(name);
     
     const row = Math.floor(index / 5);
     const col = index % 5;
-    const size = 120; 
+    const size = 120; // 픽셀 아트 한 칸의 크기 (120px)
     const x = col * size;
     const y = row * size;
 
+    // 기존 85px 카드 스타일과 픽셀 렌더링 방식 100% 보존
     return `<div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #ddd; border-radius: 12px; background: white; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
                 <img src="${githubImageUrl}" style="position: relative; left: -${x}px; top: -${y}px; width: ${size * 5}px; height: ${size * 4}px; image-rendering: pixelated; transform: scale(0.7);" onerror="this.src='https://via.placeholder.com/80?text=Error'">
             </div>`;
@@ -381,12 +389,70 @@ function loadMyLogs() {
 }
 
         function openPointBulkPopup(t='', p='', e='') {
-            let h = `<div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;"><input type="text" id="pop-bulk-reason" value="${t}" placeholder="사유"><div style="display:flex; gap:10px; justify-content:center; margin-bottom:10px;"><div><small>P</small><input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:80px;"></div><div><small>E</small><input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:80px;"></div></div><button onclick="toggleAllCheckboxes(true)" style="width:48%;">전체</button><button onclick="toggleAllCheckboxes(false)" style="width:48%;">해제</button></div><div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(110px,1fr)); gap:10px; margin-top:15px;">`;
-            currentUsers.forEach(u => { if(u.name !== "총사령관") h += `<label style="background:#f8f9fa; border:2px solid #eee; border-radius:15px; padding:10px; text-align:center;"><input type="checkbox" class="student-select" data-name="${u.name}" checked><strong>${u.no||''} ${u.name}</strong><input type="number" class="pop-bulk-p" value="${p}" style="width:60px;"><input type="number" class="pop-bulk-e" value="${e}" style="width:60px;"></label>`; });
-            document.getElementById('point-pop-body').innerHTML = h + `</div>`; document.getElementById('point-popup').style.display = 'flex';
-            document.getElementById('point-apply-btn').onclick = () => { const r = document.getElementById('pop-bulk-reason').value; if(!r) return alert("사유!"); const cbs = document.querySelectorAll('.student-select'), ps = document.querySelectorAll('.pop-bulk-p'), es = document.querySelectorAll('.pop-bulk-e'); cbs.forEach((cb, i) => { if(cb.checked) addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r); }); alert("완료"); closePointPopup(); };
-        }
+    let h = `
+        <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;">
+            <input type="text" id="pop-bulk-reason" value="${t}" placeholder="지급 사유를 입력하세요" style="margin-bottom:10px;">
+            <div style="display:flex; gap:15px; justify-content:center; align-items:center; background:#f9f9f9; padding:10px; border-radius:12px;">
+                <div style="text-align:center;">
+                    <span style="display:block; font-weight:bold; color:var(--primary); font-size:1rem;">일괄 P</span>
+                    <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:100px; height:50px; text-align:center; font-size:1.4rem; border:2px solid var(--primary);">
+                </div>
+                <div style="text-align:center;">
+                    <span style="display:block; font-weight:bold; color:var(--purple); font-size:1rem;">일괄 E</span>
+                    <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:100px; height:50px; text-align:center; font-size:1.4rem; border:2px solid var(--purple);">
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button onclick="toggleAllCheckboxes(true)" style="flex:1; background:var(--dark); color:white; padding:10px; font-size:1.1rem;">전체 선택</button>
+                <button onclick="toggleAllCheckboxes(false)" style="flex:1; background:#95a5a6; color:white; padding:10px; font-size:1.1rem;">선택 해제</button>
+            </div>
+        </div>
+        
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:15px; margin-top:20px;">`;
 
+    currentUsers.forEach(u => {
+        if(u.name !== "총사령관") {
+            h += `
+            <div style="background:#fff; border:2px solid #eee; border-radius:15px; padding:12px; text-align:center; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                <label style="display:block; cursor:pointer; margin-bottom:8px;">
+                    <input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:20px; height:20px;">
+                    <div style="font-weight:bold; font-size:1.2rem; margin-top:5px;">${u.no||''} ${u.name}</div>
+                </label>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <span style="color:var(--primary); font-weight:bold; font-size:0.9rem; width:20px;">P</span>
+                        <input type="number" class="pop-bulk-p" value="${p}" style="width:85px; height:45px; text-align:center; font-size:1.3rem; border:2px solid #3498db; border-radius:8px;">
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <span style="color:var(--purple); font-weight:bold; font-size:0.9rem; width:20px;">E</span>
+                        <input type="number" class="pop-bulk-e" value="${e}" style="width:85px; height:45px; text-align:center; font-size:1.3rem; border:2px solid #9b59b6; border-radius:8px;">
+                    </div>
+                </div>
+            </div>`;
+        }
+    });
+
+    document.getElementById('point-pop-body').innerHTML = h + `</div>`;
+    document.getElementById('point-popup').style.display = 'flex';
+    
+    // [기존 로직 유지] 반영하기 버튼 클릭 시 데이터 처리
+    document.getElementById('point-apply-btn').onclick = () => {
+        const r = document.getElementById('pop-bulk-reason').value;
+        if(!r) return alert("지급 사유를 입력해주세요!");
+        
+        const cbs = document.querySelectorAll('.student-select');
+        const ps = document.querySelectorAll('.pop-bulk-p');
+        const es = document.querySelectorAll('.pop-bulk-e');
+        
+        cbs.forEach((cb, i) => {
+            if(cb.checked) {
+                addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r);
+            }
+        });
+        alert("성공적으로 반영되었습니다! ✨");
+        closePointPopup();
+    };
+}
         function openMultiPopup(t='', p='', e='') {
             document.getElementById('multi-reason').value = t; document.getElementById('multi-p').value = p; document.getElementById('multi-e').value = e;
             let h = ""; currentUsers.forEach(u => { if(u.name !== "총사령관") h += `<label style="background:#f1f8e9; padding:10px; border-radius:10px; text-align:center;"><input type="checkbox" class="multi-select-check" data-name="${u.name}" checked><br><strong>${u.no||''}<br>${u.name}</strong></label>`; });
