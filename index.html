@@ -121,7 +121,6 @@
         }
 
         // [수정] 🤺 용사들 탭 프로필 이미지 복구 함수
-// [최종] 깃허브 이미지를 사용한 픽셀 아바타 복구 함수
 function getAvatar(lv, selectedAnimal) {
     const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.jpg?raw=true";
     
@@ -129,23 +128,26 @@ function getAvatar(lv, selectedAnimal) {
     const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
     const index = animals.indexOf(name);
     
+    // 5x4 그리드 계산
     const col = index % 5;
     const row = Math.floor(index / 5);
-
-    const posX = col * 25; // 5칸이므로 0, 25, 50, 75, 100%
-    const posY = row * 33.333; // 4칸이므로 0, 33.3, 66.6, 100%
+    
+    // 가로 5칸(20%씩), 세로 4칸(25%씩)
+    const posX = col * 25; 
+    const posY = row * 33.333;
 
     return `
-    <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 15px; background: white; margin: 0 auto; position: relative;">
+    <div style="width: 90px; height: 90px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         <div style="
             width: 100%; 
             height: 100%; 
             background-image: url('${githubImageUrl}'); 
-            background-size: 500% 400%; 
+            background-size: 510% 410%; 
             background-position: ${posX}% ${posY}%; 
             background-repeat: no-repeat;
             image-rendering: pixelated;
-            transform: scale(0.9);
+            transform: scale(1.4); 
+            transform-origin: center;
         "></div>
     </div>`;
 }
@@ -155,17 +157,16 @@ function getAvatar(lv, selectedAnimal) {
     db.ref('users/' + myName).once('value', snap => {
         const lv = snap.val().lv || 1;
         const availableCount = Math.min(lv, 20);
-        let h = `<p style="text-align:center; font-weight:bold; color:var(--primary); margin-bottom:15px;">✨ 현재 레벨에 따라 칭호가 해금됩니다!</p>`;
-        h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; padding:10px;">`;
+        let h = `<p style="text-align:center; font-weight:bold; color:var(--primary); margin-bottom:15px;">✨ 레벨이 높을수록 다양한 칭호를 고를 수 있습니다!</p>`;
+        h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; padding:10px;">`;
         for(let i=0; i < 20; i++) {
             if(i < availableCount) {
-                // 글자 삭제, 이미지만 노출
-                h += `<div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:2px solid var(--gold); border-radius:10px; padding:5px; background:#fffdf2;">
+                h += `<div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:2px solid var(--gold); border-radius:15px; padding:8px; background:#fffdf2;">
                         ${getAvatar(i + 1, animals[i])}
                       </div>`;
             } else {
-                h += `<div style="text-align:center; border:1px solid #eee; border-radius:10px; padding:5px; background:#f5f5f5; opacity: 0.5;">
-                        <div style="width: 85px; height: 85px; display:flex; align-items:center; justify-content:center; margin: 0 auto; font-size:1.5rem; background:#eee; border-radius:12px;">🔒</div>
+                h += `<div style="text-align:center; border:1px solid #eee; border-radius:15px; padding:8px; background:#f5f5f5; opacity: 0.5;">
+                        <div style="width: 90px; height: 90px; display:flex; align-items:center; justify-content:center; margin: 0 auto; font-size:1.8rem; background:#eee; border-radius:15px;">🔒</div>
                       </div>`;
             }
         }
@@ -200,15 +201,15 @@ db.ref('users').on('value', snap => {
     currentUsers.forEach(u => { 
         if(u.name === "총사령관") return; 
         const isMe = (u.name === myName);
-        // [칭호 적용] 선택한 동물이 있으면 이름 앞에 붙임
+        // 선택한 동물을 칭호로 사용
         const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
         
         h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
                 <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
-                <b style="font-size:1.2rem; display:block; margin-top:8px;">
+                <b style="font-size:1.3rem; display:block; margin-top:12px; color:var(--dark);">
                     ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
                 </b>
-                ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : ''}
+                ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.2rem;">${u.points || 0}P</span>` : ''}
               </div>`; 
     }); 
     document.getElementById('hero-grid').innerHTML = h;
