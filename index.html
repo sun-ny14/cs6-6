@@ -123,7 +123,7 @@
         // [수정] 🤺 용사들 탭 프로필 이미지 복구 함수
 // [최종] 깃허브 이미지를 사용한 픽셀 아바타 복구 함수
 function getAvatar(lv, selectedAnimal) {
-    // 선생님의 깃허브 원본 주소
+    // 선생님의 깃허브 주소
     const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.jpg?raw=true";
     
     const animals = [
@@ -136,17 +136,29 @@ function getAvatar(lv, selectedAnimal) {
     const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
     const index = animals.indexOf(name);
     
-    // 5x4 그리드 좌표 계산 (정확한 120px 기준)
-    const row = Math.floor(index / 5);
+    // 5x4 그리드 정확한 계산
     const col = index % 5;
-    const size = 120; 
-    const x = col * size;
-    const y = row * size;
+    const row = Math.floor(index / 5);
+    
+    const size = 120; // 픽셀 아트 한 칸의 기본 크기
+    
+    // 좌표 보정: 이미지가 찌그러지지 않게 위치 고정
+    const posX = col * size;
+    const posY = row * size;
 
-    // 카드는 85px로 유지하되 내부 이미지만 정확히 크로핑
-    return `<div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 15px; background: white; display: flex; align-items: center; justify-content: center; margin: 0 auto; position: relative;">
-                <img src="${githubImageUrl}" style="position: absolute; left: -${x}px; top: -${y}px; width: ${size * 5}px; height: ${size * 4}px; image-rendering: pixelated; transform: scale(0.7); transform-origin: top left;">
-            </div>`;
+    // style 속성에서 transform-origin과 overflow를 다시 잡았습니다.
+    return `
+    <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 15px; background: white; display: flex; align-items: center; justify-content: center; margin: 0 auto; position: relative;">
+        <img src="${githubImageUrl}" 
+             style="position: absolute; 
+                    left: -${posX}px; 
+                    top: -${posY}px; 
+                    width: ${size * 5}px; 
+                    height: ${size * 4}px; 
+                    image-rendering: pixelated; 
+                    transform: scale(0.68); 
+                    transform-origin: 0 0;">
+    </div>`;
 }
 
         function openAvatarPicker() {
@@ -309,22 +321,37 @@ function getAvatar(lv, selectedAnimal) {
         }
 
         auth.onAuthStateChanged(user => {
-            if (user) {
-                isAdmin = (user.email === adminEmail);
-                db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
-                    if (snap.exists() || isAdmin) {
-                        myName = snap.val() || "총사령관";
-                        db.ref('users/' + myName).once('value', uSnap => {
-                            isHelper = uSnap.val()?.isHelper || false; forceScreenDisplay('app');
-                            if (isAdmin) { ['btn-logs', 'btn-admin', 'btn-guide', 'floating-point-btn', 'floating-multi-btn'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; }); } 
-                            else if (isHelper) { ['btn-shop', 'admin-order-mgr'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'block'; }); }
-                            startApp(); showTab(currentTab);
-                        });
-                    } else { alert("미등록!"); auth.signOut(); }
-                });
-            } else { forceScreenDisplay('login'); }
-        });
+    if (user) {
+        isAdmin = (user.email === adminEmail);
+        db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
+            if (snap.exists() || isAdmin) {
+                myName = snap.val() || "총사령관";
+                db.ref('users/' + myName).once('value', uSnap => {
+                    isHelper = uSnap.val()?.isHelper || false;
+                    forceScreenDisplay('app');
 
+                    // [수정] 관리자(선생님)나 도우미 학생 모두에게 필요한 버튼/창 노출
+                    if (isAdmin || isHelper) {
+                        // 사용 요청 승인창은 공통으로 노출
+                        const orderMgr = document.getElementById('admin-order-mgr');
+                        if (orderMgr) orderMgr.style.display = 'block';
+                    }
+
+                    if (isAdmin) {
+                        // 관리자 전용 메뉴 (도감, 로그, 관리 탭 및 플로팅 버튼)
+                        ['btn-logs', 'btn-admin', 'btn-guide', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) el.style.display = 'block';
+                        });
+                    } 
+                    
+                    startApp(); 
+                    showTab(currentTab);
+                });
+            } else { alert("미등록 용사입니다!"); auth.signOut(); }
+        });
+    } else { forceScreenDisplay('login'); }
+});
         function updateNo(n, v) { db.ref('users/' + n).update({ no: parseInt(v) || 0 }); }
         function toggleHelperRole(n, s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function approveBulk(keyStr, user, item) { if(confirm(`${user}의 ${item}을 모두 승인?`)) { const keys = keyStr.split(','), updates = {}; keys.forEach(k => { updates['orders/' + k + '/status'] = '완료'; }); db.ref().update(updates).then(() => alert("완료!")); } }
