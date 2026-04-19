@@ -123,7 +123,7 @@
         // [수정] 🤺 용사들 탭 프로필 이미지 복구 함수
 // [최종] 깃허브 이미지를 사용한 픽셀 아바타 복구 함수
 function getAvatar(lv, selectedAnimal) {
-    // 선생님이 보내주신 깃허브 주소입니다.
+    // 선생님의 깃허브 원본 주소
     const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.jpg?raw=true";
     
     const animals = [
@@ -136,15 +136,16 @@ function getAvatar(lv, selectedAnimal) {
     const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
     const index = animals.indexOf(name);
     
+    // 5x4 그리드 좌표 계산 (정확한 120px 기준)
     const row = Math.floor(index / 5);
     const col = index % 5;
-    const size = 120; // 픽셀 아트 한 칸의 크기 (120px)
+    const size = 120; 
     const x = col * size;
     const y = row * size;
 
-    // 기존 85px 카드 스타일과 픽셀 렌더링 방식 100% 보존
-    return `<div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #ddd; border-radius: 12px; background: white; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                <img src="${githubImageUrl}" style="position: relative; left: -${x}px; top: -${y}px; width: ${size * 5}px; height: ${size * 4}px; image-rendering: pixelated; transform: scale(0.7);" onerror="this.src='https://via.placeholder.com/80?text=Error'">
+    // 카드는 85px로 유지하되 내부 이미지만 정확히 크로핑
+    return `<div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 15px; background: white; display: flex; align-items: center; justify-content: center; margin: 0 auto; position: relative;">
+                <img src="${githubImageUrl}" style="position: absolute; left: -${x}px; top: -${y}px; width: ${size * 5}px; height: ${size * 4}px; image-rendering: pixelated; transform: scale(0.7); transform-origin: top left;">
             </div>`;
 }
 
