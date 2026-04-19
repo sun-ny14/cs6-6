@@ -122,22 +122,29 @@
 
         // [수정] 🤺 용사들 탭 프로필 이미지 복구 함수
 function getAvatar(lv, selectedAnimal) {
-    // 1. 선생님이 구글 드라이브에서 복사한 그 링크를 여기에 그대로 붙여넣으세요.
-    let driveLink = "https://drive.google.com/file/d/1WJN2X4Me_fPu5MtuFxS4PO1s3zPl4vSt/view?usp=drive_link";
+    // [핵심] 구글 드라이브 직통 다운로드 주소입니다.
+    const yukyukImageUrl = "https://drive.google.com/uc?export=view&id=1WJN2X4Me_fPu5MtuFxS4PO1s3zPl4vSt";
     
-    let imageUrl = driveLink;
+    const animals = [
+        "귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는",
+        "날쌘돌이", "즐거운", "행복한", "정의로운", "천사",
+        "닌자", "왕자", "공주", "근육맨", "마법사",
+        "용사", "공부하는", "춤추는", "노래하는", "무지개"
+    ];
 
-    // 2. [핵심] 복사한 링크를 컴퓨터용 이미지 주소로 자동 변환하는 로직입니다.
-    if (driveLink.includes("file/d/")) {
-        const fileId = driveLink.split("file/d/")[1].split("/")[0];
-        imageUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-    } else if (driveLink.includes("id=")) {
-        const fileId = driveLink.split("id=")[1].split("&")[0];
-        imageUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-    }
+    const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
+    const index = animals.indexOf(name);
+    
+    const row = Math.floor(index / 5);
+    const col = index % 5;
+    const size = 120; // 원래 쓰시던 픽셀 그리드 크기
+    const x = col * size;
+    const y = row * size;
 
-    // 3. 선생님이 원하시는 동그란 프로필 스타일 그대로 유지합니다.
-    return `<img src="${imageUrl}" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:3px solid #eee; vertical-align:middle;" onerror="this.src='https://via.placeholder.com/55?text=Error'">`;
+    // 원래의 픽셀 아트 스타일 그대로 유지 (Object-fit 대신 background/clip 방식)
+    return `<div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #ddd; border-radius: 12px; background: white; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                <img src="${yukyukImageUrl}" style="position: relative; left: -${x}px; top: -${y}px; width: ${size * 5}px; height: ${size * 4}px; image-rendering: pixelated; transform: scale(0.7);" onerror="this.src='https://via.placeholder.com/80?text=Error'">
+            </div>`;
 }
 
         function openAvatarPicker() {
@@ -218,14 +225,13 @@ function getAvatar(lv, selectedAnimal) {
 
             // [사용 요청함 승인 로직 100% 복구]
             // 6. [수정] 주문 감시 및 도우미/관리자 유저별 일괄 승인 로직
+    // 6. 주문 감시 및 사용자별 일괄 승인
     db.ref('orders').on('value', snap => {
         let uH = "", wH = "", adminH = ""; 
         let myUnused = {}, myWaiting = {}, adminWaiting = {}; 
 
         snap.forEach(c => {
             const o = c.val(); const key = c.key;
-            
-            // 학생 본인 인벤토리용 로직
             if (o.user === myName) {
                 if (o.status === '대기') {
                     if (!myUnused[o.item]) myUnused[o.item] = [];
@@ -234,8 +240,6 @@ function getAvatar(lv, selectedAnimal) {
                     myWaiting[o.item] = (myWaiting[o.item] || 0) + 1;
                 }
             }
-
-            // 도우미/관리자용: 유저별로 모든 품목 묶기
             if ((isAdmin || isHelper) && o.status === '사용요청') {
                 if (!adminWaiting[o.user]) adminWaiting[o.user] = {};
                 if (!adminWaiting[o.user][o.item]) adminWaiting[o.user][o.item] = [];
@@ -243,38 +247,24 @@ function getAvatar(lv, selectedAnimal) {
             }
         });
 
-        // 학생용 화면 출력 (기존 폰트 및 스타일 유지)
+        // 학생용 출력 (원래 폰트 유지)
         for (let item in myUnused) {
-            uH += `<div class="list-item"><span>${item} <b style="color:var(--primary);">x${myUnused[item].length}</b></span>
-                   <button onclick="if(confirm('${item} 1개를 사용하시겠습니까?')) db.ref('orders/${myUnused[item][0]}').update({status:'사용요청'})" style="width:auto; padding:8px 15px;">사용</button></div>`;
+            uH += `<div class="list-item"><span>${item} <b>x${myUnused[item].length}</b></span><button onclick="if(confirm('${item} 사용?')) db.ref('orders/${myUnused[item][0]}').update({status:'사용요청'})">사용</button></div>`;
         }
-        for (let item in myWaiting) {
-            wH += `<div class="list-item"><span>${item} <b style="color:#e74c3c;">x${myWaiting[item]}</b></span><b style="color:#888;">승인 대기중</b></div>`;
-        }
-
-        // 도우미/관리자용 화면 출력: 유저별 그룹화 및 전체 승인 버튼
+        
+        // 관리자/도우미용 출력 (묶음 승인)
         for (let user in adminWaiting) {
-            let itemsText = []; let allKeys = [];
+            let items = []; let keys = [];
             for (let item in adminWaiting[user]) {
-                const ks = adminWaiting[user][item];
-                itemsText.push(`${item} x${ks.length}`);
-                allKeys = allKeys.concat(ks);
+                items.push(`${item} x${adminWaiting[user][item].length}`);
+                keys = keys.concat(adminWaiting[user][item]);
             }
-            adminH += `
-                <div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5; padding:15px; margin-bottom:10px; display:block;">
-                    <div style="margin-bottom:10px;">
-                        <strong style="font-size:1.5rem;">${user}</strong>
-                        <div style="color:var(--red); font-weight:bold; margin-top:5px;">${itemsText.join(', ')}</div>
-                    </div>
-                    <button onclick="approveUserAll('${allKeys.join(',')}', '${user}')" 
-                            style="width:100%; padding:12px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">
-                        위 항목 전체 승인
-                    </button>
-                </div>`;
+            adminH += `<div class="list-item" style="border-left:5px solid var(--red); display:block; background:#fff5f5;">
+                        <b>${user}</b>: ${items.join(', ')} 
+                        <button onclick="approveUserAll('${keys.join(',')}', '${user}')" style="background:var(--red); color:white; width:100%; margin-top:5px;">일괄 승인</button>
+                      </div>`;
         }
-
         document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음";
-        document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
         const adminOrderEl = document.getElementById('order-list');
         if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
     });
@@ -366,19 +356,34 @@ function getAvatar(lv, selectedAnimal) {
 function loadMyLogs() {
     const listEl = document.getElementById('point-history-list');
     if(!listEl) return;
+
+    // 관리자는 전체 로그, 학생은 본인 로그만
     let query = isAdmin ? db.ref('pointLogs') : db.ref('pointLogs').orderByChild('name').equalTo(myName);
     
     query.once('value', snap => {
-        let logs = []; snap.forEach(l => logs.push(l.val())); logs.reverse();
+        let logs = [];
+        snap.forEach(l => { logs.push(l.val()); });
+        logs.reverse(); // 최신순
+
         let html = isAdmin ? `<div style="background:#444; color:white; padding:8px; text-align:center; border-radius:5px; margin-bottom:10px;">🛡️ 관리자 모드</div>` : "";
-        logs.slice(0, 50).forEach(l => {
-            const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
-            html += `<div class="list-item" style="border-left:8px solid ${color};">
-                        <span><b>${isAdmin ? '['+l.name+'] ' : ''}${l.reason}</b><br><small>${l.time}</small></span>
-                        <strong style="color:${color};">${l.amount}P</strong>
+        
+        if (logs.length === 0) {
+            html += `<div style="text-align:center; padding:20px; color:#999;">기록이 없습니다.</div>`;
+        } else {
+            logs.slice(0, 50).forEach(l => {
+                const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
+                const sign = l.amount >= 0 ? "+" : "";
+                html += `
+                    <div class="list-item" style="border-left:8px solid ${color}; margin-bottom:8px; background:white; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <span>
+                            <b style="font-size:1.1rem;">${isAdmin ? '['+l.name+'] ' : ''}${l.reason}</b><br>
+                            <small style="color:#888;">${l.time}</small>
+                        </span>
+                        <strong style="color:${color}; font-size:1.2rem;">${sign}${l.amount}P</strong>
                     </div>`;
-        });
-        listEl.innerHTML = html || "기록 없음";
+            });
+        }
+        listEl.innerHTML = html;
     });
 }
 
