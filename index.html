@@ -211,33 +211,67 @@
             });
 
             // [사용 요청함 승인 로직 100% 복구]
-            db.ref('orders').on('value', snap => {
-                let uH = "", wH = "", adminH = ""; let myUnused = {}, myWaiting = {}, adminWaiting = {};
-                snap.forEach(c => {
-                    const o = c.val(), key = c.key;
-                    if (o.user === myName) { 
-                        if (o.status === '대기') { if (!myUnused[o.item]) myUnused[o.item] = []; myUnused[o.item].push(key); } 
-                        else if (o.status === '사용요청') { myWaiting[o.item] = (myWaiting[o.item] || 0) + 1; } 
-                    }
-                    if ((isAdmin || isHelper) && o.status === '사용요청') { 
-                        const gKey = o.user + "_" + o.item; 
-                        if (!adminWaiting[gKey]) adminWaiting[gKey] = { user: o.user, item: o.item, keys: [] }; 
-                        adminWaiting[gKey].keys.push(key); 
-                    }
-                });
-                for (let item in myUnused) { const keys = myUnused[item]; uH += `<div class="list-item"><span>${item} <b style="color:var(--primary);">x${keys.length}</b></span><button onclick="if(confirm('${item} 1개를 사용하시겠습니까?')) db.ref('orders/${keys[0]}').update({status:'사용요청'})" style="width:auto; padding:8px 15px;">사용</button></div>`; }
-                for (let item in myWaiting) { wH += `<div class="list-item"><span>${item} <b style="color:#e74c3c;">x${myWaiting[item]}</b></span><b style="color:#888;">승인 대기중</b></div>`; }
-                for (let g in adminWaiting) { 
-                    const d = adminWaiting[g], keyStr = d.keys.join(','); 
-                    adminH += `<div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5;">
-                                <span><b>${d.user}</b>: ${d.item} <b style="color:var(--red); font-size:1.4rem;">x${d.keys.length}</b></span>
-                                <button onclick="approveBulk('${keyStr}', '${d.user}', '${d.item}')" style="width:auto; padding:10px 20px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold;">일괄 승인</button>
-                               </div>`; 
+            // 6. [수정] 주문 감시 및 도우미/관리자 유저별 일괄 승인 로직
+    db.ref('orders').on('value', snap => {
+        let uH = "", wH = "", adminH = ""; 
+        let myUnused = {}, myWaiting = {}, adminWaiting = {}; 
+
+        snap.forEach(c => {
+            const o = c.val(); const key = c.key;
+            
+            // 학생 본인 인벤토리용 로직
+            if (o.user === myName) {
+                if (o.status === '대기') {
+                    if (!myUnused[o.item]) myUnused[o.item] = [];
+                    myUnused[o.item].push(key);
+                } else if (o.status === '사용요청') {
+                    myWaiting[o.item] = (myWaiting[o.item] || 0) + 1;
                 }
-                document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음"; 
-                document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
-                const adminOrderEl = document.getElementById('order-list'); if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
-            });
+            }
+
+            // 도우미/관리자용: 유저별로 모든 품목 묶기
+            if ((isAdmin || isHelper) && o.status === '사용요청') {
+                if (!adminWaiting[o.user]) adminWaiting[o.user] = {};
+                if (!adminWaiting[o.user][o.item]) adminWaiting[o.user][o.item] = [];
+                adminWaiting[o.user][o.item].push(key);
+            }
+        });
+
+        // 학생용 화면 출력 (기존 폰트 및 스타일 유지)
+        for (let item in myUnused) {
+            uH += `<div class="list-item"><span>${item} <b style="color:var(--primary);">x${myUnused[item].length}</b></span>
+                   <button onclick="if(confirm('${item} 1개를 사용하시겠습니까?')) db.ref('orders/${myUnused[item][0]}').update({status:'사용요청'})" style="width:auto; padding:8px 15px;">사용</button></div>`;
+        }
+        for (let item in myWaiting) {
+            wH += `<div class="list-item"><span>${item} <b style="color:#e74c3c;">x${myWaiting[item]}</b></span><b style="color:#888;">승인 대기중</b></div>`;
+        }
+
+        // 도우미/관리자용 화면 출력: 유저별 그룹화 및 전체 승인 버튼
+        for (let user in adminWaiting) {
+            let itemsText = []; let allKeys = [];
+            for (let item in adminWaiting[user]) {
+                const ks = adminWaiting[user][item];
+                itemsText.push(`${item} x${ks.length}`);
+                allKeys = allKeys.concat(ks);
+            }
+            adminH += `
+                <div class="list-item" style="border-left:5px solid var(--red); background:#fff5f5; padding:15px; margin-bottom:10px; display:block;">
+                    <div style="margin-bottom:10px;">
+                        <strong style="font-size:1.5rem;">${user}</strong>
+                        <div style="color:var(--red); font-weight:bold; margin-top:5px;">${itemsText.join(', ')}</div>
+                    </div>
+                    <button onclick="approveUserAll('${allKeys.join(',')}', '${user}')" 
+                            style="width:100%; padding:12px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">
+                        위 항목 전체 승인
+                    </button>
+                </div>`;
+        }
+
+        document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음";
+        document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "없음";
+        const adminOrderEl = document.getElementById('order-list');
+        if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
+    });
         }
 
         // [상점 팝업 함수들 복구]
@@ -375,6 +409,17 @@
                 if (routineItems.length > 0) { rIdx = 0; openPopup("🌅 루틴 시작!", `[1단계] ${routineItems[0]}`, true); } else alert("등교 완료!");
             });
         }
+        // 유저별 요청 항목 전체 승인 함수
+function approveUserAll(keyStr, user) {
+    if(confirm(user + " 용사가 요청한 모든 항목을 승인하시겠습니까?")) {
+        const keys = keyStr.split(',');
+        const updates = {};
+        keys.forEach(k => {
+            updates['orders/' + k + '/status'] = '완료';
+        });
+        db.ref().update(updates).then(() => alert("모든 항목 승인 완료! ✨"));
+    }
+}
     </script>
 </body>
 </html>
