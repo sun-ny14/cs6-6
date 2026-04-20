@@ -79,8 +79,25 @@
 
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
         
-        <section id="tab-logs" class="tab-content"><div class="card"><h2>📅 등교 기록부</h2><div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;"><span style="font-weight:bold;">날짜 선택:</span><input type="date" id="checkin-date-filter" style="flex:1; padding:10px;"></div><div id="checkin-history" style="width:100%;"></div></div></section>
+      <section id="tab-logs" class="tab-content">
+    <div class="card">
+        <h2>📅 등교 기록부 (교실 배치도)</h2>
+        
+        <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px; display:flex; gap:10px; align-items:center;">
+            가로 <input type="number" id="seat-cols" value="5" style="width:60px; margin:0; padding:8px;"> x 
+            세로 <input type="number" id="seat-rows" value="6" style="width:60px; margin:0; padding:8px;">
+            <button onclick="initSeatMap()" style="width:auto; margin:0; padding:10px 15px; background:var(--dark); color:white;">배치도 생성</button>
+        </div>
 
+        <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;">
+            <span style="font-weight:bold;">날짜 선택:</span>
+            <input type="date" id="checkin-date-filter" onchange="renderCheckinBoard()" style="flex:1; padding:10px;">
+            <button onclick="downloadMonthlyExcel()" style="width:auto; background:var(--green); color:white; padding:10px;">엑셀출력</button>
+        </div>
+
+        <div id="seat-map-container" style="display:grid; gap:10px; width:100%; overflow-x:auto;"></div>
+    </div>
+</section>
         <section id="tab-points" class="tab-content">
             <div id="my-inventory" class="card">
                 <h3>🎁 나의 인벤토리</h3>
@@ -382,23 +399,59 @@ db.ref('users').on('value', snap => {
             document.getElementById('student-admin-list').innerHTML = h || "용사가 없습니다."; 
         }
 
-        function renderCheckinBoard() {
-            const historyEl = document.getElementById('checkin-history'); if(!historyEl) return;
-            const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
-            db.ref('checkinLogs').once('value', snap => {
-                const logs = {}; snap.forEach(c => { const val = c.val(); if(val.date === targetDate) logs[val.name] = val; });
-                let html = `<div style="padding:15px; background:#e3f2fd; border-radius:12px; margin-bottom:15px; font-weight:bold;">📅 ${targetDate} 명부</div>`;
-                currentUsers.forEach(u => {
-                    if(u.name === "총사령관") return; const log = logs[u.name]; let bgColor = log ? (log.result.includes('정상') ? "#ccffcc" : "#ffcccc") : "#ffff00";
-                    html += `<div style="display:flex; align-items:center; padding:15px; margin-bottom:8px; border-radius:15px; background:${bgColor};">
-                                <span style="width:40px; font-weight:bold;">${u.no || '-'}</span>
-                                <span style="width:100px; font-weight:900;">${u.name}</span>
-                                <span style="flex:1;">${log ? log.result + ' [' + log.time + ']' : '미등교'}</span>
-                            </div>`;
-                });
-                historyEl.innerHTML = html;
-            });
+       // 좌석 배치도 초기화 및 그리기
+function initSeatMap() {
+    const rows = parseInt(document.getElementById('seat-rows').value);
+    const cols = parseInt(document.getElementById('seat-cols').value);
+    const container = document.getElementById('seat-map-container');
+    
+    // 그리드 스타일 설정
+    container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    
+    // 현재 날짜의 등교 기록 가져오기 (이미 정의된 renderCheckinBoard와 연동)
+    renderCheckinBoard(); 
+}
+
+// [기존 renderCheckinBoard 함수를 좌석표 형식으로 덮어쓰기]
+function renderCheckinBoard() {
+    const container = document.getElementById('seat-map-container');
+    if(!container) return;
+
+    const rows = parseInt(document.getElementById('seat-rows').value);
+    const cols = parseInt(document.getElementById('seat-cols').value);
+    const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
+
+    db.ref('checkinLogs').once('value', snap => {
+        const logs = {};
+        snap.forEach(c => {
+            const val = c.val();
+            if(val.date === targetDate) logs[val.name] = val;
+        });
+
+        let html = "";
+        // 가로 x 세로 만큼 칸 생성
+        for (let i = 0; i < rows * cols; i++) {
+            // 여기서는 번호 순대로 우선 배치 (나중에 개별 좌석 지정 기능을 위해 index 활용)
+            const u = currentUsers.filter(user => user.name !== "총사령관")[i];
+            
+            if (u) {
+                const log = logs[u.name];
+                let bgColor = log ? (log.result.includes('정상') ? "#ccffcc" : "#ffcccc") : "#ffff00";
+                
+                html += `
+                <div onclick="openLogEditPopup('${u.name}')" style="background:${bgColor}; padding:10px; border-radius:10px; border:1px solid #ddd; min-height:80px; display:flex; flex-direction:column; justify-content:center; cursor:pointer;">
+                    <div style="font-size:0.9rem; font-weight:bold;">${u.no || '-'}번</div>
+                    <div style="font-size:1.1rem; font-weight:900;">${u.name}</div>
+                    <div style="font-size:0.8rem; margin-top:5px;">${log ? log.result : '미등교'}</div>
+                    ${log && log.reason ? `<div style="font-size:0.7rem; color:blue;">📝사유있음</div>` : ''}
+                </div>`;
+            } else {
+                html += `<div style="background:#eee; border-radius:10px; border:1px dashed #ccc; min-height:80px;"></div>`; // 빈자리
+            }
         }
+        container.innerHTML = html;
+    });
+}
 
         // [복구] 💰 연대기 탭 내용 복구 함수
 function loadMyLogs() {
