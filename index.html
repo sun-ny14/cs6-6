@@ -135,8 +135,12 @@
         }
 
         // [수정] 🤺 용사들 탭 프로필 이미지 복구 함수
+// [수정] 중앙 정렬된 새 이미지 주소로 교체
 function getAvatar(lv, selectedAnimal) {
-    const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.jpg?raw=true";
+    // 이 줄을 아래 주소로 통째로 덮어쓰세요.
+    const githubImageUrl = "https://i.ibb.co/6P2T0k0/6-6-fixed-v2.jpg"; 
+
+    // ... (아래 코드는 기존 안정화 코드 그대로 유지) ...
     const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
     const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
     const index = animals.indexOf(name);
@@ -144,29 +148,22 @@ function getAvatar(lv, selectedAnimal) {
     const col = index % 5;
     const row = Math.floor(index / 5);
     
-    // [보정 완료] 이미지 시트의 여백을 고려한 정밀 좌표 (픽셀 단위)
-    // 캐릭터가 한 칸(약 205x255) 내에서 중앙에 오도록 오프셋을 조정했습니다.
-    const startX = 2; // 왼쪽 첫 여백
-    const startY = 2; // 상단 첫 여백
-    const stepX = 204.5; // 가로 간격
-    const stepY = 254.5; // 세로 간격
-
-    const posX = startX + (col * stepX);
-    const posY = startY + (row * stepY);
+    // [기존 좌표값 유지] 이미지 자체를 수정했으므로 기존 코드가 정확히 맞습니다.
+    const posX = col * 25; 
+    const posY = [0, 33.3, 66.6, 100][row]; 
 
     return `
-    <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center;">
+    <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; position: relative;">
         <div style="
-            width: 1024px; 
-            height: 1024px; 
+            width: 100%; 
+            height: 100%; 
             background-image: url('${githubImageUrl}'); 
-            background-size: 1024px 1024px; 
-            background-position: -${posX}px -${posY}px; 
+            background-size: 505% 405%; 
+            background-position: ${posX}% ${posY}%; 
             background-repeat: no-repeat;
             image-rendering: pixelated;
-            transform: scale(0.65); /* 캐릭터 크기를 칸에 맞춰 살짝 키움 */
-            flex-shrink: 0;
-            transform-origin: center center;
+            transform: scale(1.4); 
+            transform-origin: center;
         "></div>
     </div>`;
 }
