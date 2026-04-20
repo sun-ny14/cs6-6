@@ -678,40 +678,67 @@ function renderSeatMap(rows, cols) {
     container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     container.innerHTML = "";
 
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            const posId = `${r}-${c}`;
-            const studentName = currentLayout[posId] || "";
-            
-            const cell = document.createElement('div');
-            cell.className = "seat-cell";
-            cell.id = posId;
-            cell.style = "background:white; border:2px dashed #bbb; min-height:100px; border-radius:10px; padding:5px; position:relative;";
-            
-            // 드롭 대상 설정
-            cell.ondragover = (e) => e.preventDefault();
-            cell.ondrop = (e) => {
-                e.preventDefault();
-                const name = e.dataTransfer.getData("text");
-                const fromId = e.dataTransfer.getData("fromId");
-                
-                // 기존 위치 삭제 및 새 위치 등록
-                if(fromId) delete currentLayout[fromId];
-                currentLayout[posId] = name;
-                renderSeatMap(rows, cols);
-            };
+    const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
 
-            if (studentName) {
-                cell.innerHTML = `
-                <div draggable="true" 
-                     ondragstart="event.dataTransfer.setData('text', '${studentName}'); event.dataTransfer.setData('fromId', '${posId}');"
-                     style="background:var(--bg); border:1px solid var(--dark); padding:10px; border-radius:8px; cursor:move; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                    <div style="font-weight:bold;">${studentName}</div>
-                </div>`;
+    // 현재 날짜의 로그를 먼저 가져옴
+    db.ref('checkinLogs').once('value', snap => {
+        const logs = {};
+        snap.forEach(c => {
+            const val = c.val();
+            if(val.date === targetDate) logs[val.name] = val;
+        });
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const posId = `${r}-${c}`;
+                const studentName = currentLayout[posId] || "";
+                const cell = document.createElement('div');
+                cell.id = posId;
+                
+                // [수정] 텍스트 중앙 정렬 및 배경색 설정
+                let bgColor = "white";
+                let logInfo = "미등교";
+                if (studentName && logs[studentName]) {
+                    const log = logs[studentName];
+                    logInfo = `${log.result}<br>[${log.time}]`;
+                    bgColor = log.result.includes('정상') ? "#ccffcc" : "#ffcccc";
+                } else if (studentName) {
+                    bgColor = "#ffff00"; // 미등교는 노란색
+                }
+
+                cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:110px; border-radius:10px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; cursor:pointer; padding:5px;`;
+                
+                if (studentName) {
+                    cell.onclick = () => openLogEditPopup(studentName, targetDate); // 클릭 시 사유 입력창 팝업
+                    cell.innerHTML = `
+                        <div style="font-weight:bold; font-size:1.2rem; margin-bottom:5px;">${studentName}</div>
+                        <div style="font-size:0.9rem; color:#555;">${logInfo}</div>
+                        ${(logs[studentName]?.reason) ? '<div style="font-size:0.8rem; color:blue; margin-top:3px;">📝 사유기록됨</div>' : ''}
+                    `;
+                    
+                    // 드래그 기능 유지
+                    cell.draggable = true;
+                    cell.ondragstart = (e) => {
+                        e.dataTransfer.setData('text', studentName);
+                        e.dataTransfer.setData('fromId', posId);
+                    };
+                }
+
+                // 드롭 기능 유지
+                cell.ondragover = (e) => e.preventDefault();
+                cell.ondrop = (e) => {
+                    e.preventDefault();
+                    const name = e.dataTransfer.getData("text");
+                    const fromId = e.dataTransfer.getData("fromId");
+                    if(fromId) delete currentLayout[fromId];
+                    currentLayout[posId] = name;
+                    renderSeatMap(rows, cols);
+                };
+
+                container.appendChild(cell);
             }
-            container.appendChild(cell);
         }
-    }
+    });
 }
 
 // 3. 배치도 DB 저장
@@ -719,6 +746,78 @@ function saveSeatLayout() {
     firebase.database().ref('seatLayout').set(currentLayout)
     .then(() => alert("좌석 배치가 저장되었습니다!"))
     .catch(err => alert("저장 실패: " + err));
+}
+        function openLogEditPopup(name, date) {
+    // 기존에 저장된 사유가 있는지 확인
+    db.ref('checkinLogs').once('value', snap => {
+        let logKey = null;
+        let logData = {};
+        snap.forEach(c => {
+            if(c.val().name === name && c.val().date === date) {
+                logKey = c.key;
+                logData = c.val();
+            }
+        });
+
+        const h = `
+            <div style="text-align:left; padding:10px;">
+                <h3 style="text-align:center;">${name} 등교 상세 기록</h3>
+                <label>🚩 등교 상태 (대항목)</label>
+                <select id="edit-cat">
+                    <option value="정상" ${logData.result === '정상 등교' ? 'selected' : ''}>정상 등교</option>
+                    <option value="지각" ${logData.result === '지각 등교' ? 'selected' : ''}>지각</option>
+                    <option value="결석" ${logData.category === '결석' ? 'selected' : ''}>결석</option>
+                    <option value="조퇴" ${logData.category === '조퇴' ? 'selected' : ''}>조퇴</option>
+                    <option value="제외" ${logData.category === '제외' ? 'selected' : ''}>기록 제외(방과후 등)</option>
+                </select>
+
+                <label>🔍 사유 구분 (소항목)</label>
+                <select id="edit-sub">
+                    <option value="해당없음" ${logData.subCategory === '해당없음' ? 'selected' : ''}>-</option>
+                    <option value="질병" ${logData.subCategory === '질병' ? 'selected' : ''}>질병</option>
+                    <option value="인정" ${logData.subCategory === '인정' ? 'selected' : ''}>인정</option>
+                    <option value="미인정" ${logData.subCategory === '미인정' ? 'selected' : ''}>미인정</option>
+                    <option value="기타" ${logData.subCategory === '기타' ? 'selected' : ''}>기타</option>
+                </select>
+
+                <label>📝 구체적 사유 기록</label>
+                <textarea id="edit-desc" rows="3" placeholder="예: 아침 방과후 농구팀, 독감으로 인한 결석 등">${logData.reason || ''}</textarea>
+                
+                <button onclick="saveDetailLog('${name}', '${date}', '${logKey}')" style="background:var(--primary); color:white; font-weight:bold; margin-top:15px;">상태 및 사유 저장</button>
+            </div>
+        `;
+        openPopup("📊 등교 기록 수정", h);
+    });
+}
+
+// 상세 사유 DB 저장 함수
+function saveDetailLog(name, date, key) {
+    const category = document.getElementById('edit-cat').value;
+    const subCategory = document.getElementById('edit-sub').value;
+    const reason = document.getElementById('edit-desc').value;
+    
+    const updateData = {
+        name: name,
+        date: date,
+        category: category,
+        subCategory: subCategory,
+        reason: reason,
+        result: (category === '정상' || category === '지각') ? category + ' 등교' : category
+    };
+
+    if(key && key !== 'null') {
+        db.ref('checkinLogs/' + key).update(updateData).then(afterSave);
+    } else {
+        // 기록이 없는 상태(미등교)에서 사유를 적을 경우 새로 생성
+        updateData.time = "-";
+        db.ref('checkinLogs').push(updateData).then(afterSave);
+    }
+
+    function afterSave() {
+        alert("사유가 저장되었습니다.");
+        closePopup();
+        generateNewLayout(); // 화면 갱신
+    }
 }
     </script>
 </body>
