@@ -103,16 +103,26 @@
     <div class="tab-menu">
     <button onclick="showTab('hero-list')">용사들</button>
     <button onclick="showTab('checkin-tab')">등교로그</button>
-    <button onclick="showTab('attendance-stats')" style="background-color: #e67e22; color: white;">📊 출결 통계</button>
 </div>
 
-<div id="attendance-stats" class="tab-content" style="display:none; padding: 20px;">
-    <h2 style="text-align:center; margin-bottom:20px;">📊 월별 출결 사유 요약</h2>
-    
-    <div style="display:flex; gap:10px; margin-bottom:20px; justify-content: center;">
-        <span style="font-weight:bold; line-height:35px;">조회 월: </span>
-        <input type="month" id="stats-month-filter" style="padding:8px; border-radius:8px; border:1px solid #ddd;" onchange="renderAttendanceStats()">
+<div id="checkin-tab" class="tab-content" style="display:none; padding:15px;">
+    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; justify-content:center;">
+        <input type="date" id="checkin-date-filter" onchange="renderCheckinBoard()" style="padding:10px; border-radius:10px; border:1px solid #ddd;">
+        <button onclick="toggleStats()" style="background:#e67e22; color:white; border:none; padding:10px 15px; border-radius:10px; font-weight:bold;">📊 월별 통계</button>
     </div>
+
+    <div id="stats-area" style="display:none; background:#fffdf2; padding:15px; border-radius:15px; border:2px solid #e67e22; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0;">📊 월별 변동 사유 요약</h3>
+            <input type="month" id="stats-month-filter" onchange="renderAttendanceStats()" style="padding:8px; border-radius:8px; border:1px solid #ddd;">
+        </div>
+        <div id="attendance-stats-content">
+            <p style="text-align:center; color:#999;">월을 선택하면 통계가 표시됩니다.</p>
+        </div>
+    </div>
+
+    <div id="checkin-history"></div>
+</div>
 
     <div id="attendance-stats-content">
         <p style="text-align:center; color:#888;">월을 선택하면 통계가 표시됩니다.</p>
