@@ -34,11 +34,12 @@
         #floating-multi-btn { right: 120px; background: #2ecc71; color: white; }
     </style>
 </head>
-<body>
+    <body>
     <div id="loading-screen">🏰 용사 본부 접속 중...</div>
+    
     <div id="common-overlay" class="overlay"><div class="popup-box"><h2 id="pop-title" style="margin:0; text-align:center;">알림</h2><div id="pop-content"></div><button onclick="closePopup()" id="pop-close-btn">확인(닫기)</button></div></div>
     
-    <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title" style="margin-top:0; text-align:center;">⚖️ 포인트 전령</h2><div id="point-pop-body" style="overflow-y:auto; flex:1;"></div><div style="display:flex; gap:15px; margin-top:20px;"><button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px;">닫기</button><button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px;">반영하기</button></div></div></div>
+    <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title" style="margin-top:0; text-align:center;">秤 포인트 전령</h2><div id="point-pop-body" style="overflow-y:auto; flex:1;"></div><div style="display:flex; gap:15px; margin-top:20px;"><button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px;">닫기</button><button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px;">반영하기</button></div></div></div>
 
     <div id="multi-popup" class="overlay">
         <div class="popup-box">
@@ -79,7 +80,25 @@
 
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
         
-        <section id="tab-logs" class="tab-content"><div class="card"><h2>📅 등교 기록부</h2><div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;"><span style="font-weight:bold;">날짜 선택:</span><input type="date" id="checkin-date-filter" style="flex:1; padding:10px;"></div><div id="checkin-history" style="width:100%;"></div></div></section>
+        <section id="tab-logs" class="tab-content">
+            <div class="card">
+                <h2>📅 등교 기록부</h2>
+                <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; justify-content:center;">
+                    <input type="date" id="checkin-date-filter" onchange="renderCheckinBoard()" style="padding:10px; border-radius:10px; border:1px solid #ddd; width:auto;">
+                    <button onclick="toggleStats()" style="background:#e67e22; color:white; border:none; padding:10px 15px; border-radius:10px; font-weight:bold; width:auto;">📊 월별 통계 보기</button>
+                </div>
+
+                <div id="stats-area" style="display:none; background:#fffdf2; padding:15px; border-radius:15px; border:2px solid #e67e22; margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <h3 style="margin:0; font-size:1.1rem;">📊 월별 변동 사유 요약</h3>
+                        <input type="month" id="stats-month-filter" onchange="renderAttendanceStats()" style="padding:8px; border-radius:8px; border:1px solid #ddd; width:auto;">
+                    </div>
+                    <div id="attendance-stats-content"></div>
+                </div>
+
+                <div id="checkin-history" style="width:100%;"></div>
+            </div>
+        </section>
 
         <section id="tab-points" class="tab-content">
             <div id="my-inventory" class="card">
@@ -97,37 +116,16 @@
             <div class="card"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4"></textarea><button onclick="saveGifts()">보상 저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
+
         <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
         <button id="floating-multi-btn" class="floating-btn" onclick="openMultiPopup()">📋</button>
     </div>
-    <div class="tab-menu">
-    <button onclick="showTab('hero-list')">용사들</button>
-    <button onclick="showTab('checkin-tab')">등교로그</button>
-</div>
 
-<div id="checkin-tab" class="tab-content" style="display:none; padding:15px;">
-    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; justify-content:center;">
-        <input type="date" id="checkin-date-filter" onchange="renderCheckinBoard()" style="padding:10px; border-radius:10px; border:1px solid #ddd;">
-        <button onclick="toggleStats()" style="background:#e67e22; color:white; border:none; padding:10px 15px; border-radius:10px; font-weight:bold;">📊 월별 통계</button>
-    </div>
-
-    <div id="stats-area" style="display:none; background:#fffdf2; padding:15px; border-radius:15px; border:2px solid #e67e22; margin-bottom:20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h3 style="margin:0;">📊 월별 변동 사유 요약</h3>
-            <input type="month" id="stats-month-filter" onchange="renderAttendanceStats()" style="padding:8px; border-radius:8px; border:1px solid #ddd;">
-        </div>
-        <div id="attendance-stats-content">
-            <p style="text-align:center; color:#999;">월을 선택하면 통계가 표시됩니다.</p>
-        </div>
-    </div>
-
-    <div id="checkin-history"></div>
-</div>
-
-    <div id="attendance-stats-content">
-        <p style="text-align:center; color:#888;">월을 선택하면 통계가 표시됩니다.</p>
-    </div>
-</div>
+    <script>
+        // 선생님, 여기에 기존 Script 내용을 넣으시면 됩니다. 
+        // 단, 제가 드린 renderCheckinBoard, setExcludeReason, toggleStats, renderAttendanceStats 함수들은 꼭 포함되어야 합니다!
+    </script>
+</body>
 
     <script>
         const firebaseConfig = { apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", authDomain: "cs6-6class.firebaseapp.com", databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", projectId: "cs6-6class", storageBucket: "cs6-6class.firebasestorage.app", messagingSenderId: "644235499537", appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" };
@@ -409,23 +407,44 @@ db.ref('users').on('value', snap => {
             document.getElementById('student-admin-list').innerHTML = h || "용사가 없습니다."; 
         }
 
-        function renderCheckinBoard() {
-            const historyEl = document.getElementById('checkin-history'); if(!historyEl) return;
-            const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
-            db.ref('checkinLogs').once('value', snap => {
-                const logs = {}; snap.forEach(c => { const val = c.val(); if(val.date === targetDate) logs[val.name] = val; });
-                let html = `<div style="padding:15px; background:#e3f2fd; border-radius:12px; margin-bottom:15px; font-weight:bold;">📅 ${targetDate} 명부</div>`;
-                currentUsers.forEach(u => {
-                    if(u.name === "총사령관") return; const log = logs[u.name]; let bgColor = log ? (log.result.includes('정상') ? "#ccffcc" : "#ffcccc") : "#ffff00";
-                    html += `<div style="display:flex; align-items:center; padding:15px; margin-bottom:8px; border-radius:15px; background:${bgColor};">
-                                <span style="width:40px; font-weight:bold;">${u.no || '-'}</span>
-                                <span style="width:100px; font-weight:900;">${u.name}</span>
-                                <span style="flex:1;">${log ? log.result + ' [' + log.time + ']' : '미등교'}</span>
-                            </div>`;
-                });
-                historyEl.innerHTML = html;
-            });
-        }
+       function renderCheckinBoard() {
+    const historyEl = document.getElementById('checkin-history');
+    if(!historyEl) return;
+    const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
+
+    db.ref('checkinLogs').once('value', snap => {
+        const logs = {};
+        snap.forEach(c => { if(c.val().date === targetDate) logs[c.val().name] = c.val(); });
+
+        let html = `<div style="padding:15px; background:#e3f2fd; border-radius:12px; margin-bottom:15px; font-weight:bold; text-align:center;">📅 ${targetDate} 명부</div>`;
+        
+        currentUsers.forEach(u => {
+            if(u.name === "총사령관") return;
+            const log = logs[u.name];
+            const fixed = u.fixedExclude;
+            let bgColor = "#fff", textColor = "#333", statusText = "미등교";
+
+            if (log) {
+                statusText = `${log.result} [${log.time || ''}]`;
+                if (log.result.includes('정상')) bgColor = "#e8f5e9";
+                else if (log.result.includes('지각')) { bgColor = "#ffebee"; textColor = "#e74c3c"; } // 지각 빨간색
+                else if (log.result.includes('제외')) { bgColor = "#f5f5f5"; textColor = "#777"; }
+            } else if (fixed) {
+                bgColor = "#eceff1"; textColor = "#607d8b"; statusText = `고정제외(${fixed})`;
+            } else {
+                bgColor = "#fffde7"; textColor = "#e74c3c"; // 미등교 빨간색
+            }
+
+            const clickAttr = isAdmin ? `onclick="setExcludeReason('${u.name}', '${targetDate}', '${fixed || ''}')"` : "";
+            html += `<div ${clickAttr} style="display:flex; align-items:center; padding:15px; margin-bottom:8px; border-radius:15px; background:${bgColor}; border:1px solid #eee; cursor:pointer;">
+                <span style="width:40px; font-weight:bold;">${u.no || '-'}</span>
+                <span style="width:100px; font-weight:900;">${u.name}</span>
+                <span style="flex:1; text-align:right; font-weight:bold; color:${textColor};">${statusText}</span>
+            </div>`;
+        });
+        historyEl.innerHTML = html;
+    });
+}
 
         // [복구] 💰 연대기 탭 내용 복구 함수
 function loadMyLogs() {
@@ -575,72 +594,61 @@ function approveUserAll(keyStr, user) {
 }
         function setExcludeReason(name, date, currentFixed) {
     if(!isAdmin) return;
+    const type = prompt(`[${name}] 사유 선택\n1. 결석  2. 조퇴  3. 지각  4. 결과  5. 고정사유(체험학습 등)  6. 기록삭제`);
     
-    // 메뉴 구성: 오늘(변동) / 고정 / 삭제
-    const menu = prompt(
-        `[${name}] 출결 관리 (${date})\n\n` +
-        `1. 오늘만 사유 등록 (병결, 사고결 등 덮어쓰기)\n` +
-        `2. 고정 사유 관리 (체험학습 등 장기 사유)\n` +
-        `3. 모든 기록 삭제 (정상 복구)\n\n` +
-        `번호를 입력하세요.`
-    );
-
-    if (menu === "1") {
-        const reason = prompt("오늘 적용할 변동 사유를 입력하세요 (예: 병결, 사고결)");
-        if (reason) {
-            const newLog = { name: name, date: date, time: "--:--", result: "제외(" + reason + ")" };
-            // 오늘 기록을 DB에 push하면, 고정 사유보다 이 기록이 우선 출력됩니다.
-            db.ref('checkinLogs').push(newLog).then(() => renderCheckinBoard());
+    if (["1","2","3","4"].includes(type)) {
+        const typeMap = {"1":"결석", "2":"조퇴", "3":"지각", "4":"결과"};
+        const sub = prompt(`세부 사유 선택\n1. 질병  2. 출석인정  3. 미인정  4. 기타`);
+        const subMap = {"1":"질병", "2":"출석인정", "3":"미인정", "4":"기타"};
+        if (subMap[sub]) {
+            const reason = `${typeMap[type]}-${subMap[sub]}`;
+            db.ref('checkinLogs').push({ name: name, date: date, time: "--:--", result: "제외(" + reason + ")" }).then(() => renderCheckinBoard());
         }
-    } else if (menu === "2") {
-        const reason = prompt("고정 사유를 입력하세요 (해제 전까지 매일 적용)", currentFixed);
-        if (reason !== null) {
-            db.ref('users/' + name).update({ fixedExclude: reason || null }).then(() => renderCheckinBoard());
-        }
-    } else if (menu === "3") {
-        if(confirm("이 학생의 오늘 기록과 고정 설정을 모두 지울까요?")) {
+    } else if (type === "5") {
+        const reason = prompt("고정 사유 입력 (매일 적용)", currentFixed);
+        if (reason !== null) db.ref('users/' + name).update({ fixedExclude: reason || null }).then(() => renderCheckinBoard());
+    } else if (type === "6") {
+        if(confirm("기록 삭제?")) {
             db.ref('users/' + name).update({ fixedExclude: null });
             db.ref('checkinLogs').once('value', snap => {
-                snap.forEach(c => {
-                    if(c.val().name === name && c.val().date === date) db.ref('checkinLogs/' + c.key).remove();
-                });
+                snap.forEach(c => { if(c.val().name === name && c.val().date === date) db.ref('checkinLogs/' + c.key).remove(); });
                 renderCheckinBoard();
             });
         }
     }
 }
-    function renderAttendanceStats() {
+   function renderAttendanceStats() {
     const statsEl = document.getElementById('attendance-stats-content');
-    const selectedMonth = document.getElementById('stats-month-filter').value; // YYYY-MM 형식
-    
+    const selectedMonth = document.getElementById('stats-month-filter').value;
+    if(!selectedMonth) return;
     db.ref('checkinLogs').once('value', snap => {
         let report = {};
         snap.forEach(c => {
-            const log = c.val();
-            // 해당 월의 기록이고, '제외'이면서 '고정'이라는 글자가 없는 경우만 필터링
-            if(log.date.startsWith(selectedMonth) && log.result.includes('제외') && !log.result.includes('고정')) {
-                if(!report[log.name]) report[log.name] = [];
-                report[log.name].push(`${log.date.split('-')[2]}일(${log.result.replace('제외(', '').replace(')', '')})`);
+            const l = c.val();
+            if(l.date.startsWith(selectedMonth) && l.result.includes('제외') && !l.result.includes('고정')) {
+                if(!report[l.name]) report[l.name] = [];
+                report[l.name].push(`${l.date.split('-')[2]}일(${l.result.replace('제외(','').replace(')','')})`);
             }
         });
-
-        let html = `<table style="width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden;">
-            <tr style="background:var(--primary); color:white;">
-                <th style="padding:10px; border:1px solid #ddd;">성함</th>
-                <th style="padding:10px; border:1px solid #ddd;">변동 사유 발생일 (병결 등)</th>
-            </tr>`;
-        
+        let h = `<table style="width:100%; border-collapse:collapse; background:white; font-size:0.9rem;">
+            <tr style="background:#eee;"><th>이름</th><th>변동 사유(나이스 입력용)</th></tr>`;
         currentUsers.forEach(u => {
             if(u.name === "총사령관") return;
-            const dates = report[u.name] || ["-"];
-            html += `<tr>
-                <td style="padding:10px; border:1px solid #ddd; text-align:center; font-weight:bold;">${u.name}</td>
-                <td style="padding:10px; border:1px solid #ddd; font-size:0.9rem;">${dates.join(', ')}</td>
-            </tr>`;
+            h += `<tr><td style="border:1px solid #ddd; padding:8px; text-align:center; font-weight:bold;">${u.name}</td>
+                <td style="border:1px solid #ddd; padding:8px; color:#e74c3c;">${(report[u.name] || ["-"]).join(', ')}</td></tr>`;
         });
-        statsEl.innerHTML = html + `</table>`;
+        statsEl.innerHTML = h + `</table>`;
     });
-}    
+}
+        function toggleStats() {
+    const area = document.getElementById('stats-area');
+    if (area.style.display === 'none') {
+        area.style.display = 'block';
+        const filter = document.getElementById('stats-month-filter');
+        if (!filter.value) filter.value = new Date().toISOString().slice(0, 7);
+        renderAttendanceStats();
+    } else { area.style.display = 'none'; }
+}
     </script>
 </body>
 </html>
