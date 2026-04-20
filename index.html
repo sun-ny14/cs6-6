@@ -202,7 +202,23 @@ function getAvatar(lv, selectedAnimal) {
         function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else { document.getElementById('common-overlay').style.display='none'; rIdx = 0; } }
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         function closeMultiPopup() { document.getElementById('multi-popup').style.display='none'; }
+// [수정] 버튼 클릭 시 호출되는 통합 함수
+function generateNewLayout() {
+    const r = parseInt(document.getElementById('seat-rows').value) || 6;
+    const c = parseInt(document.getElementById('seat-cols').value) || 5;
 
+    db.ref('seatLayoutData').once('value', snap => {
+        const savedData = snap.val() || {};
+        currentLayout = savedData.layout || {};
+        
+        // 학생 데이터가 로딩되었는지 확인 후 렌더링
+        if (currentUsers.length === 0) {
+            setTimeout(() => renderSeatMap(r, c), 500);
+        } else {
+            renderSeatMap(r, c);
+        }
+    });
+}
         function startApp() {
             if (isHelper) { const orderMgr = document.getElementById('admin-order-mgr'); if (orderMgr) orderMgr.style.display = 'block'; }
             
@@ -661,23 +677,7 @@ function renderLogItem(studentId, logData, date) {
 }   
         let currentLayout = {}; 
 
-// [수정] 버튼 클릭 시 호출되는 통합 함수
-function generateNewLayout() {
-    const r = parseInt(document.getElementById('seat-rows').value) || 6;
-    const c = parseInt(document.getElementById('seat-cols').value) || 5;
 
-    db.ref('seatLayoutData').once('value', snap => {
-        const savedData = snap.val() || {};
-        currentLayout = savedData.layout || {};
-        
-        // 학생 데이터가 로딩되었는지 확인 후 렌더링
-        if (currentUsers.length === 0) {
-            setTimeout(() => renderSeatMap(r, c), 500);
-        } else {
-            renderSeatMap(r, c);
-        }
-    });
-}
 
 let isEditMode = false; // 현재 수정 모드인지 여부
 
@@ -690,13 +690,13 @@ function toggleSeatEditMode() {
     if(isEditMode) {
         panel.style.display = 'block';
         btn.innerText = '수정 완료(닫기)';
-        btn.style.background = var(--red);
+        btn.style.background = "var(--red)"; // 따옴표 추가
     } else {
         panel.style.display = 'none';
         btn.innerText = '좌석 배치 수정';
-        btn.style.background = var(--dark);
+        btn.style.background = "var(--dark)"; // 따옴표 추가
     }
-    generateNewLayout(); // 화면 다시 그리기
+    generateNewLayout();
 }
 
 // 화면 그리기 함수 (수정 모드 여부에 따라 기능 분기)
@@ -733,7 +733,7 @@ function renderSeatMap(rows, cols) {
                         // [수정 모드] 드래그 활성화, 클릭 비활성화
                         cell.draggable = true;
                         cell.style.cursor = "move";
-                        cell.style.border = "2px dashed var(--dark)";
+                        cell.style.border = "2px dashed #2c3e50";
                         cell.ondragstart = (e) => { e.dataTransfer.setData('text', name); e.dataTransfer.setData('fromId', posId); };
                     } else {
                         // [일반 모드] 클릭 시 사유 입력창
