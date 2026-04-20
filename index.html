@@ -79,20 +79,25 @@
 
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
         
-     <section id="tab-logs" class="tab-content">
+    <section id="tab-logs" class="tab-content">
     <div class="card">
-        <h2>📅 교실 배치도 및 등교 관리</h2>
+        <h2>📅 등교 기록부 (교실 배치도)</h2>
         
-        <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
-            가로 <input type="number" id="seat-cols" value="5" style="width:60px; margin:0; padding:8px;"> x 
-            세로 <input type="number" id="seat-rows" value="6" style="width:60px; margin:0; padding:8px;">
-            <button onclick="generateNewLayout()" style="width:auto; margin:0; padding:10px 15px; background:var(--dark); color:white;">배치도 생성</button>
-            <button onclick="saveSeatLayout()" style="width:auto; margin:0; padding:10px 15px; background:var(--primary); color:white;">현재 배치 저장</button>
+        <div style="display:flex; gap:10px; margin-bottom:15px; align-items:center;">
+            <input type="date" id="checkin-date-filter" onchange="generateNewLayout()" style="flex:1;">
+            <button onclick="toggleSeatEditMode()" id="edit-mode-btn" style="width:auto; background:var(--dark); color:white; padding:10px 15px;">좌석 배치 수정</button>
         </div>
 
-        <p style="font-size: 0.9rem; color: #666;">* 학생 박스를 다른 칸으로 드래그하여 자리를 옮길 수 있습니다.</p>
+        <div id="seat-edit-panel" style="display:none; background:#f1f1f1; padding:15px; border-radius:15px; margin-bottom:15px; border:2px dashed var(--primary);">
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                가로 <input type="number" id="seat-cols" value="5" style="width:60px;"> x 
+                세로 <input type="number" id="seat-rows" value="6" style="width:60px;">
+                <button onclick="saveSeatLayout()" style="background:var(--primary); color:white;">현재 배치 저장</button>
+            </div>
+            <p style="font-size:0.8rem; color:var(--red); margin:0;">* 수정 모드: 학생 박스를 드래그하여 자리를 옮기세요.</p>
+        </div>
 
-        <div id="seat-map-container" style="display:grid; gap:10px; width:100%; padding:10px; background:#ddd; border-radius:10px;"></div>
+        <div id="seat-map-container" style="display:grid; gap:10px; width:100%; background:#ddd; padding:10px; border-radius:12px;"></div>
     </div>
 </section>
         <section id="tab-points" class="tab-content">
@@ -674,12 +679,29 @@ function generateNewLayout() {
     });
 }
 
-// [수정] 화면에 배치도를 그리는 핵심 함수 (중앙 정렬 추가)
+let isEditMode = false; // 현재 수정 모드인지 여부
+
+// 수정 모드 끄고 켜기
+function toggleSeatEditMode() {
+    isEditMode = !isEditMode;
+    const panel = document.getElementById('seat-edit-panel');
+    const btn = document.getElementById('edit-mode-btn');
+    
+    if(isEditMode) {
+        panel.style.display = 'block';
+        btn.innerText = '수정 완료(닫기)';
+        btn.style.background = var(--red);
+    } else {
+        panel.style.display = 'none';
+        btn.innerText = '좌석 배치 수정';
+        btn.style.background = var(--dark);
+    }
+    generateNewLayout(); // 화면 다시 그리기
+}
+
+// 화면 그리기 함수 (수정 모드 여부에 따라 기능 분기)
 function renderSeatMap(rows, cols) {
     const container = document.getElementById('seat-map-container');
-    if(!container) return;
-
-    container.style.display = 'grid';
     container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     container.innerHTML = "";
 
@@ -693,29 +715,37 @@ function renderSeatMap(rows, cols) {
             for (let c = 0; c < cols; c++) {
                 const posId = `${r}-${c}`;
                 const name = currentLayout[posId] || "";
-                
                 const cell = document.createElement('div');
-                cell.style = "background:white; border:2px dashed #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; position:relative;";
                 
+                // 스타일 설정
+                let bgColor = "#eee";
                 if (name) {
                     const log = logs[name];
-                    const bgColor = log ? (log.result.includes('정상') ? "#ccffcc" : "#ffcccc") : "#ffff00";
-                    cell.style.background = bgColor;
-                    cell.style.borderStyle = "solid";
-                    cell.onclick = () => openLogEditPopup(name, targetDate);
-                    cell.innerHTML = `
-                        <div style="font-weight:900; font-size:1.3rem;">${name}</div>
-                        <div style="font-size:0.9rem; color:#444; margin-top:5px;">${log ? log.result + '<br>[' + log.time + ']' : '미등교'}</div>
-                        ${log?.reason ? '<div style="font-size:0.7rem; color:blue; margin-top:3px;">📝 사유기록됨</div>' : ''}
-                    `;
-                    // 드래그 기능
-                    cell.draggable = true;
-                    cell.ondragstart = (e) => { e.dataTransfer.setData('text', name); e.dataTransfer.setData('fromId', posId); };
+                    bgColor = log ? (log.result.includes('정상') ? "#ccffcc" : "#ffcccc") : "#ffff00";
+                }
+                cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:110px; border-radius:10px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; transition:0.2s;`;
+
+                if (name) {
+                    cell.innerHTML = `<b>${name}</b><br><small>${logs[name] ? logs[name].result + '<br>[' + logs[name].time + ']' : '미등교'}</small>`;
+                    if(logs[name]?.reason) cell.innerHTML += `<div style="font-size:0.7rem; color:blue;">📝사유기록됨</div>`;
+                    
+                    if (isEditMode) {
+                        // [수정 모드] 드래그 활성화, 클릭 비활성화
+                        cell.draggable = true;
+                        cell.style.cursor = "move";
+                        cell.style.border = "2px dashed var(--dark)";
+                        cell.ondragstart = (e) => { e.dataTransfer.setData('text', name); e.dataTransfer.setData('fromId', posId); };
+                    } else {
+                        // [일반 모드] 클릭 시 사유 입력창
+                        cell.onclick = () => openLogEditPopup(name, targetDate);
+                        cell.style.cursor = "pointer";
+                    }
                 }
 
-                // 드롭 기능
+                // 드롭 기능 (수정 모드에서만 작동)
                 cell.ondragover = (e) => e.preventDefault();
                 cell.ondrop = (e) => {
+                    if(!isEditMode) return;
                     e.preventDefault();
                     const draggedName = e.dataTransfer.getData("text");
                     const fromId = e.dataTransfer.getData("fromId");
@@ -728,7 +758,6 @@ function renderSeatMap(rows, cols) {
         }
     });
 }
-
 // 3. 배치도 DB 저장
 function saveSeatLayout() {
     const rows = document.getElementById('seat-rows').value;
