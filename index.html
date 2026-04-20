@@ -130,22 +130,23 @@ function getAvatar(lv, selectedAnimal) {
     const col = index % 5;
     const row = Math.floor(index / 5);
     
-    // [보정] 가로 5칸, 세로 4칸의 정밀 좌표
-    const posX = col * 25; 
-    const posY = [0, 33.3, 66.6, 100][row]; 
+    // [핵심 수정] 퍼센트(%) 대신 픽셀(px) 기반으로 정밀 조준
+    // 원본 이미지에서 한 칸의 크기를 약 204px(가로), 254px(세로)로 계산하여 배치
+    const posX = col * 204.5; 
+    const posY = row * 254.5; 
 
     return `
-    <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; position: relative;">
+    <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center;">
         <div style="
-            width: 100%; 
-            height: 100%; 
+            width: 1024px; 
+            height: 1024px; 
             background-image: url('${githubImageUrl}'); 
-            background-size: 505% 405%; 
-            background-position: ${posX}% ${posY}%; 
+            background-size: 1024px 1024px; 
+            background-position: -${posX}px -${posY}px; 
             background-repeat: no-repeat;
             image-rendering: pixelated;
-            transform: scale(1.4); 
-            transform-origin: center;
+            transform: scale(0.6); 
+            flex-shrink: 0;
         "></div>
     </div>`;
 }
@@ -545,6 +546,62 @@ function approveUserAll(keyStr, user) {
         db.ref().update(updates).then(() => alert("모든 항목 승인 완료! ✨"));
     }
 }
+     // 등교로그 탭에서 각 학생의 사유를 관리하는 UI 생성 부분
+function renderLogItem(studentId, logData, date) {
+    const reason = logData.reason || ""; // 구체 사유
+    const category = logData.category || "정상"; // 대항목
+    const subCategory = logData.subCategory || "해당없음"; // 소항목
+
+    return `
+    <div class="card" style="margin-bottom: 10px; border-left: 5px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-weight: bold; font-size: 1.5rem;">${logData.name}</span>
+            <span style="color: #666;">${logData.time || "미등교"}</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <select id="cat-${studentId}" style="padding: 10px; font-size: 1.1rem;">
+                <option value="정상" ${category === '정상' ? 'selected' : ''}>정상 등교</option>
+                <option value="결석" ${category === '결석' ? 'selected' : ''}>결석</option>
+                <option value="지각" ${category === '지각' ? 'selected' : ''}>지각</option>
+                <option value="조퇴" ${category === '조퇴' ? 'selected' : ''}>조퇴</option>
+                <option value="제외" ${category === '제외' ? 'selected' : ''}>기록 제외</option>
+            </select>
+            <select id="sub-${studentId}" style="padding: 10px; font-size: 1.1rem;">
+                <option value="해당없음" ${subCategory === '해당없음' ? 'selected' : ''}>-</option>
+                <option value="질병" ${subCategory === '질병' ? 'selected' : ''}>질병</option>
+                <option value="인정" ${subCategory === '인정' ? 'selected' : ''}>인정</option>
+                <option value="미인정" ${subCategory === '미인정' ? 'selected' : ''}>미인정</option>
+                <option value="방과후" ${subCategory === '방과후' ? 'selected' : ''}>방과후</option>
+            </select>
+        </div>
+        
+        <input type="text" id="desc-${studentId}" placeholder="구체적인 사유 입력 (예: 아침 방과후, 감기 등)" 
+               value="${reason}" style="padding: 10px; font-size: 1.1rem; margin-bottom: 10px;">
+        
+        <button onclick="saveLogReason('${studentId}', '${date}')" 
+                style="background: var(--dark); color: white; padding: 10px; border: none; border-radius: 8px; width: 100%;">
+            사유 저장하기
+        </button>
+    </div>
+    `;
+}
+     function saveLogReason(studentId, date) {
+    const category = document.getElementById(`cat-${studentId}`).value;
+    const subCategory = document.getElementById(`sub-${studentId}`).value;
+    const reason = document.getElementById(`desc-${studentId}`).value;
+
+    // 파이어베이스 경로에 해당 날짜/학생의 사유 업데이트
+    firebase.database().ref(`checkin_logs/${date}/${studentId}`).update({
+        category: category,
+        subCategory: subCategory,
+        reason: reason
+    }).then(() => {
+        alert("사유가 성공적으로 저장되었습니다.");
+    }).catch((error) => {
+        console.error("저장 실패:", error);
+    });
+}   
     </script>
 </body>
 </html>
