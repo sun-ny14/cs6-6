@@ -35,36 +35,42 @@
     </style>
 </head>
     <body>
+<body>
     <div id="loading-screen">🏰 용사 본부 접속 중...</div>
     
-    <div id="common-overlay" class="overlay"><div class="popup-box"><h2 id="pop-title" style="margin:0; text-align:center;">알림</h2><div id="pop-content"></div><button onclick="closePopup()" id="pop-close-btn">확인(닫기)</button></div></div>
-    
-    <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title" style="margin-top:0; text-align:center;">秤 포인트 전령</h2><div id="point-pop-body" style="overflow-y:auto; flex:1;"></div><div style="display:flex; gap:15px; margin-top:20px;"><button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px;">닫기</button><button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px;">반영하기</button></div></div></div>
-
-    <div id="multi-popup" class="overlay">
-        <div class="popup-box">
-            <h2 style="text-align:center; margin-top:0;">📋 일괄 지급</h2>
-            <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px;">
-                <input type="text" id="multi-reason" placeholder="사유">
-                <div style="display:flex; gap:10px;"><input type="number" id="multi-p" placeholder="P"><input type="number" id="multi-e" placeholder="E"></div>
-                <div style="display:flex; justify-content:space-between; margin-top:10px;"><button onclick="checkAllMulti(true)" style="width:48%; background:var(--dark); color:white; padding:10px;">전체 선택</button><button onclick="checkAllMulti(false)" style="width:48%; background:#95a5a6; color:white; padding:10px;">해제</button></div>
+    <div id="reason-popup" class="overlay">
+        <div class="popup-box" style="max-width:400px;">
+            <h3 id="reason-name" style="text-align:center; margin-bottom:20px;"></h3>
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; display:block; margin-bottom:5px;">구분</label>
+                <select id="sel-type" style="background:#f8f9fa;"><option value="결석">결석</option><option value="조퇴">조퇴</option><option value="지각">지각</option><option value="결과">결과</option></select>
             </div>
-            <div id="multi-list" style="flex:1; overflow-y:auto; border:1px solid #ddd; border-radius:10px; padding:5px;"></div>
-            <div style="display:flex; gap:10px; margin-top:20px;"><button onclick="closeMultiPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:18px;">취소</button><button onclick="applyMultiScores()" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:18px;">지급 완료</button></div>
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; display:block; margin-bottom:5px;">인정</label>
+                <select id="sel-sub" style="background:#f8f9fa;"><option value="질병">질병</option><option value="출석인정">출석인정</option><option value="미인정">미인정</option><option value="기타">기타</option></select>
+            </div>
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; display:block; margin-bottom:5px;">상세 사유</label>
+                <input type="text" id="sel-note" placeholder="예: 복통, 가정학습 등">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="saveReasonClick()" style="background:var(--primary); color:white; border:none;">저장</button>
+                <button onclick="closeReasonPopup()" style="background:#95a5a6; color:white; border:none;">취소</button>
+            </div>
+            <button onclick="deleteReasonClick()" style="background:var(--red); color:white; margin-top:10px; border:none;">기록 삭제</button>
         </div>
     </div>
 
-    <div id="login-screen"><div class="login-box"><h1>🏰 6-6 본부</h1><button onclick="handleLogin()" style="background:#4285F4; color:white; border:none; border-radius:15px; padding:20px;">Google 로그인</button></div></div>
+    <div id="common-overlay" class="overlay"><div class="popup-box"><h2 id="pop-title" style="margin:0; text-align:center;">알림</h2><div id="pop-content"></div><button onclick="closePopup()" id="pop-close-btn">확인(닫기)</button></div></div>
+    <div id="point-popup" class="overlay"><div class="popup-box"><h2 id="point-pop-title" style="margin-top:0; text-align:center;">⚖️ 포인트 전령</h2><div id="point-pop-body" style="overflow-y:auto; flex:1;"></div><div style="display:flex; gap:15px; margin-top:20px;"><button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px;">닫기</button><button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px;">반영하기</button></div></div></div>
 
     <div id="main-app">
         <nav class="tab-menu">
-            <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
-            <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
-            <button id="btn-guide" style="display:none;" onclick="showTab('guide')">📜 도감</button>
-            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-            <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
-            <button id="btn-points" onclick="showTab('points')">💰 연대기</button>
-            <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
+            <button onclick="showTab('main')">🤺 용사들</button>
+            <button onclick="showTab('shop')">🛍️ 상점</button>
+            <button onclick="showTab('logs')">📅 등교(책상)</button>
+            <button onclick="showTab('points')">💰 연대기</button>
+            <button onclick="showTab('admin')">🛡️ 설정</button>
         </nav>
 
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
@@ -74,60 +80,139 @@
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 승인</h3><div id="order-list"></div></div>
         </section>
 
-        <section id="tab-guide" class="tab-content">
-            <div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div>
-        </section>
-
-        <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
-        
         <section id="tab-logs" class="tab-content">
             <div class="card">
-                <h2>📅 등교 기록부</h2>
-                <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; justify-content:center;">
-                    <input type="date" id="checkin-date-filter" onchange="renderCheckinBoard()" style="padding:10px; border-radius:10px; border:1px solid #ddd; width:auto;">
-                    <button onclick="toggleStats()" style="background:#e67e22; color:white; border:none; padding:10px 15px; border-radius:10px; font-weight:bold; width:auto;">📊 월별 통계 보기</button>
+                <div style="display:flex; gap:10px; margin-bottom:20px; justify-content:center;">
+                    <input type="date" id="checkin-date-filter" onchange="renderCheckinBoard()" style="width:auto; padding:10px;">
+                    <button onclick="toggleStats()" style="background:#e67e22; color:white; width:auto; padding:10px 20px; border:none; border-radius:10px;">📊 월별 통계</button>
                 </div>
 
                 <div id="stats-area" style="display:none; background:#fffdf2; padding:15px; border-radius:15px; border:2px solid #e67e22; margin-bottom:20px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                        <h3 style="margin:0; font-size:1.1rem;">📊 월별 변동 사유 요약</h3>
-                        <input type="month" id="stats-month-filter" onchange="renderAttendanceStats()" style="padding:8px; border-radius:8px; border:1px solid #ddd; width:auto;">
+                        <h3 style="margin:0;">📊 월별 변동 사유 요약</h3>
+                        <input type="month" id="stats-month-filter" onchange="renderAttendanceStats()" style="width:auto;">
                     </div>
                     <div id="attendance-stats-content"></div>
                 </div>
 
-                <div id="checkin-history" style="width:100%;"></div>
+                <div id="desk-layout" style="display:grid; gap:10px; background:#eee; padding:15px; border-radius:15px;"></div>
+                <div style="margin-top:15px; text-align:center; font-size:1rem; color:#888;">💡 이름을 클릭하면 사유를 입력할 수 있습니다.</div>
             </div>
         </section>
 
-        <section id="tab-points" class="tab-content">
-            <div id="my-inventory" class="card">
-                <h3>🎁 나의 인벤토리</h3>
-                <div id="inv-unused" class="inv-section"><h4>📦 미사용 보관함</h4><div class="list"></div></div>
-                <div id="inv-waiting" class="inv-section"><h4>⏳ 사용 대기중</h4><div class="list"></div></div>
-            </div>
-            <div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div>
-        </section>
+        <section id="tab-points" class="tab-content"><div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div></section>
 
         <section id="tab-admin" class="tab-content">
-            <div class="card"><h3>👥 명단 관리 (번호/도우미)</h3><div id="student-admin-list"></div></div>
-            <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 
-                루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveSettings()">시스템 저장</button></div>
-            <div class="card"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4"></textarea><button onclick="saveGifts()">보상 저장</button></div>
-            <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
+            <div class="card" style="border:2px solid var(--primary);">
+                <h3>🪑 책상 배치 및 고정 사유</h3>
+                가로 칸 수: <input type="number" id="conf-cols" value="6" style="width:80px;">
+                <p style="font-size:1rem; color:#666;">배치도(이름 순서대로, 빈자리는 '비움'):</p>
+                <textarea id="conf-desks" rows="4" placeholder="선범,영민,시우,비움,경근..."></textarea>
+                <button onclick="saveDeskSettings()" style="background:var(--primary); color:white; border:none;">배치 저장</button>
+            </div>
+            <div class="card"><h3>👥 학생 일괄 등록</h3><textarea id="bulk-in" rows="2" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
 
-        <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
-        <button id="floating-multi-btn" class="floating-btn" onclick="openMultiPopup()">📋</button>
+        <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">秤</button>
     </div>
 
     <script>
-        // 선생님, 여기에 기존 Script 내용을 넣으시면 됩니다. 
-        // 단, 제가 드린 renderCheckinBoard, setExcludeReason, toggleStats, renderAttendanceStats 함수들은 꼭 포함되어야 합니다!
-    </script>
-</body>
+        // --- 출결 및 책상 배치 자바스크립트 ---
+        let selectedTarget = { name: '', date: '' };
 
-    <script>
+        function saveDeskSettings() {
+            const cols = document.getElementById('conf-cols').value;
+            const desks = document.getElementById('conf-desks').value;
+            db.ref('settings').update({ deskCols: cols, deskOrder: desks }).then(() => alert("배치 저장됨!"));
+        }
+
+        function toggleStats() {
+            const area = document.getElementById('stats-area');
+            area.style.display = (area.style.display === 'none') ? 'block' : 'none';
+            if(area.style.display === 'block') {
+                document.getElementById('stats-month-filter').value = new Date().toISOString().slice(0, 7);
+                renderAttendanceStats();
+            }
+        }
+
+        function renderCheckinBoard() {
+            const deskEl = document.getElementById('desk-layout');
+            const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
+            
+            db.ref('settings').once('value', sSnap => {
+                const s = sSnap.val() || {};
+                const cols = s.deskCols || 6;
+                const order = s.deskOrder ? s.deskOrder.split(',') : [];
+                
+                deskEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+                db.ref('checkinLogs').once('value', lSnap => {
+                    const logs = {};
+                    lSnap.forEach(c => { if(c.val().date === targetDate) logs[c.val().name] = c.val(); });
+
+                    let html = "";
+                    order.forEach(name => {
+                        name = name.trim();
+                        if(name === "비움") {
+                            html += `<div style="height:80px; background:transparent;"></div>`;
+                            return;
+                        }
+                        const user = currentUsers.find(u => u.name === name);
+                        const log = logs[name];
+                        const fixed = user ? user.fixedExclude : null;
+                        
+                        let bgColor = "#fff", textColor = "#333", status = "미등교";
+
+                        if(log) {
+                            if(log.result.includes('정상')) { bgColor = "#2ecc71"; textColor="#fff"; status="등교"; }
+                            else if(log.result.includes('지각')) { bgColor = "#ff4757"; textColor="#fff"; status="지각"; }
+                            else { bgColor = "#747d8c"; textColor="#fff"; status=log.result.replace('제외(','').replace(')',''); }
+                        } else if(fixed) {
+                            bgColor = "#57606f"; textColor="#fff"; status="고정:"+fixed;
+                        } else {
+                            bgColor = "#ffa502"; textColor="#fff"; status="미등교";
+                        }
+
+                        html += `
+                            <div onclick="openReasonPopup('${name}', '${targetDate}')" style="background:${bgColor}; color:${textColor}; padding:10px; border-radius:12px; height:80px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; cursor:pointer; border:1px solid rgba(0,0,0,0.1); font-size:0.9rem;">
+                                <div style="font-weight:900; font-size:1.2rem;">${name}</div>
+                                <div style="margin-top:5px; font-weight:bold;">${status}</div>
+                            </div>`;
+                    });
+                    deskEl.innerHTML = html;
+                });
+            });
+        }
+
+        function openReasonPopup(name, date) {
+            if(!isAdmin) return;
+            selectedTarget = { name, date };
+            document.getElementById('reason-name').innerText = `[${name}] 사유 등록`;
+            document.getElementById('sel-note').value = "";
+            document.getElementById('reason-popup').style.display = 'flex';
+        }
+        function closeReasonPopup() { document.getElementById('reason-popup').style.display = 'none'; }
+
+        function saveReasonClick() {
+            const type = document.getElementById('sel-type').value;
+            const sub = document.getElementById('sel-sub').value;
+            const note = document.getElementById('sel-note').value;
+            const finalResult = `제외(${type}-${sub}${note ? ':'+note : ''})`;
+            
+            db.ref('checkinLogs').push({ name: selectedTarget.name, date: selectedTarget.date, time: "--:--", result: finalResult }).then(() => {
+                closeReasonPopup(); renderCheckinBoard();
+            });
+        }
+
+        function deleteReasonClick() {
+            if(confirm("기록을 삭제할까요?")) {
+                db.ref('checkinLogs').once('value', snap => {
+                    snap.forEach(c => { if(c.val().name === selectedTarget.name && c.val().date === selectedTarget.date) db.ref('checkinLogs/'+c.key).remove(); });
+                    closeReasonPopup(); renderCheckinBoard();
+                });
+            }
+        }
+
         const firebaseConfig = { apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", authDomain: "cs6-6class.firebaseapp.com", databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", projectId: "cs6-6class", storageBucket: "cs6-6class.firebasestorage.app", messagingSenderId: "644235499537", appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" };
         const adminEmail = "ksosuny@cberi.go.kr"; 
         firebase.initializeApp(firebaseConfig); 
@@ -407,43 +492,7 @@ db.ref('users').on('value', snap => {
             document.getElementById('student-admin-list').innerHTML = h || "용사가 없습니다."; 
         }
 
-       function renderCheckinBoard() {
-    const historyEl = document.getElementById('checkin-history');
-    if(!historyEl) return;
-    const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
-
-    db.ref('checkinLogs').once('value', snap => {
-        const logs = {};
-        snap.forEach(c => { if(c.val().date === targetDate) logs[c.val().name] = c.val(); });
-
-        let html = `<div style="padding:15px; background:#e3f2fd; border-radius:12px; margin-bottom:15px; font-weight:bold; text-align:center;">📅 ${targetDate} 명부</div>`;
-        
-        currentUsers.forEach(u => {
-            if(u.name === "총사령관") return;
-            const log = logs[u.name];
-            const fixed = u.fixedExclude;
-            let bgColor = "#fff", textColor = "#333", statusText = "미등교";
-
-            if (log) {
-                statusText = `${log.result} [${log.time || ''}]`;
-                if (log.result.includes('정상')) bgColor = "#e8f5e9";
-                else if (log.result.includes('지각')) { bgColor = "#ffebee"; textColor = "#e74c3c"; } // 지각 빨간색
-                else if (log.result.includes('제외')) { bgColor = "#f5f5f5"; textColor = "#777"; }
-            } else if (fixed) {
-                bgColor = "#eceff1"; textColor = "#607d8b"; statusText = `고정제외(${fixed})`;
-            } else {
-                bgColor = "#fffde7"; textColor = "#e74c3c"; // 미등교 빨간색
-            }
-
-            const clickAttr = isAdmin ? `onclick="setExcludeReason('${u.name}', '${targetDate}', '${fixed || ''}')"` : "";
-            html += `<div ${clickAttr} style="display:flex; align-items:center; padding:15px; margin-bottom:8px; border-radius:15px; background:${bgColor}; border:1px solid #eee; cursor:pointer;">
-                <span style="width:40px; font-weight:bold;">${u.no || '-'}</span>
-                <span style="width:100px; font-weight:900;">${u.name}</span>
-                <span style="flex:1; text-align:right; font-weight:bold; color:${textColor};">${statusText}</span>
-            </div>`;
-        });
-        historyEl.innerHTML = html;
-    });
+      
 }
 
         // [복구] 💰 연대기 탭 내용 복구 함수
