@@ -210,7 +210,7 @@ function getAvatar(lv, selectedAnimal) {
                 if(isAdmin) { document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('conf-routine').value = s.routineText || ""; document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; }
                 document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
             });
-
+generateNewLayout();
             // startApp 함수 내 db.ref('users').on('value', ...) 부분을 찾아서 교체
 // db.ref('users').on('value', ...) 내부 명단 렌더링 부분 교체
 db.ref('users').on('value', snap => {
@@ -661,14 +661,28 @@ function renderLogItem(studentId, logData, date) {
         let currentLayout = {}; // { "row-col": "학생성명" } 형태
 
 // 1. 배치도 생성 및 DB 로드
+// [통합] 배치도 설정 불러오기 및 자동 생성 함수
 function generateNewLayout() {
-    const rows = parseInt(document.getElementById('seat-rows').value);
-    const cols = parseInt(document.getElementById('seat-cols').value);
-    
-    // DB에서 기존 저장된 배치 정보 불러오기
-    firebase.database().ref('seatLayout').once('value', snap => {
-        currentLayout = snap.val() || {};
-        renderSeatMap(rows, cols);
+    // 1. DB에서 저장된 배치 데이터(좌석 위치 + 가로세로 설정) 가져오기
+    db.ref('seatLayoutData').once('value', snap => {
+        const savedData = snap.val() || {};
+        currentLayout = savedData.layout || {}; // 저장된 좌석 위치 { "0-1": "이름" }
+        
+        // 2. 가로/세로 설정값 복구 (저장된 게 없으면 기본값 5x6)
+        const rows = savedData.config?.rows || document.getElementById('seat-rows').value || 6;
+        const cols = savedData.config?.cols || document.getElementById('seat-cols').value || 5;
+        
+        // 3. 입력창 숫자 동기화
+        document.getElementById('seat-rows').value = rows;
+        document.getElementById('seat-cols').value = cols;
+
+        // 4. 학생 명단이 아직 로딩 중일 수 있으므로 안전하게 렌더링 호출
+        // 명단이 비어있으면 0.5초 대기 후 실행, 있으면 즉시 실행
+        if (currentUsers.length === 0) {
+            setTimeout(() => renderSeatMap(parseInt(rows), parseInt(cols)), 500);
+        } else {
+            renderSeatMap(parseInt(rows), parseInt(cols));
+        }
     });
 }
 
@@ -743,8 +757,16 @@ function renderSeatMap(rows, cols) {
 
 // 3. 배치도 DB 저장
 function saveSeatLayout() {
-    firebase.database().ref('seatLayout').set(currentLayout)
-    .then(() => alert("좌석 배치가 저장되었습니다!"))
+    const rows = document.getElementById('seat-rows').value;
+    const cols = document.getElementById('seat-cols').value;
+    
+    const dataToSave = {
+        layout: currentLayout,
+        config: { rows: rows, cols: cols }
+    };
+
+    db.ref('seatLayoutData').set(dataToSave)
+    .then(() => alert("좌석 배치가 저장되었습니다! ✨"))
     .catch(err => alert("저장 실패: " + err));
 }
         function openLogEditPopup(name, date) {
