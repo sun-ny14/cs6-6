@@ -79,23 +79,20 @@
 
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;"><button onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
         
-      <section id="tab-logs" class="tab-content">
+     <section id="tab-logs" class="tab-content">
     <div class="card">
-        <h2>📅 등교 기록부 (교실 배치도)</h2>
+        <h2>📅 교실 배치도 및 등교 관리</h2>
         
-        <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px; display:flex; gap:10px; align-items:center;">
+        <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
             가로 <input type="number" id="seat-cols" value="5" style="width:60px; margin:0; padding:8px;"> x 
             세로 <input type="number" id="seat-rows" value="6" style="width:60px; margin:0; padding:8px;">
-            <button onclick="initSeatMap()" style="width:auto; margin:0; padding:10px 15px; background:var(--dark); color:white;">배치도 생성</button>
+            <button onclick="generateNewLayout()" style="width:auto; margin:0; padding:10px 15px; background:var(--dark); color:white;">배치도 생성</button>
+            <button onclick="saveSeatLayout()" style="width:auto; margin:0; padding:10px 15px; background:var(--primary); color:white;">현재 배치 저장</button>
         </div>
 
-        <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;">
-            <span style="font-weight:bold;">날짜 선택:</span>
-            <input type="date" id="checkin-date-filter" onchange="renderCheckinBoard()" style="flex:1; padding:10px;">
-            <button onclick="downloadMonthlyExcel()" style="width:auto; background:var(--green); color:white; padding:10px;">엑셀출력</button>
-        </div>
+        <p style="font-size: 0.9rem; color: #666;">* 학생 박스를 다른 칸으로 드래그하여 자리를 옮길 수 있습니다.</p>
 
-        <div id="seat-map-container" style="display:grid; gap:10px; width:100%; overflow-x:auto;"></div>
+        <div id="seat-map-container" style="display:grid; gap:10px; width:100%; padding:10px; background:#ddd; border-radius:10px;"></div>
     </div>
 </section>
         <section id="tab-points" class="tab-content">
@@ -661,6 +658,68 @@ function renderLogItem(studentId, logData, date) {
         console.error("저장 실패:", error);
     });
 }   
+        let currentLayout = {}; // { "row-col": "학생성명" } 형태
+
+// 1. 배치도 생성 및 DB 로드
+function generateNewLayout() {
+    const rows = parseInt(document.getElementById('seat-rows').value);
+    const cols = parseInt(document.getElementById('seat-cols').value);
+    
+    // DB에서 기존 저장된 배치 정보 불러오기
+    firebase.database().ref('seatLayout').once('value', snap => {
+        currentLayout = snap.val() || {};
+        renderSeatMap(rows, cols);
+    });
+}
+
+// 2. 배치도 그리기 (드래그 앤 드롭 이벤트 포함)
+function renderSeatMap(rows, cols) {
+    const container = document.getElementById('seat-map-container');
+    container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    container.innerHTML = "";
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const posId = `${r}-${c}`;
+            const studentName = currentLayout[posId] || "";
+            
+            const cell = document.createElement('div');
+            cell.className = "seat-cell";
+            cell.id = posId;
+            cell.style = "background:white; border:2px dashed #bbb; min-height:100px; border-radius:10px; padding:5px; position:relative;";
+            
+            // 드롭 대상 설정
+            cell.ondragover = (e) => e.preventDefault();
+            cell.ondrop = (e) => {
+                e.preventDefault();
+                const name = e.dataTransfer.getData("text");
+                const fromId = e.dataTransfer.getData("fromId");
+                
+                // 기존 위치 삭제 및 새 위치 등록
+                if(fromId) delete currentLayout[fromId];
+                currentLayout[posId] = name;
+                renderSeatMap(rows, cols);
+            };
+
+            if (studentName) {
+                cell.innerHTML = `
+                <div draggable="true" 
+                     ondragstart="event.dataTransfer.setData('text', '${studentName}'); event.dataTransfer.setData('fromId', '${posId}');"
+                     style="background:var(--bg); border:1px solid var(--dark); padding:10px; border-radius:8px; cursor:move; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <div style="font-weight:bold;">${studentName}</div>
+                </div>`;
+            }
+            container.appendChild(cell);
+        }
+    }
+}
+
+// 3. 배치도 DB 저장
+function saveSeatLayout() {
+    firebase.database().ref('seatLayout').set(currentLayout)
+    .then(() => alert("좌석 배치가 저장되었습니다!"))
+    .catch(err => alert("저장 실패: " + err));
+}
     </script>
 </body>
 </html>
