@@ -147,10 +147,15 @@ function getAvatar(lv, selectedAnimal) {
     const col = index % 5;
     const row = Math.floor(index / 5);
     
-    // [핵심 수정] 퍼센트(%) 대신 픽셀(px) 기반으로 정밀 조준
-    // 원본 이미지에서 한 칸의 크기를 약 204px(가로), 254px(세로)로 계산하여 배치
-    const posX = col * 204.5; 
-    const posY = row * 254.5; 
+    // [보정 완료] 이미지 시트의 여백을 고려한 정밀 좌표 (픽셀 단위)
+    // 캐릭터가 한 칸(약 205x255) 내에서 중앙에 오도록 오프셋을 조정했습니다.
+    const startX = 2; // 왼쪽 첫 여백
+    const startY = 2; // 상단 첫 여백
+    const stepX = 204.5; // 가로 간격
+    const stepY = 254.5; // 세로 간격
+
+    const posX = startX + (col * stepX);
+    const posY = startY + (row * stepY);
 
     return `
     <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center;">
@@ -162,8 +167,9 @@ function getAvatar(lv, selectedAnimal) {
             background-position: -${posX}px -${posY}px; 
             background-repeat: no-repeat;
             image-rendering: pixelated;
-            transform: scale(0.6); 
+            transform: scale(0.65); /* 캐릭터 크기를 칸에 맞춰 살짝 키움 */
             flex-shrink: 0;
+            transform-origin: center center;
         "></div>
     </div>`;
 }
