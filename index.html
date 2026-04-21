@@ -205,23 +205,28 @@ function getAvatar(lv, selectedAnimal) {
         function closeMultiPopup() { document.getElementById('multi-popup').style.display='none'; }
 // [최종 통합] 배치도 데이터 로드 및 실행 함수
 function generateNewLayout() {
-    const rInput = document.getElementById('seat-rows');
-    const cInput = document.getElementById('seat-cols');
-    
-    // once를 써서 딱 한 번만 제대로 로드합니다.
+    // 1. DB에서 저장된 데이터를 가져옴
     db.ref('seatLayoutData').once('value', snap => {
-        const savedData = snap.val() || {};
-        currentLayout = savedData.layout || {};
+        const savedData = snap.val();
         
-        const rows = savedData.config?.rows || rInput.value || 6;
-        const cols = savedData.config?.cols || cInput.value || 5;
-        
-        rInput.value = rows;
-        cInput.value = cols;
-
-        // 즉시 그리고, 데이터 로딩 지연을 대비해 0.3초 뒤 한 번 더 그려서 확정
-        renderSeatMap(parseInt(rows), parseInt(cols));
-        setTimeout(() => renderSeatMap(parseInt(rows), parseInt(cols)), 300);
+        if (savedData && savedData.layout) {
+            // 저장된 데이터가 있으면 전역 변수에 복사
+            currentLayout = savedData.layout;
+            
+            const rows = savedData.config.rows;
+            const cols = savedData.config.cols;
+            
+            document.getElementById('seat-rows').value = rows;
+            document.getElementById('seat-cols').value = cols;
+            
+            // 데이터 확인 후 화면 그리기
+            renderSeatMap(rows, cols);
+        } else {
+            // 저장된 데이터가 아예 없는 초기 상태라면 빈 판을 그림
+            const rows = document.getElementById('seat-rows').value || 6;
+            const cols = document.getElementById('seat-cols').value || 5;
+            renderSeatMap(parseInt(rows), parseInt(cols));
+        }
     });
 }
         function startApp() {
@@ -856,6 +861,26 @@ function saveDetailLog(name, date, key) {
         closePopup();
         generateNewLayout(); // 화면 갱신
     }
+}
+        function saveCurrentLayout() {
+    const rows = document.getElementById('seat-rows').value;
+    const cols = document.getElementById('seat-cols').value;
+    
+    // DB의 seatLayoutData 경로에 현재 배치(layout)와 설정(config)을 저장
+    db.ref('seatLayoutData').set({
+        layout: currentLayout,
+        config: {
+            rows: parseInt(rows),
+            cols: parseInt(cols)
+        },
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+        alert("좌석 배치가 안전하게 저장되었습니다! 이제 새로고침해도 유지됩니다.");
+        isEditMode = false; // 저장 후 수정모드 자동 종료
+        toggleSeatEditMode(); // UI 복구
+    }).catch(err => {
+        alert("저장 실패: " + err.message);
+    });
 }
     </script>
 </body>
