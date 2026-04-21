@@ -208,30 +208,29 @@ function generateNewLayout() {
     const rInput = document.getElementById('seat-rows');
     const cInput = document.getElementById('seat-cols');
     
-    // 1. DB에서 저장된 배치 설정(칸수 + 학생 위치) 가져오기
+    // DB에서 좌석 위치 정보를 무조건 먼저 가져옵니다.
     db.ref('seatLayoutData').once('value', snap => {
         const savedData = snap.val() || {};
+        // 전역 변수 currentLayout에 이름을 담습니다.
         currentLayout = savedData.layout || {};
         
-        // 2. 가로/세로 설정 복구 (저장된 값 없으면 현재 입력창 값 사용)
         const rows = savedData.config?.rows || rInput.value || 6;
         const cols = savedData.config?.cols || cInput.value || 5;
         
         rInput.value = rows;
         cInput.value = cols;
 
-        // 3. [핵심] 학생 데이터가 로딩될 때까지 최대 2초간 대기하며 체크
-        let retryCount = 0;
-        const checkAndRender = setInterval(() => {
+        // 이름이 있을 때까지 최대 10번(1초) 재시도하며 그립니다.
+        let tryCnt = 0;
+        const check = setInterval(() => {
             if (currentUsers && currentUsers.length > 0) {
                 renderSeatMap(parseInt(rows), parseInt(cols));
-                clearInterval(checkAndRender); // 데이터 확인되면 그리기 중단
-            } else if (retryCount > 20) { 
-                // 2초(100ms * 20)가 지나도 데이터가 없으면 그냥 빈 칸이라도 그림
-                renderSeatMap(parseInt(rows), parseInt(cols));
-                clearInterval(checkAndRender);
+                clearInterval(check);
+            } else if (tryCnt > 10) {
+                renderSeatMap(parseInt(rows), parseInt(cols)); // 데이터 없어도 일단 칸이라도 그림
+                clearInterval(check);
             }
-            retryCount++;
+            tryCnt++;
         }, 100);
     });
 }
@@ -716,10 +715,10 @@ function toggleSeatEditMode() {
     generateNewLayout(); // 즉시 다시 그리기
 }
 
-// [수정] 렌더링 로직 (클릭 이동 방식 + 수정창 분리)
 function renderSeatMap(rows, cols) {
     const container = document.getElementById('seat-map-container');
     if(!container) return;
+    container.style.display = 'grid'; // 그리드 강제 활성화
     container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     container.innerHTML = "";
     const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
@@ -731,6 +730,7 @@ function renderSeatMap(rows, cols) {
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
                 const posId = `${r}-${c}`;
+                // currentLayout에 이름이 있는지 확인
                 const name = currentLayout[posId] || "";
                 const cell = document.createElement('div');
                 
@@ -740,42 +740,42 @@ function renderSeatMap(rows, cols) {
                     bgColor = log ? (log.result.includes('정상') ? "#ccffcc" : "#ffcccc") : "#ffff00";
                 }
 
-                // 선택된 학생 강조
                 const isSelected = (selectedStudentForMove && selectedStudentForMove.fromId === posId);
                 cell.style = `background:${bgColor}; border:${isSelected ? '4px solid #3498db' : '1px solid #bbb'}; min-height:110px; border-radius:10px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer;`;
 
-                // [핵심] 클릭 이벤트 분기
                 cell.onclick = () => {
                     if (isEditMode) {
-                        // 수정 모드일 때: 자리 바꾸기 로직
                         if (!selectedStudentForMove && name) {
                             selectedStudentForMove = { name, fromId: posId };
-                            generateNewLayout(); // 선택 표시를 위해 다시 그림
+                            renderSeatMap(rows, cols); 
                         } else if (selectedStudentForMove) {
-                            delete currentLayout[selectedStudentForMove.fromId];
+                            // 자리 이동 실행
+                            const targetName = currentLayout[posId]; // 원래 있던 사람
+                            if(targetName) currentLayout[selectedStudentForMove.fromId] = targetName;
+                            else delete currentLayout[selectedStudentForMove.fromId];
+                            
                             currentLayout[posId] = selectedStudentForMove.name;
                             selectedStudentForMove = null;
-                            generateNewLayout();
+                            renderSeatMap(rows, cols);
                         }
                     } else if (name) {
-                        // 일반 모드일 때: 사유 입력창 띄우기
                         openLogEditPopup(name, targetDate);
                     }
                 };
 
+                // [중요] 이름이 있으면 무조건 화면에 띄움
                 if (name) {
-                    cell.innerHTML = `<div style="font-weight:900;">${name}</div>
-                                      <div style="font-size:0.8rem; margin-top:5px;">${logs[name] ? logs[name].result : '미등교'}</div>`;
-                    if(logs[name]?.reason) cell.innerHTML += `<div style="font-size:0.7rem; color:blue; font-weight:bold;">📝사유</div>`;
+                    cell.innerHTML = `<div style="font-weight:900; font-size:1.3rem; color:#000;">${name}</div>
+                                      <div style="font-size:0.8rem; margin-top:5px; color:#444;">${logs[name] ? logs[name].result : '미등교'}</div>`;
+                    if(logs[name]?.reason) cell.innerHTML += `<div style="font-size:0.7rem; color:blue; font-weight:bold;">📝 사유기록됨</div>`;
                 } else if (isEditMode) {
-                    cell.innerHTML = `<small style="color:#aaa;">이동</small>`;
+                    cell.innerHTML = `<small style="color:#aaa;">빈자리</small>`;
                 }
                 container.appendChild(cell);
             }
         }
     });
 }
-
 // [추가] 월별 엑셀 출력 함수
 function downloadMonthlyExcel() {
     const targetMonth = document.getElementById('checkin-date-filter').value.substring(0, 7); // "2026-04"
