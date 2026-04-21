@@ -205,15 +205,30 @@ function getAvatar(lv, selectedAnimal) {
         function closeMultiPopup() { document.getElementById('multi-popup').style.display='none'; }
 // [최종 통합] 배치도 데이터 로드 및 실행 함수
 function generateNewLayout() {
+    const rInput = document.getElementById('seat-rows');
+    const cInput = document.getElementById('seat-cols');
+    
+    // 1. DB에서 저장된 배치 설정(학생 위치) 가져오기
     db.ref('seatLayoutData').once('value', snap => {
         const savedData = snap.val() || {};
+        // 전역 변수에 DB 데이터 강제 주입
         currentLayout = savedData.layout || {};
-        const rows = savedData.config?.rows || document.getElementById('seat-rows').value || 6;
-        const cols = savedData.config?.cols || document.getElementById('seat-cols').value || 5;
         
-        document.getElementById('seat-rows').value = rows;
-        document.getElementById('seat-cols').value = cols;
+        const rows = savedData.config?.rows || rInput.value || 6;
+        const cols = savedData.config?.cols || cInput.value || 5;
+        
+        rInput.value = rows;
+        cInput.value = cols;
+
+        // 2. [핵심] 학생 명단(currentUsers)이 아직 안 불러와졌어도 
+        // 이미 저장된 currentLayout(이름 정보)이 있다면 바로 그립니다.
         renderSeatMap(parseInt(rows), parseInt(cols));
+        
+        // 3. 만약 명단 로딩이 늦어서 로그(출결상태)가 안 보일 경우를 대비해 
+        // 0.5초 뒤에 한 번 더 깔끔하게 그려줍니다.
+        setTimeout(() => {
+            renderSeatMap(parseInt(rows), parseInt(cols));
+        }, 500);
     });
 }
         function startApp() {
