@@ -567,21 +567,53 @@ function loadMyLogs() {
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         
         async function submitCheckIn() {
-            const passInput = document.getElementById('checkin-pass'), pass = passInput.value.trim(); if (!pass) return alert("암호 입력!");
-            const sSnap = await db.ref('settings').once('value'), settings = sSnap.val() || {};
-            if (pass !== settings.password) return alert("암호 오류!");
-            const today = getTodayKST(), logSnap = await db.ref('checkinLogs').once('value');
-            let already = false; logSnap.forEach(l => { if (l.val().name === myName && l.val().date === today) already = true; });
-            if (already) return alert("이미 등교 완료!");
-            const now = new Date(), nowStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-            let result = "정상 등교", p = 5, e = 10;
-            if (nowStr > (settings.closeTime || "09:00")) return alert("마감됨!");
-            else if (nowStr > (settings.lateTime || "08:40")) { result = "지각 등교"; p = 2; e = 5; }
-            db.ref('checkinLogs').push({ name: myName, date: today, time: nowStr, result: result }).then(() => {
-                addScore(myName, p, e, result); passInput.value = "";
-                if (routineItems.length > 0) { rIdx = 0; openPopup("🌅 루틴 시작!", `[1단계] ${routineItems[0]}`, true); } else alert("등교 완료!");
-            });
+    const passInput = document.getElementById('checkin-pass'), pass = passInput.value.trim();
+    if (!pass) return alert("암호 입력!");
+    
+    const sSnap = await db.ref('settings').once('value'), settings = sSnap.val() || {};
+    if (pass !== settings.password) return alert("암호 오류!");
+    
+    const today = getTodayKST(), logSnap = await db.ref('checkinLogs').once('value');
+    let already = false; 
+    logSnap.forEach(l => { if (l.val().name === myName && l.val().date === today) already = true; });
+    if (already) return alert("이미 등교 완료!");
+
+    const now = new Date();
+    const nowStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+    
+    // [설정] 기본값: 정상 등교는 포인트 변동 0
+    let result = "정상 등교", p = 0, e = 2;
+    
+    const lateTime = settings.lateTime || "08:40";
+    const closeTime = settings.closeTime || "09:00";
+
+    if (nowStr > closeTime) {
+        return alert("마감되었습니다!");
+    } else if (nowStr > lateTime) {
+        result = "지각 등교";
+        // [지각 차감 계산] 8:40 기준 늦은 분(min) 계산
+        const [lateH, lateM] = lateTime.split(':').map(Number);
+        const [nowH, nowM] = nowStr.split(':').map(Number);
+        const diffMin = (nowH * 60 + nowM) - (lateH * 60 + lateM);
+        
+        p = -diffMin; // 1분당 -1P 차감
+        e = 0;      
+    }
+
+    db.ref('checkinLogs').push({ name: myName, date: today, time: nowStr, result: result }).then(() => {
+        addScore(myName, p, e, result); 
+        passInput.value = "";
+        
+        let msg = (result === "정상 등교") ? "✅ 정상 등교 완료!" : `⚠️ 지각 등교! ${p}P 차감되었습니다.`;
+        
+        if (routineItems.length > 0) { 
+            rIdx = 0; 
+            openPopup("🌅 루틴 시작!", `[1단계] ${routineItems[0]}`, true); 
+        } else {
+            alert(msg);
         }
+    });
+}
         // 유저별 요청 항목 전체 승인 함수
 function approveUserAll(keyStr, user) {
     if(confirm(user + " 용사가 요청한 모든 항목을 승인하시겠습니까?")) {
