@@ -7,6 +7,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; --bg: #ecf0f1; }
         body { font-family: 'Pretendard', sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; font-size: 1.4rem; }
@@ -696,7 +697,10 @@ function renderLogItem(studentId, logData, date) {
 
 let isEditMode = false; // 현재 수정 모드인지 여부
 
-// 수정 모드 끄고 켜기
+let isEditMode = false;
+let selectedStudentForMove = null;
+
+// [수정] 수정 모드 토글 (따옴표 에러 완벽 해결)
 function toggleSeatEditMode() {
     isEditMode = !isEditMode;
     const panel = document.getElementById('seat-edit-panel');
@@ -705,21 +709,21 @@ function toggleSeatEditMode() {
     if(isEditMode) {
         panel.style.display = 'block';
         btn.innerText = '수정 완료(닫기)';
-        btn.style.background = "var(--red)"; // 따옴표 추가
+        btn.style.backgroundColor = "#e74c3c"; // 직접 색상 지정
     } else {
         panel.style.display = 'none';
         btn.innerText = '좌석 배치 수정';
-        btn.style.background = "var(--dark)"; // 따옴표 추가
+        btn.style.backgroundColor = "#2c3e50";
     }
-    generateNewLayout();
+    generateNewLayout(); // 즉시 다시 그리기
 }
 
-// 화면 그리기 함수 (수정 모드 여부에 따라 기능 분기)
+// [수정] 렌더링 로직 (클릭 이동 방식 + 수정창 분리)
 function renderSeatMap(rows, cols) {
     const container = document.getElementById('seat-map-container');
+    if(!container) return;
     container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     container.innerHTML = "";
-
     const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
 
     db.ref('checkinLogs').once('value', snap => {
@@ -732,45 +736,68 @@ function renderSeatMap(rows, cols) {
                 const name = currentLayout[posId] || "";
                 const cell = document.createElement('div');
                 
-                // 스타일 설정
                 let bgColor = "#eee";
                 if (name) {
                     const log = logs[name];
                     bgColor = log ? (log.result.includes('정상') ? "#ccffcc" : "#ffcccc") : "#ffff00";
                 }
-                cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:110px; border-radius:10px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; transition:0.2s;`;
+
+                // 선택된 학생 강조
+                const isSelected = (selectedStudentForMove && selectedStudentForMove.fromId === posId);
+                cell.style = `background:${bgColor}; border:${isSelected ? '4px solid #3498db' : '1px solid #bbb'}; min-height:110px; border-radius:10px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer;`;
+
+                // [핵심] 클릭 이벤트 분기
+                cell.onclick = () => {
+                    if (isEditMode) {
+                        // 수정 모드일 때: 자리 바꾸기 로직
+                        if (!selectedStudentForMove && name) {
+                            selectedStudentForMove = { name, fromId: posId };
+                            generateNewLayout(); // 선택 표시를 위해 다시 그림
+                        } else if (selectedStudentForMove) {
+                            delete currentLayout[selectedStudentForMove.fromId];
+                            currentLayout[posId] = selectedStudentForMove.name;
+                            selectedStudentForMove = null;
+                            generateNewLayout();
+                        }
+                    } else if (name) {
+                        // 일반 모드일 때: 사유 입력창 띄우기
+                        openLogEditPopup(name, targetDate);
+                    }
+                };
 
                 if (name) {
-                    cell.innerHTML = `<b>${name}</b><br><small>${logs[name] ? logs[name].result + '<br>[' + logs[name].time + ']' : '미등교'}</small>`;
-                    if(logs[name]?.reason) cell.innerHTML += `<div style="font-size:0.7rem; color:blue;">📝사유기록됨</div>`;
-                    
-                    if (isEditMode) {
-                        // [수정 모드] 드래그 활성화, 클릭 비활성화
-                        cell.draggable = true;
-                        cell.style.cursor = "move";
-                        cell.style.border = "2px dashed #2c3e50";
-                        cell.ondragstart = (e) => { e.dataTransfer.setData('text', name); e.dataTransfer.setData('fromId', posId); };
-                    } else {
-                        // [일반 모드] 클릭 시 사유 입력창
-                        cell.onclick = () => openLogEditPopup(name, targetDate);
-                        cell.style.cursor = "pointer";
-                    }
+                    cell.innerHTML = `<div style="font-weight:900;">${name}</div>
+                                      <div style="font-size:0.8rem; margin-top:5px;">${logs[name] ? logs[name].result : '미등교'}</div>`;
+                    if(logs[name]?.reason) cell.innerHTML += `<div style="font-size:0.7rem; color:blue; font-weight:bold;">📝사유</div>`;
+                } else if (isEditMode) {
+                    cell.innerHTML = `<small style="color:#aaa;">이동</small>`;
                 }
-
-                // 드롭 기능 (수정 모드에서만 작동)
-                cell.ondragover = (e) => e.preventDefault();
-                cell.ondrop = (e) => {
-                    if(!isEditMode) return;
-                    e.preventDefault();
-                    const draggedName = e.dataTransfer.getData("text");
-                    const fromId = e.dataTransfer.getData("fromId");
-                    if(fromId) delete currentLayout[fromId];
-                    currentLayout[posId] = draggedName;
-                    renderSeatMap(rows, cols);
-                };
                 container.appendChild(cell);
             }
         }
+    });
+}
+
+// [추가] 월별 엑셀 출력 함수
+function downloadMonthlyExcel() {
+    const targetMonth = document.getElementById('checkin-date-filter').value.substring(0, 7); // "2026-04"
+    if(!targetMonth) return alert("날짜를 먼저 선택해주세요!");
+
+    db.ref('checkinLogs').once('value', snap => {
+        let rows = [["날짜", "이름", "결과", "등교시간", "대항목", "소항목", "구체사유"]];
+        snap.forEach(c => {
+            const l = c.val();
+            if(l.date && l.date.startsWith(targetMonth)) {
+                rows.push([l.date, l.name, l.result, l.time || "-", l.category || "-", l.subCategory || "-", l.reason || "-"]);
+            }
+        });
+
+        if(rows.length === 1) return alert("해당 월의 데이터가 없습니다.");
+
+        const worksheet = XLSX.utils.aoa_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "등교기록");
+        XLSX.writeFile(workbook, `6-6_등교기록_${targetMonth}.xlsx`);
     });
 }
 // 3. 배치도 DB 저장
