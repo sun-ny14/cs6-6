@@ -208,10 +208,9 @@ function generateNewLayout() {
     const rInput = document.getElementById('seat-rows');
     const cInput = document.getElementById('seat-cols');
     
-    // 1. DB에서 저장된 배치 설정(학생 위치) 가져오기
+    // once를 써서 딱 한 번만 제대로 로드합니다.
     db.ref('seatLayoutData').once('value', snap => {
         const savedData = snap.val() || {};
-        // 전역 변수에 DB 데이터 강제 주입
         currentLayout = savedData.layout || {};
         
         const rows = savedData.config?.rows || rInput.value || 6;
@@ -220,15 +219,9 @@ function generateNewLayout() {
         rInput.value = rows;
         cInput.value = cols;
 
-        // 2. [핵심] 학생 명단(currentUsers)이 아직 안 불러와졌어도 
-        // 이미 저장된 currentLayout(이름 정보)이 있다면 바로 그립니다.
+        // 즉시 그리고, 데이터 로딩 지연을 대비해 0.3초 뒤 한 번 더 그려서 확정
         renderSeatMap(parseInt(rows), parseInt(cols));
-        
-        // 3. 만약 명단 로딩이 늦어서 로그(출결상태)가 안 보일 경우를 대비해 
-        // 0.5초 뒤에 한 번 더 깔끔하게 그려줍니다.
-        setTimeout(() => {
-            renderSeatMap(parseInt(rows), parseInt(cols));
-        }, 500);
+        setTimeout(() => renderSeatMap(parseInt(rows), parseInt(cols)), 300);
     });
 }
         function startApp() {
@@ -264,7 +257,7 @@ db.ref('users').on('value', snap => {
     }); 
     document.getElementById('hero-grid').innerHTML = h;
     if (isAdmin) renderAdminList();
-    renderCheckinBoard();
+    generateNewLayout();   
 });
 
             // [상점 기능 100% 복구] 등록/수정/삭제 버튼 포함
@@ -446,45 +439,9 @@ function initSeatMap() {
 
 // [기존 renderCheckinBoard 함수를 좌석표 형식으로 덮어쓰기]
 function renderCheckinBoard() {
-    const container = document.getElementById('seat-map-container');
-    if(!container) return;
-
-    const rows = parseInt(document.getElementById('seat-rows').value);
-    const cols = parseInt(document.getElementById('seat-cols').value);
-    const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
-
-    db.ref('checkinLogs').once('value', snap => {
-        const logs = {};
-        snap.forEach(c => {
-            const val = c.val();
-            if(val.date === targetDate) logs[val.name] = val;
-        });
-
-        let html = "";
-        // 가로 x 세로 만큼 칸 생성
-        for (let i = 0; i < rows * cols; i++) {
-            // 여기서는 번호 순대로 우선 배치 (나중에 개별 좌석 지정 기능을 위해 index 활용)
-            const u = currentUsers.filter(user => user.name !== "총사령관")[i];
-            
-            if (u) {
-                const log = logs[u.name];
-                let bgColor = log ? (log.result.includes('정상') ? "#ccffcc" : "#ffcccc") : "#ffff00";
-                
-                html += `
-                <div onclick="openLogEditPopup('${u.name}')" style="background:${bgColor}; padding:10px; border-radius:10px; border:1px solid #ddd; min-height:80px; display:flex; flex-direction:column; justify-content:center; cursor:pointer;">
-                    <div style="font-size:0.9rem; font-weight:bold;">${u.no || '-'}번</div>
-                    <div style="font-size:1.1rem; font-weight:900;">${u.name}</div>
-                    <div style="font-size:0.8rem; margin-top:5px;">${log ? log.result : '미등교'}</div>
-                    ${log && log.reason ? `<div style="font-size:0.7rem; color:blue;">📝사유있음</div>` : ''}
-                </div>`;
-            } else {
-                html += `<div style="background:#eee; border-radius:10px; border:1px dashed #ccc; min-height:80px;"></div>`; // 빈자리
-            }
-        }
-        container.innerHTML = html;
-    });
+    // 내용을 비워두거나 generateNewLayout()을 호출하게 만듭니다.
+    generateNewLayout();
 }
-
         // [복구] 💰 연대기 탭 내용 복구 함수
 function loadMyLogs() {
     const listEl = document.getElementById('point-history-list');
