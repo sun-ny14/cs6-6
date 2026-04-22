@@ -701,7 +701,6 @@ function toggleSeatEditMode() {
     generateNewLayout(); // 즉시 다시 그리기
 }
 
-// 1. 배치도 그리기 (학생 선택 방식)
 function renderSeatMap(rows, cols) {
     const container = document.getElementById('seat-map-container');
     if(!container) return;
@@ -709,12 +708,9 @@ function renderSeatMap(rows, cols) {
     container.innerHTML = "";
     
     const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
-    
-    // 1. 현재 선택된 날짜의 요일 구하기 (월, 화, 수, 목, 금)
     const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
     const selectedDay = weekDays[new Date(targetDate).getDay()];
 
-    // 2. DB에서 로그와 요일별 제외 설정 가져오기
     Promise.all([
         db.ref('checkinLogs').once('value'),
         db.ref('settings/fixedExclusions').once('value')
@@ -731,44 +727,54 @@ function renderSeatMap(rows, cols) {
                 const name = currentLayout[posId] || "";
                 const cell = document.createElement('div');
                 
-                // --- [핵심: 색상 결정 로직] ---
-                let bgColor = "#eee"; // 기본: 빈자리
-                let isExcluded = false;
+                let bgColor = "#eee"; // 빈자리
+                let statusText = "미등교";
+                let textColor = "black";
 
                 if (name) {
-                    const log = logs[name];
-                    isExcluded = todayExclusions.includes(name);
+                    const log = logs[name]; // 개별 변동 사유 기록
+                    const isFixedExcluded = todayExclusions.includes(name); // 고정 제외 여부
 
-                    if (isExcluded) {
-                        bgColor = "#3498db"; // 🔵 고정 제외 학생 (파란색)
-                    } else if (log) {
-                        bgColor = log.result.includes('정상') ? "#ccffcc" : "#ffcccc"; // 정상(녹색) / 지각(분홍)
-                    } else {
-                        bgColor = "#ffff00"; // 미등교 (노란색)
+                    // --- [핵심: 표시 우선순위 로직] ---
+                    
+                    // 1순위: 개별 사유가 입력된 경우 (지각, 결석, 조퇴 등 변동 사항)
+                    if (log) {
+                        statusText = log.result;
+                        if (log.result.includes('정상')) bgColor = "#ccffcc"; // 녹색
+                        else if (log.result.includes('지각')) bgColor = "#ffcccc"; // 분홍색
+                        else {
+                            // 결석, 조퇴, 기타 등
+                            bgColor = "#f39c12"; // 주황색 (변동 제외 강조)
+                            statusText = log.result;
+                        }
+                    } 
+                    // 2순위: 개별 기록은 없지만 고정 제외인 경우
+                    else if (isFixedExcluded) {
+                        bgColor = "#3498db"; // 파란색
+                        statusText = "고정 제외";
+                        textColor = "white";
+                    } 
+                    // 3순위: 아무 기록 없는 일반 미등교
+                    else {
+                        bgColor = "#ffff00"; // 노란색
+                        statusText = "미등교";
                     }
                 }
-                // ---------------------------
 
-                cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; color: ${isExcluded ? 'white' : 'black'};`;
+                cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; color: ${textColor};`;
 
                 if (name) {
-                    const statusText = isExcluded ? "고정 제외" : (logs[name] ? logs[name].result : '미등교');
                     cell.innerHTML = `
                         <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px;">${name}</div>
                         <div style="font-weight:bold; font-size:1.2rem;">${statusText}</div>
-                        <div style="font-size:1.1rem; margin-top:3px;">${logs[name]?.time ? '[' + logs[name].time + ']' : ''}</div>
+                        <div style="font-size:1.1rem; margin-top:3px;">${logs[name]?.time && logs[name].time !== '-' ? '[' + logs[name].time + ']' : ''}</div>
                     `;
                 }
                 
-              cell.onclick = () => {
-    if (isEditMode) {
-        // 수정 모드: 칸을 클릭하여 학생 배치/비우기 팝업
-        openStudentPicker(posId, rows, cols);
-    } else if (name) {
-        // 일반 모드: 학생 클릭 시 사유 입력(변동 등교) 팝업 실행
-        openLogEditPopup(name, targetDate); 
-    }
-};
+                cell.onclick = () => {
+                    if (isEditMode) openStudentPicker(posId, rows, cols);
+                    else if (name) openLogEditPopup(name, targetDate); 
+                };
                 container.appendChild(cell);
             }
         }
@@ -895,27 +901,30 @@ function saveDetailLog(name, date, key) {
     const subCategory = document.getElementById('edit-sub').value;
     const reason = document.getElementById('edit-desc').value;
     
+    // 결과 텍스트 결정
+    let resultText = category;
+    if (category === '정상' || category === '지각') resultText = category + ' 등교';
+
     const updateData = {
         name: name,
         date: date,
         category: category,
         subCategory: subCategory,
         reason: reason,
-        result: (category === '정상' || category === '지각') ? category + ' 등교' : category
+        result: resultText,
+        time: "-" // 수동 입력이므로 시간은 대시 처리
     };
 
     if(key && key !== 'null') {
         db.ref('checkinLogs/' + key).update(updateData).then(afterSave);
     } else {
-        // 기록이 없는 상태(미등교)에서 사유를 적을 경우 새로 생성
-        updateData.time = "-";
         db.ref('checkinLogs').push(updateData).then(afterSave);
     }
 
     function afterSave() {
-        alert("사유가 저장되었습니다.");
+        alert("변동 사유가 반영되었습니다.");
         closePopup();
-        generateNewLayout(); // 화면 갱신
+        generateNewLayout(); 
     }
 }
         function saveCurrentLayout() {
