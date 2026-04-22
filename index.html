@@ -572,7 +572,7 @@ function loadMyLogs() {
         function saveGifts() { db.ref('settings').update({ giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim()) }).then(() => alert("보상 저장!")); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         
-        async function submitCheckIn() {
+       async function submitCheckIn() {
     const passInput = document.getElementById('checkin-pass'), pass = passInput.value.trim();
     if (!pass) return alert("암호 입력!");
     
@@ -587,30 +587,37 @@ function loadMyLogs() {
     const now = new Date();
     const nowStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
     
-    // [설정] 기본값: 정상 등교는 포인트 변동 0
-    let result = "정상 등교", p = 0, e = 2;
+    // [설정] 정상 등교 기본값
+    let result = "정상 등교", p = 0, e = 10;
     
     const lateTime = settings.lateTime || "08:40";
     const closeTime = settings.closeTime || "09:00";
 
     if (nowStr > closeTime) {
         return alert("마감되었습니다!");
-    } else if (nowStr > lateTime) {
+    } 
+    // 1. 지각 체크 (도우미든 아니든 지각하면 차감 로직 실행)
+    else if (nowStr > lateTime) {
         result = "지각 등교";
-        // [지각 차감 계산] 8:40 기준 늦은 분(min) 계산
         const [lateH, lateM] = lateTime.split(':').map(Number);
         const [nowH, nowM] = nowStr.split(':').map(Number);
         const diffMin = (nowH * 60 + nowM) - (lateH * 60 + lateM);
         
-        p = -diffMin; // 1분당 -1P 차감
-        e = 0;      
+        p = -diffMin; // ⚠️ 예외 없이 지각한 '분'만큼 마이너스 처리
+        e = 0;
+    }
+    // 2. 정상 등교일 때만 도우미 가점 등을 고려 (필요한 경우)
+    else {
+        result = "정상 등교";
+        p = 0; // 선생님 요청대로 정상 등교 시에는 0P
+        e = 3;
     }
 
     db.ref('checkinLogs').push({ name: myName, date: today, time: nowStr, result: result }).then(() => {
         addScore(myName, p, e, result); 
         passInput.value = "";
         
-        let msg = (result === "정상 등교") ? "✅ 정상 등교 완료!" : `⚠️ 지각 등교! ${p}P 차감되었습니다.`;
+        let msg = (p < 0) ? `⚠️ 지각 등교! ${p}P 차감되었습니다.` : `✅ 정상 등교 완료!`;
         
         if (routineItems.length > 0) { 
             rIdx = 0; 
@@ -671,26 +678,8 @@ function renderLogItem(studentId, logData, date) {
     </div>
     `;
 }
-     function saveLogReason(studentId, date) {
-    const category = document.getElementById(`cat-${studentId}`).value;
-    const subCategory = document.getElementById(`sub-${studentId}`).value;
-    const reason = document.getElementById(`desc-${studentId}`).value;
-
-    // 파이어베이스 경로에 해당 날짜/학생의 사유 업데이트
-    firebase.database().ref(`checkin_logs/${date}/${studentId}`).update({
-        category: category,
-        subCategory: subCategory,
-        reason: reason
-    }).then(() => {
-        alert("사유가 성공적으로 저장되었습니다.");
-    }).catch((error) => {
-        console.error("저장 실패:", error);
-    });
-}   
+   
         let currentLayout = {}; 
-
-
-
 let isEditMode = false;
 let selectedStudentForMove = null;
 
@@ -1011,46 +1000,7 @@ function saveExclusionsByDay() {
         generateNewLayout(); // 즉시 화면에 파란색 반영
     });
 }
-        async function downloadMonthlyExcel() {
-    const selectedDate = document.getElementById('checkin-date-filter').value;
-    const [year, month] = selectedDate.split('-');
-    
-    const logSnap = await db.ref('checkinLogs').once('value');
-    const logs = logSnap.val() || {};
-    
-    // 엑셀 데이터 구성 (UTF-8 BOM으로 한글 깨짐 방지)
-    let csvContent = "\uFEFF날짜,번호,이름,상태,사유(비고)\n";
-    
-    // 로그 데이터만 순회하여 조건에 맞는 것만 추출
-    Object.values(logs).forEach(log => {
-        // 1. 해당 월의 데이터인지 확인
-        if (log.date && log.date.startsWith(`${year}-${month}`)) {
-            
-            // 2. '정상 등교'와 '지각 등교'는 제외 (나이스 기록용 미등교 사유만 필요)
-            // 3. '고정 제외'로 이미 처리된 경우도 제외
-            if (log.result !== "정상 등교" && log.result !== "지각 등교" && log.result !== "고정 제외") {
-                
-                // 학생 번호를 찾기 위해 currentUsers에서 검색
-                const student = (currentUsers || []).find(u => u.name === log.name) || {};
-                const studentNum = student.num || "";
-                const reason = log.reason || "";
-                
-                csvContent += `${log.date},${studentNum},${log.name},${log.result},${reason}\n`;
-            }
-        }
-    });
-
-    // CSV 파일 생성 및 다운로드
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const fileName = `${month}월_나이스_기록용_결석사유.csv`;
-    
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+       
     </script>
 </body>
 </html>
