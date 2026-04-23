@@ -572,7 +572,7 @@ function loadMyLogs() {
         function saveGifts() { db.ref('settings').update({ giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim()) }).then(() => alert("보상 저장!")); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         
-       async function submitCheckIn() {
+      async function submitCheckIn() {
     const passInput = document.getElementById('checkin-pass'), pass = passInput.value.trim();
     if (!pass) return alert("암호 입력!");
     
@@ -587,33 +587,33 @@ function loadMyLogs() {
     const now = new Date();
     const nowStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
     
-    // [설정] 정상 등교 기본값
     let result = "정상 등교", p = 0, e = 10;
-    
     const lateTime = settings.lateTime || "08:40";
     const closeTime = settings.closeTime || "09:00";
 
     if (nowStr > closeTime) {
         return alert("마감되었습니다!");
     } 
-    // 1. 지각 체크 (도우미든 아니든 지각하면 차감 로직 실행)
+    // --- 1. 지각 체크 (이 구간이 가장 먼저 실행되어야 합니다) ---
     else if (nowStr > lateTime) {
         result = "지각 등교";
         const [lateH, lateM] = lateTime.split(':').map(Number);
         const [nowH, nowM] = nowStr.split(':').map(Number);
         const diffMin = (nowH * 60 + nowM) - (lateH * 60 + lateM);
         
-        p = -diffMin; // ⚠️ 예외 없이 지각한 '분'만큼 마이너스 처리
-        e = 0;
+        p = -Math.abs(diffMin); // ⚠️ 무조건 음수로 변환해서 저장
+        e = 0; 
     }
-    // 2. 정상 등교일 때만 도우미 가점 등을 고려 (필요한 경우)
+    // --- 2. 정상 등교일 때만 점수 계산 ---
     else {
         result = "정상 등교";
-        p = 0; // 선생님 요청대로 정상 등교 시에는 0P
-        e = 3;
+        p = 0; // 정상 등교는 가점 없음
+        e = 3; // 경험치만 지급
     }
 
+    // 데이터 저장 및 점수 반영
     db.ref('checkinLogs').push({ name: myName, date: today, time: nowStr, result: result }).then(() => {
+        // addScore를 호출할 때 계산된 p(-분)를 그대로 넘깁니다.
         addScore(myName, p, e, result); 
         passInput.value = "";
         
