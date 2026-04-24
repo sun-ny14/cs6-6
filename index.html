@@ -580,9 +580,21 @@ function loadMyLogs() {
     if (pass !== settings.password) return alert("암호 오류!");
     
     const today = getTodayKST(), logSnap = await db.ref('checkinLogs').once('value');
-    let already = false; 
-    logSnap.forEach(l => { if (l.val().name === myName && l.val().date === today) already = true; });
-    if (already) return alert("이미 등교 완료!");
+    
+    // [보강] 이름 양끝 공백 제거 후 비교
+    let existingLogKey = null;
+    let isAlreadyCheckedIn = false;
+    const cleanMyName = myName.trim(); 
+
+    logSnap.forEach(l => { 
+        const logData = l.val();
+        if (logData.name.trim() === cleanMyName && logData.date === today) {
+            existingLogKey = l.key;
+            if(logData.result && logData.result.includes("등교")) isAlreadyCheckedIn = true;
+        }
+    });
+    
+    if (isAlreadyCheckedIn) return alert("이미 등교 완료되었습니다!");
 
     const now = new Date();
     const nowStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
@@ -593,37 +605,43 @@ function loadMyLogs() {
 
     if (nowStr > closeTime) {
         return alert("마감되었습니다!");
-    } 
-    // --- 1. 지각 체크 (이 구간이 가장 먼저 실행되어야 합니다) ---
-    else if (nowStr > lateTime) {
+    } else if (nowStr > lateTime) {
         result = "지각 등교";
         const [lateH, lateM] = lateTime.split(':').map(Number);
         const [nowH, nowM] = nowStr.split(':').map(Number);
         const diffMin = (nowH * 60 + nowM) - (lateH * 60 + lateM);
         
-        p = -Math.abs(diffMin); // ⚠️ 무조건 음수로 변환해서 저장
+        p = -Math.abs(diffMin); 
         e = 0; 
-    }
-    // --- 2. 정상 등교일 때만 점수 계산 ---
-    else {
+        
+        // [확인용 알림] 실제 계산된 점수를 학생 화면에 띄워줍니다.
+        alert(`${cleanMyName} 용사, 지각 ${diffMin}분 확인! 점수: ${p}P 반영 예정`);
+    } else {
         result = "정상 등교";
-        p = 0; // 정상 등교는 가점 없음
-        e = 3; // 경험치만 지급
+        p = 0; 
+        e = 3; 
     }
 
-    // 데이터 저장 및 점수 반영
-    db.ref('checkinLogs').push({ name: myName, date: today, time: nowStr, result: result }).then(() => {
-        // addScore를 호출할 때 계산된 p(-분)를 그대로 넘깁니다.
-        addScore(myName, p, e, result); 
+    const finalData = { 
+        name: cleanMyName, 
+        date: today, 
+        time: nowStr, 
+        result: result, 
+        category: "정상", 
+        subCategory: "해당없음", 
+        reason: "" 
+    };
+
+    const targetRef = existingLogKey ? db.ref('checkinLogs/' + existingLogKey) : db.ref('checkinLogs').push();
+    
+    targetRef.set(finalData).then(() => {
+        addScore(cleanMyName, p, e, result); 
         passInput.value = "";
-        
-        let msg = (p < 0) ? `⚠️ 지각 등교! ${p}P 차감되었습니다.` : `✅ 정상 등교 완료!`;
-        
         if (routineItems.length > 0) { 
             rIdx = 0; 
             openPopup("🌅 루틴 시작!", `[1단계] ${routineItems[0]}`, true); 
         } else {
-            alert(msg);
+            alert(p < 0 ? `⚠️ 지각 등교! ${p}P 차감 완료!` : "✅ 정상 등교 완료!");
         }
     });
 }
