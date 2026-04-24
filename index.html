@@ -427,7 +427,45 @@ db.ref('users').on('value', snap => {
         function updateNo(n, v) { db.ref('users/' + n).update({ no: parseInt(v) || 0 }); }
         function toggleHelperRole(n, s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function approveBulk(keyStr, user, item) { if(confirm(`${user}의 ${item}을 모두 승인?`)) { const keys = keyStr.split(','), updates = {}; keys.forEach(k => { updates['orders/' + k + '/status'] = '완료'; }); db.ref().update(updates).then(() => alert("완료!")); } }
-        function addScore(n, p, e, r) { db.ref('users/'+n).once('value', sn => { const u=sn.val(); if(!u) return; let nP=(u.points||0)+p, nE=(u.exp||0)+e, nL=(u.lv||1), up=false; while(nE>=100){ nL++; nE-=100; up=true; } db.ref('users/'+n).update({points:nP, exp:nE, lv:nL}).then(()=>{ if(r!=="정상 등교") db.ref('pointLogs').push({name:n, amount:p, reason:r, time:new Date().toLocaleString(), date:getTodayKST()}); if(up) triggerLevelUpRoulette(n, nL); }); }); }
+        function addScore(n, p, e, r) {
+    db.ref('users/' + n).once('value', sn => {
+        const u = sn.val();
+        if (!u) return;
+
+        // [핵심] 지각 등교일 때는 전달받은 마이너스 점수(p)만 정확히 더함
+        // 혹시 모를 외부 가점 로직이 섞이지 않도록 nP를 여기서 확정합니다.
+        let nP = (u.points || 0) + p;
+        let nE = (u.exp || 0) + e;
+        let nL = (u.lv || 1);
+        let up = false;
+
+        // 레벨업 로직
+        while (nE >= 100) {
+            nL++;
+            nE -= 100;
+            up = true;
+        }
+
+        // DB 업데이트
+        db.ref('users/' + n).update({
+            points: nP,
+            exp: nE,
+            lv: nL
+        }).then(() => {
+            // 정상 등교가 아닐 때만 로그를 남김 (지각, 결석 등)
+            if (r !== "정상 등교") {
+                db.ref('pointLogs').push({
+                    name: n,
+                    amount: p, // 계산된 마이너스 점수가 그대로 로그에 찍힘
+                    reason: r,
+                    time: new Date().toLocaleString(),
+                    date: getTodayKST()
+                });
+            }
+            if (up) triggerLevelUpRoulette(n, nL);
+        });
+    });
+}
         function triggerLevelUpRoulette(n, l) { if(!giftList.length) return; const pick=giftList[Math.floor(Math.random()*giftList.length)]; db.ref('orders').push({user:n, item:`[레벨업] ${pick}`, status:'대기', time:new Date().toLocaleString()}); if(n===myName) openPopup("LEVEL UP!", `LV.${l} 달성! 보상: ${pick}`); }
 
         function renderAdminList() {
@@ -572,7 +610,7 @@ function loadMyLogs() {
         function saveGifts() { db.ref('settings').update({ giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim()) }).then(() => alert("보상 저장!")); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         
-      async function submitCheckIn() {
+     async function submitCheckIn() {
     const passInput = document.getElementById('checkin-pass'), pass = passInput.value.trim();
     if (!pass) return alert("암호 입력!");
     
@@ -581,19 +619,15 @@ function loadMyLogs() {
     
     const today = getTodayKST(), logSnap = await db.ref('checkinLogs').once('value');
     
-    // [보강] 이름 양끝 공백 제거 후 비교
+    // 이미 등교했는지 확인 (기존 사유가 있어도 등교 버튼은 작동하게 개선)
     let existingLogKey = null;
     let isAlreadyCheckedIn = false;
-    const cleanMyName = myName.trim(); 
-
     logSnap.forEach(l => { 
-        const logData = l.val();
-        if (logData.name.trim() === cleanMyName && logData.date === today) {
+        if (l.val().name === myName && l.val().date === today) {
             existingLogKey = l.key;
-            if(logData.result && logData.result.includes("등교")) isAlreadyCheckedIn = true;
+            if(l.val().result.includes("등교")) isAlreadyCheckedIn = true;
         }
     });
-    
     if (isAlreadyCheckedIn) return alert("이미 등교 완료되었습니다!");
 
     const now = new Date();
@@ -605,44 +639,31 @@ function loadMyLogs() {
 
     if (nowStr > closeTime) {
         return alert("마감되었습니다!");
-    } else if (nowStr > lateTime) {
+    } 
+    // --- 1. 지각 체크: 여기서 p를 무조건 음수로 만듭니다 ---
+    else if (nowStr > lateTime) {
         result = "지각 등교";
         const [lateH, lateM] = lateTime.split(':').map(Number);
         const [nowH, nowM] = nowStr.split(':').map(Number);
         const diffMin = (nowH * 60 + nowM) - (lateH * 60 + lateM);
         
-        p = -Math.abs(diffMin); 
+        p = -Math.abs(diffMin); // ⚠️ 도우미 가점 따위는 더하지 않고 무조건 -분 적용
         e = 0; 
-        
-        // [확인용 알림] 실제 계산된 점수를 학생 화면에 띄워줍니다.
-        alert(`${cleanMyName} 용사, 지각 ${diffMin}분 확인! 점수: ${p}P 반영 예정`);
-    } else {
+    } 
+    // --- 2. 정상 등교일 때 ---
+    else {
         result = "정상 등교";
         p = 0; 
         e = 3; 
     }
 
-    const finalData = { 
-        name: cleanMyName, 
-        date: today, 
-        time: nowStr, 
-        result: result, 
-        category: "정상", 
-        subCategory: "해당없음", 
-        reason: "" 
-    };
-
+    const finalData = { name: myName, date: today, time: nowStr, result: result, category: "정상", subCategory: "해당없음", reason: "" };
     const targetRef = existingLogKey ? db.ref('checkinLogs/' + existingLogKey) : db.ref('checkinLogs').push();
     
     targetRef.set(finalData).then(() => {
-        addScore(cleanMyName, p, e, result); 
+        addScore(myName, p, e, result); 
         passInput.value = "";
-        if (routineItems.length > 0) { 
-            rIdx = 0; 
-            openPopup("🌅 루틴 시작!", `[1단계] ${routineItems[0]}`, true); 
-        } else {
-            alert(p < 0 ? `⚠️ 지각 등교! ${p}P 차감 완료!` : "✅ 정상 등교 완료!");
-        }
+        alert(p < 0 ? `⚠️ 지각 등교! ${p}P 차감 완료!` : "✅ 정상 등교 완료!");
     });
 }
         // 유저별 요청 항목 전체 승인 함수
