@@ -611,7 +611,7 @@ function loadMyLogs() {
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         
    async function submitCheckIn() {
-    // 2. 따닥 클릭(연속 클릭) 방지를 위한 전역 변수 설정
+   // 2. 따닥 클릭(연속 클릭) 방지를 위한 전역 변수 설정
         let isCheckingIn = false; 
 
         async function submitCheckIn() {
@@ -725,17 +725,6 @@ function loadMyLogs() {
                 if (checkinBtn) { checkinBtn.disabled = false; checkinBtn.innerText = "본부 소환!"; }
             }
         }
-        // 유저별 요청 항목 전체 승인 함수
-function approveUserAll(keyStr, user) {
-    if(confirm(user + " 용사가 요청한 모든 항목을 승인하시겠습니까?")) {
-        const keys = keyStr.split(',');
-        const updates = {};
-        keys.forEach(k => {
-            updates['orders/' + k + '/status'] = '완료';
-        });
-        db.ref().update(updates).then(() => alert("모든 항목 승인 완료! ✨"));
-    }
-}
      // 등교로그 탭에서 각 학생의 사유를 관리하는 UI 생성 부분
 function renderLogItem(studentId, logData, date) {
     const reason = logData.reason || ""; // 구체 사유
