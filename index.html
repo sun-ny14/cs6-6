@@ -60,17 +60,17 @@
 
     <div id="main-app">
         <nav class="tab-menu">
-            <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
-            <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
-            <button id="btn-guide" style="display:none;" onclick="showTab('guide')">📜 도감</button>
-            <button id="btn-admin" onclick="showTab('tab-admin')" style="display:none; padding:12px 25px; border-radius:15px; font-weight:bold; border:none; background:#eee;">⚙️ 관리</button>
-<button id="btn-guide" onclick="showTab('tab-guide')" style="display:none; padding:12px 25px; border-radius:15px; font-weight:bold; border:none; background:#eee;">📖 도감</button>
-<button id="btn-budget" onclick="showTab('tab-budget')" style="display:none; background:var(--dark); color:white; padding:12px 25px; border-radius:15px; font-weight:bold; border:none;">💰 운영비 관리</button>
-            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-            <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
-            <button id="btn-points" onclick="showTab('points')">💰 연대기</button>
-            <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
-        </nav>
+    <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
+    <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
+    <button id="btn-guide" style="display:none;" onclick="showTab('guide')">📜 도감</button>
+    <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+    <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
+    <button id="btn-points" onclick="showTab('points')">💰 연대기</button>
+    
+    <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
+    
+    <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
+</nav>
 
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
         
@@ -356,14 +356,15 @@ function generateNewLayout() {
                     myWaiting[o.item] = (myWaiting[o.item] || 0) + 1;
                 }
             }
-            if ((isAdmin || isHelper) && o.status === '사용요청') {
+            // 👇 여기에 isAdmin, isHelper 외에 총사령관 권한을 추가했습니다! 👇
+            if ((isAdmin || isHelper || myName === "총사령관") && o.status === '사용요청') {
                 if (!adminWaiting[o.user]) adminWaiting[o.user] = {};
                 if (!adminWaiting[o.user][o.item]) adminWaiting[o.user][o.item] = [];
                 adminWaiting[o.user][o.item].push(key);
             }
         });
 
-        // 학생용 출력 (원래 폰트 유지)
+        // 학생용 출력 
         for (let item in myUnused) {
             uH += `<div class="list-item"><span>${item} <b>x${myUnused[item].length}</b></span><button onclick="if(confirm('${item} 사용?')) db.ref('orders/${myUnused[item][0]}').update({status:'사용요청'})">사용</button></div>`;
         }
@@ -524,6 +525,14 @@ window.deleteBudget = function(key) {
         function updateNo(n, v) { db.ref('users/' + n).update({ no: parseInt(v) || 0 }); }
         function toggleHelperRole(n, s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
         function approveBulk(keyStr, user, item) { if(confirm(`${user}의 ${item}을 모두 승인?`)) { const keys = keyStr.split(','), updates = {}; keys.forEach(k => { updates['orders/' + k + '/status'] = '완료'; }); db.ref().update(updates).then(() => alert("완료!")); } }
+                window.approveUserAll = function(keyStr, user) {
+            if(confirm(`${user} 용사의 모든 사용 요청을 승인하시겠습니까?`)) {
+                const keys = keyStr.split(',');
+                const updates = {};
+                keys.forEach(k => { updates['orders/' + k + '/status'] = '완료'; });
+                db.ref().update(updates).then(() => alert("✅ 일괄 승인 완료!"));
+            }
+        };
         function addScore(n, p, e, r) {
     const studentName = n.trim(); // 이름 공백 철저히 제거
     db.ref('users/' + studentName).once('value', sn => {
