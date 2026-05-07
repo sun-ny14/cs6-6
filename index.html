@@ -239,7 +239,8 @@ function generateNewLayout() {
     });
 }
         function startApp() {
-            if (isHelper) { const orderMgr = document.getElementById('admin-order-mgr'); if (orderMgr) orderMgr.style.display = 'block'; }
+            // [수정 완료] 관리자(isAdmin)이거나 총사령관이거나 도우미(isHelper)인 경우 모두 승인창 노출
+            if (isAdmin || isHelper || myName === "총사령관") { const orderMgr = document.getElementById('admin-order-mgr'); if (orderMgr) orderMgr.style.display = 'block'; }
             
             db.ref('settings').on('value', snap => {
                 const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
