@@ -110,24 +110,24 @@
 
         <div id="seat-map-container" style="display:grid; gap:12px; width:100%; background:#f1f1f1; padding:15px; border-radius:15px; border: 1px solid #ddd;"></div>
     </div>
-</section> <section id="tab-budget" class="tab-content" style="display:none; padding:20px;">
+</section> <section id="tab-budget" class="tab-content">
     <div style="background:white; padding:20px; border-radius:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
         <h2 style="margin-top:0;">💵 학급운영비 현황</h2>
         <div id="budget-summary" style="font-size:1.2rem; margin-bottom:20px; padding:15px; background:var(--gold); border-radius:12px; font-weight:bold;">
             잔액 계산 중...
         </div>
         
-        <button onclick="openAddBudgetPopup()" style="width:100%; background:var(--primary); color:white; margin-bottom:15px;">+ 내역 추가하기</button>
+        <button onclick="openAddBudgetPopup()" style="width:100%; background:var(--primary); color:white; margin-bottom:15px; padding:15px; font-size:1.1rem; font-weight:bold; border-radius:10px; border:none;">+ 내역 추가하기</button>
         
         <div style="overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; min-width:500px;">
+            <table style="width:100%; border-collapse:collapse; min-width:500px; text-align:center;">
                 <thead>
-                    <tr style="border-bottom:2px solid #eee; text-align:left;">
-                        <th style="padding:10px;">날짜</th>
-                        <th style="padding:10px;">쇼핑몰/처</th>
-                        <th style="padding:10px;">용도</th>
-                        <th style="padding:10px;">금액</th>
-                        <th style="padding:10px;">관리</th>
+                    <tr style="border-bottom:2px solid #eee; background:#f8f9fa;">
+                        <th style="padding:15px 10px;">날짜</th>
+                        <th style="padding:15px 10px;">쇼핑몰/처</th>
+                        <th style="padding:15px 10px;">용도</th>
+                        <th style="padding:15px 10px;">금액</th>
+                        <th style="padding:15px 10px;">관리</th>
                     </tr>
                 </thead>
                 <tbody id="budget-list">
