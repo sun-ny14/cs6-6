@@ -426,6 +426,7 @@ function generateNewLayout() {
         document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "비었음"; // 💡 꼭 추가!
         const adminOrderEl = document.getElementById('order-list');
         if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
+        }); // 👈 [추가됨] db.ref('orders') 감시 로직을 닫아주는 괄호 세트입니다!
 
     // 💡 [여기가 핵심 수정 부분입니다!] startApp 함수가 끝나기 바로 직전에 운영비 초기화 함수를 실행합니다.
     initBudgetManager(); 
