@@ -375,7 +375,7 @@ function generateNewLayout() {
             window.shopData.forEach(s => { shopMap[s.val().name] = s.val(); });
         }
 
-        // 학생용 출력 (품절 여부에 따라 버튼 다르게 표시)
+       // 학생용 출력 (품절 여부에 따라 버튼 다르게 표시)
         for (let item in myUnused) {
             const orderKey = myUnused[item][0]; // 가장 먼저 산 1개의 키값
             const shopItem = shopMap[item] || {};
@@ -394,12 +394,19 @@ function generateNewLayout() {
                        </div>`;
             }
         }
+
+        // 💡 [복구된 부분] 사용을 눌러 대기중인 목록 표시
+        for (let item in myWaiting) {
+            wH += `<div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>${item} <b>x${myWaiting[item]}</b></span>
+                    <span style="color:#95a5a6; font-size:0.9rem; font-weight:bold;">⏳ 승인 대기중</span>
+                   </div>`;
+        }
         
         for (let user in adminWaiting) {
             let userKeys = [];
             let individualListH = "";
             for (let item in adminWaiting[user]) {
-                // 각 물품의 요청 건수만큼 개별 버튼 생성
                 adminWaiting[user][item].forEach(key => {
                     userKeys.push(key);
                     individualListH += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; padding:8px; background:white; border-radius:8px; border:1px solid #ddd;">
@@ -414,10 +421,11 @@ function generateNewLayout() {
                         <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:var(--red); color:white; width:100%; margin-top:10px; padding:10px; border:none; border-radius:8px; font-weight:bold; font-size:1rem;">이 용사의 요청 일괄 승인</button>
                       </div>`;
         }
+        
         document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음";
+        document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "비었음"; // 💡 꼭 추가!
         const adminOrderEl = document.getElementById('order-list');
         if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
-    });
 
     // 💡 [여기가 핵심 수정 부분입니다!] startApp 함수가 끝나기 바로 직전에 운영비 초기화 함수를 실행합니다.
     initBudgetManager(); 
@@ -431,9 +439,9 @@ window.openAddShopPopup = function() {
     openPopup("물품 추가", h); 
 };
 window.saveNewItem = function() { 
-    const n=document.getElementById('add-item-name').value, p=parseInt(document.getElementById('add-item-price').value), l=parseInt(document.getElementById('add-item-limit').value), c=document.getElementById('add-item-cat').value; 
-    if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}).then(()=>{alert("등록됨");closePopup();}); 
-};
+            const n=document.getElementById('add-item-name').value, p=parseInt(document.getElementById('add-item-price').value), l=parseInt(document.getElementById('add-item-limit').value) || 0, c=document.getElementById('add-item-cat').value; 
+            if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}).then(()=>{alert("등록됨");closePopup();}); 
+        };
 window.openEditShopPopup = function(key) {
             db.ref('shop/' + key).once('value', snap => {
                 const i = snap.val(); if(!i) return;
@@ -454,7 +462,7 @@ window.openEditShopPopup = function(key) {
             });
         };
         window.saveEditShop = function(k) { 
-            const n=document.getElementById('edit-shop-name').value, p=parseInt(document.getElementById('edit-shop-price').value), l=parseInt(document.getElementById('edit-shop-limit').value), c=document.getElementById('edit-shop-cat').value, s=document.getElementById('edit-shop-soldout').checked; 
+            const n=document.getElementById('edit-shop-name').value, p=parseInt(document.getElementById('edit-shop-price').value), l=parseInt(document.getElementById('edit-shop-limit').value) || 0, c=document.getElementById('edit-shop-cat').value, s=document.getElementById('edit-shop-soldout').checked; 
             db.ref('shop/'+k).update({name:n, price:p, limit:l, cat:c, isSoldOut:s}).then(()=>{alert("수정됨");closePopup();}); 
         };
 window.deleteShopItem = function(k) { if(confirm("삭제?")) db.ref('shop/'+k).remove().then(()=>{alert("삭제됨");closePopup();}); };
@@ -466,23 +474,21 @@ function openUserHistory(un) {
     });
 }
 
-async function buyItem(k, n, p, l) {
+window.buyItem = async function(k, n, p, l) {
             const sn = await db.ref('users/'+myName).once('value');
             if((sn.val().points||0) < p) return alert("포인트 부족!");
 
-            // 💡 추가된 부분: 구매 제한 개수 확인 로직
+            // 구매 제한 개수 확인 로직
             if (l > 0) {
                 const ordersSnap = await db.ref('orders').once('value');
                 let count = 0;
                 ordersSnap.forEach(child => {
                     const o = child.val();
-                    // 내 이름으로 된 주문 중, 현재 사려는 물건(n)과 이름이 같은 주문의 개수를 셉니다.
                     if (o.user === myName && o.item === n) {
                         count++;
                     }
                 });
                 
-                // 제한 개수 이상 이미 구매했다면 막습니다.
                 if (count >= l) {
                     return alert(`🚫 구매 불가! 이 보급품은 1인당 최대 ${l}개까지만 구매할 수 있습니다.`);
                 }
@@ -494,7 +500,7 @@ async function buyItem(k, n, p, l) {
                     alert("✅ 구매 완료!"); 
                 }); 
             }
-        }
+        };
 
 auth.onAuthStateChanged(user => {
     if (user) {
