@@ -321,14 +321,18 @@ function generateNewLayout() {
                 const i = c.val(); if (currentShopCat !== "전체" && i.cat !== currentShopCat) return; 
                 const limitText = (i.limit && i.limit > 0) ? `<br><small style="color:var(--red); font-weight:bold;">(1인당 ${i.limit}개 제한)</small>` : ""; 
                 
-                // [복구] 관리용 버튼 세트
-                itemH += `<div class="list-item">
-                            <span>[${i.cat||'✨'}] <b>${i.name}</b> (${i.price}P)${limitText}</span>
-                            <div style="display:flex; gap:8px;">
-                                <button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 18px;">구매</button>
-                                ${isAdmin ? `<button onclick="openEditShopPopup('${c.key}')" style="width:auto; padding:10px 18px; background:var(--dark); color:white;">관리</button>` : ''}
-                            </div>
-                          </div>`; 
+               // 품절 여부에 따른 버튼 분기
+                        const buyBtn = i.isSoldOut
+                            ? `<button disabled style="width:auto; padding:10px 18px; background:#95a5a6; color:white; cursor:not-allowed;">🚫 품절</button>`
+                            : `<button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 18px;">구매</button>`;
+
+                        itemH += `<div class="list-item">
+                                    <span>[${i.cat||'✨'}] <b style="${i.isSoldOut ? 'text-decoration:line-through; color:#999;' : ''}">${i.name}</b> (${i.price}P)${limitText}</span>
+                                    <div style="display:flex; gap:8px;">
+                                        ${buyBtn}
+                                        ${isAdmin ? `<button onclick="openEditShopPopup('${c.key}')" style="width:auto; padding:10px 18px; background:var(--dark); color:white;">관리</button>` : ''}
+                                    </div>
+                                  </div>`;
             }); 
             document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "물품 없음"); 
         };
@@ -365,8 +369,30 @@ function generateNewLayout() {
         });
 
         // 학생용 출력 
+        // 상점 데이터 기반으로 품절 여부 확인용 맵 생성
+        let shopMap = {};
+        if (window.shopData) {
+            window.shopData.forEach(s => { shopMap[s.val().name] = s.val(); });
+        }
+
+        // 학생용 출력 (품절 여부에 따라 버튼 다르게 표시)
         for (let item in myUnused) {
-            uH += `<div class="list-item"><span>${item} <b>x${myUnused[item].length}</b></span><button onclick="if(confirm('${item} 사용?')) db.ref('orders/${myUnused[item][0]}').update({status:'사용요청'})">사용</button></div>`;
+            const orderKey = myUnused[item][0]; // 가장 먼저 산 1개의 키값
+            const shopItem = shopMap[item] || {};
+            const isSoldOut = shopItem.isSoldOut === true;
+            
+            if (isSoldOut) {
+                const price = shopItem.price || 0;
+                uH += `<div class="list-item" style="display:flex; align-items:center; justify-content:space-between; background:#fff5f5; border-left:4px solid var(--red);">
+                        <span><del>${item}</del> <b style="color:var(--red);">(품절)</b> <b>x${myUnused[item].length}</b></span>
+                        <button onclick="refundItem('${orderKey}', '${item}', ${price})" style="padding:8px 12px; background:var(--red); color:white; border-radius:8px; border:none; font-weight:bold;">${price}P 환불</button>
+                       </div>`;
+            } else {
+                uH += `<div class="list-item" style="display:flex; align-items:center; justify-content:space-between;">
+                        <span>${item} <b>x${myUnused[item].length}</b></span>
+                        <button onclick="if(confirm('${item} 사용?')) db.ref('orders/${orderKey}').update({status:'사용요청'})" style="padding:8px 12px; background:var(--primary); color:white; border-radius:8px; border:none; font-weight:bold;">사용</button>
+                       </div>`;
+            }
         }
         
         // 관리자/도우미용 출력 (묶음 승인)
@@ -402,15 +428,28 @@ window.saveNewItem = function() {
     if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}).then(()=>{alert("등록됨");closePopup();}); 
 };
 window.openEditShopPopup = function(key) {
-    db.ref('shop/' + key).once('value', snap => {
-        const i = snap.val(); if(!i) return;
-        let h = `<h3>🛍️ 물품 수정</h3>상품명: <input type="text" id="edit-shop-name" value="${i.name}">가격: <input type="number" id="edit-shop-price" value="${i.price}">제한: <input type="number" id="edit-shop-limit" value="${i.limit || 0}">
-                카테고리: <select id="edit-shop-cat"><option value="🍕 먹거리" ${i.cat==='🍕 먹거리'?'selected':''}>🍕 먹거리</option><option value="🎫 쿠폰" ${i.cat==='🎫 쿠폰'?'selected':''}>🎫 쿠폰</option><option value="🎲 뽑기" ${i.cat==='🎲 뽑기'?'selected':''}>🎲 뽑기</option><option value="✏️ 학용품" ${i.cat==='✏️ 학용품'?'selected':''}>✏️ 학용품</option><option value="✨ 기타" ${i.cat==='✨ 기타'?'selected':''}>✨ 기타</option></select>
-                <button onclick="saveEditShop('${key}')" style="background:var(--primary); color:white;">저장</button><button onclick="deleteShopItem('${key}')" style="background:var(--red); color:white;">삭제</button>`;
-        openPopup("보급품 관리", h);
-    });
-};
-window.saveEditShop = function(k) { const n=document.getElementById('edit-shop-name').value, p=parseInt(document.getElementById('edit-shop-price').value), l=parseInt(document.getElementById('edit-shop-limit').value), c=document.getElementById('edit-shop-cat').value; db.ref('shop/'+k).update({name:n, price:p, limit:l, cat:c}).then(()=>{alert("수정됨");closePopup();}); };
+            db.ref('shop/' + key).once('value', snap => {
+                const i = snap.val(); if(!i) return;
+                let h = `<h3>🛍️ 물품 수정</h3>
+                        상품명: <input type="text" id="edit-shop-name" value="${i.name}"><br>
+                        가격: <input type="number" id="edit-shop-price" value="${i.price}"><br>
+                        제한: <input type="number" id="edit-shop-limit" value="${i.limit || 0}"><br>
+                        상태: <label style="display:block; margin:10px 0; padding:10px; background:#fff5f5; border:1px solid #ffcccc; border-radius:8px;">
+                                <input type="checkbox" id="edit-shop-soldout" ${i.isSoldOut ? 'checked' : ''} style="transform:scale(1.5); margin-right:10px;">
+                                <b>🚫 품절 처리 (학생 사용 불가 및 환불 활성화)</b>
+                              </label>
+                        카테고리: <select id="edit-shop-cat"><option value="🍕 먹거리" ${i.cat==='🍕 먹거리'?'selected':''}>🍕 먹거리</option><option value="🎫 쿠폰" ${i.cat==='🎫 쿠폰'?'selected':''}>🎫 쿠폰</option><option value="🎲 뽑기" ${i.cat==='🎲 뽑기'?'selected':''}>🎲 뽑기</option><option value="✏️ 학용품" ${i.cat==='✏️ 학용품'?'selected':''}>✏️ 학용품</option><option value="✨ 기타" ${i.cat==='✨ 기타'?'selected':''}>✨ 기타</option></select>
+                        <div style="display:flex; gap:10px; margin-top:15px;">
+                            <button onclick="saveEditShop('${key}')" style="flex:1; background:var(--primary); color:white;">저장</button>
+                            <button onclick="deleteShopItem('${key}')" style="flex:1; background:var(--red); color:white;">삭제</button>
+                        </div>`;
+                openPopup("보급품 관리", h);
+            });
+        };
+        window.saveEditShop = function(k) { 
+            const n=document.getElementById('edit-shop-name').value, p=parseInt(document.getElementById('edit-shop-price').value), l=parseInt(document.getElementById('edit-shop-limit').value), c=document.getElementById('edit-shop-cat').value, s=document.getElementById('edit-shop-soldout').checked; 
+            db.ref('shop/'+k).update({name:n, price:p, limit:l, cat:c, isSoldOut:s}).then(()=>{alert("수정됨");closePopup();}); 
+        };
 window.deleteShopItem = function(k) { if(confirm("삭제?")) db.ref('shop/'+k).remove().then(()=>{alert("삭제됨");closePopup();}); };
 function openUserHistory(un) {
     db.ref('users/' + un).once('value', sn => {
@@ -1222,7 +1261,13 @@ function saveExclusionsByDay() {
         generateNewLayout(); // 즉시 화면에 파란색 반영
     });
 }
-       
+       window.refundItem = async function(orderKey, itemName, price) {
+    if(!confirm(`[품절 안내] ${itemName} 물품은 현재 품절되었습니다.\n${price}P를 환불받으시겠습니까?`)) return;
+    
+    addScore(myName, price, 0, `[품절] ${itemName} 환불`);
+    await db.ref('orders/' + orderKey).remove();
+    alert(`✅ ${price}P 환불이 완료되었습니다! (연대기 확인 가능)`);
+};
     </script>
 </body>
 </html>
