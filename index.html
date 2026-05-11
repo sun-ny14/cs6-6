@@ -421,10 +421,34 @@ function openUserHistory(un) {
 }
 
 async function buyItem(k, n, p, l) {
-    const sn = await db.ref('users/'+myName).once('value');
-    if((sn.val().points||0) < p) return alert("포인트 부족!");
-    if(confirm(`[${n}]을 구매하시겠습니까?`)) { db.ref('orders').push({ user: myName, item: n, status: '대기', time: new Date().toLocaleString() }).then(() => { addScore(myName, -p, 0, `${n} 구매`); alert("✅ 구매 완료!"); }); }
-}
+            const sn = await db.ref('users/'+myName).once('value');
+            if((sn.val().points||0) < p) return alert("포인트 부족!");
+
+            // 💡 추가된 부분: 구매 제한 개수 확인 로직
+            if (l > 0) {
+                const ordersSnap = await db.ref('orders').once('value');
+                let count = 0;
+                ordersSnap.forEach(child => {
+                    const o = child.val();
+                    // 내 이름으로 된 주문 중, 현재 사려는 물건(n)과 이름이 같은 주문의 개수를 셉니다.
+                    if (o.user === myName && o.item === n) {
+                        count++;
+                    }
+                });
+                
+                // 제한 개수 이상 이미 구매했다면 막습니다.
+                if (count >= l) {
+                    return alert(`🚫 구매 불가! 이 보급품은 1인당 최대 ${l}개까지만 구매할 수 있습니다.`);
+                }
+            }
+
+            if(confirm(`[${n}]을 구매하시겠습니까?`)) { 
+                db.ref('orders').push({ user: myName, item: n, status: '대기', time: new Date().toLocaleString() }).then(() => { 
+                    addScore(myName, -p, 0, `${n} 구매`); 
+                    alert("✅ 구매 완료!"); 
+                }); 
+            }
+        }
 
 auth.onAuthStateChanged(user => {
     if (user) {
