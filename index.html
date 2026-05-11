@@ -395,16 +395,23 @@ function generateNewLayout() {
             }
         }
         
-        // 관리자/도우미용 출력 (묶음 승인)
         for (let user in adminWaiting) {
-            let items = []; let keys = [];
+            let userKeys = [];
+            let individualListH = "";
             for (let item in adminWaiting[user]) {
-                items.push(`${item} x${adminWaiting[user][item].length}`);
-                keys = keys.concat(adminWaiting[user][item]);
+                // 각 물품의 요청 건수만큼 개별 버튼 생성
+                adminWaiting[user][item].forEach(key => {
+                    userKeys.push(key);
+                    individualListH += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; padding:8px; background:white; border-radius:8px; border:1px solid #ddd;">
+                                            <span>👉 <b>${item}</b> 1개</span>
+                                            <button onclick="approveSingleItem('${key}', '${user}', '${item}')" style="padding:6px 12px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:bold;">개별 승인</button>
+                                        </div>`;
+                });
             }
-            adminH += `<div class="list-item" style="border-left:5px solid var(--red); display:block; background:#fff5f5;">
-                        <b>${user}</b>: ${items.join(', ')} 
-                        <button onclick="approveUserAll('${keys.join(',')}', '${user}')" style="background:var(--red); color:white; width:100%; margin-top:5px;">일괄 승인</button>
+            adminH += `<div class="list-item" style="border-left:5px solid var(--red); display:block; background:#fff5f5; padding:12px; margin-bottom:10px; border-radius:8px;">
+                        <div style="font-size:1.1rem; font-weight:bold; margin-bottom:8px; color:var(--dark);">🧑‍🎓 ${user} 용사의 사용 요청</div>
+                        ${individualListH}
+                        <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:var(--red); color:white; width:100%; margin-top:10px; padding:10px; border:none; border-radius:8px; font-weight:bold; font-size:1rem;">이 용사의 요청 일괄 승인</button>
                       </div>`;
         }
         document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음";
@@ -1267,6 +1274,12 @@ function saveExclusionsByDay() {
     addScore(myName, price, 0, `[품절] ${itemName} 환불`);
     await db.ref('orders/' + orderKey).remove();
     alert(`✅ ${price}P 환불이 완료되었습니다! (연대기 확인 가능)`);
+};
+        window.approveSingleItem = function(key, user, item) {
+    if(confirm(`${user} 용사의 [${item}] 1개를 승인하시겠습니까?`)) {
+        db.ref('orders/' + key).update({status: '완료'})
+          .then(() => alert("✅ 개별 승인 완료!"));
+    }
 };
     </script>
 </body>
