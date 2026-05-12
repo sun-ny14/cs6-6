@@ -370,33 +370,35 @@ function generateNewLayout() {
         };
         window.filterShop = function(cat) { currentShopCat = cat; renderShop(); }; renderShop();
     });
-
+// 도감 목록 불러오기 및 화면에 그리기
     db.ref('pointGuide').on('value', snap => { 
-        let h = "", addH = isAdmin ? `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px; width:100%; border:none; padding:15px; border-radius:12px; font-size:1.1rem;">+ 새 도감 기준 등록</button>` : "";
+        let h = "", addH = isAdmin ? `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:20px; width:100%; border:none; padding:20px; border-radius:12px; font-size:1.3rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 도감 기준 등록</button>` : "";
+        
         snap.forEach(c => { 
             const g = c.val(); 
-            // 삭제 버튼: 누를 때 일괄 지급 창이 뜨는 것(버블링)을 막고 삭제 함수만 실행
-            const delBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteGuideItem('${c.key}')" style="position:absolute; top:5px; right:5px; background:var(--red); color:white; border:none; border-radius:5px; padding:5px 10px; font-size:0.9rem; cursor:pointer;">X</button>` : "";
+            // 삭제 버튼을 하단에 큼직하고 빨갛게 배치 (클릭 버블링 방지 포함)
+            const delBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteGuideItem('${c.key}')" style="margin-top:15px; width:100%; background:var(--red); color:white; border:none; border-radius:10px; padding:12px; font-size:1.2rem; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🗑️ 삭제</button>` : "";
             
-            h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})" style="position:relative;">
+            h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})" style="display:flex; flex-direction:column; justify-content:center;">
+                    <b>${g.title}</b>
+                    <span style="color:var(--primary); font-weight:800;">${g.p}P / ${g.e}E</span>
                     ${delBtn}
-                    <b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span>
                   </div>`; 
         }); 
         document.getElementById('guide-list').innerHTML = addH + h;
     });
 
-    // 도감 항목 추가 팝업 함수
+    // 도감 항목 추가 팝업
     window.openAddGuidePopup = function() {
         let h = `<h3 style="margin-top:0;">📜 새 도감 등록</h3>
                  항목명: <input type="text" id="add-guide-title" placeholder="예: 숙제 완료"><br>
                  지급 P: <input type="number" id="add-guide-p" value="0"><br>
                  지급 E: <input type="number" id="add-guide-e" value="0"><br>
-                 <button onclick="saveNewGuide()" style="background:var(--primary); color:white; margin-top:15px; padding:15px; border-radius:10px; border:none; width:100%; font-weight:bold; font-size:1.1rem;">등록하기</button>`;
+                 <button onclick="saveNewGuide()" style="background:var(--primary); color:white; margin-top:15px; padding:15px; border-radius:10px; border:none; width:100%; font-weight:bold; font-size:1.2rem; cursor:pointer;">등록하기</button>`;
         openPopup("도감 추가", h);
     };
 
-    // 도감 항목 저장 함수
+    // 도감 항목 저장
     window.saveNewGuide = function() {
         const t = document.getElementById('add-guide-title').value;
         const p = parseInt(document.getElementById('add-guide-p').value) || 0;
@@ -404,12 +406,15 @@ function generateNewLayout() {
         if(t) db.ref('pointGuide').push({title: t, p: p, e: e}).then(() => { alert("도감에 성공적으로 등록되었습니다!"); closePopup(); });
     };
 
-    // 도감 항목 삭제 함수
+    // [핵심] 도감 항목 삭제 함수 (+ 확인 창 추가)
     window.deleteGuideItem = function(key) {
-        if(confirm("이 도감 항목을 정말 삭제하시겠습니까?")) {
-            db.ref('pointGuide/' + key).remove();
+        if(confirm("정말 삭제하시겠습니까?")) {
+            db.ref('pointGuide/' + key).remove().then(() => {
+                alert("항목이 삭제되었습니다.");
+            });
         }
     };
+   
     // 6. 주문 감시 및 사용자별 일괄 승인
     db.ref('orders').on('value', snap => {
         let uH = "", wH = "", adminH = ""; 
