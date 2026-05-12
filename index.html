@@ -1381,14 +1381,29 @@ function saveExclusionsByDay() {
           .then(() => alert("✅ 개별 승인 완료!"));
     }
 };
-        // 개별 환불(거절) 처리 함수
-    window.rejectSingleItem = function(key, user, item) {
-        if(confirm(`${user} 용사의 [${item}] 요청을 환불(삭제)하시겠습니까?`)) {
-            db.ref('shopRequests/' + key).remove().then(() => {
-                alert("환불 처리가 완료되었습니다.");
-            });
-        }
-    };
+        // 개별 환불(거절) 및 포인트 복구 함수
+        window.rejectSingleItem = function(key, user, item) {
+            if(confirm(`${user} 용사의 [${item}] 요청을 거절하고 포인트를 환불하시겠습니까?`)) {
+                // 1. 상점 데이터에서 해당 물품의 원래 가격(P)을 찾아냅니다.
+                let refundP = 0;
+                if(window.shopData) {
+                    window.shopData.forEach(c => {
+                        if(c.val().name === item) {
+                            refundP = c.val().price || 0;
+                        }
+                    });
+                }
+                
+                // 2. orders(실제 대기열 DB)에서 내역을 삭제합니다.
+                db.ref('orders/' + key).remove().then(() => {
+                    // 3. 찾은 가격만큼 학생에게 포인트를 다시 돌려줍니다!
+                    if(refundP > 0) {
+                        addScore(user, refundP, 0, `[환불] ${item} 승인 거절`);
+                    }
+                    alert(`✅ 환불 완료! ${user} 용사에게 ${refundP}P가 복구되었습니다.`);
+                });
+            }
+        };
     </script>
 </body>
 </html>
