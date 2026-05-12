@@ -62,13 +62,10 @@
         <nav class="tab-menu">
     <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
     <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
-    <button id="btn-guide" style="display:none;" onclick="showTab('guide')">📜 도감</button>
     <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
     <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
-    <button id="btn-points" onclick="showTab('points')">💰 연대기</button>
-    
+    <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
     <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
-    
     <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
 </nav>
 
@@ -79,9 +76,7 @@
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 승인</h3><div id="order-list"></div></div>
         </section>
 
-        <section id="tab-guide" class="tab-content">
-            <div class="card"><h2>📜 포인트 도감</h2><div id="guide-list" class="hero-grid"></div></div>
-        </section>
+        
 
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;">
         <button id="checkin-btn" onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
@@ -137,11 +132,17 @@
     </div>
 </section>
         <section id="tab-points" class="tab-content">
+            <div class="card">
+                <h2>📜 포인트 도감 <small style="font-size:1rem; color:#666;">(클릭 시 일괄 지급)</small></h2>
+                <div id="guide-list" class="hero-grid"></div>
+            </div>
+            
             <div id="my-inventory" class="card">
                 <h3>🎁 나의 인벤토리</h3>
                 <div id="inv-unused" class="inv-section"><h4>📦 미사용 보관함</h4><div class="list"></div></div>
                 <div id="inv-waiting" class="inv-section"><h4>⏳ 사용 대기중</h4><div class="list"></div></div>
             </div>
+            
             <div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div>
         </section>
 
@@ -340,11 +341,44 @@ function generateNewLayout() {
     });
 
     db.ref('pointGuide').on('value', snap => { 
-        let h = "", addH = isAdmin ? `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px;">+ 새 도감 기준 등록</button>` : "";
-        snap.forEach(c => { const g = c.val(); h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})"><b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span></div>`; }); 
+        let h = "", addH = isAdmin ? `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px; width:100%; border:none; padding:15px; border-radius:12px; font-size:1.1rem;">+ 새 도감 기준 등록</button>` : "";
+        snap.forEach(c => { 
+            const g = c.val(); 
+            // 삭제 버튼: 누를 때 일괄 지급 창이 뜨는 것(버블링)을 막고 삭제 함수만 실행
+            const delBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteGuideItem('${c.key}')" style="position:absolute; top:5px; right:5px; background:var(--red); color:white; border:none; border-radius:5px; padding:5px 10px; font-size:0.9rem; cursor:pointer;">X</button>` : "";
+            
+            h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})" style="position:relative;">
+                    ${delBtn}
+                    <b>${g.title}</b><br><span style="color:var(--primary); font-weight:bold;">${g.p}P / ${g.e}E</span>
+                  </div>`; 
+        }); 
         document.getElementById('guide-list').innerHTML = addH + h;
     });
 
+    // 도감 항목 추가 팝업 함수
+    window.openAddGuidePopup = function() {
+        let h = `<h3 style="margin-top:0;">📜 새 도감 등록</h3>
+                 항목명: <input type="text" id="add-guide-title" placeholder="예: 숙제 완료"><br>
+                 지급 P: <input type="number" id="add-guide-p" value="0"><br>
+                 지급 E: <input type="number" id="add-guide-e" value="0"><br>
+                 <button onclick="saveNewGuide()" style="background:var(--primary); color:white; margin-top:15px; padding:15px; border-radius:10px; border:none; width:100%; font-weight:bold; font-size:1.1rem;">등록하기</button>`;
+        openPopup("도감 추가", h);
+    };
+
+    // 도감 항목 저장 함수
+    window.saveNewGuide = function() {
+        const t = document.getElementById('add-guide-title').value;
+        const p = parseInt(document.getElementById('add-guide-p').value) || 0;
+        const e = parseInt(document.getElementById('add-guide-e').value) || 0;
+        if(t) db.ref('pointGuide').push({title: t, p: p, e: e}).then(() => { alert("도감에 성공적으로 등록되었습니다!"); closePopup(); });
+    };
+
+    // 도감 항목 삭제 함수
+    window.deleteGuideItem = function(key) {
+        if(confirm("이 도감 항목을 정말 삭제하시겠습니까?")) {
+            db.ref('pointGuide/' + key).remove();
+        }
+    };
     // 6. 주문 감시 및 사용자별 일괄 승인
     db.ref('orders').on('value', snap => {
         let uH = "", wH = "", adminH = ""; 
@@ -409,17 +443,28 @@ function generateNewLayout() {
             for (let item in adminWaiting[user]) {
                 adminWaiting[user][item].forEach(key => {
                     userKeys.push(key);
-                    individualListH += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; padding:8px; background:white; border-radius:8px; border:1px solid #ddd;">
-                                            <span>👉 <b>${item}</b> 1개</span>
-                                            <button onclick="approveSingleItem('${key}', '${user}', '${item}')" style="padding:6px 12px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:bold;">개별 승인</button>
-                                        </div>`;
+                    // 개별 항목 디자인 수정
+                    individualListH += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding:10px 12px; background:#f8f9fa; border-radius:8px; border:1px solid #eee;">
+                            <span style="font-size:1rem; color:#444; font-weight:600;">👉 <b>${item}</b> <span style="color:var(--primary);">1개</span></span>
+                            <button onclick="approveSingleItem('${key}', '${user}', '${item}')" style="padding:8px 14px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">개별 승인</button>
+                        </div>`;
                 });
             }
-            adminH += `<div class="list-item" style="border-left:5px solid var(--red); display:block; background:#fff5f5; padding:12px; margin-bottom:10px; border-radius:8px;">
-                        <div style="font-size:1.1rem; font-weight:bold; margin-bottom:8px; color:var(--dark);">🧑‍🎓 ${user} 용사의 사용 요청</div>
-                        ${individualListH}
-                        <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:var(--red); color:white; width:100%; margin-top:10px; padding:10px; border:none; border-radius:8px; font-weight:bold; font-size:1rem;">이 용사의 요청 일괄 승인</button>
-                      </div>`;
+            
+            // 학생별 그룹 카드 디자인 수정 (사진과 같은 그림자 및 왼쪽 테두리 적용)
+            adminH += `
+                <div style="background:white; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); border-left:5px solid var(--primary); padding:16px; margin-bottom:15px;">
+                    <div style="font-size:1.15rem; font-weight:800; color:#333; margin-bottom:10px; display:flex; align-items:center;">
+                        🧑‍🎓 <span style="color:var(--primary); margin:0 5px;">${user}</span> 용사의 사용 요청
+                    </div>
+                    
+                    ${individualListH}
+                    
+                    <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:#333; color:white; width:100%; margin-top:12px; padding:12px; border:none; border-radius:8px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        이 용사의 요청 일괄 승인 ✨
+                    </button>
+                </div>`;
         }
         
         document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음";
@@ -519,10 +564,16 @@ auth.onAuthStateChanged(user => {
                     }
 
                     if (isAdmin) {
-                        ['btn-logs', 'btn-admin', 'btn-guide', 'btn-budget', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
+                        // 'btn-guide' 항목을 여기서 제거했습니다.
+                        ['btn-logs', 'btn-admin', 'btn-budget', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
                             const el = document.getElementById(id);
                             if (el) el.style.display = 'block';
                         });
+                        
+                        // [추가된 부분] 선생님 접속 시 첫 화면을 등교로그로 설정 (새로고침 시에는 유지됨)
+                        if (!sessionStorage.getItem('activeTab')) {
+                            currentTab = 'logs';
+                        }
                     }
                     
                     startApp(); 
