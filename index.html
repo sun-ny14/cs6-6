@@ -36,11 +36,12 @@
         /* 비활성화 버튼 스타일 (추가) */
         button:disabled { background: #bdc3c7 !important; color: #7f8c8d !important; cursor: not-allowed; }
         /* =========================================
+   /* =========================================
    도감(포인트 기준) 전용 레이아웃 추가
 ========================================= */
 #guide-list.hero-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); /* 140px에서 220px로 대폭 확대! */
+    gap: 15px;
 }
 
 /* 새 도감 등록 버튼이 한 줄을 다 차지하도록 수정 */
@@ -48,12 +49,17 @@
     grid-column: 1 / -1; 
 }
 
-/* 도감 전용 카드 디자인 (용사 카드보다 슬림하게) */
+/* 도감 전용 카드 디자인 (크고 시원하게) */
 #guide-list .hero-card {
-    padding: 15px;
+    padding: 25px 15px; /* 안쪽 여백 빵빵하게 */
     border-radius: 12px;
-    border: 1px solid #eee;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #ccc; /* 테두리도 조금 더 진하게 */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    font-size: 1.2rem; /* 전체 글자 크기 확대 */
+}
+
+#guide-list .hero-card b {
+    font-size: 1.3rem; /* 도감 항목 이름 더 크게 */
 }
 
 #guide-list .hero-card:hover {
@@ -468,28 +474,27 @@ function generateNewLayout() {
             for (let item in adminWaiting[user]) {
                 adminWaiting[user][item].forEach(key => {
                     userKeys.push(key);
-                    // 개별 항목 디자인 수정 (버튼 크기 축소 및 환불 버튼 추가)
+                    // 항목명 글자 크기(1.3rem)와 승인/환불 버튼 크기 대폭 확대!
                     individualListH += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding:10px 12px; background:#f8f9fa; border-radius:8px; border:1px solid #eee;">
-                            <span style="font-size:1rem; color:#444; font-weight:600;">👉 <b>${item}</b></span>
-                            <div style="display:flex; gap:5px;">
-                                <button onclick="approveSingleItem('${key}', '${user}', '${item}')" style="padding:5px 10px; font-size:0.85rem; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">승인</button>
-                                <button onclick="rejectSingleItem('${key}', '${user}', '${item}')" style="padding:5px 10px; font-size:0.85rem; background:var(--red); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">환불</button>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:15px; background:#f8f9fa; border-radius:8px; border:1px solid #ddd;">
+                            <span style="font-size:1.3rem; color:#222; font-weight:900;">👉 ${item}</span>
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="approveSingleItem('${key}', '${user}', '${item}')" style="padding:10px 18px; font-size:1.1rem; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">승인</button>
+                                <button onclick="rejectSingleItem('${key}', '${user}', '${item}')" style="padding:10px 18px; font-size:1.1rem; background:var(--red); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">환불</button>
                             </div>
                         </div>`;
                 });
             }
             
-            // 학생 이름 크기를 1.4rem으로 키우고 강조함
             adminH += `
                 <div style="background:white; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); border-left:6px solid var(--primary); padding:18px; margin-bottom:15px;">
-                    <div style="font-size:1.4rem; font-weight:900; color:#222; margin-bottom:12px; display:flex; align-items:center;">
-                        🧑‍🎓 <span style="color:var(--primary); margin-left:8px;">${user}</span> <span style="font-size:1rem; color:#888; margin-left:5px; font-weight:normal;">용사의 요청</span>
+                    <div style="font-size:1.5rem; font-weight:900; color:#222; margin-bottom:12px; display:flex; align-items:center;">
+                        🧑‍🎓 <span style="color:var(--primary); margin-left:8px;">${user}</span> <span style="font-size:1.1rem; color:#888; margin-left:5px; font-weight:normal;">용사의 요청</span>
                     </div>
                     
                     ${individualListH}
                     
-                    <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:#333; color:white; width:100%; margin-top:15px; padding:12px; border:none; border-radius:8px; font-weight:bold; font-size:1rem; cursor:pointer;">
+                    <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:#333; color:white; width:100%; margin-top:15px; padding:15px; border:none; border-radius:8px; font-weight:bold; font-size:1.2rem; cursor:pointer;">
                         위 항목 전체 일괄 승인 ✨
                     </button>
                 </div>`;
@@ -592,17 +597,21 @@ auth.onAuthStateChanged(user => {
                     }
 
                     if (isAdmin) {
-                        // 'btn-guide' 항목을 여기서 제거했습니다.
-                        ['btn-logs', 'btn-admin', 'btn-budget', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
-                            const el = document.getElementById(id);
-                            if (el) el.style.display = 'block';
-                        });
-                        
-                        // [추가된 부분] 선생님 접속 시 첫 화면을 등교로그로 설정 (새로고침 시에는 유지됨)
-                        if (!sessionStorage.getItem('activeTab')) {
-                            currentTab = 'logs';
-                        }
-                    }
+    // 관리자 전용 버튼들 보이기
+    ['btn-logs', 'btn-admin', 'btn-budget', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'block';
+    });
+
+    // [중요] 관리자 화면에서 '나의 인벤토리' 섹션만 콕 집어서 숨기기 (로직에 영향 없음!)
+    const myInv = document.getElementById('my-inventory');
+    if (myInv) myInv.style.display = 'none';
+
+    // 첫 접속 시 화면을 '등교로그(logs)'로 강제 고정
+    if (!sessionStorage.getItem('activeTab')) {
+        currentTab = 'logs';
+    }
+}
                     
                     startApp(); 
                     showTab(currentTab);
