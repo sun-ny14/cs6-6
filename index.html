@@ -35,6 +35,31 @@
         #floating-multi-btn { right: 120px; background: #2ecc71; color: white; }
         /* 비활성화 버튼 스타일 (추가) */
         button:disabled { background: #bdc3c7 !important; color: #7f8c8d !important; cursor: not-allowed; }
+        /* =========================================
+   도감(포인트 기준) 전용 레이아웃 추가
+========================================= */
+#guide-list.hero-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+/* 새 도감 등록 버튼이 한 줄을 다 차지하도록 수정 */
+#guide-list > button {
+    grid-column: 1 / -1; 
+}
+
+/* 도감 전용 카드 디자인 (용사 카드보다 슬림하게) */
+#guide-list .hero-card {
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #eee;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+#guide-list .hero-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary);
+}
     </style>
 </head>
 <body>
@@ -443,26 +468,29 @@ function generateNewLayout() {
             for (let item in adminWaiting[user]) {
                 adminWaiting[user][item].forEach(key => {
                     userKeys.push(key);
-                    // 개별 항목 디자인 수정
+                    // 개별 항목 디자인 수정 (버튼 크기 축소 및 환불 버튼 추가)
                     individualListH += `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding:10px 12px; background:#f8f9fa; border-radius:8px; border:1px solid #eee;">
-                            <span style="font-size:1rem; color:#444; font-weight:600;">👉 <b>${item}</b> <span style="color:var(--primary);">1개</span></span>
-                            <button onclick="approveSingleItem('${key}', '${user}', '${item}')" style="padding:8px 14px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">개별 승인</button>
+                            <span style="font-size:1rem; color:#444; font-weight:600;">👉 <b>${item}</b></span>
+                            <div style="display:flex; gap:5px;">
+                                <button onclick="approveSingleItem('${key}', '${user}', '${item}')" style="padding:5px 10px; font-size:0.85rem; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">승인</button>
+                                <button onclick="rejectSingleItem('${key}', '${user}', '${item}')" style="padding:5px 10px; font-size:0.85rem; background:var(--red); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">환불</button>
+                            </div>
                         </div>`;
                 });
             }
             
-            // 학생별 그룹 카드 디자인 수정 (사진과 같은 그림자 및 왼쪽 테두리 적용)
+            // 학생 이름 크기를 1.4rem으로 키우고 강조함
             adminH += `
-                <div style="background:white; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); border-left:5px solid var(--primary); padding:16px; margin-bottom:15px;">
-                    <div style="font-size:1.15rem; font-weight:800; color:#333; margin-bottom:10px; display:flex; align-items:center;">
-                        🧑‍🎓 <span style="color:var(--primary); margin:0 5px;">${user}</span> 용사의 사용 요청
+                <div style="background:white; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); border-left:6px solid var(--primary); padding:18px; margin-bottom:15px;">
+                    <div style="font-size:1.4rem; font-weight:900; color:#222; margin-bottom:12px; display:flex; align-items:center;">
+                        🧑‍🎓 <span style="color:var(--primary); margin-left:8px;">${user}</span> <span style="font-size:1rem; color:#888; margin-left:5px; font-weight:normal;">용사의 요청</span>
                     </div>
                     
                     ${individualListH}
                     
-                    <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:#333; color:white; width:100%; margin-top:12px; padding:12px; border:none; border-radius:8px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                        이 용사의 요청 일괄 승인 ✨
+                    <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:#333; color:white; width:100%; margin-top:15px; padding:12px; border:none; border-radius:8px; font-weight:bold; font-size:1rem; cursor:pointer;">
+                        위 항목 전체 일괄 승인 ✨
                     </button>
                 </div>`;
         }
@@ -1339,6 +1367,14 @@ function saveExclusionsByDay() {
           .then(() => alert("✅ 개별 승인 완료!"));
     }
 };
+        // 개별 환불(거절) 처리 함수
+    window.rejectSingleItem = function(key, user, item) {
+        if(confirm(`${user} 용사의 [${item}] 요청을 환불(삭제)하시겠습니까?`)) {
+            db.ref('shopRequests/' + key).remove().then(() => {
+                alert("환불 처리가 완료되었습니다.");
+            });
+        }
+    };
     </script>
 </body>
 </html>
