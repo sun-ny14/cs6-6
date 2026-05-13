@@ -372,20 +372,17 @@ function generateNewLayout() {
     });
 // 도감 목록 불러오기 및 화면에 그리기
     db.ref('pointGuide').on('value', snap => { 
-        // 🚨 [초강력 차단] 학생 계정일 경우 도감 탭 자체를 눈앞에서 삭제합니다!
+        // 🚨 [정상화 완료] 학생 계정일 경우: 탭은 놔두고 '포인트 도감' 박스만 쏙 숨깁니다!
         if (!isAdmin) {
-            // 1. 도감을 여는 탭 메뉴 버튼 숨기기 (onclick 속성에 'tab-points'가 포함된 버튼 강제 삭제)
-            document.querySelectorAll('[onclick*="tab-points"]').forEach(el => {
-                el.style.display = 'none';
-            });
-            // 2. 화면 내용 자체를 숨김
-            const pointTab = document.getElementById('tab-points');
-            if (pointTab) pointTab.style.display = 'none';
-            
-            return; // 💥 여기서 멈춤! 학생은 도감 데이터를 아예 읽지도 못합니다.
+            const guideListEl = document.getElementById('guide-list');
+            if (guideListEl && guideListEl.parentElement) {
+                // guide-list를 감싸고 있는 카드(박스) 전체를 숨김 처리
+                guideListEl.parentElement.style.display = 'none'; 
+            }
+            return; // 학생은 여기서 데이터 읽기 중단! (인벤토리랑 연대기는 정상적으로 보임)
         }
 
-        // --- 👇 아래는 오직 '관리자(선생님)'만 볼 수 있는 구역입니다 👇 ---
+        // --- 👇 아래는 관리자(선생님) 전용 화면 👇 ---
         let h = "", addH = `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:20px; width:100%; border:none; padding:20px; border-radius:12px; font-size:1.3rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 도감 기준 등록</button>`;
         
         const guideTitle = document.querySelector('#tab-points h2');
@@ -403,9 +400,13 @@ function generateNewLayout() {
                     ${delBtn}
                   </div>`; 
         }); 
-        document.getElementById('guide-list').innerHTML = addH + h;
+        
+        const guideListEl = document.getElementById('guide-list');
+        if(guideListEl) {
+            guideListEl.parentElement.style.display = 'block'; // 관리자는 무조건 보이게 확정!
+            guideListEl.innerHTML = addH + h;
+        }
     });
-
     // 도감 항목 추가 팝업
     window.openAddGuidePopup = function() {
         let h = `<h3 style="margin-top:0;">📜 새 도감 등록</h3>
