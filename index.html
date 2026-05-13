@@ -372,14 +372,32 @@ function generateNewLayout() {
     });
 // 도감 목록 불러오기 및 화면에 그리기
     db.ref('pointGuide').on('value', snap => { 
-        let h = "", addH = isAdmin ? `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:20px; width:100%; border:none; padding:20px; border-radius:12px; font-size:1.3rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 도감 기준 등록</button>` : "";
+        // 🚨 [초강력 차단] 학생 계정일 경우 도감 탭 자체를 눈앞에서 삭제합니다!
+        if (!isAdmin) {
+            // 1. 도감을 여는 탭 메뉴 버튼 숨기기 (onclick 속성에 'tab-points'가 포함된 버튼 강제 삭제)
+            document.querySelectorAll('[onclick*="tab-points"]').forEach(el => {
+                el.style.display = 'none';
+            });
+            // 2. 화면 내용 자체를 숨김
+            const pointTab = document.getElementById('tab-points');
+            if (pointTab) pointTab.style.display = 'none';
+            
+            return; // 💥 여기서 멈춤! 학생은 도감 데이터를 아예 읽지도 못합니다.
+        }
+
+        // --- 👇 아래는 오직 '관리자(선생님)'만 볼 수 있는 구역입니다 👇 ---
+        let h = "", addH = `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:20px; width:100%; border:none; padding:20px; border-radius:12px; font-size:1.3rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 도감 기준 등록</button>`;
+        
+        const guideTitle = document.querySelector('#tab-points h2');
+        if (guideTitle) {
+            guideTitle.innerHTML = `📜 포인트 도감 <small style="font-size:1rem; color:#666;">(클릭 시 일괄 지급)</small>`;
+        }
         
         snap.forEach(c => { 
             const g = c.val(); 
-            // 삭제 버튼을 하단에 큼직하고 빨갛게 배치 (클릭 버블링 방지 포함)
-            const delBtn = isAdmin ? `<button onclick="event.stopPropagation(); deleteGuideItem('${c.key}')" style="margin-top:15px; width:100%; background:var(--red); color:white; border:none; border-radius:10px; padding:12px; font-size:1.2rem; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🗑️ 삭제</button>` : "";
+            const delBtn = `<button onclick="event.stopPropagation(); deleteGuideItem('${c.key}')" style="margin-top:15px; width:100%; background:var(--red); color:white; border:none; border-radius:10px; padding:12px; font-size:1.2rem; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🗑️ 삭제</button>`;
             
-            h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})" style="display:flex; flex-direction:column; justify-content:center;">
+            h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})" style="display:flex; flex-direction:column; justify-content:center; cursor:pointer;">
                     <b>${g.title}</b>
                     <span style="color:var(--primary); font-weight:800;">${g.p}P / ${g.e}E</span>
                     ${delBtn}
