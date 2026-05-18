@@ -112,7 +112,29 @@
         <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;">
         <button id="checkin-btn" onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
         
-     <section id="tab-logs" class="tab-content">
+    <div id="checkin-settings-box" style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #e9ecef; display: none;">
+    <h3 style="margin-top:0; color: #333; font-size: 1.2rem;">⚙️ 등교 출석 관리 (선생님 전용)</h3>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        
+        <button onclick="generateRandomPassword()" style="background: var(--primary, #4361ee); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            🎲 내일 암호(난수) 발급
+        </button>
+        
+        <span style="color: #666; margin-left: 10px;">현재 암호:</span>
+        <input type="text" id="setting-pw" placeholder="암호" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 90px; text-align: center; font-weight: bold;">
+        
+        <span style="color: #666; margin-left: 10px;">지각 기준:</span>
+        <input type="time" id="setting-time" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
+        
+        <button onclick="saveSettings()" style="background: var(--dark, #333); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+            수동 저장
+        </button>
+    </div>
+    <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #888;">
+        💡 등교 마감 후 버튼을 눌러 내일 암호를 생성하고 퇴근 전 칠판 구석에 적어주세요!
+    </p>
+</div>
+
     <div class="card">
         <div style="background: #eef2f7; padding: 20px; border-radius: 15px; margin-bottom: 20px; text-align: center; border: 2px solid var(--primary);">
             <label for="checkin-date-filter" style="display: block; font-weight: bold; font-size: 1.4rem; margin-bottom: 10px; color: var(--dark);">📅 등교 조회 날짜</label>
@@ -621,6 +643,9 @@ auth.onAuthStateChanged(user => {
                     }
 
                     if (isAdmin) {
+                        // 💡 [추가] 선생님 계정일 때만 등교 탭의 설정 박스를 보여줍니다.
+    const settingsBox = document.getElementById('checkin-settings-box');
+    if (settingsBox) settingsBox.style.display = 'block';
     // 관리자 전용 버튼들 보이기
     ['btn-logs', 'btn-admin', 'btn-budget', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
         const el = document.getElementById(id);
@@ -1423,6 +1448,22 @@ function saveExclusionsByDay() {
                 });
             }
         };
+        // 🎲 새로운 난수 암호 발급 함수 (JS 맨 아래에 추가)
+function generateRandomPassword() {
+    if(!confirm("내일 사용할 4자리 랜덤 암호를 발급하시겠습니까?")) return;
+    
+    const randomPw = Math.floor(1000 + Math.random() * 9000).toString(); 
+    const pwInput = document.getElementById('setting-pw'); 
+    if(pwInput) pwInput.value = randomPw;
+    
+    // ⚠️ 기존에 사용하시던 파이어베이스 암호 저장 경로가 맞는지 확인해주세요!
+    db.ref('settings/pw').set(randomPw).then(() => {
+        alert(`✅ 암호 발급 완료!\n\n내일의 등교 암호는 [ ${randomPw} ] 입니다.\n퇴근 전 칠판 구석에 적어주세요!`);
+    }).catch(err => {
+        alert("암호 저장 중 오류가 발생했습니다.");
+        console.error(err);
+    });
+}
     </script>
 </body>
 </html>
