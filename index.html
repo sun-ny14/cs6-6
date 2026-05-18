@@ -103,7 +103,7 @@
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 승인</h3><div id="order-list"></div></div>
         </section>
 
-        <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;">
+        <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="number" id="checkin-pass" placeholder="오늘의 등교 암호 4자리 입력" style="text-align:center;">
         <button id="checkin-btn" onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
         
         <section id="tab-logs" class="tab-content">
@@ -176,7 +176,12 @@
 
         <section id="tab-admin" class="tab-content">
             <div class="card"><h3>👥 명단 관리 (번호/도우미)</h3><div id="student-admin-list"></div></div>
-            <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 
+            <div class="card"><h3>⚙️ 시스템 설정</h3>
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                    암호:<input type="text" id="conf-pass" style="flex:1;">
+                    <button onclick="generateRandomPassword()" style="background:#ff9800; color:white; width:auto; padding:15px; font-weight:bold; border-radius:12px; border:none;">🎲 난수 비번 자동 생성</button>
+                </div>
+                지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 
                 루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveSettings()">시스템 저장</button></div>
             <div class="card"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4"></textarea><button onclick="saveGifts()">보상 저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
@@ -205,22 +210,16 @@
             else { if(login) login.style.display = 'flex'; if(app) app.style.display = 'none'; }
         }
 
-        // 🤺 용사들 탭 프로필 이미지 복구 함수
         function getAvatar(lv, selectedAnimal) {
-            // 선생님이 새로 알려주신 PNG 이미지 주소 적용
             const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true"; 
-
             const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
             
-            // 현재 레벨이나 선택 동물에 따른 인덱스(0~19) 계산
             const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
             const index = animals.indexOf(name) === -1 ? 0 : animals.indexOf(name);
             
-            // 5x4 격자 좌표 (편집하신 이미지의 격자선에 딱 맞춤)
             const col = index % 5;
             const row = Math.floor(index / 5);
             
-            // 격자가 명확하므로 25%와 33.33% 단위로 정확히 끊어줍니다.
             const posX = col * 25; 
             const posY = row * 33.33; 
 
@@ -234,7 +233,7 @@
                     background-position: ${posX}% ${posY}%; 
                     background-repeat: no-repeat;
                     image-rendering: pixelated;
-                    transform: scale(1.15); /* 격자 검은 선이 안 보이도록 살짝 확대 */
+                    transform: scale(1.15);
                     transform-origin: center;
                 "></div>
             </div>`;
@@ -284,26 +283,20 @@
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         function closeMultiPopup() { document.getElementById('multi-popup').style.display='none'; }
         
-        // [최종 통합] 배치도 데이터 로드 및 실행 함수
         function generateNewLayout() {
-            // 1. DB에서 저장된 데이터를 가져옴
             db.ref('seatLayoutData').once('value', snap => {
                 const savedData = snap.val();
                 
                 if (savedData && savedData.layout) {
-                    // 저장된 데이터가 있으면 전역 변수에 복사
                     currentLayout = savedData.layout;
-                    
                     const rows = savedData.config.rows;
                     const cols = savedData.config.cols;
                     
                     document.getElementById('seat-rows').value = rows;
                     document.getElementById('seat-cols').value = cols;
                     
-                    // 데이터 확인 후 화면 그리기
                     renderSeatMap(rows, cols);
                 } else {
-                    // 저장된 데이터가 아예 없는 초기 상태라면 빈 판을 그림
                     const rows = document.getElementById('seat-rows').value || 6;
                     const cols = document.getElementById('seat-cols').value || 5;
                     renderSeatMap(parseInt(rows), parseInt(cols));
@@ -312,7 +305,6 @@
         }
 
         function startApp() {
-            // 관리자(isAdmin)이거나 총사령관이거나 도우미(isHelper)인 경우 모두 승인창 노출
             if (isAdmin || isHelper || myName === "총사령관") { const orderMgr = document.getElementById('admin-order-mgr'); if (orderMgr) orderMgr.style.display = 'block'; }
             
             db.ref('settings').on('value', snap => {
@@ -322,7 +314,6 @@
             });
             generateNewLayout();
 
-            // 내부 명단 렌더링 부분
             db.ref('users').on('value', snap => {
                 let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
                 currentUsers = users.sort((a, b) => (a.name === myName ? -1 : b.name === myName ? 1 : (a.no || 99) - (b.no || 99)));
@@ -331,8 +322,6 @@
                 currentUsers.forEach(u => { 
                     if(u.name === "총사령관") return; 
                     const isMe = (u.name === myName);
-                    
-                    // 칭호가 있을 때만 한 칸 띄움
                     const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
                     
                     h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
@@ -348,7 +337,6 @@
                 generateNewLayout();   
             });
 
-            // 상점 기능 복구 (등록/수정/삭제 포함)
             let currentShopCat = "전체";
             db.ref('shop').on('value', snap => { 
                 window.shopData = snap; 
@@ -382,9 +370,7 @@
                 window.filterShop = function(cat) { currentShopCat = cat; renderShop(); }; renderShop();
             });
 
-            // 도감 목록 불러오기 및 화면에 그리기
             db.ref('pointGuide').on('value', snap => { 
-                // 학생 계정일 경우: 탭은 놔두고 '포인트 도감' 박스만 숨김
                 if (!isAdmin) {
                     const guideListEl = document.getElementById('guide-list');
                     if (guideListEl && guideListEl.parentElement) {
@@ -393,7 +379,6 @@
                     return; 
                 }
 
-                // 관리자(선생님) 전용 화면
                 let h = "", addH = `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:20px; width:100%; border:none; padding:20px; border-radius:12px; font-size:1.3rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 도감 기준 등록</button>`;
                 
                 const guideTitle = document.querySelector('#tab-points h2');
@@ -419,7 +404,6 @@
                 }
             });
 
-            // 도감 항목 추가 팝업
             window.openAddGuidePopup = function() {
                 let h = `<h3 style="margin-top:0;">📜 새 도감 등록</h3>
                          항목명: <input type="text" id="add-guide-title" placeholder="예: 숙제 완료"><br>
@@ -429,7 +413,6 @@
                 openPopup("도감 추가", h);
             };
 
-            // 도감 항목 저장
             window.saveNewGuide = function() {
                 const t = document.getElementById('add-guide-title').value;
                 const p = parseInt(document.getElementById('add-guide-p').value) || 0;
@@ -437,7 +420,6 @@
                 if(t) db.ref('pointGuide').push({title: t, p: p, e: e}).then(() => { alert("도감에 성공적으로 등록되었습니다!"); closePopup(); });
             };
 
-            // 도감 항목 삭제 함수 (+ 확인 창 추가)
             window.deleteGuideItem = function(key) {
                 if(confirm("정말 삭제하시겠습니까?")) {
                     db.ref('pointGuide/' + key).remove().then(() => {
@@ -446,7 +428,6 @@
                 }
             };
             
-            // 주문 감시 및 사용자별 일괄 승인
             db.ref('orders').on('value', snap => {
                 let uH = "", wH = "", adminH = ""; 
                 let myUnused = {}, myWaiting = {}, adminWaiting = {}; 
@@ -539,7 +520,6 @@
             initBudgetManager(); 
         }
 
-        // 상점 팝업 함수들 복구
         window.openAddShopPopup = function() { 
             let h = `<h3>📦 새 물품</h3>상품명: <input type="text" id="add-item-name">가격: <input type="number" id="add-item-price">제한: <input type="number" id="add-item-limit" value="0">
                     카테고리: <select id="add-item-cat"><option value="🍕 먹거리">🍕 먹거리</option><option value="🎫 쿠폰">🎫 쿠폰</option><option value="🎲 뽑기">🎲 뽑기</option><option value="✏️ 학용품">✏️ 학용품</option><option value="✨ 기타">✨ 기타</option></select>
@@ -653,7 +633,6 @@
 
         let totalBudget = 100000; 
 
-        // 운영비 내역 불러오기 및 렌더링
         function initBudgetManager() {
             db.ref('settings/budgetTotal').on('value', s => { totalBudget = s.val() || 0; });
 
@@ -898,8 +877,25 @@
         function saveGifts() { db.ref('settings').update({ giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim()) }).then(() => alert("보상 저장!")); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         
+        // 🎲 [새 기능] 관리자용 난수 자동 생성 및 적용 함수
+        function generateRandomPassword() {
+            // 1000 ~ 9999 사이의 4자리 난수 생성
+            const randomPass = Math.floor(1000 + Math.random() * 9000).toString(); 
+            
+            // 파이어베이스 DB의 원래 세팅 경로(settings.password)에 바로 덮어씌움 -> 기존 기능과 완벽 호환!
+            db.ref('settings').update({ password: randomPass }).then(() => {
+                alert(`오늘의 등교 암호가 [${randomPass}]로 설정되었습니다!\n칠판이나 메신저로 안내해주세요.`);
+                // 관리자 화면에 현재 설정된 비밀번호 표시
+                document.getElementById('conf-pass').value = randomPass; 
+            }).catch(error => {
+                console.error("비밀번호 저장 실패:", error);
+                alert("비밀번호 설정 중 오류가 발생했습니다.");
+            });
+        }
+
         let isCheckingIn = false; 
 
+        // ⏱️ [기존 코드 보존] 선생님께서 짜두신 완벽한 등교 함수를 그대로 유지합니다!
         async function submitCheckIn() {
             if (isCheckingIn) return; 
             
