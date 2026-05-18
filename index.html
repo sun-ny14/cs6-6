@@ -33,39 +33,14 @@
         .floating-btn { position: fixed; bottom: 25px; width: 85px; height: 85px; border-radius: 45px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
         #floating-point-btn { right: 25px; background: var(--gold); color: var(--dark); }
         #floating-multi-btn { right: 120px; background: #2ecc71; color: white; }
-        /* 비활성화 버튼 스타일 (추가) */
         button:disabled { background: #bdc3c7 !important; color: #7f8c8d !important; cursor: not-allowed; }
-        /* =========================================
-   /* =========================================
-   도감(포인트 기준) 전용 레이아웃 추가
-========================================= */
-#guide-list.hero-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); /* 140px에서 220px로 대폭 확대! */
-    gap: 15px;
-}
-
-/* 새 도감 등록 버튼이 한 줄을 다 차지하도록 수정 */
-#guide-list > button {
-    grid-column: 1 / -1; 
-}
-
-/* 도감 전용 카드 디자인 (크고 시원하게) */
-#guide-list .hero-card {
-    padding: 25px 15px; /* 안쪽 여백 빵빵하게 */
-    border-radius: 12px;
-    border: 1px solid #ccc; /* 테두리도 조금 더 진하게 */
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    font-size: 1.2rem; /* 전체 글자 크기 확대 */
-}
-
-#guide-list .hero-card b {
-    font-size: 1.3rem; /* 도감 항목 이름 더 크게 */
-}
-
-#guide-list .hero-card:hover {
-    transform: translateY(-3px);
-    border-color: var(--primary);
-}
+        
+        /* 도감 전용 레이아웃 */
+        #guide-list.hero-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
+        #guide-list > button { grid-column: 1 / -1; }
+        #guide-list .hero-card { padding: 25px 15px; border-radius: 12px; border: 1px solid #ccc; box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-size: 1.2rem; }
+        #guide-list .hero-card b { font-size: 1.3rem; }
+        #guide-list .hero-card:hover { transform: translateY(-3px); border-color: var(--primary); }
     </style>
 </head>
 <body>
@@ -91,14 +66,14 @@
 
     <div id="main-app">
         <nav class="tab-menu">
-    <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
-    <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
-    <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-    <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
-    <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
-    <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
-    <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
-</nav>
+            <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
+            <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
+            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+            <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
+            <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
+            <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
+            <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
+        </nav>
 
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
         
@@ -107,83 +82,79 @@
             <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);"><h3>📜 사용 요청 승인</h3><div id="order-list"></div></div>
         </section>
 
-        
+        <section id="tab-checkin" class="tab-content">
+            
+            <div id="checkin-settings-box" style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #e9ecef; display: none;">
+                <h3 style="margin-top:0; color: #333; font-size: 1.2rem;">⚙️ 등교 출석 관리 (선생님 전용)</h3>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button onclick="generateRandomPassword()" style="background: var(--primary, #4361ee); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        🎲 내일 암호 발급
+                    </button>
+                    <span style="color: #666; margin-left: 10px;">현재 암호:</span>
+                    <input type="text" id="setting-pw" placeholder="암호" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 90px; text-align: center; font-weight: bold;">
+                    
+                    <span style="color: #666; margin-left: 10px;">등교 가능(~까지):</span>
+                    <input type="time" id="setting-deadline" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
 
-        <section id="tab-checkin" class="tab-content"><div class="card"><h2>⚔️ 등교 확인</h2><div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div><input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;">
-        <button id="checkin-btn" onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button></div></section>
-        
-    <div id="checkin-settings-box" style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #e9ecef; display: none;">
-    <h3 style="margin-top:0; color: #333; font-size: 1.2rem;">⚙️ 등교 출석 관리 (선생님 전용)</h3>
-    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        
-        <button onclick="generateRandomPassword()" style="background: var(--primary, #4361ee); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            🎲 내일 암호(난수) 발급
-        </button>
-        
-        <span style="color: #666; margin-left: 10px;">현재 암호:</span>
-        <input type="text" id="setting-pw" placeholder="암호" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 90px; text-align: center; font-weight: bold;">
-        
-        <span style="color: #666; margin-left: 10px;">지각 기준:</span>
-        <input type="time" id="setting-time" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
-        
-        <button onclick="saveSettings()" style="background: var(--dark, #333); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-            수동 저장
-        </button>
-    </div>
-    <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #888;">
-        💡 등교 마감 후 버튼을 눌러 내일 암호를 생성하고 퇴근 전 칠판 구석에 적어주세요!
-    </p>
-</div>
-
-    <div class="card">
-        <div style="background: #eef2f7; padding: 20px; border-radius: 15px; margin-bottom: 20px; text-align: center; border: 2px solid var(--primary);">
-            <label for="checkin-date-filter" style="display: block; font-weight: bold; font-size: 1.4rem; margin-bottom: 10px; color: var(--dark);">📅 등교 조회 날짜</label>
-            <input type="date" id="checkin-date-filter" onchange="generateNewLayout()" 
-                   style="width: 100%; max-width: 300px; font-size: 1.8rem; padding: 10px; border-radius: 10px; border: 1px solid #ccc; text-align: center;">
-        </div>
-
-        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-            <button onclick="openExclusionPopup()" style="flex: 1; background: var(--purple); color: white; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">🚫 고정 등교제외 설정</button>
-            <button onclick="toggleSeatEditMode()" id="edit-mode-btn" style="flex: 1; background: var(--dark); color: white; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; border: none;">🪑 좌석 배치 수정</button>
-            <button onclick="downloadMonthlyExcel()" style="width: 70px; background: var(--green); color: white; border-radius: 12px; border: none; font-size: 1rem; font-weight: bold;">📊 엑셀</button>
-        </div>
-
-        <div id="seat-edit-panel" style="display:none; background:#fff3cd; padding:15px; border-radius:15px; margin-bottom:15px; border: 2px dashed #ffc107;">
-            <div style="display:flex; gap:10px; align-items:center; justify-content: center;">
-                가로 <input type="number" id="seat-cols" value="5" style="width:70px; font-size: 1.2rem;"> x 
-                세로 <input type="number" id="seat-rows" value="6" style="width:70px; font-size: 1.2rem;">
-                <button onclick="saveSeatLayout()" style="background:var(--primary); color:white; padding: 10px 20px; font-weight: bold; border-radius: 8px;">배치 저장</button>
+                    <span style="color: #666; margin-left: 10px;">지각 기준:</span>
+                    <input type="time" id="setting-time" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
+                    
+                    <button onclick="saveCheckinSettings()" style="background: var(--dark, #333); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                        수동 저장
+                    </button>
+                </div>
+                <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #888;">
+                    💡 퇴근 전 '암호 발급'을 누르고 칠판에 적어주세요. '등교 가능' 시간 이후엔 자동 결석 처리됩니다.
+                </p>
             </div>
-        </div>
 
-        <div id="seat-map-container" style="display:grid; gap:12px; width:100%; background:#f1f1f1; padding:15px; border-radius:15px; border: 1px solid #ddd;"></div>
-    </div>
-</section> <section id="tab-budget" class="tab-content">
-    <div style="background:white; padding:20px; border-radius:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-        <h2 style="margin-top:0;">💵 학급운영비 현황</h2>
-        <div id="budget-summary" style="font-size:1.2rem; margin-bottom:20px; padding:15px; background:var(--gold); border-radius:12px; font-weight:bold;">
-            잔액 계산 중...
-        </div>
-        
-        <button onclick="openAddBudgetPopup()" style="width:100%; background:var(--primary); color:white; margin-bottom:15px; padding:15px; font-size:1.1rem; font-weight:bold; border-radius:10px; border:none;">+ 내역 추가하기</button>
-        
-        <div style="overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; min-width:500px; text-align:center;">
-                <thead>
-                    <tr style="border-bottom:2px solid #eee; background:#f8f9fa;">
-                        <th style="padding:15px 10px;">날짜</th>
-                        <th style="padding:15px 10px;">쇼핑몰/처</th>
-                        <th style="padding:15px 10px;">용도</th>
-                        <th style="padding:15px 10px;">금액</th>
-                        <th style="padding:15px 10px;">관리</th>
-                    </tr>
-                </thead>
-                <tbody id="budget-list">
-                    </tbody>
-            </table>
-        </div>
-    </div>
-</section>
+            <div class="card">
+                <h2>⚔️ 등교 확인</h2>
+                <div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div>
+                <input type="text" id="checkin-pass" placeholder="오늘의 암호" style="text-align:center;">
+                <button id="checkin-btn" onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button>
+            </div>
+        </section>
+
+        <section id="tab-logs" class="tab-content" style="display: none;">
+            <div class="card">
+                <div style="background: #eef2f7; padding: 20px; border-radius: 15px; margin-bottom: 20px; text-align: center; border: 2px solid var(--primary);">
+                    <label for="checkin-date-filter" style="display: block; font-weight: bold; font-size: 1.4rem; margin-bottom: 10px; color: var(--dark);">📅 등교 조회 날짜</label>
+                    <input type="date" id="checkin-date-filter" onchange="generateNewLayout()" style="width: 100%; max-width: 300px; font-size: 1.8rem; padding: 10px; border-radius: 10px; border: 1px solid #ccc; text-align: center;">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button onclick="openExclusionPopup()" style="flex: 1; background: var(--purple); color: white; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; border: none; cursor: pointer;">🚫 고정 등교제외 설정</button>
+                    <button onclick="toggleSeatEditMode()" id="edit-mode-btn" style="flex: 1; background: var(--dark); color: white; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; border: none;">🪑 좌석 배치 수정</button>
+                    <button onclick="downloadMonthlyExcel()" style="width: 70px; background: var(--green); color: white; border-radius: 12px; border: none; font-size: 1rem; font-weight: bold;">📊 엑셀</button>
+                </div>
+
+                <div id="seat-edit-panel" style="display:none; background:#fff3cd; padding:15px; border-radius:15px; margin-bottom:15px; border: 2px dashed #ffc107;">
+                    <div style="display:flex; gap:10px; align-items:center; justify-content: center;">
+                        가로 <input type="number" id="seat-cols" value="5" style="width:70px; font-size: 1.2rem;"> x 
+                        세로 <input type="number" id="seat-rows" value="6" style="width:70px; font-size: 1.2rem;">
+                        <button onclick="saveSeatLayout()" style="background:var(--primary); color:white; padding: 10px 20px; font-weight: bold; border-radius: 8px;">배치 저장</button>
+                    </div>
+                </div>
+
+                <div id="seat-map-container" style="display:grid; gap:12px; width:100%; background:#f1f1f1; padding:15px; border-radius:15px; border: 1px solid #ddd;"></div>
+            </div>
+        </section>
+
+        <section id="tab-budget" class="tab-content" style="display: none;">
+            <div style="background:white; padding:20px; border-radius:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="margin-top:0;">💵 학급운영비 현황</h2>
+                <div id="budget-summary" style="font-size:1.2rem; margin-bottom:20px; padding:15px; background:var(--gold); border-radius:12px; font-weight:bold;">잔액 계산 중...</div>
+                <button onclick="openAddBudgetPopup()" style="width:100%; background:var(--primary); color:white; margin-bottom:15px; padding:15px; font-size:1.1rem; font-weight:bold; border-radius:10px; border:none;">+ 내역 추가하기</button>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; min-width:500px; text-align:center;">
+                        <thead><tr style="border-bottom:2px solid #eee; background:#f8f9fa;"><th style="padding:15px 10px;">날짜</th><th style="padding:15px 10px;">쇼핑몰/처</th><th style="padding:15px 10px;">용도</th><th style="padding:15px 10px;">금액</th><th style="padding:15px 10px;">관리</th></tr></thead>
+                        <tbody id="budget-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <section id="tab-points" class="tab-content">
             <div class="card">
                 <h2>📜 포인트 도감 <small style="font-size:1rem; color:#666;">(클릭 시 일괄 지급)</small></h2>
@@ -201,11 +172,12 @@
 
         <section id="tab-admin" class="tab-content">
             <div class="card"><h3>👥 명단 관리 (번호/도우미)</h3><div id="student-admin-list"></div></div>
-            <div class="card"><h3>⚙️ 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 
-                루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveSettings()">시스템 저장</button></div>
+            <div class="card"><h3>⚙️ 전체 시스템 설정</h3>암호:<input type="text" id="conf-pass"> 지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 
+                루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveAdminSettings()">시스템 저장</button></div>
             <div class="card"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4"></textarea><button onclick="saveGifts()">보상 저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
+
         <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
         <button id="floating-multi-btn" class="floating-btn" onclick="openMultiPopup()">📋</button>
     </div>
@@ -220,6 +192,9 @@
 
         let myName = "", isAdmin = false, isHelper = false, currentUsers = [], routineItems = [], giftList = [], rIdx = 0;
         let currentTab = sessionStorage.getItem('activeTab') || 'main';
+        let currentLayout = {}; 
+        let isEditMode = false;
+        let isCheckingIn = false; 
 
         function getTodayKST() { const now = new Date(); const krTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); return krTime.getUTCFullYear() + "-" + String(krTime.getUTCMonth() + 1).padStart(2, '0') + "-" + String(krTime.getUTCDate()).padStart(2, '0'); }
         function forceScreenDisplay(status) {
@@ -229,153 +204,130 @@
             else { if(login) login.style.display = 'flex'; if(app) app.style.display = 'none'; }
         }
 
-        // [수정] 🤺 용사들 탭 프로필 이미지 복구 함수
-function getAvatar(lv, selectedAnimal) {
-    // 선생님이 새로 알려주신 PNG 이미지 주소 적용
-    const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true"; 
+        function getAvatar(lv, selectedAnimal) {
+            const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true"; 
+            const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
+            const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
+            const index = animals.indexOf(name) === -1 ? 0 : animals.indexOf(name);
+            const col = index % 5;
+            const row = Math.floor(index / 5);
+            const posX = col * 25; 
+            const posY = row * 33.33; 
 
-    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
-    
-    // 현재 레벨이나 선택 동물에 따른 인덱스(0~19) 계산
-    const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
-    const index = animals.indexOf(name) === -1 ? 0 : animals.indexOf(name);
-    
-    // 5x4 격자 좌표 (편집하신 이미지의 격자선에 딱 맞춤)
-    const col = index % 5;
-    const row = Math.floor(index / 5);
-    
-    // 격자가 명확하므로 25%와 33.33% 단위로 정확히 끊어줍니다.
-    const posX = col * 25; 
-    const posY = row * 33.33; 
-
-    return `
-    <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; display: flex; align-items: center; justify-content: center; position: relative;">
-        <div style="
-            width: 100%; 
-            height: 100%; 
-            background-image: url('${githubImageUrl}'); 
-            background-size: 500% 400%; 
-            background-position: ${posX}% ${posY}%; 
-            background-repeat: no-repeat;
-            image-rendering: pixelated;
-            transform: scale(1.15); // 격자 검은 선이 안 보이도록 살짝 확대
-            transform-origin: center;
-        "></div>
-    </div>`;
-}
-      function openAvatarPicker() {
-    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
-    db.ref('users/' + myName).once('value', snap => {
-        const lv = snap.val().lv || 1;
-        const availableCount = Math.min(lv, 20);
-        let h = `<p style="text-align:center; font-weight:bold; color:var(--primary); margin-bottom:15px;">✨ 레벨이 오를수록 새로운 칭호가 해금됩니다!</p>`;
-        h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; padding:10px;">`;
-        for(let i=0; i < 20; i++) {
-            if(i < availableCount) {
-                h += `<div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:2px solid var(--gold); border-radius:15px; padding:10px; background:#fffdf2; box-shadow:0 3px 6px rgba(0,0,0,0.1);">
-                        ${getAvatar(i + 1, animals[i])}
-                        <div style="font-size:0.8rem; font-weight:bold; margin-top:8px; color:var(--dark);">${animals[i]}</div>
-                      </div>`;
-            } else {
-                h += `<div style="text-align:center; border:1px solid #eee; border-radius:15px; padding:10px; background:#f5f5f5; opacity: 0.6;">
-                        <div style="width: 85px; height: 85px; display:flex; align-items:center; justify-content:center; margin: 0 auto; font-size:1.8rem; background:#ddd; border-radius:15px;">🔒</div>
-                        <div style="font-size:0.7rem; color:#888; margin-top:8px;">LV.${i+1} 해금<br>(${animals[i]})</div>
-                      </div>`;
-            }
+            return `
+            <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; display: flex; align-items: center; justify-content: center; position: relative;">
+                <div style="width: 100%; height: 100%; background-image: url('${githubImageUrl}'); background-size: 500% 400%; background-position: ${posX}% ${posY}%; background-repeat: no-repeat; image-rendering: pixelated; transform: scale(1.15); transform-origin: center;"></div>
+            </div>`;
         }
-        openPopup("🎭 육육이 전직 본부", h + `</div>`);
-    });
-} 
-        function selectAnimal(animalName) { if(confirm(`${animalName}(으)로 변신하시겠습니까?`)) { db.ref('users/' + myName).update({ selectedAnimal: animalName }).then(() => { alert("변신 완료! ✨"); closePopup(); }); } }
 
+        function openAvatarPicker() {
+            const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
+            db.ref('users/' + myName).once('value', snap => {
+                const lv = snap.val().lv || 1;
+                const availableCount = Math.min(lv, 20);
+                let h = `<p style="text-align:center; font-weight:bold; color:var(--primary); margin-bottom:15px;">✨ 레벨이 오를수록 새로운 칭호가 해금됩니다!</p>`;
+                h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; padding:10px;">`;
+                for(let i=0; i < 20; i++) {
+                    if(i < availableCount) {
+                        h += `<div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:2px solid var(--gold); border-radius:15px; padding:10px; background:#fffdf2; box-shadow:0 3px 6px rgba(0,0,0,0.1);">
+                                ${getAvatar(i + 1, animals[i])}
+                                <div style="font-size:0.8rem; font-weight:bold; margin-top:8px; color:var(--dark);">${animals[i]}</div>
+                              </div>`;
+                    } else {
+                        h += `<div style="text-align:center; border:1px solid #eee; border-radius:15px; padding:10px; background:#f5f5f5; opacity: 0.6;">
+                                <div style="width: 85px; height: 85px; display:flex; align-items:center; justify-content:center; margin: 0 auto; font-size:1.8rem; background:#ddd; border-radius:15px;">🔒</div>
+                                <div style="font-size:0.7rem; color:#888; margin-top:8px;">LV.${i+1} 해금<br>(${animals[i]})</div>
+                              </div>`;
+                    }
+                }
+                openPopup("🎭 육육이 전직 본부", h + `</div>`);
+            });
+        } 
+        function selectAnimal(animalName) { if(confirm(`${animalName}(으)로 변신하시겠습니까?`)) { db.ref('users/' + myName).update({ selectedAnimal: animalName }).then(() => { alert("변신 완료! ✨"); closePopup(); }); } }
         function handleLogin() { auth.signInWithPopup(provider); }
         function showTab(t) { currentTab = t; sessionStorage.setItem('activeTab', t); document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); document.getElementById('tab-'+t).classList.add('active'); if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); if(t==='points') loadMyLogs(); if(t==='logs') renderCheckinBoard(); }
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
         function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else { document.getElementById('common-overlay').style.display='none'; rIdx = 0; } }
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
         function closeMultiPopup() { document.getElementById('multi-popup').style.display='none'; }
-// [최종 통합] 배치도 데이터 로드 및 실행 함수
-function generateNewLayout() {
-    // 1. DB에서 저장된 데이터를 가져옴
-    db.ref('seatLayoutData').once('value', snap => {
-        const savedData = snap.val();
-        
-        if (savedData && savedData.layout) {
-            // 저장된 데이터가 있으면 전역 변수에 복사
-            currentLayout = savedData.layout;
-            
-            const rows = savedData.config.rows;
-            const cols = savedData.config.cols;
-            
-            document.getElementById('seat-rows').value = rows;
-            document.getElementById('seat-cols').value = cols;
-            
-            // 데이터 확인 후 화면 그리기
-            renderSeatMap(rows, cols);
-        } else {
-            // 저장된 데이터가 아예 없는 초기 상태라면 빈 판을 그림
-            const rows = document.getElementById('seat-rows').value || 6;
-            const cols = document.getElementById('seat-cols').value || 5;
-            renderSeatMap(parseInt(rows), parseInt(cols));
+
+        function generateNewLayout() {
+            db.ref('seatLayoutData').once('value', snap => {
+                const savedData = snap.val();
+                if (savedData && savedData.layout) {
+                    currentLayout = savedData.layout;
+                    const rows = savedData.config.rows;
+                    const cols = savedData.config.cols;
+                    document.getElementById('seat-rows').value = rows;
+                    document.getElementById('seat-cols').value = cols;
+                    renderSeatMap(rows, cols);
+                } else {
+                    const rows = document.getElementById('seat-rows').value || 6;
+                    const cols = document.getElementById('seat-cols').value || 5;
+                    renderSeatMap(parseInt(rows), parseInt(cols));
+                }
+            });
         }
-    });
-}
-       function startApp() {
-    // [수정 완료] 관리자(isAdmin)이거나 총사령관이거나 도우미(isHelper)인 경우 모두 승인창 노출
-    if (isAdmin || isHelper || myName === "총사령관") { const orderMgr = document.getElementById('admin-order-mgr'); if (orderMgr) orderMgr.style.display = 'block'; }
-    
-    db.ref('settings').on('value', snap => {
-        const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
-        if(isAdmin) { document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('conf-routine').value = s.routineText || ""; document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; }
-        document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
-    });
-    generateNewLayout();
 
-    // db.ref('users').on('value', ...) 내부 명단 렌더링 부분 교체
-    db.ref('users').on('value', snap => {
-        let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
-        currentUsers = users.sort((a, b) => (a.name === myName ? -1 : b.name === myName ? 1 : (a.no || 99) - (b.no || 99)));
-        
-        let h = ""; 
-        currentUsers.forEach(u => { 
-            if(u.name === "총사령관") return; 
-            const isMe = (u.name === myName);
+        function startApp() {
+            if (isAdmin || isHelper || myName === "총사령관") { const orderMgr = document.getElementById('admin-order-mgr'); if (orderMgr) orderMgr.style.display = 'block'; }
             
-            // 햄스터 이모지 삭제, 칭호가 있을 때만 한 칸 띄움
-            const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
-            
-            h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
-                    <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
-                    <b style="font-size:1.3rem; display:block; margin-top:12px; color:var(--dark);">
-                        ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
-                    </b>
-                    ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : ''}
-                  </div>`; 
-        }); 
-        document.getElementById('hero-grid').innerHTML = h;
-        if (isAdmin) renderAdminList();
-        generateNewLayout();   
-    });
+            db.ref('settings').on('value', snap => {
+                const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
+                if(isAdmin) { 
+                    document.getElementById('conf-pass').value = s.password || ""; 
+                    document.getElementById('conf-late').value = s.lateTime || "08:40"; 
+                    document.getElementById('conf-close').value = s.closeTime || "09:00"; 
+                    document.getElementById('conf-routine').value = s.routineText || ""; 
+                    document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; 
+                    
+                    // 등교 설정창 값 채우기
+                    if(document.getElementById('setting-pw')) document.getElementById('setting-pw').value = s.password || "";
+                    if(document.getElementById('setting-time')) document.getElementById('setting-time').value = s.lateTime || "08:40";
+                    if(document.getElementById('setting-deadline')) document.getElementById('setting-deadline').value = s.closeTime || "09:00";
+                }
+                document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각 마감: ~${s.closeTime || '09:00'} (이후 자동결석)`;
+            });
+            generateNewLayout();
 
-    // [상점 기능 100% 복구] 등록/수정/삭제 버튼 포함
-    let currentShopCat = "전체";
-    db.ref('shop').on('value', snap => { 
-        window.shopData = snap; 
-        window.renderShop = function() {
-            const cats = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
-            let tabH = `<div style="display:flex; overflow-x:auto; gap:10px; margin-bottom:15px; padding-bottom:10px;">`;
-            cats.forEach(c => { const activeStyle = (currentShopCat === c) ? 'background:var(--primary); color:white;' : 'background:#eee;'; tabH += `<button onclick="filterShop('${c}')" style="width:auto; padding:10px 20px; border-radius:12px; font-weight:bold; border:none; ${activeStyle} white-space:nowrap;">${c}</button>`; });
-            tabH += `</div>`;
-            
-            // [복구] 물품 등록 버튼 (관리자 전용)
-            let addH = isAdmin ? `<button onclick="openAddShopPopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px;">+ 새 보급품 등록</button>` : "";
-            
-            let itemH = ""; 
-            window.shopData.forEach(c => { 
-                const i = c.val(); if (currentShopCat !== "전체" && i.cat !== currentShopCat) return; 
-                const limitText = (i.limit && i.limit > 0) ? `<br><small style="color:var(--red); font-weight:bold;">(1인당 ${i.limit}개 제한)</small>` : ""; 
+            db.ref('users').on('value', snap => {
+                let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
+                currentUsers = users.sort((a, b) => (a.name === myName ? -1 : b.name === myName ? 1 : (a.no || 99) - (b.no || 99)));
                 
-               // 품절 여부에 따른 버튼 분기
+                let h = ""; 
+                currentUsers.forEach(u => { 
+                    if(u.name === "총사령관") return; 
+                    const isMe = (u.name === myName);
+                    const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
+                    h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
+                            <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
+                            <b style="font-size:1.3rem; display:block; margin-top:12px; color:var(--dark);">
+                                ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
+                            </b>
+                            ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : ''}
+                          </div>`; 
+                }); 
+                document.getElementById('hero-grid').innerHTML = h;
+                if (isAdmin) renderAdminList();
+                generateNewLayout();   
+            });
+
+            let currentShopCat = "전체";
+            db.ref('shop').on('value', snap => { 
+                window.shopData = snap; 
+                window.renderShop = function() {
+                    const cats = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
+                    let tabH = `<div style="display:flex; overflow-x:auto; gap:10px; margin-bottom:15px; padding-bottom:10px;">`;
+                    cats.forEach(c => { const activeStyle = (currentShopCat === c) ? 'background:var(--primary); color:white;' : 'background:#eee;'; tabH += `<button onclick="filterShop('${c}')" style="width:auto; padding:10px 20px; border-radius:12px; font-weight:bold; border:none; ${activeStyle} white-space:nowrap;">${c}</button>`; });
+                    tabH += `</div>`;
+                    
+                    let addH = isAdmin ? `<button onclick="openAddShopPopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px;">+ 새 보급품 등록</button>` : "";
+                    
+                    let itemH = ""; 
+                    window.shopData.forEach(c => { 
+                        const i = c.val(); if (currentShopCat !== "전체" && i.cat !== currentShopCat) return; 
+                        const limitText = (i.limit && i.limit > 0) ? `<br><small style="color:var(--red); font-weight:bold;">(1인당 ${i.limit}개 제한)</small>` : ""; 
+                        
                         const buyBtn = i.isSoldOut
                             ? `<button disabled style="width:auto; padding:10px 18px; background:#95a5a6; color:white; cursor:not-allowed;">🚫 품절</button>`
                             : `<button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 18px;">구매</button>`;
@@ -387,187 +339,154 @@ function generateNewLayout() {
                                         ${isAdmin ? `<button onclick="openEditShopPopup('${c.key}')" style="width:auto; padding:10px 18px; background:var(--dark); color:white;">관리</button>` : ''}
                                     </div>
                                   </div>`;
-            }); 
-            document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "물품 없음"); 
-        };
-        window.filterShop = function(cat) { currentShopCat = cat; renderShop(); }; renderShop();
-    });
-// 도감 목록 불러오기 및 화면에 그리기
-    db.ref('pointGuide').on('value', snap => { 
-        // 🚨 [정상화 완료] 학생 계정일 경우: 탭은 놔두고 '포인트 도감' 박스만 쏙 숨깁니다!
-        if (!isAdmin) {
-            const guideListEl = document.getElementById('guide-list');
-            if (guideListEl && guideListEl.parentElement) {
-                // guide-list를 감싸고 있는 카드(박스) 전체를 숨김 처리
-                guideListEl.parentElement.style.display = 'none'; 
-            }
-            return; // 학생은 여기서 데이터 읽기 중단! (인벤토리랑 연대기는 정상적으로 보임)
-        }
-
-        // --- 👇 아래는 관리자(선생님) 전용 화면 👇 ---
-        let h = "", addH = `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:20px; width:100%; border:none; padding:20px; border-radius:12px; font-size:1.3rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 도감 기준 등록</button>`;
-        
-        const guideTitle = document.querySelector('#tab-points h2');
-        if (guideTitle) {
-            guideTitle.innerHTML = `📜 포인트 도감 <small style="font-size:1rem; color:#666;">(클릭 시 일괄 지급)</small>`;
-        }
-        
-        snap.forEach(c => { 
-            const g = c.val(); 
-            const delBtn = `<button onclick="event.stopPropagation(); deleteGuideItem('${c.key}')" style="margin-top:15px; width:100%; background:var(--red); color:white; border:none; border-radius:10px; padding:12px; font-size:1.2rem; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🗑️ 삭제</button>`;
-            
-            h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})" style="display:flex; flex-direction:column; justify-content:center; cursor:pointer;">
-                    <b>${g.title}</b>
-                    <span style="color:var(--primary); font-weight:800;">${g.p}P / ${g.e}E</span>
-                    ${delBtn}
-                  </div>`; 
-        }); 
-        
-        const guideListEl = document.getElementById('guide-list');
-        if(guideListEl) {
-            guideListEl.parentElement.style.display = 'block'; // 관리자는 무조건 보이게 확정!
-            guideListEl.innerHTML = addH + h;
-        }
-    });
-    // 도감 항목 추가 팝업
-    window.openAddGuidePopup = function() {
-        let h = `<h3 style="margin-top:0;">📜 새 도감 등록</h3>
-                 항목명: <input type="text" id="add-guide-title" placeholder="예: 숙제 완료"><br>
-                 지급 P: <input type="number" id="add-guide-p" value="0"><br>
-                 지급 E: <input type="number" id="add-guide-e" value="0"><br>
-                 <button onclick="saveNewGuide()" style="background:var(--primary); color:white; margin-top:15px; padding:15px; border-radius:10px; border:none; width:100%; font-weight:bold; font-size:1.2rem; cursor:pointer;">등록하기</button>`;
-        openPopup("도감 추가", h);
-    };
-
-    // 도감 항목 저장
-    window.saveNewGuide = function() {
-        const t = document.getElementById('add-guide-title').value;
-        const p = parseInt(document.getElementById('add-guide-p').value) || 0;
-        const e = parseInt(document.getElementById('add-guide-e').value) || 0;
-        if(t) db.ref('pointGuide').push({title: t, p: p, e: e}).then(() => { alert("도감에 성공적으로 등록되었습니다!"); closePopup(); });
-    };
-
-    // [핵심] 도감 항목 삭제 함수 (+ 확인 창 추가)
-    window.deleteGuideItem = function(key) {
-        if(confirm("정말 삭제하시겠습니까?")) {
-            db.ref('pointGuide/' + key).remove().then(() => {
-                alert("항목이 삭제되었습니다.");
+                    }); 
+                    document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "물품 없음"); 
+                };
+                window.filterShop = function(cat) { currentShopCat = cat; renderShop(); }; renderShop();
             });
-        }
-    };
-   
-    // 6. 주문 감시 및 사용자별 일괄 승인
-    db.ref('orders').on('value', snap => {
-        let uH = "", wH = "", adminH = ""; 
-        let myUnused = {}, myWaiting = {}, adminWaiting = {}; 
 
-        snap.forEach(c => {
-            const o = c.val(); const key = c.key;
-            if (o.user === myName) {
-                if (o.status === '대기') {
-                    if (!myUnused[o.item]) myUnused[o.item] = [];
-                    myUnused[o.item].push(key);
-                } else if (o.status === '사용요청') {
-                    myWaiting[o.item] = (myWaiting[o.item] || 0) + 1;
+            db.ref('pointGuide').on('value', snap => { 
+                if (!isAdmin) {
+                    const guideListEl = document.getElementById('guide-list');
+                    if (guideListEl && guideListEl.parentElement) guideListEl.parentElement.style.display = 'none'; 
+                    return;
                 }
-            }
-            // 👇 여기에 isAdmin, isHelper 외에 총사령관 권한을 추가했습니다! 👇
-            if ((isAdmin || isHelper || myName === "총사령관") && o.status === '사용요청') {
-                if (!adminWaiting[o.user]) adminWaiting[o.user] = {};
-                if (!adminWaiting[o.user][o.item]) adminWaiting[o.user][o.item] = [];
-                adminWaiting[o.user][o.item].push(key);
-            }
-        });
 
-        // 학생용 출력 
-        // 상점 데이터 기반으로 품절 여부 확인용 맵 생성
-        let shopMap = {};
-        if (window.shopData) {
-            window.shopData.forEach(s => { shopMap[s.val().name] = s.val(); });
-        }
+                let h = "", addH = `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:20px; width:100%; border:none; padding:20px; border-radius:12px; font-size:1.3rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 도감 기준 등록</button>`;
+                snap.forEach(c => { 
+                    const g = c.val(); 
+                    const delBtn = `<button onclick="event.stopPropagation(); deleteGuideItem('${c.key}')" style="margin-top:15px; width:100%; background:var(--red); color:white; border:none; border-radius:10px; padding:12px; font-size:1.2rem; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🗑️ 삭제</button>`;
+                    h += `<div class="hero-card" onclick="openMultiPopup('${g.title}', ${g.p}, ${g.e})" style="display:flex; flex-direction:column; justify-content:center; cursor:pointer;">
+                            <b>${g.title}</b>
+                            <span style="color:var(--primary); font-weight:800;">${g.p}P / ${g.e}E</span>
+                            ${delBtn}
+                          </div>`; 
+                }); 
+                
+                const guideListEl = document.getElementById('guide-list');
+                if(guideListEl) {
+                    guideListEl.parentElement.style.display = 'block'; 
+                    guideListEl.innerHTML = addH + h;
+                }
+            });
 
-       // 학생용 출력 (품절 여부에 따라 버튼 다르게 표시)
-        for (let item in myUnused) {
-            const orderKey = myUnused[item][0]; // 가장 먼저 산 1개의 키값
-            const shopItem = shopMap[item] || {};
-            const isSoldOut = shopItem.isSoldOut === true;
-            
-            if (isSoldOut) {
-                const price = shopItem.price || 0;
-                uH += `<div class="list-item" style="display:flex; align-items:center; justify-content:space-between; background:#fff5f5; border-left:4px solid var(--red);">
-                        <span><del>${item}</del> <b style="color:var(--red);">(품절)</b> <b>x${myUnused[item].length}</b></span>
-                        <button onclick="refundItem('${orderKey}', '${item}', ${price})" style="padding:8px 12px; background:var(--red); color:white; border-radius:8px; border:none; font-weight:bold;">${price}P 환불</button>
-                       </div>`;
-            } else {
-                uH += `<div class="list-item" style="display:flex; align-items:center; justify-content:space-between;">
-                        <span>${item} <b>x${myUnused[item].length}</b></span>
-                        <button onclick="if(confirm('${item} 사용?')) db.ref('orders/${orderKey}').update({status:'사용요청'})" style="padding:8px 12px; background:var(--primary); color:white; border-radius:8px; border:none; font-weight:bold;">사용</button>
-                       </div>`;
-            }
-        }
+            db.ref('orders').on('value', snap => {
+                let uH = "", wH = "", adminH = ""; 
+                let myUnused = {}, myWaiting = {}, adminWaiting = {}; 
 
-        // 💡 [복구된 부분] 사용을 눌러 대기중인 목록 표시
-        for (let item in myWaiting) {
-            wH += `<div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>${item} <b>x${myWaiting[item]}</b></span>
-                    <span style="color:#95a5a6; font-size:0.9rem; font-weight:bold;">⏳ 승인 대기중</span>
-                   </div>`;
-        }
-        
-        for (let user in adminWaiting) {
-            let userKeys = [];
-            let individualListH = "";
-            for (let item in adminWaiting[user]) {
-                adminWaiting[user][item].forEach(key => {
-                    userKeys.push(key);
-                    // 항목명 글자 크기(1.3rem)와 승인/환불 버튼 크기 대폭 확대!
-                    individualListH += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:15px; background:#f8f9fa; border-radius:8px; border:1px solid #ddd;">
-                            <span style="font-size:1.3rem; color:#222; font-weight:900;">👉 ${item}</span>
-                            <div style="display:flex; gap:8px;">
-                                <button onclick="approveSingleItem('${key}', '${user}', '${item}')" style="padding:10px 18px; font-size:1.1rem; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">승인</button>
-                                <button onclick="rejectSingleItem('${key}', '${user}', '${item}')" style="padding:10px 18px; font-size:1.1rem; background:var(--red); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">환불</button>
-                            </div>
-                        </div>`;
+                snap.forEach(c => {
+                    const o = c.val(); const key = c.key;
+                    if (o.user === myName) {
+                        if (o.status === '대기') {
+                            if (!myUnused[o.item]) myUnused[o.item] = [];
+                            myUnused[o.item].push(key);
+                        } else if (o.status === '사용요청') {
+                            myWaiting[o.item] = (myWaiting[o.item] || 0) + 1;
+                        }
+                    }
+                    if ((isAdmin || isHelper || myName === "총사령관") && o.status === '사용요청') {
+                        if (!adminWaiting[o.user]) adminWaiting[o.user] = {};
+                        if (!adminWaiting[o.user][o.item]) adminWaiting[o.user][o.item] = [];
+                        adminWaiting[o.user][o.item].push(key);
+                    }
                 });
-            }
-            
-            adminH += `
-                <div style="background:white; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); border-left:6px solid var(--primary); padding:18px; margin-bottom:15px;">
-                    <div style="font-size:1.5rem; font-weight:900; color:#222; margin-bottom:12px; display:flex; align-items:center;">
-                        🧑‍🎓 <span style="color:var(--primary); margin-left:8px;">${user}</span> <span style="font-size:1.1rem; color:#888; margin-left:5px; font-weight:normal;">용사의 요청</span>
-                    </div>
+
+                let shopMap = {};
+                if (window.shopData) window.shopData.forEach(s => { shopMap[s.val().name] = s.val(); });
+
+                for (let item in myUnused) {
+                    const orderKey = myUnused[item][0]; 
+                    const shopItem = shopMap[item] || {};
+                    const isSoldOut = shopItem.isSoldOut === true;
                     
-                    ${individualListH}
+                    if (isSoldOut) {
+                        const price = shopItem.price || 0;
+                        uH += `<div class="list-item" style="display:flex; align-items:center; justify-content:space-between; background:#fff5f5; border-left:4px solid var(--red);">
+                                <span><del>${item}</del> <b style="color:var(--red);">(품절)</b> <b>x${myUnused[item].length}</b></span>
+                                <button onclick="refundItem('${orderKey}', '${item}', ${price})" style="padding:8px 12px; background:var(--red); color:white; border-radius:8px; border:none; font-weight:bold;">${price}P 환불</button>
+                               </div>`;
+                    } else {
+                        uH += `<div class="list-item" style="display:flex; align-items:center; justify-content:space-between;">
+                                <span>${item} <b>x${myUnused[item].length}</b></span>
+                                <button onclick="if(confirm('${item} 사용?')) db.ref('orders/${orderKey}').update({status:'사용요청'})" style="padding:8px 12px; background:var(--primary); color:white; border-radius:8px; border:none; font-weight:bold;">사용</button>
+                               </div>`;
+                    }
+                }
+
+                for (let item in myWaiting) {
+                    wH += `<div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>${item} <b>x${myWaiting[item]}</b></span>
+                            <span style="color:#95a5a6; font-size:0.9rem; font-weight:bold;">⏳ 승인 대기중</span>
+                           </div>`;
+                }
+                
+                for (let user in adminWaiting) {
+                    let userKeys = [];
+                    let individualListH = "";
+                    for (let item in adminWaiting[user]) {
+                        adminWaiting[user][item].forEach(key => {
+                            userKeys.push(key);
+                            individualListH += `
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:15px; background:#f8f9fa; border-radius:8px; border:1px solid #ddd;">
+                                    <span style="font-size:1.3rem; color:#222; font-weight:900;">👉 ${item}</span>
+                                    <div style="display:flex; gap:8px;">
+                                        <button onclick="approveSingleItem('${key}', '${user}', '${item}')" style="padding:10px 18px; font-size:1.1rem; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">승인</button>
+                                        <button onclick="rejectSingleItem('${key}', '${user}', '${item}')" style="padding:10px 18px; font-size:1.1rem; background:var(--red); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">환불</button>
+                                    </div>
+                                </div>`;
+                        });
+                    }
                     
-                    <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:#333; color:white; width:100%; margin-top:15px; padding:15px; border:none; border-radius:8px; font-weight:bold; font-size:1.2rem; cursor:pointer;">
-                        위 항목 전체 일괄 승인 ✨
-                    </button>
-                </div>`;
+                    adminH += `
+                        <div style="background:white; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); border-left:6px solid var(--primary); padding:18px; margin-bottom:15px;">
+                            <div style="font-size:1.5rem; font-weight:900; color:#222; margin-bottom:12px; display:flex; align-items:center;">
+                                🧑‍🎓 <span style="color:var(--primary); margin-left:8px;">${user}</span> <span style="font-size:1.1rem; color:#888; margin-left:5px; font-weight:normal;">용사의 요청</span>
+                            </div>
+                            ${individualListH}
+                            <button onclick="approveUserAll('${userKeys.join(',')}', '${user}')" style="background:#333; color:white; width:100%; margin-top:15px; padding:15px; border:none; border-radius:8px; font-weight:bold; font-size:1.2rem; cursor:pointer;">
+                                위 항목 전체 일괄 승인 ✨
+                            </button>
+                        </div>`;
+                }
+                
+                document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음";
+                document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "비었음"; 
+                const adminOrderEl = document.getElementById('order-list');
+                if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
+            });
+
+            initBudgetManager(); 
         }
-        
-        document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음";
-        document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "비었음"; // 💡 꼭 추가!
-        const adminOrderEl = document.getElementById('order-list');
-        if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
-        }); // 👈 [추가됨] db.ref('orders') 감시 로직을 닫아주는 괄호 세트입니다!
 
-    // 💡 [여기가 핵심 수정 부분입니다!] startApp 함수가 끝나기 바로 직전에 운영비 초기화 함수를 실행합니다.
-    initBudgetManager(); 
-}
+        window.openAddGuidePopup = function() {
+            let h = `<h3 style="margin-top:0;">📜 새 도감 등록</h3>
+                     항목명: <input type="text" id="add-guide-title" placeholder="예: 숙제 완료"><br>
+                     지급 P: <input type="number" id="add-guide-p" value="0"><br>
+                     지급 E: <input type="number" id="add-guide-e" value="0"><br>
+                     <button onclick="saveNewGuide()" style="background:var(--primary); color:white; margin-top:15px; padding:15px; border-radius:10px; border:none; width:100%; font-weight:bold; font-size:1.2rem; cursor:pointer;">등록하기</button>`;
+            openPopup("도감 추가", h);
+        };
+        window.saveNewGuide = function() {
+            const t = document.getElementById('add-guide-title').value;
+            const p = parseInt(document.getElementById('add-guide-p').value) || 0;
+            const e = parseInt(document.getElementById('add-guide-e').value) || 0;
+            if(t) db.ref('pointGuide').push({title: t, p: p, e: e}).then(() => { alert("도감에 성공적으로 등록되었습니다!"); closePopup(); });
+        };
+        window.deleteGuideItem = function(key) {
+            if(confirm("정말 삭제하시겠습니까?")) db.ref('pointGuide/' + key).remove().then(() => alert("항목이 삭제되었습니다."));
+        };
 
-// [상점 팝업 함수들 복구]
-window.openAddShopPopup = function() { 
-    let h = `<h3>📦 새 물품</h3>상품명: <input type="text" id="add-item-name">가격: <input type="number" id="add-item-price">제한: <input type="number" id="add-item-limit" value="0">
-            카테고리: <select id="add-item-cat"><option value="🍕 먹거리">🍕 먹거리</option><option value="🎫 쿠폰">🎫 쿠폰</option><option value="🎲 뽑기">🎲 뽑기</option><option value="✏️ 학용품">✏️ 학용품</option><option value="✨ 기타">✨ 기타</option></select>
-            <button onclick="saveNewItem()" style="background:var(--primary); color:white;">등록</button>`; 
-    openPopup("물품 추가", h); 
-};
-window.saveNewItem = function() { 
+        window.openAddShopPopup = function() { 
+            let h = `<h3>📦 새 물품</h3>상품명: <input type="text" id="add-item-name">가격: <input type="number" id="add-item-price">제한: <input type="number" id="add-item-limit" value="0">
+                    카테고리: <select id="add-item-cat"><option value="🍕 먹거리">🍕 먹거리</option><option value="🎫 쿠폰">🎫 쿠폰</option><option value="🎲 뽑기">🎲 뽑기</option><option value="✏️ 학용품">✏️ 학용품</option><option value="✨ 기타">✨ 기타</option></select>
+                    <button onclick="saveNewItem()" style="background:var(--primary); color:white;">등록</button>`; 
+            openPopup("물품 추가", h); 
+        };
+        window.saveNewItem = function() { 
             const n=document.getElementById('add-item-name').value, p=parseInt(document.getElementById('add-item-price').value), l=parseInt(document.getElementById('add-item-limit').value) || 0, c=document.getElementById('add-item-cat').value; 
             if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}).then(()=>{alert("등록됨");closePopup();}); 
         };
-window.openEditShopPopup = function(key) {
+        window.openEditShopPopup = function(key) {
             db.ref('shop/' + key).once('value', snap => {
                 const i = snap.val(); if(!i) return;
                 let h = `<h3>🛍️ 물품 수정</h3>
@@ -590,35 +509,25 @@ window.openEditShopPopup = function(key) {
             const n=document.getElementById('edit-shop-name').value, p=parseInt(document.getElementById('edit-shop-price').value), l=parseInt(document.getElementById('edit-shop-limit').value) || 0, c=document.getElementById('edit-shop-cat').value, s=document.getElementById('edit-shop-soldout').checked; 
             db.ref('shop/'+k).update({name:n, price:p, limit:l, cat:c, isSoldOut:s}).then(()=>{alert("수정됨");closePopup();}); 
         };
-window.deleteShopItem = function(k) { if(confirm("삭제?")) db.ref('shop/'+k).remove().then(()=>{alert("삭제됨");closePopup();}); };
-function openUserHistory(un) {
-    db.ref('users/' + un).once('value', sn => {
-        const u = sn.val() || {}, lv = u.lv || 1, pts = u.points || 0, isMeOrAdmin = (isAdmin || un === myName);
-        let h = `<div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; border:2px solid #eee;"><div style="flex:0 0 100px; text-align:center;">${getAvatar(lv, u.selectedAnimal)}<div style="margin-top:8px; font-weight:bold;">LV.${lv}</div>${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; background:var(--gold); border:none; border-radius:5px;">모습 변경</button>` : ''}</div><div style="flex:1;"><h3 style="margin:0;">${un} 용사</h3>${isMeOrAdmin ? `<div>💰 <b>${pts}P</b></div><div>✨ EXP: <b>${u.exp||0} / 100</b></div>` : `<p style="color:red;">🛡️ 정보는 비밀입니다!</p>`}</div></div>`;
-        if (isMeOrAdmin) { db.ref('pointLogs').once('value', lsn => { let uL = []; lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); }); let logHtml = `<div style="max-height:200px; overflow-y:auto; margin-top:10px;">`; uL.reverse().slice(0, 20).forEach(l => { logHtml += `<div class="list-item"><span>${l.reason}<br><small>${l.time}</small></span><strong>${l.amount}P</strong></div>`; }); openPopup(`${un} 정보`, h + logHtml + `</div>`); }); } else { openPopup(`${un} 정보`, h); }
-    });
-}
+        window.deleteShopItem = function(k) { if(confirm("삭제?")) db.ref('shop/'+k).remove().then(()=>{alert("삭제됨");closePopup();}); };
 
-window.buyItem = async function(k, n, p, l) {
+        function openUserHistory(un) {
+            db.ref('users/' + un).once('value', sn => {
+                const u = sn.val() || {}, lv = u.lv || 1, pts = u.points || 0, isMeOrAdmin = (isAdmin || un === myName);
+                let h = `<div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; border:2px solid #eee;"><div style="flex:0 0 100px; text-align:center;">${getAvatar(lv, u.selectedAnimal)}<div style="margin-top:8px; font-weight:bold;">LV.${lv}</div>${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; background:var(--gold); border:none; border-radius:5px;">모습 변경</button>` : ''}</div><div style="flex:1;"><h3 style="margin:0;">${un} 용사</h3>${isMeOrAdmin ? `<div>💰 <b>${pts}P</b></div><div>✨ EXP: <b>${u.exp||0} / 100</b></div>` : `<p style="color:red;">🛡️ 정보는 비밀입니다!</p>`}</div></div>`;
+                if (isMeOrAdmin) { db.ref('pointLogs').once('value', lsn => { let uL = []; lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); }); let logHtml = `<div style="max-height:200px; overflow-y:auto; margin-top:10px;">`; uL.reverse().slice(0, 20).forEach(l => { logHtml += `<div class="list-item"><span>${l.reason}<br><small>${l.time}</small></span><strong>${l.amount}P</strong></div>`; }); openPopup(`${un} 정보`, h + logHtml + `</div>`); }); } else { openPopup(`${un} 정보`, h); }
+            });
+        }
+
+        window.buyItem = async function(k, n, p, l) {
             const sn = await db.ref('users/'+myName).once('value');
             if((sn.val().points||0) < p) return alert("포인트 부족!");
-
-            // 구매 제한 개수 확인 로직
             if (l > 0) {
                 const ordersSnap = await db.ref('orders').once('value');
                 let count = 0;
-                ordersSnap.forEach(child => {
-                    const o = child.val();
-                    if (o.user === myName && o.item === n) {
-                        count++;
-                    }
-                });
-                
-                if (count >= l) {
-                    return alert(`🚫 구매 불가! 이 보급품은 1인당 최대 ${l}개까지만 구매할 수 있습니다.`);
-                }
+                ordersSnap.forEach(child => { const o = child.val(); if (o.user === myName && o.item === n) count++; });
+                if (count >= l) return alert(`🚫 구매 불가! 이 보급품은 1인당 최대 ${l}개까지만 구매할 수 있습니다.`);
             }
-
             if(confirm(`[${n}]을 구매하시겠습니까?`)) { 
                 db.ref('orders').push({ user: myName, item: n, status: '대기', time: new Date().toLocaleString() }).then(() => { 
                     addScore(myName, -p, 0, `${n} 구매`); 
@@ -627,162 +536,92 @@ window.buyItem = async function(k, n, p, l) {
             }
         };
 
-auth.onAuthStateChanged(user => {
-    if (user) {
-        isAdmin = (user.email === adminEmail);
-        db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
-            if (snap.exists() || isAdmin) {
-                myName = snap.val() || "총사령관";
-                db.ref('users/' + myName).once('value', uSnap => {
-                    isHelper = uSnap.val()?.isHelper || false;
-                    forceScreenDisplay('app');
-
-                    if (isAdmin || isHelper) {
-                        const orderMgr = document.getElementById('admin-order-mgr');
-                        if (orderMgr) orderMgr.style.display = 'block';
-                    }
-
-                    if (isAdmin) {
-                        // 💡 [추가] 선생님 계정일 때만 등교 탭의 설정 박스를 보여줍니다.
-    const settingsBox = document.getElementById('checkin-settings-box');
-    if (settingsBox) settingsBox.style.display = 'block';
-    // 관리자 전용 버튼들 보이기
-    ['btn-logs', 'btn-admin', 'btn-budget', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'block';
-    });
-
-    // [중요] 관리자 화면에서 '나의 인벤토리' 섹션만 콕 집어서 숨기기 (로직에 영향 없음!)
-    const myInv = document.getElementById('my-inventory');
-    if (myInv) myInv.style.display = 'none';
-
-    // 첫 접속 시 화면을 '등교로그(logs)'로 강제 고정
-    if (!sessionStorage.getItem('activeTab')) {
-        currentTab = 'logs';
-    }
-}
-                    
-                    startApp(); 
-                    showTab(currentTab);
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                isAdmin = (user.email === adminEmail);
+                db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
+                    if (snap.exists() || isAdmin) {
+                        myName = snap.val() || "총사령관";
+                        db.ref('users/' + myName).once('value', uSnap => {
+                            isHelper = uSnap.val()?.isHelper || false;
+                            forceScreenDisplay('app');
+                            if (isAdmin || isHelper) {
+                                const orderMgr = document.getElementById('admin-order-mgr');
+                                if (orderMgr) orderMgr.style.display = 'block';
+                            }
+                            if (isAdmin) {
+                                const settingsBox = document.getElementById('checkin-settings-box');
+                                if (settingsBox) settingsBox.style.display = 'block';
+                                ['btn-logs', 'btn-admin', 'btn-budget', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
+                                    const el = document.getElementById(id);
+                                    if (el) el.style.display = 'block';
+                                });
+                                const myInv = document.getElementById('my-inventory');
+                                if (myInv) myInv.style.display = 'none';
+                                if (!sessionStorage.getItem('activeTab')) currentTab = 'logs';
+                            }
+                            startApp(); 
+                            showTab(currentTab);
+                        });
+                    } else { alert("미등록 용사입니다!"); auth.signOut(); }
                 });
-            } else { alert("미등록 용사입니다!"); auth.signOut(); }
+            } else { forceScreenDisplay('login'); }
         });
-    } else { forceScreenDisplay('login'); }
-});
 
-// 총 예산 설정 (기본값 100,000원)
-let totalBudget = 100000; 
+        let totalBudget = 100000; 
+        function initBudgetManager() {
+            db.ref('settings/budgetTotal').on('value', s => { totalBudget = s.val() || 0; });
+            db.ref('budgetRecords').on('value', snap => {
+                let h = "", totalSpent = 0;
+                snap.forEach(child => {
+                    const item = child.val();
+                    totalSpent += parseInt(item.amount || 0);
+                    h += `<tr style="border-bottom:1px solid #eee;">
+                            <td style="padding:10px;">${item.date}</td><td style="padding:10px;">${item.mall}</td><td style="padding:10px;">${item.purpose}</td>
+                            <td style="padding:10px; font-weight:bold; color:var(--red);">${parseInt(item.amount).toLocaleString()}원</td>
+                            <td style="padding:10px;"><button onclick="deleteBudget('${child.key}')" style="padding:5px 10px; font-size:0.8rem; background:#eee;">삭제</button></td>
+                          </tr>`;
+                });
+                document.getElementById('budget-list').innerHTML = h || "<tr><td colspan='5' style='padding:20px; text-align:center;'>내역이 없습니다.</td></tr>";
+                document.getElementById('budget-summary').innerHTML = `총 예산: ${totalBudget.toLocaleString()}원 | 사용액: ${totalSpent.toLocaleString()}원 | <span style="color:var(--primary)">현재 잔액: ${(totalBudget - totalSpent).toLocaleString()}원</span>`;
+            });
+        }
 
-// 운영비 내역 불러오기 및 렌더링
-function initBudgetManager() {
-    db.ref('settings/budgetTotal').on('value', s => { totalBudget = s.val() || 0; });
+        window.openAddBudgetPopup = function() {
+            let h = `<h3>🧾 운영비 내역 추가</h3>날짜: <input type="date" id="bg-date" value="${new Date().toISOString().split('T')[0]}"><br>쇼핑몰: <input type="text" id="bg-mall" placeholder="예: 쿠팡, 다이소"><br>용도: <input type="text" id="bg-purpose" placeholder="예: 창의적 체험활동 재료"><br>금액: <input type="number" id="bg-amount" placeholder="숫자만 입력"><br><button onclick="saveBudget()" style="background:var(--primary); color:white; width:100%; margin-top:10px;">저장하기</button><hr><small>총 예산 변경:</small><input type="number" id="bg-total-setting" value="${totalBudget}"><button onclick="db.ref('settings').update({budgetTotal: parseInt(document.getElementById('bg-total-setting').value)}); alert('수정됨');">예산수정</button>`;
+            openPopup("운영비 등록", h);
+        };
+        window.saveBudget = function() {
+            const date = document.getElementById('bg-date').value, mall = document.getElementById('bg-mall').value, purpose = document.getElementById('bg-purpose').value, amount = document.getElementById('bg-amount').value;
+            if(date && mall && purpose && amount) db.ref('budgetRecords').push({ date, mall, purpose, amount: parseInt(amount) }).then(() => { alert("저장되었습니다."); closePopup(); });
+            else alert("모든 항목을 입력해주세요.");
+        };
+        window.deleteBudget = function(key) { if(confirm("이 내역을 삭제하시겠습니까?")) db.ref('budgetRecords/' + key).remove(); };
 
-    db.ref('budgetRecords').on('value', snap => {
-        let h = "";
-        let totalSpent = 0;
-        
-        snap.forEach(child => {
-            const item = child.val();
-            totalSpent += parseInt(item.amount || 0);
-            h += `<tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px;">${item.date}</td>
-                    <td style="padding:10px;">${item.mall}</td>
-                    <td style="padding:10px;">${item.purpose}</td>
-                    <td style="padding:10px; font-weight:bold; color:var(--red);">${parseInt(item.amount).toLocaleString()}원</td>
-                    <td style="padding:10px;"><button onclick="deleteBudget('${child.key}')" style="padding:5px 10px; font-size:0.8rem; background:#eee;">삭제</button></td>
-                  </tr>`;
-        });
-        
-        document.getElementById('budget-list').innerHTML = h || "<tr><td colspan='5' style='padding:20px; text-align:center;'>내역이 없습니다.</td></tr>";
-        document.getElementById('budget-summary').innerHTML = `총 예산: ${totalBudget.toLocaleString()}원 | 사용액: ${totalSpent.toLocaleString()}원 | <span style="color:var(--primary)">현재 잔액: ${(totalBudget - totalSpent).toLocaleString()}원</span>`;
-    });
-}
-
-// 내역 추가 팝업
-window.openAddBudgetPopup = function() {
-    let h = `<h3>🧾 운영비 내역 추가</h3>
-            날짜: <input type="date" id="bg-date" value="${new Date().toISOString().split('T')[0]}"><br>
-            쇼핑몰: <input type="text" id="bg-mall" placeholder="예: 쿠팡, 다이소"><br>
-            용도: <input type="text" id="bg-purpose" placeholder="예: 창의적 체험활동 재료"><br>
-            금액: <input type="number" id="bg-amount" placeholder="숫자만 입력"><br>
-            <button onclick="saveBudget()" style="background:var(--primary); color:white; width:100%; margin-top:10px;">저장하기</button>
-            <hr>
-            <small>총 예산 변경:</small>
-            <input type="number" id="bg-total-setting" value="${totalBudget}">
-            <button onclick="db.ref('settings').update({budgetTotal: parseInt(document.getElementById('bg-total-setting').value)}); alert('수정됨');">예산수정</button>`;
-    openPopup("운영비 등록", h);
-};
-
-window.saveBudget = function() {
-    const date = document.getElementById('bg-date').value;
-    const mall = document.getElementById('bg-mall').value;
-    const purpose = document.getElementById('bg-purpose').value;
-    const amount = document.getElementById('bg-amount').value;
-    
-    if(date && mall && purpose && amount) {
-        db.ref('budgetRecords').push({ date, mall, purpose, amount: parseInt(amount) })
-          .then(() => { alert("저장되었습니다."); closePopup(); });
-    } else {
-        alert("모든 항목을 입력해주세요.");
-    }
-};
-
-window.deleteBudget = function(key) {
-    if(confirm("이 내역을 삭제하시겠습니까?")) {
-        db.ref('budgetRecords/' + key).remove();
-    }
-};
-        
-
-// startApp 실행 시 초기화 함수 호출 추가
-// startApp() 함수 맨 끝에 initBudgetManager(); 한 줄을 추가해주세요.
         function updateNo(n, v) { db.ref('users/' + n).update({ no: parseInt(v) || 0 }); }
         function toggleHelperRole(n, s) { if(confirm(`${n} 권한 변경?`)) db.ref('users/'+n).update({isHelper:!s}); }
-        function approveBulk(keyStr, user, item) { if(confirm(`${user}의 ${item}을 모두 승인?`)) { const keys = keyStr.split(','), updates = {}; keys.forEach(k => { updates['orders/' + k + '/status'] = '완료'; }); db.ref().update(updates).then(() => alert("완료!")); } }
-                window.approveUserAll = function(keyStr, user) {
+        window.approveUserAll = function(keyStr, user) {
             if(confirm(`${user} 용사의 모든 사용 요청을 승인하시겠습니까?`)) {
-                const keys = keyStr.split(',');
-                const updates = {};
+                const keys = keyStr.split(','), updates = {};
                 keys.forEach(k => { updates['orders/' + k + '/status'] = '완료'; });
                 db.ref().update(updates).then(() => alert("✅ 일괄 승인 완료!"));
             }
         };
+
         function addScore(n, p, e, r) {
-    const studentName = n.trim(); // 이름 공백 철저히 제거
-    db.ref('users/' + studentName).once('value', sn => {
-        const u = sn.val();
-        if (!u) return;
-
-        // [핵심 로직] 지각 등교일 때는 계산된 p(음수) 외에 그 어떤 가점도 더해지지 않도록 확정
-        let nP = (u.points || 0) + p;
-        let nE = (u.exp || 0) + e;
-        let nL = (u.lv || 1);
-        let up = false;
-
-        while (nE >= 100) {
-            nL++;
-            nE -= 100;
-            up = true;
-        }
-
-        db.ref('users/' + studentName).update({
-            points: nP,
-            exp: nE,
-            lv: nL
-        }).then(() => {
-            if (r !== "정상 등교") {
-                db.ref('pointLogs').push({
-                    name: studentName,
-                    amount: p, // 로그에 정확히 -P가 찍히는지 확인
-                    reason: r,
-                    time: new Date().toLocaleString(),
-                    date: getTodayKST()
+            const studentName = n.trim(); 
+            db.ref('users/' + studentName).once('value', sn => {
+                const u = sn.val(); if (!u) return;
+                let nP = (u.points || 0) + p, nE = (u.exp || 0) + e, nL = (u.lv || 1), up = false;
+                while (nE >= 100) { nL++; nE -= 100; up = true; }
+                db.ref('users/' + studentName).update({ points: nP, exp: nE, lv: nL }).then(() => {
+                    if (r !== "정상 등교") {
+                        db.ref('pointLogs').push({ name: studentName, amount: p, reason: r, time: new Date().toLocaleString(), date: getTodayKST() });
+                    }
+                    if (up) triggerLevelUpRoulette(studentName, nL);
                 });
-            }
-            if (up) triggerLevelUpRoulette(studentName, nL);
-        });
-    });
-}
+            });
+        }
         function triggerLevelUpRoulette(n, l) { if(!giftList.length) return; const pick=giftList[Math.floor(Math.random()*giftList.length)]; db.ref('orders').push({user:n, item:`[레벨업] ${pick}`, status:'대기', time:new Date().toLocaleString()}); if(n===myName) openPopup("LEVEL UP!", `LV.${l} 달성! 보상: ${pick}`); }
 
         function renderAdminList() {
@@ -790,124 +629,72 @@ window.deleteBudget = function(key) {
             document.getElementById('student-admin-list').innerHTML = h || "용사가 없습니다."; 
         }
 
-       // 좌석 배치도 초기화 및 그리기
-function initSeatMap() {
-    const rows = parseInt(document.getElementById('seat-rows').value);
-    const cols = parseInt(document.getElementById('seat-cols').value);
-    const container = document.getElementById('seat-map-container');
-    
-    // 그리드 스타일 설정
-    container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    
-    // 현재 날짜의 등교 기록 가져오기 (이미 정의된 renderCheckinBoard와 연동)
-    renderCheckinBoard(); 
-}
+        function initSeatMap() {
+            const rows = parseInt(document.getElementById('seat-rows').value);
+            const cols = parseInt(document.getElementById('seat-cols').value);
+            const container = document.getElementById('seat-map-container');
+            container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            renderCheckinBoard(); 
+        }
+        function renderCheckinBoard() { generateNewLayout(); }
 
-// [기존 renderCheckinBoard 함수를 좌석표 형식으로 덮어쓰기]
-function renderCheckinBoard() {
-    // 내용을 비워두거나 generateNewLayout()을 호출하게 만듭니다.
-    generateNewLayout();
-}
-        // [복구] 💰 연대기 탭 내용 복구 함수
-function loadMyLogs() {
-    const listEl = document.getElementById('point-history-list');
-    if(!listEl) return;
-
-    // 관리자는 전체 로그, 학생은 본인 로그만
-    let query = isAdmin ? db.ref('pointLogs') : db.ref('pointLogs').orderByChild('name').equalTo(myName);
-    
-    query.once('value', snap => {
-        let logs = [];
-        snap.forEach(l => { logs.push(l.val()); });
-        logs.reverse(); // 최신순
-
-        let html = isAdmin ? `<div style="background:#444; color:white; padding:8px; text-align:center; border-radius:5px; margin-bottom:10px;">🛡️ 관리자 모드</div>` : "";
-        
-        if (logs.length === 0) {
-            html += `<div style="text-align:center; padding:20px; color:#999;">기록이 없습니다.</div>`;
-        } else {
-            logs.slice(0, 50).forEach(l => {
-                const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
-                const sign = l.amount >= 0 ? "+" : "";
-                html += `
-                    <div class="list-item" style="border-left:8px solid ${color}; margin-bottom:8px; background:white; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                        <span>
-                            <b style="font-size:1.1rem;">${isAdmin ? '['+l.name+'] ' : ''}${l.reason}</b><br>
-                            <small style="color:#888;">${l.time}</small>
-                        </span>
-                        <strong style="color:${color}; font-size:1.2rem;">${sign}${l.amount}P</strong>
-                    </div>`;
+        function loadMyLogs() {
+            const listEl = document.getElementById('point-history-list');
+            if(!listEl) return;
+            let query = isAdmin ? db.ref('pointLogs') : db.ref('pointLogs').orderByChild('name').equalTo(myName);
+            query.once('value', snap => {
+                let logs = []; snap.forEach(l => { logs.push(l.val()); }); logs.reverse();
+                let html = isAdmin ? `<div style="background:#444; color:white; padding:8px; text-align:center; border-radius:5px; margin-bottom:10px;">🛡️ 관리자 모드</div>` : "";
+                if (logs.length === 0) html += `<div style="text-align:center; padding:20px; color:#999;">기록이 없습니다.</div>`;
+                else {
+                    logs.slice(0, 50).forEach(l => {
+                        const color = l.amount >= 0 ? "var(--green)" : "var(--red)";
+                        const sign = l.amount >= 0 ? "+" : "";
+                        html += `<div class="list-item" style="border-left:8px solid ${color}; margin-bottom:8px; background:white; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                    <span><b style="font-size:1.1rem;">${isAdmin ? '['+l.name+'] ' : ''}${l.reason}</b><br><small style="color:#888;">${l.time}</small></span>
+                                    <strong style="color:${color}; font-size:1.2rem;">${sign}${l.amount}P</strong>
+                                 </div>`;
+                    });
+                }
+                listEl.innerHTML = html;
             });
         }
-        listEl.innerHTML = html;
-    });
-}
 
         function openPointBulkPopup(t='', p='', e='') {
-    let h = `
-        <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;">
-            <input type="text" id="pop-bulk-reason" value="${t}" placeholder="지급 사유를 입력하세요" style="margin-bottom:10px;">
-            <div style="display:flex; gap:15px; justify-content:center; align-items:center; background:#f9f9f9; padding:10px; border-radius:12px;">
-                <div style="text-align:center;">
-                    <span style="display:block; font-weight:bold; color:var(--primary); font-size:1rem;">일괄 P</span>
-                    <input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:100px; height:50px; text-align:center; font-size:1.4rem; border:2px solid var(--primary);">
-                </div>
-                <div style="text-align:center;">
-                    <span style="display:block; font-weight:bold; color:var(--purple); font-size:1rem;">일괄 E</span>
-                    <input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:100px; height:50px; text-align:center; font-size:1.4rem; border:2px solid var(--purple);">
-                </div>
-            </div>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <button onclick="toggleAllCheckboxes(true)" style="flex:1; background:var(--dark); color:white; padding:10px; font-size:1.1rem;">전체 선택</button>
-                <button onclick="toggleAllCheckboxes(false)" style="flex:1; background:#95a5a6; color:white; padding:10px; font-size:1.1rem;">선택 해제</button>
-            </div>
-        </div>
-        
-        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:15px; margin-top:20px;">`;
-
-    currentUsers.forEach(u => {
-        if(u.name !== "총사령관") {
-            h += `
-            <div style="background:#fff; border:2px solid #eee; border-radius:15px; padding:12px; text-align:center; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                <label style="display:block; cursor:pointer; margin-bottom:8px;">
-                    <input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:20px; height:20px;">
-                    <div style="font-weight:bold; font-size:1.2rem; margin-top:5px;">${u.no||''} ${u.name}</div>
-                </label>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <div style="display:flex; align-items:center; justify-content:center; gap:5px;">
-                        <span style="color:var(--primary); font-weight:bold; font-size:0.9rem; width:20px;">P</span>
-                        <input type="number" class="pop-bulk-p" value="${p}" style="width:85px; height:45px; text-align:center; font-size:1.3rem; border:2px solid #3498db; border-radius:8px;">
+            let h = `
+                <div style="position:sticky; top:0; background:white; padding-bottom:15px; border-bottom:3px solid var(--gold); z-index:10;">
+                    <input type="text" id="pop-bulk-reason" value="${t}" placeholder="지급 사유를 입력하세요" style="margin-bottom:10px;">
+                    <div style="display:flex; gap:15px; justify-content:center; align-items:center; background:#f9f9f9; padding:10px; border-radius:12px;">
+                        <div style="text-align:center;"><span style="display:block; font-weight:bold; color:var(--primary); font-size:1rem;">일괄 P</span><input type="number" id="all-p-input" value="${p}" oninput="applyToAll('p')" style="width:100px; height:50px; text-align:center; font-size:1.4rem; border:2px solid var(--primary);"></div>
+                        <div style="text-align:center;"><span style="display:block; font-weight:bold; color:var(--purple); font-size:1rem;">일괄 E</span><input type="number" id="all-e-input" value="${e}" oninput="applyToAll('e')" style="width:100px; height:50px; text-align:center; font-size:1.4rem; border:2px solid var(--purple);"></div>
                     </div>
-                    <div style="display:flex; align-items:center; justify-content:center; gap:5px;">
-                        <span style="color:var(--purple); font-weight:bold; font-size:0.9rem; width:20px;">E</span>
-                        <input type="number" class="pop-bulk-e" value="${e}" style="width:85px; height:45px; text-align:center; font-size:1.3rem; border:2px solid #9b59b6; border-radius:8px;">
-                    </div>
+                    <div style="display:flex; gap:10px; margin-top:10px;"><button onclick="toggleAllCheckboxes(true)" style="flex:1; background:var(--dark); color:white; padding:10px; font-size:1.1rem;">전체 선택</button><button onclick="toggleAllCheckboxes(false)" style="flex:1; background:#95a5a6; color:white; padding:10px; font-size:1.1rem;">선택 해제</button></div>
                 </div>
-            </div>`;
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:15px; margin-top:20px;">`;
+            currentUsers.forEach(u => {
+                if(u.name !== "총사령관") {
+                    h += `<div style="background:#fff; border:2px solid #eee; border-radius:15px; padding:12px; text-align:center; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                            <label style="display:block; cursor:pointer; margin-bottom:8px;"><input type="checkbox" class="student-select" data-name="${u.name}" checked style="width:20px; height:20px;"><div style="font-weight:bold; font-size:1.2rem; margin-top:5px;">${u.no||''} ${u.name}</div></label>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <div style="display:flex; align-items:center; justify-content:center; gap:5px;"><span style="color:var(--primary); font-weight:bold; font-size:0.9rem; width:20px;">P</span><input type="number" class="pop-bulk-p" value="${p}" style="width:85px; height:45px; text-align:center; font-size:1.3rem; border:2px solid #3498db; border-radius:8px;"></div>
+                                <div style="display:flex; align-items:center; justify-content:center; gap:5px;"><span style="color:var(--purple); font-weight:bold; font-size:0.9rem; width:20px;">E</span><input type="number" class="pop-bulk-e" value="${e}" style="width:85px; height:45px; text-align:center; font-size:1.3rem; border:2px solid #9b59b6; border-radius:8px;"></div>
+                            </div>
+                          </div>`;
+                }
+            });
+            document.getElementById('point-pop-body').innerHTML = h + `</div>`;
+            document.getElementById('point-popup').style.display = 'flex';
+            document.getElementById('point-apply-btn').onclick = () => {
+                const r = document.getElementById('pop-bulk-reason').value;
+                if(!r) return alert("지급 사유를 입력해주세요!");
+                const cbs = document.querySelectorAll('.student-select');
+                const ps = document.querySelectorAll('.pop-bulk-p');
+                const es = document.querySelectorAll('.pop-bulk-e');
+                cbs.forEach((cb, i) => { if(cb.checked) addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r); });
+                alert("성공적으로 반영되었습니다! ✨"); closePointPopup();
+            };
         }
-    });
 
-    document.getElementById('point-pop-body').innerHTML = h + `</div>`;
-    document.getElementById('point-popup').style.display = 'flex';
-    
-    // [기존 로직 유지] 반영하기 버튼 클릭 시 데이터 처리
-    document.getElementById('point-apply-btn').onclick = () => {
-        const r = document.getElementById('pop-bulk-reason').value;
-        if(!r) return alert("지급 사유를 입력해주세요!");
-        
-        const cbs = document.querySelectorAll('.student-select');
-        const ps = document.querySelectorAll('.pop-bulk-p');
-        const es = document.querySelectorAll('.pop-bulk-e');
-        
-        cbs.forEach((cb, i) => {
-            if(cb.checked) {
-                addScore(cb.dataset.name, parseInt(ps[i].value)||0, parseInt(es[i].value)||0, r);
-            }
-        });
-        alert("성공적으로 반영되었습니다! ✨");
-        closePointPopup();
-    };
-}
         function openMultiPopup(t='', p='', e='') {
             document.getElementById('multi-reason').value = t; document.getElementById('multi-p').value = p; document.getElementById('multi-e').value = e;
             let h = ""; currentUsers.forEach(u => { if(u.name !== "총사령관") h += `<label style="background:#f1f8e9; padding:10px; border-radius:10px; text-align:center;"><input type="checkbox" class="multi-select-check" data-name="${u.name}" checked><br><strong>${u.no||''}<br>${u.name}</strong></label>`; });
@@ -923,28 +710,40 @@ function loadMyLogs() {
         function checkAllMulti(s) { document.querySelectorAll('.multi-select-check').forEach(cb => cb.checked = s); }
         function applyToAll(type) { const val = document.getElementById('all-'+type+'-input').value; document.querySelectorAll('.pop-bulk-'+type).forEach(input => input.value = val); }
         
-        function saveSettings() { db.ref('settings').update({ password: document.getElementById('conf-pass').value, lateTime: document.getElementById('conf-late').value, closeTime: document.getElementById('conf-close').value, routineText: document.getElementById('conf-routine').value }).then(()=>alert("저장됨")); }
+        // [수정] 관리 탭 시스템 설정 저장 (암호 제외)
+        function saveAdminSettings() { 
+            db.ref('settings').update({ 
+                password: document.getElementById('conf-pass').value, 
+                lateTime: document.getElementById('conf-late').value, 
+                closeTime: document.getElementById('conf-close').value, 
+                routineText: document.getElementById('conf-routine').value 
+            }).then(()=>alert("시스템 설정이 전체 저장되었습니다!")); 
+        }
+
+        // [추가] 선생님 전용 [등교] 탭 설정 수동 저장
+        function saveCheckinSettings() {
+            const pw = document.getElementById('setting-pw').value;
+            const time = document.getElementById('setting-time').value;
+            const deadline = document.getElementById('setting-deadline').value;
+            db.ref('settings').update({
+                password: pw,
+                lateTime: time,
+                closeTime: deadline
+            }).then(() => alert("✅ 등교 설정이 저장되었습니다."));
+        }
+
         function saveGifts() { db.ref('settings').update({ giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim()) }).then(() => alert("보상 저장!")); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         
-  // 2. 따닥 클릭(연속 클릭) 방지를 위한 전역 변수 설정
-        let isCheckingIn = false; 
-
         async function submitCheckIn() {
-            if (isCheckingIn) return; // 이미 등교 처리 중이면 클릭 무시
-            
+            if (isCheckingIn) return; 
             const passInput = document.getElementById('checkin-pass');
             const checkinBtn = document.getElementById('checkin-btn');
             const pass = passInput.value.trim();
-            
             if (!pass) return alert("암호 입력!");
             
-            // 처리 시작: 버튼 잠금
             isCheckingIn = true;
-            if (checkinBtn) {
-                checkinBtn.disabled = true;
-                checkinBtn.innerText = "등교 처리 중...";
-            }
+            if (checkinBtn) { checkinBtn.disabled = true; checkinBtn.innerText = "등교 처리 중..."; }
             
             try {
                 const sSnap = await db.ref('settings').once('value');
@@ -963,507 +762,269 @@ function loadMyLogs() {
                 let isAlreadyCheckedIn = false;
                 logSnap.forEach(l => { 
                     if (l.val().name === myName.trim() && l.val().date === today) {
-                        if(l.val().result && l.val().result.includes("등교")) {
-                            isAlreadyCheckedIn = true;
-                        }
+                        if(l.val().result && l.val().result.includes("등교")) isAlreadyCheckedIn = true;
                     }
                 });
                 
                 if (isAlreadyCheckedIn) {
                     alert("오늘 이미 등교가 완료된 용사입니다!");
-                    // 중복 등교이므로 버튼은 계속 잠금 상태로 유지
-                    if(checkinBtn) {
-                        checkinBtn.innerText = "등교 완료됨";
-                        checkinBtn.style.background = "#95a5a6";
-                    }
+                    if(checkinBtn) { checkinBtn.innerText = "등교 완료됨"; checkinBtn.style.background = "#95a5a6"; }
                     return;
                 }
 
                 const now = new Date();
                 const nowStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-                
                 let result = "정상 등교", p = 0, e = 10;
                 const lateTime = settings.lateTime || "08:40";
                 const closeTime = settings.closeTime || "09:00";
 
                 if (nowStr > closeTime) {
-                    alert("마감되었습니다!");
+                    alert("등교 시간이 마감되었습니다! 선생님께 말씀드려주세요.");
                     isCheckingIn = false;
                     if (checkinBtn) { checkinBtn.disabled = false; checkinBtn.innerText = "본부 소환!"; }
                     return;
                 } 
-                // --- 지각 체크 철벽 로직 ---
                 else if (nowStr > lateTime) {
                     result = "지각 등교";
                     const [lateH, lateM] = lateTime.split(':').map(Number);
                     const [nowH, nowM] = nowStr.split(':').map(Number);
                     const diffMin = (nowH * 60 + nowM) - (lateH * 60 + lateM);
-                    
-                    // 지각한 시간만큼 1:1로 감점 (무조건 음수 변환)
                     p = -Math.abs(diffMin); 
                     e = 0; 
                 } 
-                else {
-                    result = "정상 등교";
-                    p = 0; 
-                    e = 3; 
-                }
+                else { result = "정상 등교"; p = 0; e = 3; }
 
                 const finalData = { 
-                    name: myName.trim(), 
-                    date: today, 
-                    time: nowStr, 
-                    result: result, 
-                    category: result === "지각 등교" ? "지각" : "정상", 
-                    subCategory: "해당없음", 
-                    reason: "" 
+                    name: myName.trim(), date: today, time: nowStr, result: result, 
+                    category: result === "지각 등교" ? "지각" : "정상", subCategory: "해당없음", reason: "" 
                 };
                 
-                // 기존 로그를 덮어쓰지 않고 무조건 새로운 기록을 남기도록 push 사용
                 await db.ref('checkinLogs').push(finalData);
-                
-                // 감점된 점수(p)를 어떠한 가점도 섞이지 않게 addScore로 전달
                 addScore(myName.trim(), p, e, result); 
                 
                 passInput.value = "";
                 alert(p < 0 ? `⚠️ 지각 등교! ${Math.abs(p)}분 늦어 ${p}P 차감 완료!` : "✅ 정상 등교 완료!");
                 
-                // 정상적으로 한 번 등교 완료되었으므로 버튼은 회색으로 영구 잠금
-                if (checkinBtn) {
-                    checkinBtn.innerText = "등교 완료됨";
-                    checkinBtn.style.background = "#95a5a6";
-                }
+                if (checkinBtn) { checkinBtn.innerText = "등교 완료됨"; checkinBtn.style.background = "#95a5a6"; }
                 
             } catch (error) {
-                console.error(error);
-                alert("서버 연결에 문제가 생겼습니다. 다시 눌러주세요.");
+                console.error(error); alert("서버 연결에 문제가 생겼습니다. 다시 눌러주세요.");
                 isCheckingIn = false;
                 if (checkinBtn) { checkinBtn.disabled = false; checkinBtn.innerText = "본부 소환!"; }
             }
         }
-     // 등교로그 탭에서 각 학생의 사유를 관리하는 UI 생성 부분
-function renderLogItem(studentId, logData, date) {
-    const reason = logData.reason || ""; // 구체 사유
-    const category = logData.category || "정상"; // 대항목
-    const subCategory = logData.subCategory || "해당없음"; // 소항목
 
-    return `
-    <div class="card" style="margin-bottom: 10px; border-left: 5px solid var(--primary);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <span style="font-weight: bold; font-size: 1.5rem;">${logData.name}</span>
-            <span style="color: #666;">${logData.time || "미등교"}</span>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-            <select id="cat-${studentId}" style="padding: 10px; font-size: 1.1rem;">
-                <option value="정상" ${category === '정상' ? 'selected' : ''}>정상 등교</option>
-                <option value="결석" ${category === '결석' ? 'selected' : ''}>결석</option>
-                <option value="지각" ${category === '지각' ? 'selected' : ''}>지각</option>
-                <option value="조퇴" ${category === '조퇴' ? 'selected' : ''}>조퇴</option>
-                <option value="제외" ${category === '제외' ? 'selected' : ''}>기록 제외</option>
-            </select>
-            <select id="sub-${studentId}" style="padding: 10px; font-size: 1.1rem;">
-                <option value="해당없음" ${subCategory === '해당없음' ? 'selected' : ''}>-</option>
-                <option value="질병" ${subCategory === '질병' ? 'selected' : ''}>질병</option>
-                <option value="인정" ${subCategory === '인정' ? 'selected' : ''}>인정</option>
-                <option value="미인정" ${subCategory === '미인정' ? 'selected' : ''}>미인정</option>
-                <option value="방과후" ${subCategory === '방과후' ? 'selected' : ''}>방과후</option>
-            </select>
-        </div>
-        
-        <input type="text" id="desc-${studentId}" placeholder="구체적인 사유 입력 (예: 아침 방과후, 감기 등)" 
-               value="${reason}" style="padding: 10px; font-size: 1.1rem; margin-bottom: 10px;">
-        
-        <button onclick="saveLogReason('${studentId}', '${date}')" 
-                style="background: var(--dark); color: white; padding: 10px; border: none; border-radius: 8px; width: 100%;">
-            사유 저장하기
-        </button>
-    </div>
-    `;
-}
-   
-        let currentLayout = {}; 
-let isEditMode = false;
-let selectedStudentForMove = null;
+        function toggleSeatEditMode() {
+            isEditMode = !isEditMode;
+            const panel = document.getElementById('seat-edit-panel');
+            const btn = document.getElementById('edit-mode-btn');
+            if(isEditMode) {
+                panel.style.display = 'block'; btn.innerText = '수정 완료(닫기)'; btn.style.backgroundColor = "#e74c3c"; 
+            } else {
+                panel.style.display = 'none'; btn.innerText = '좌석 배치 수정'; btn.style.backgroundColor = "#2c3e50";
+            }
+            generateNewLayout(); 
+        }
 
-// [수정] 수정 모드 토글 (따옴표 에러 완벽 해결)
-function toggleSeatEditMode() {
-    isEditMode = !isEditMode;
-    const panel = document.getElementById('seat-edit-panel');
-    const btn = document.getElementById('edit-mode-btn');
-    
-    if(isEditMode) {
-        panel.style.display = 'block';
-        btn.innerText = '수정 완료(닫기)';
-        btn.style.backgroundColor = "#e74c3c"; // 직접 색상 지정
-    } else {
-        panel.style.display = 'none';
-        btn.innerText = '좌석 배치 수정';
-        btn.style.backgroundColor = "#2c3e50";
-    }
-    generateNewLayout(); // 즉시 다시 그리기
-}
+        function renderSeatMap(rows, cols) {
+            const container = document.getElementById('seat-map-container');
+            if(!container) return;
+            container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            container.innerHTML = "";
+            
+            const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
+            const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+            const selectedDay = weekDays[new Date(targetDate).getDay()];
 
-function renderSeatMap(rows, cols) {
-    const container = document.getElementById('seat-map-container');
-    if(!container) return;
-    container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    container.innerHTML = "";
-    
-    const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
-    const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-    const selectedDay = weekDays[new Date(targetDate).getDay()];
+            Promise.all([ db.ref('checkinLogs').once('value'), db.ref('settings/fixedExclusions').once('value') ]).then(snaps => {
+                const logs = {};
+                snaps[0].forEach(l => { if(l.val().date === targetDate) logs[l.val().name] = l.val(); });
+                const exclusionData = snaps[1].val() || {};
+                const todayExclusions = exclusionData[selectedDay] || [];
 
-    Promise.all([
-        db.ref('checkinLogs').once('value'),
-        db.ref('settings/fixedExclusions').once('value')
-    ]).then(snaps => {
-        const logs = {};
-        snaps[0].forEach(l => { if(l.val().date === targetDate) logs[l.val().name] = l.val(); });
-        
-        const exclusionData = snaps[1].val() || {};
-        const todayExclusions = exclusionData[selectedDay] || [];
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const posId = `${r}-${c}`;
+                        const name = currentLayout[posId] || "";
+                        const cell = document.createElement('div');
+                        
+                        let bgColor = "#eee", statusText = "미등교", textColor = "black";
 
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const posId = `${r}-${c}`;
-                const name = currentLayout[posId] || "";
-                const cell = document.createElement('div');
-                
-                let bgColor = "#eee"; // 빈자리
-                let statusText = "미등교";
-                let textColor = "black";
+                        if (name) {
+                            const log = logs[name]; 
+                            const isFixedExcluded = todayExclusions.includes(name); 
 
-                if (name) {
-                    const log = logs[name]; // 개별 변동 사유 기록
-                    const isFixedExcluded = todayExclusions.includes(name); // 고정 제외 여부
-
-                    // --- [핵심: 표시 우선순위 로직] ---
-                    
-                    // 1순위: 개별 사유가 입력된 경우 (지각, 결석, 조퇴 등 변동 사항)
-                    if (log) {
-                        statusText = log.result;
-                        if (log.result.includes('정상')) bgColor = "#ccffcc"; // 녹색
-                        else if (log.result.includes('지각')) bgColor = "#ffcccc"; // 분홍색
-                        else {
-                            // 결석, 조퇴, 기타 등
-                            bgColor = "#f39c12"; // 주황색 (변동 제외 강조)
-                            statusText = log.result;
+                            if (log) {
+                                statusText = log.result;
+                                if (log.result.includes('정상')) bgColor = "#ccffcc"; 
+                                else if (log.result.includes('지각')) bgColor = "#ffcccc"; 
+                                else { bgColor = "#f39c12"; statusText = log.result; }
+                            } 
+                            else if (isFixedExcluded) { bgColor = "#3498db"; statusText = "고정 제외"; textColor = "white"; } 
+                            else { bgColor = "#ffff00"; statusText = "미등교"; }
                         }
-                    } 
-                    // 2순위: 개별 기록은 없지만 고정 제외인 경우
-                    else if (isFixedExcluded) {
-                        bgColor = "#3498db"; // 파란색
-                        statusText = "고정 제외";
-                        textColor = "white";
-                    } 
-                    // 3순위: 아무 기록 없는 일반 미등교
-                    else {
-                        bgColor = "#ffff00"; // 노란색
-                        statusText = "미등교";
+
+                        cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; color: ${textColor};`;
+
+                        if (name) {
+                            cell.innerHTML = `<div style="font-weight:900; font-size:1.6rem; margin-bottom:5px;">${name}</div>
+                                              <div style="font-weight:bold; font-size:1.2rem;">${statusText}</div>
+                                              <div style="font-size:1.1rem; margin-top:3px;">${logs[name]?.time && logs[name].time !== '-' ? '[' + logs[name].time + ']' : ''}</div>`;
+                        }
+                        
+                        cell.onclick = () => { if (isEditMode) openStudentPicker(posId, rows, cols); else if (name) openLogEditPopup(name, targetDate); };
+                        container.appendChild(cell);
                     }
                 }
-
-                cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; color: ${textColor};`;
-
-                if (name) {
-                    cell.innerHTML = `
-                        <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px;">${name}</div>
-                        <div style="font-weight:bold; font-size:1.2rem;">${statusText}</div>
-                        <div style="font-size:1.1rem; margin-top:3px;">${logs[name]?.time && logs[name].time !== '-' ? '[' + logs[name].time + ']' : ''}</div>
-                    `;
-                }
-                
-                cell.onclick = () => {
-                    if (isEditMode) openStudentPicker(posId, rows, cols);
-                    else if (name) openLogEditPopup(name, targetDate); 
-                };
-                container.appendChild(cell);
-            }
+            });
         }
-    });
-}
 
-// 2. 학생 선택용 팝업 함수
-function openStudentPicker(posId, rows, cols) {
-    // 이미 배치된 학생들 제외하고 명단 만들기
-    const assignedNames = Object.values(currentLayout);
-    let h = `<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; padding:10px;">`;
-    
-    // 빈자리로 만들기 옵션
-    h += `<button onclick="assignStudentToSeat('${posId}', '', ${rows}, ${cols})" style="background:#eee; color:#333;">❌ 비우기</button>`;
-    
-    currentUsers.forEach(u => {
-        if(u.name === "총사령관") return;
-        const isAssigned = assignedNames.includes(u.name);
-        h += `<button onclick="assignStudentToSeat('${posId}', '${u.name}', ${rows}, ${cols})" 
-                style="background:${isAssigned ? '#ddd' : 'var(--primary)'}; color:white; font-size:1.1rem; padding:15px 5px;">
-                ${u.name}${isAssigned ? ' (배치됨)' : ''}
-              </button>`;
-    });
-    h += `</div>`;
-    openPopup("🧑‍🎓 학생 배치", h);
-}
-
-// 3. 실제로 칸에 학생을 할당하는 함수
-function assignStudentToSeat(posId, name, rows, cols) {
-    if(name === "") {
-        delete currentLayout[posId];
-    } else {
-        // 다른 칸에 이미 이 학생이 있다면 그 칸은 비워줌 (중복 방지)
-        for (let key in currentLayout) {
-            if (currentLayout[key] === name) delete currentLayout[key];
-        }
-        currentLayout[posId] = name;
-    }
-    closePopup();
-    renderSeatMap(rows, cols);
-}
-// [추가] 월별 엑셀 출력 함수
-function downloadMonthlyExcel() {
-    const targetMonth = document.getElementById('checkin-date-filter').value.substring(0, 7); // "2026-04"
-    if(!targetMonth) return alert("날짜를 먼저 선택해주세요!");
-
-    db.ref('checkinLogs').once('value', snap => {
-        let rows = [["날짜", "이름", "결과", "등교시간", "대항목", "소항목", "구체사유"]];
-        snap.forEach(c => {
-            const l = c.val();
-            if(l.date && l.date.startsWith(targetMonth)) {
-                rows.push([l.date, l.name, l.result, l.time || "-", l.category || "-", l.subCategory || "-", l.reason || "-"]);
-            }
-        });
-
-        if(rows.length === 1) return alert("해당 월의 데이터가 없습니다.");
-
-        const worksheet = XLSX.utils.aoa_to_sheet(rows);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "등교기록");
-        XLSX.writeFile(workbook, `6-6_등교기록_${targetMonth}.xlsx`);
-    });
-}
-// 3. 배치도 DB 저장
-function saveSeatLayout() {
-    const rows = document.getElementById('seat-rows').value;
-    const cols = document.getElementById('seat-cols').value;
-    
-    const dataToSave = {
-        layout: currentLayout,
-        config: { rows: rows, cols: cols }
-    };
-
-    db.ref('seatLayoutData').set(dataToSave)
-    .then(() => alert("좌석 배치가 저장되었습니다! ✨"))
-    .catch(err => alert("저장 실패: " + err));
-}
-        function openLogEditPopup(name, date) {
-    // 기존에 저장된 사유가 있는지 확인
-    db.ref('checkinLogs').once('value', snap => {
-        let logKey = null;
-        let logData = {};
-        snap.forEach(c => {
-            if(c.val().name === name && c.val().date === date) {
-                logKey = c.key;
-                logData = c.val();
-            }
-        });
-
-        const h = `
-            <div style="text-align:left; padding:10px;">
-                <h3 style="text-align:center;">${name} 등교 상세 기록</h3>
-                <label>🚩 등교 상태 (대항목)</label>
-                <select id="edit-cat">
-                    <option value="정상" ${logData.result === '정상 등교' ? 'selected' : ''}>정상 등교</option>
-                    <option value="지각" ${logData.result === '지각 등교' ? 'selected' : ''}>지각</option>
-                    <option value="결석" ${logData.category === '결석' ? 'selected' : ''}>결석</option>
-                    <option value="조퇴" ${logData.category === '조퇴' ? 'selected' : ''}>조퇴</option>
-                    <option value="제외" ${logData.category === '제외' ? 'selected' : ''}>기록 제외(방과후 등)</option>
-                </select>
-
-                <label>🔍 사유 구분 (소항목)</label>
-                <select id="edit-sub">
-                    <option value="해당없음" ${logData.subCategory === '해당없음' ? 'selected' : ''}>-</option>
-                    <option value="질병" ${logData.subCategory === '질병' ? 'selected' : ''}>질병</option>
-                    <option value="인정" ${logData.subCategory === '인정' ? 'selected' : ''}>인정</option>
-                    <option value="미인정" ${logData.subCategory === '미인정' ? 'selected' : ''}>미인정</option>
-                    <option value="기타" ${logData.subCategory === '기타' ? 'selected' : ''}>기타</option>
-                </select>
-
-                <label>📝 구체적 사유 기록</label>
-                <textarea id="edit-desc" rows="3" placeholder="예: 아침 방과후 농구팀, 독감으로 인한 결석 등">${logData.reason || ''}</textarea>
-                
-                <button onclick="saveDetailLog('${name}', '${date}', '${logKey}')" style="background:var(--primary); color:white; font-weight:bold; margin-top:15px;">상태 및 사유 저장</button>
-            </div>
-        `;
-        openPopup("📊 등교 기록 수정", h);
-    });
-}
-
-// 상세 사유 DB 저장 함수
-function saveDetailLog(name, date, key) {
-    const category = document.getElementById('edit-cat').value;
-    const subCategory = document.getElementById('edit-sub').value;
-    const reason = document.getElementById('edit-desc').value;
-    
-    // 결과 텍스트 결정
-    let resultText = category;
-    if (category === '정상' || category === '지각') resultText = category + ' 등교';
-
-    const updateData = {
-        name: name,
-        date: date,
-        category: category,
-        subCategory: subCategory,
-        reason: reason,
-        result: resultText,
-        time: "-" // 수동 입력이므로 시간은 대시 처리
-    };
-
-    if(key && key !== 'null') {
-        db.ref('checkinLogs/' + key).update(updateData).then(afterSave);
-    } else {
-        db.ref('checkinLogs').push(updateData).then(afterSave);
-    }
-
-    function afterSave() {
-        alert("변동 사유가 반영되었습니다.");
-        closePopup();
-        generateNewLayout(); 
-    }
-}
-        function saveCurrentLayout() {
-    const rows = document.getElementById('seat-rows').value;
-    const cols = document.getElementById('seat-cols').value;
-    
-    // DB의 seatLayoutData 경로에 현재 배치(layout)와 설정(config)을 저장
-    db.ref('seatLayoutData').set({
-        layout: currentLayout,
-        config: {
-            rows: parseInt(rows),
-            cols: parseInt(cols)
-        },
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => {
-        alert("좌석 배치가 안전하게 저장되었습니다! 이제 새로고침해도 유지됩니다.");
-        isEditMode = false; // 저장 후 수정모드 자동 종료
-        toggleSeatEditMode(); // UI 복구
-    }).catch(err => {
-        alert("저장 실패: " + err.message);
-    });
-}
-        // 요일별 고정 제외 명단 팝업
-function openExclusionPopup() {
-    db.ref('settings/fixedExclusions').once('value', snap => {
-        const data = snap.val() || {}; // { '월': [...], '화': [...] } 형태
-        const days = ['월', '화', '수', '목', '금'];
-        
-        let h = `<div style="text-align:left;">
-                    <p style="font-size:1rem; color:var(--red); font-weight:bold; mb:10px;">* 요일별로 등교 체크에서 제외할 학생을 선택하세요.</p>
-                    <div style="display:flex; gap:5px; margin-bottom:15px;">`;
-        
-        // 요일 선택 탭
-        days.forEach(d => {
-            h += `<button onclick="showExclusionDay('${d}')" class="day-tab" id="tab-${d}" style="flex:1; padding:10px; border:1px solid #ccc; border-radius:8px;">${d}</button>`;
-        });
-        h += `</div>`;
-
-        // 요일별 학생 명단 영역
-        days.forEach(d => {
-            const excludedList = data[d] || [];
-            h += `<div id="day-cont-${d}" class="day-content" style="display:none; grid-template-columns:repeat(3, 1fr); gap:10px;">`;
+        function openStudentPicker(posId, rows, cols) {
+            const assignedNames = Object.values(currentLayout);
+            let h = `<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; padding:10px;">`;
+            h += `<button onclick="assignStudentToSeat('${posId}', '', ${rows}, ${cols})" style="background:#eee; color:#333;">❌ 비우기</button>`;
             currentUsers.forEach(u => {
                 if(u.name === "총사령관") return;
-                const isChecked = excludedList.includes(u.name);
-                h += `
-                    <label style="background:#f8f9fa; padding:10px; border-radius:10px; text-align:center; border:2px solid ${isChecked ? 'var(--purple)' : '#eee'}">
-                        <input type="checkbox" class="ex-check-${d}" value="${u.name}" ${isChecked ? 'checked' : ''}>
-                        <div style="font-weight:bold; font-size:1.1rem;">${u.name}</div>
-                    </label>`;
+                const isAssigned = assignedNames.includes(u.name);
+                h += `<button onclick="assignStudentToSeat('${posId}', '${u.name}', ${rows}, ${cols})" style="background:${isAssigned ? '#ddd' : 'var(--primary)'}; color:white; font-size:1.1rem; padding:15px 5px;">${u.name}${isAssigned ? ' (배치됨)' : ''}</button>`;
             });
             h += `</div>`;
-        });
-        
-        h += `<button onclick="saveExclusionsByDay()" style="width:100%; margin-top:20px; background:var(--purple); color:white; padding:15px; border-radius:12px; font-weight:bold;">설정 저장하기</button></div>`;
-        
-        openPopup("🚫 요일별 등교제외 설정", h);
-        showExclusionDay('월'); // 기본 월요일 보여주기
-    });
-}
+            openPopup("🧑‍🎓 학생 배치", h);
+        }
 
-// 요일 탭 전환 함수
-function showExclusionDay(day) {
-    document.querySelectorAll('.day-content').forEach(el => el.style.display = 'none');
-    document.querySelectorAll('.day-tab').forEach(el => el.style.background = 'white');
-    document.getElementById('day-cont-' + day).style.display = 'grid';
-    document.getElementById('tab-' + day).style.background = '#e9ecef';
-}
+        function assignStudentToSeat(posId, name, rows, cols) {
+            if(name === "") delete currentLayout[posId];
+            else { for (let key in currentLayout) { if (currentLayout[key] === name) delete currentLayout[key]; } currentLayout[posId] = name; }
+            closePopup(); renderSeatMap(rows, cols);
+        }
 
-// 요일별 저장 함수
-function saveExclusionsByDay() {
-    const data = {};
-    ['월', '화', '수', '목', '금'].forEach(d => {
-        const selected = [];
-        document.querySelectorAll('.ex-check-' + d + ':checked').forEach(el => selected.push(el.value));
-        data[d] = selected;
-    });
-    
-    db.ref('settings/fixedExclusions').set(data).then(() => {
-        alert("요일별 제외 명단이 파란색으로 표시되도록 저장되었습니다. ✨");
-        closePopup();
-        generateNewLayout(); // 즉시 화면에 파란색 반영
-    });
-}
-       window.refundItem = async function(orderKey, itemName, price) {
-    if(!confirm(`[품절 안내] ${itemName} 물품은 현재 품절되었습니다.\n${price}P를 환불받으시겠습니까?`)) return;
-    
-    addScore(myName, price, 0, `[품절] ${itemName} 환불`);
-    await db.ref('orders/' + orderKey).remove();
-    alert(`✅ ${price}P 환불이 완료되었습니다! (연대기 확인 가능)`);
-};
-        window.approveSingleItem = function(key, user, item) {
-    if(confirm(`${user} 용사의 [${item}] 1개를 승인하시겠습니까?`)) {
-        db.ref('orders/' + key).update({status: '완료'})
-          .then(() => alert("✅ 개별 승인 완료!"));
-    }
-};
-        // 개별 환불(거절) 및 포인트 복구 함수
+        function downloadMonthlyExcel() {
+            const targetMonth = document.getElementById('checkin-date-filter').value.substring(0, 7); 
+            if(!targetMonth) return alert("날짜를 먼저 선택해주세요!");
+
+            db.ref('checkinLogs').once('value', snap => {
+                let rows = [["날짜", "이름", "결과", "등교시간", "대항목", "소항목", "구체사유"]];
+                snap.forEach(c => {
+                    const l = c.val();
+                    if(l.date && l.date.startsWith(targetMonth)) rows.push([l.date, l.name, l.result, l.time || "-", l.category || "-", l.subCategory || "-", l.reason || "-"]);
+                });
+                if(rows.length === 1) return alert("해당 월의 데이터가 없습니다.");
+                const worksheet = XLSX.utils.aoa_to_sheet(rows); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "등교기록"); XLSX.writeFile(workbook, `6-6_등교기록_${targetMonth}.xlsx`);
+            });
+        }
+
+        function saveSeatLayout() {
+            const rows = document.getElementById('seat-rows').value; const cols = document.getElementById('seat-cols').value;
+            db.ref('seatLayoutData').set({ layout: currentLayout, config: { rows: parseInt(rows), cols: parseInt(cols) }, updatedAt: firebase.database.ServerValue.TIMESTAMP })
+            .then(() => { alert("좌석 배치가 안전하게 저장되었습니다! 이제 새로고침해도 유지됩니다."); isEditMode = false; toggleSeatEditMode(); })
+            .catch(err => alert("저장 실패: " + err.message));
+        }
+
+        function openLogEditPopup(name, date) {
+            db.ref('checkinLogs').once('value', snap => {
+                let logKey = null, logData = {};
+                snap.forEach(c => { if(c.val().name === name && c.val().date === date) { logKey = c.key; logData = c.val(); } });
+
+                const h = `
+                    <div style="text-align:left; padding:10px;">
+                        <h3 style="text-align:center;">${name} 등교 상세 기록</h3>
+                        <label>🚩 등교 상태 (대항목)</label>
+                        <select id="edit-cat">
+                            <option value="정상" ${logData.result === '정상 등교' ? 'selected' : ''}>정상 등교</option>
+                            <option value="지각" ${logData.result === '지각 등교' ? 'selected' : ''}>지각</option>
+                            <option value="결석" ${logData.category === '결석' ? 'selected' : ''}>결석</option>
+                            <option value="조퇴" ${logData.category === '조퇴' ? 'selected' : ''}>조퇴</option>
+                            <option value="제외" ${logData.category === '제외' ? 'selected' : ''}>기록 제외(방과후 등)</option>
+                        </select>
+                        <label>🔍 사유 구분 (소항목)</label>
+                        <select id="edit-sub">
+                            <option value="해당없음" ${logData.subCategory === '해당없음' ? 'selected' : ''}>-</option>
+                            <option value="질병" ${logData.subCategory === '질병' ? 'selected' : ''}>질병</option>
+                            <option value="인정" ${logData.subCategory === '인정' ? 'selected' : ''}>인정</option>
+                            <option value="미인정" ${logData.subCategory === '미인정' ? 'selected' : ''}>미인정</option>
+                            <option value="기타" ${logData.subCategory === '기타' ? 'selected' : ''}>기타</option>
+                        </select>
+                        <label>📝 구체적 사유 기록</label>
+                        <textarea id="edit-desc" rows="3" placeholder="예: 아침 방과후 농구팀, 독감으로 인한 결석 등">${logData.reason || ''}</textarea>
+                        <button onclick="saveDetailLog('${name}', '${date}', '${logKey}')" style="background:var(--primary); color:white; font-weight:bold; margin-top:15px;">상태 및 사유 저장</button>
+                    </div>`;
+                openPopup("📊 등교 기록 수정", h);
+            });
+        }
+
+        function saveDetailLog(name, date, key) {
+            const category = document.getElementById('edit-cat').value; const subCategory = document.getElementById('edit-sub').value; const reason = document.getElementById('edit-desc').value;
+            let resultText = category; if (category === '정상' || category === '지각') resultText = category + ' 등교';
+
+            const updateData = { name: name, date: date, category: category, subCategory: subCategory, reason: reason, result: resultText, time: "-" };
+
+            if(key && key !== 'null') db.ref('checkinLogs/' + key).update(updateData).then(afterSave);
+            else db.ref('checkinLogs').push(updateData).then(afterSave);
+
+            function afterSave() { alert("변동 사유가 반영되었습니다."); closePopup(); generateNewLayout(); }
+        }
+
+        function openExclusionPopup() {
+            db.ref('settings/fixedExclusions').once('value', snap => {
+                const data = snap.val() || {}; const days = ['월', '화', '수', '목', '금'];
+                let h = `<div style="text-align:left;"><p style="font-size:1rem; color:var(--red); font-weight:bold; mb:10px;">* 요일별로 등교 체크에서 제외할 학생을 선택하세요.</p><div style="display:flex; gap:5px; margin-bottom:15px;">`;
+                days.forEach(d => { h += `<button onclick="showExclusionDay('${d}')" class="day-tab" id="tab-${d}" style="flex:1; padding:10px; border:1px solid #ccc; border-radius:8px;">${d}</button>`; });
+                h += `</div>`;
+                days.forEach(d => {
+                    const excludedList = data[d] || [];
+                    h += `<div id="day-cont-${d}" class="day-content" style="display:none; grid-template-columns:repeat(3, 1fr); gap:10px;">`;
+                    currentUsers.forEach(u => {
+                        if(u.name === "총사령관") return;
+                        const isChecked = excludedList.includes(u.name);
+                        h += `<label style="background:#f8f9fa; padding:10px; border-radius:10px; text-align:center; border:2px solid ${isChecked ? 'var(--purple)' : '#eee'}"><input type="checkbox" class="ex-check-${d}" value="${u.name}" ${isChecked ? 'checked' : ''}><div style="font-weight:bold; font-size:1.1rem;">${u.name}</div></label>`;
+                    });
+                    h += `</div>`;
+                });
+                h += `<button onclick="saveExclusionsByDay()" style="width:100%; margin-top:20px; background:var(--purple); color:white; padding:15px; border-radius:12px; font-weight:bold;">설정 저장하기</button></div>`;
+                openPopup("🚫 요일별 등교제외 설정", h); showExclusionDay('월');
+            });
+        }
+
+        function showExclusionDay(day) {
+            document.querySelectorAll('.day-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.day-tab').forEach(el => el.style.background = 'white');
+            document.getElementById('day-cont-' + day).style.display = 'grid';
+            document.getElementById('tab-' + day).style.background = '#e9ecef';
+        }
+
+        function saveExclusionsByDay() {
+            const data = {};
+            ['월', '화', '수', '목', '금'].forEach(d => {
+                const selected = []; document.querySelectorAll('.ex-check-' + d + ':checked').forEach(el => selected.push(el.value)); data[d] = selected;
+            });
+            db.ref('settings/fixedExclusions').set(data).then(() => { alert("요일별 제외 명단이 파란색으로 표시되도록 저장되었습니다. ✨"); closePopup(); generateNewLayout(); });
+        }
+
+        window.refundItem = async function(orderKey, itemName, price) {
+            if(!confirm(`[품절 안내] ${itemName} 물품은 현재 품절되었습니다.\n${price}P를 환불받으시겠습니까?`)) return;
+            addScore(myName, price, 0, `[품절] ${itemName} 환불`); await db.ref('orders/' + orderKey).remove(); alert(`✅ ${price}P 환불이 완료되었습니다! (연대기 확인 가능)`);
+        };
+        window.approveSingleItem = function(key, user, item) { if(confirm(`${user} 용사의 [${item}] 1개를 승인하시겠습니까?`)) { db.ref('orders/' + key).update({status: '완료'}).then(() => alert("✅ 개별 승인 완료!")); } };
         window.rejectSingleItem = function(key, user, item) {
             if(confirm(`${user} 용사의 [${item}] 요청을 거절하고 포인트를 환불하시겠습니까?`)) {
-                // 1. 상점 데이터에서 해당 물품의 원래 가격(P)을 찾아냅니다.
                 let refundP = 0;
-                if(window.shopData) {
-                    window.shopData.forEach(c => {
-                        if(c.val().name === item) {
-                            refundP = c.val().price || 0;
-                        }
-                    });
-                }
-                
-                // 2. orders(실제 대기열 DB)에서 내역을 삭제합니다.
+                if(window.shopData) { window.shopData.forEach(c => { if(c.val().name === item) refundP = c.val().price || 0; }); }
                 db.ref('orders/' + key).remove().then(() => {
-                    // 3. 찾은 가격만큼 학생에게 포인트를 다시 돌려줍니다!
-                    if(refundP > 0) {
-                        addScore(user, refundP, 0, `[환불] ${item} 승인 거절`);
-                    }
+                    if(refundP > 0) addScore(user, refundP, 0, `[환불] ${item} 승인 거절`);
                     alert(`✅ 환불 완료! ${user} 용사에게 ${refundP}P가 복구되었습니다.`);
                 });
             }
         };
-        // 🎲 새로운 난수 암호 발급 함수 (JS 맨 아래에 추가)
-function generateRandomPassword() {
-    if(!confirm("내일 사용할 4자리 랜덤 암호를 발급하시겠습니까?")) return;
-    
-    const randomPw = Math.floor(1000 + Math.random() * 9000).toString(); 
-    const pwInput = document.getElementById('setting-pw'); 
-    if(pwInput) pwInput.value = randomPw;
-    
-    // ⚠️ 기존에 사용하시던 파이어베이스 암호 저장 경로가 맞는지 확인해주세요!
-    db.ref('settings/pw').set(randomPw).then(() => {
-        alert(`✅ 암호 발급 완료!\n\n내일의 등교 암호는 [ ${randomPw} ] 입니다.\n퇴근 전 칠판 구석에 적어주세요!`);
-    }).catch(err => {
-        alert("암호 저장 중 오류가 발생했습니다.");
-        console.error(err);
-    });
-}
+
+        function generateRandomPassword() {
+            if(!confirm("내일 사용할 4자리 랜덤 암호를 발급하시겠습니까?")) return;
+            const randomPw = Math.floor(1000 + Math.random() * 9000).toString(); 
+            const pwInput = document.getElementById('setting-pw'); 
+            if(pwInput) pwInput.value = randomPw;
+            db.ref('settings').update({password: randomPw}).then(() => {
+                alert(`✅ 암호 발급 완료!\n\n내일의 등교 암호는 [ ${randomPw} ] 입니다.\n퇴근 전 칠판 구석에 적어주세요!`);
+            }).catch(err => { alert("암호 저장 중 오류가 발생했습니다."); console.error(err); });
+        }
     </script>
 </body>
 </html>
