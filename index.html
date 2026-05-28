@@ -339,7 +339,7 @@
 
             let currentShopCat = "전체";
             
-            // 1. 상점 데이터 실시간 불러오기
+          // 1. 상점 데이터 실시간 불러오기
             db.ref('shop').on('value', snap => { 
                 window.shopData = snap; 
                 window.renderShop(); // 데이터가 바뀔 때마다 화면을 새로 그립니다.
@@ -351,6 +351,12 @@
                 if (!shopDiv) return;
                 
                 let html = "";
+
+                // 🛑 [복구 1] 관리자(선생님)일 경우에만 맨 위에 '새 물품 추가' 버튼 생성!
+                if (isAdmin) {
+                    html += `<button onclick="openAddShopPopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:20px; width:100%; border:none; padding:15px; border-radius:10px; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 물품 등록</button>`;
+                }
+
                 if (window.shopData) {
                     window.shopData.forEach(child => {
                         const k = child.key;         
@@ -359,23 +365,28 @@
                         let btnHtml = "";
                         let stockText = "";
 
-                        // 재고(stock) 설정 확인
+                        // 재고(stock) 설정 및 품절 확인
                         if (item.stock !== undefined && item.stock !== null) {
                             stockText = `<div style="font-size:12px; color:red; margin-bottom: 8px; font-weight: bold;">(남은 수량: ${item.stock}개)</div>`;
                             
-                            // 품절 여부 확인
                             if (item.stock <= 0) {
                                 btnHtml = `<button disabled style="background-color: #cccccc; color: #666666; cursor: not-allowed; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold;">품절 🚫</button>`;
                             } else {
                                 btnHtml = `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
                             }
                         } else {
-                            // 무제한 상품
                             btnHtml = `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
+                        }
+
+                        // 🛑 [복구 2] 관리자(선생님)일 경우에만 카드 아래에 '수정/관리' 버튼 생성!
+                        let adminBtnHtml = "";
+                        if (isAdmin) {
+                            adminBtnHtml = `<button onclick="openEditShopPopup('${k}')" style="background-color: #ff9800; color: white; border: none; padding: 8px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 8px;">⚙️ 수정/삭제</button>`;
                         }
 
                         let limitText = (item.limit > 0) ? `최대 ${item.limit}회 구매 가능` : '무제한 구매 가능';
 
+                        // 📦 상품 카드 HTML 조립
                         html += `
                             <div class="shop-card" style="border: 1px solid #e0e0e0; padding: 15px; margin: 10px; border-radius: 10px; display: inline-block; width: 220px; vertical-align: top; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; background-color: #ffffff;">
                                 <h3 style="margin-top: 5px; margin-bottom: 5px; font-size: 18px; color: #333;">${item.name}</h3>
@@ -384,14 +395,14 @@
                                 <p style="font-size: 12px; color: #888; margin-bottom: 15px;">🔄 ${limitText}</p>
                                 <div>
                                     ${btnHtml}
-                                </div>
+                                    ${adminBtnHtml} </div>
                             </div>
                         `;
                     });
                 }
                 shopDiv.innerHTML = html;
             };
-
+            
             db.ref('pointGuide').on('value', snap => { 
                 if (!isAdmin) {
                     const guideListEl = document.getElementById('guide-list');
