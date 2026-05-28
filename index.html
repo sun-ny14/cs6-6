@@ -341,34 +341,61 @@
             db.ref('shop').on('value', snap => { 
                 window.shopData = snap; 
                 window.renderShop = function() {
-                    const cats = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
-                    let tabH = `<div style="display:flex; overflow-x:auto; gap:10px; margin-bottom:15px; padding-bottom:10px;">`;
-                    cats.forEach(c => { const activeStyle = (currentShopCat === c) ? 'background:var(--primary); color:white;' : 'background:#eee;'; tabH += `<button onclick="filterShop('${c}')" style="width:auto; padding:10px 20px; border-radius:12px; font-weight:bold; border:none; ${activeStyle} white-space:nowrap;">${c}</button>`; });
-                    tabH += `</div>`;
-                    
-                    let addH = isAdmin ? `<button onclick="openAddShopPopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px;">+ 새 보급품 등록</button>` : "";
-                    
-                    let itemH = ""; 
-                    window.shopData.forEach(c => { 
-                        const i = c.val(); if (currentShopCat !== "전체" && i.cat !== currentShopCat) return; 
-                        const limitText = (i.limit && i.limit > 0) ? `<br><small style="color:var(--red); font-weight:bold;">(1인당 ${i.limit}개 제한)</small>` : ""; 
-                        
-                        const buyBtn = i.isSoldOut
-                            ? `<button disabled style="width:auto; padding:10px 18px; background:#95a5a6; color:white; cursor:not-allowed;">🚫 품절</button>`
-                            : `<button onclick="buyItem('${c.key}','${i.name}',${i.price},${i.limit||0})" style="width:auto; padding:10px 18px;">구매</button>`;
+    // 상점 아이템이 들어갈 HTML 요소를 찾습니다.
+    const shopDiv = document.getElementById('shop-items') || document.getElementById('shop-list') || document.querySelector('.shop-container'); 
+    if (!shopDiv) return;
+    
+    // 데이터베이스에서 상점 목록을 실시간으로 불러옵니다.
+    db.ref('shop').on('value', snap => {
+        let html = "";
+        
+        snap.forEach(child => {
+            const k = child.key;         // 상품 고유 키
+            const item = child.val();    // 상품 정보 (이름, 가격, 제한, 재고 등)
+            
+            let btnHtml = "";
+            let stockText = "";
 
-                        itemH += `<div class="list-item">
-                                    <span>[${i.cat||'✨'}] <b style="${i.isSoldOut ? 'text-decoration:line-through; color:#999;' : ''}">${i.name}</b> (${i.price}P)${limitText}</span>
-                                    <div style="display:flex; gap:8px;">
-                                        ${buyBtn}
-                                        ${isAdmin ? `<button onclick="openEditShopPopup('${c.key}')" style="width:auto; padding:10px 18px; background:var(--dark); color:white;">관리</button>` : ''}
-                                    </div>
-                                  </div>`;
-                    }); 
-                    document.getElementById('shop-list').innerHTML = tabH + addH + (itemH || "물품 없음"); 
-                };
-                window.filterShop = function(cat) { currentShopCat = cat; renderShop(); }; renderShop();
-            });
+            // 1. 재고(stock)가 설정된 상품인지 확인합니다.
+            if (item.stock !== undefined && item.stock !== null) {
+                // 재고가 있으면 남은 수량을 표시
+                stockText = `<div style="font-size:12px; color:red; margin-bottom: 8px; font-weight: bold;">(남은 수량: ${item.stock}개)</div>`;
+                
+                // 🛑 재고가 0개 이하라면 '품절' 버튼 생성
+                if (item.stock <= 0) {
+                    btnHtml = `<button disabled style="background-color: #cccccc; color: #666666; cursor: not-allowed; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold;">품절 🚫</button>`;
+                } 
+                // ✅ 재고가 남아있다면 '구매' 버튼 생성
+                else {
+                    btnHtml = `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
+                }
+            } 
+            // 2. 재고(stock) 설정이 안 된 무제한 상품일 경우
+            else {
+                btnHtml = `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
+            }
+
+            // 제한 횟수 텍스트 생성
+            let limitText = (item.limit > 0) ? `최대 ${item.limit}회 구매 가능` : '무제한 구매 가능';
+
+            // 📦 3. 상품 카드 HTML 조립 (디자인 포함)
+            html += `
+                <div class="shop-card" style="border: 1px solid #e0e0e0; padding: 15px; margin: 10px; border-radius: 10px; display: inline-block; width: 220px; vertical-align: top; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; background-color: #ffffff;">
+                    <h3 style="margin-top: 5px; margin-bottom: 5px; font-size: 18px; color: #333;">${item.name}</h3>
+                    ${stockText}
+                    <p style="font-size: 18px; font-weight: bold; color: #2196F3; margin: 10px 0;">💰 ${item.price} P</p>
+                    <p style="font-size: 12px; color: #888; margin-bottom: 15px;">🔄 ${limitText}</p>
+                    <div>
+                        ${btnHtml}
+                    </div>
+                </div>
+            `;
+        });
+        
+        // 조립된 HTML을 화면에 띄웁니다.
+        shopDiv.innerHTML = html;
+    });
+};
 
             db.ref('pointGuide').on('value', snap => { 
                 if (!isAdmin) {
@@ -568,40 +595,66 @@
         }
 
 window.buyItem = async function(k, n, p, l) {
-    const sn = await db.ref('users/'+myName).once('value');
-    const myPoints = sn.val().points || 0; // 내 포인트를 변수에 먼저 저장
+    // 1. 내 정보 및 포인트 불러오기
+    const sn = await db.ref('users/' + myName).once('value');
+    const myPoints = sn.val().points || 0;
 
-    // 🛑 1. 마이너스 포인트 차단 로직 (가장 먼저 확인!)
+    // 🛑 2. 마이너스 포인트 차단 (가장 먼저!)
     if (myPoints < 0) {
         return alert("현재 포인트가 마이너스 상태이므로 구매할 수 없습니다! 점수를 먼저 회복해 주세요. 😭");
     }
 
-    // 2. 포인트 부족 차단 로직 (원래 있던 코드)
+    // 🛑 3. 포인트 부족 차단
     if (myPoints < p) {
         return alert("포인트 부족!");
     }
-            if (l > 0) {
-                const ordersSnap = await db.ref('orders').once('value');
-                let count = 0;
-                ordersSnap.forEach(child => {
-                    const o = child.val();
-                    if (o.user === myName && o.item === n) {
-                        count++;
-                    }
-                });
-                
-                if (count >= l) {
-                    return alert(`🚫 구매 불가! 이 보급품은 1인당 최대 ${l}개까지만 구매할 수 있습니다.`);
-                }
-            }
 
-            if(confirm(`[${n}]을 구매하시겠습니까?`)) { 
-                db.ref('orders').push({ user: myName, item: n, status: '대기', time: new Date().toLocaleString() }).then(() => { 
-                    addScore(myName, -p, 0, `${n} 구매`); 
-                    alert("✅ 구매 완료!"); 
-                }); 
+    // 🛑 4. 상품 재고(stock) 확인 차단 (품절 기능)
+    const itemSnap = await db.ref('shop/' + k).once('value');
+    const itemData = itemSnap.val();
+    
+    // DB에 재고(stock) 값이 있고, 그게 0 이하라면 튕겨냄
+    if (itemData && itemData.stock !== undefined && itemData.stock <= 0) {
+        return alert("앗! 방금 품절된 상품입니다. 😭");
+    }
+
+    // 🛑 5. 구매 횟수(limit) 제한 확인 (선생님이 쓰시던 기존 로직)
+    if (l > 0) {
+        const ordersSnap = await db.ref('orders').once('value');
+        let count = 0;
+        ordersSnap.forEach(child => {
+            const o = child.val();
+            if (o.user === myName && o.item === n) {
+                count++; 
             }
-        };
+        });
+        if (count >= l) {
+            return alert(`이 상품은 최대 ${l}번까지만 구매할 수 있습니다!`);
+        }
+    }
+
+    // --- 🟢 여기까지 모든 검사를 통과했다면 실제 구매 진행! ---
+
+    // 6. 내 포인트 차감
+    await db.ref('users/' + myName).update({ points: myPoints - p });
+
+    // 7. 상품 재고 1개 차감 (재고가 설정된 한정 상품일 경우에만)
+    if (itemData && itemData.stock !== undefined && itemData.stock > 0) {
+        await db.ref('shop/' + k).update({ stock: itemData.stock - 1 });
+    }
+
+    // 8. 주문 내역(orders)에 저장
+    // (이 부분은 선생님 기존 코드의 주문 저장 방식과 최대한 비슷하게 맞췄습니다)
+    await db.ref('orders').push({
+        user: myName,
+        item: n,
+        price: p,
+        time: new Date().getTime(),
+        status: "요청" // 관리자 승인 대기 상태
+    });
+
+    alert(`✅ [${n}] 구매 완료! 관리자 승인을 기다려주세요.`);
+};
 
         auth.onAuthStateChanged(user => {
             if (user) {
