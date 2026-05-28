@@ -567,10 +567,19 @@
             });
         }
 
-        window.buyItem = async function(k, n, p, l) {
-            const sn = await db.ref('users/'+myName).once('value');
-            if((sn.val().points||0) < p) return alert("포인트 부족!");
+window.buyItem = async function(k, n, p, l) {
+    const sn = await db.ref('users/'+myName).once('value');
+    const myPoints = sn.val().points || 0; // 내 포인트를 변수에 먼저 저장
 
+    // 🛑 1. 마이너스 포인트 차단 로직 (가장 먼저 확인!)
+    if (myPoints < 0) {
+        return alert("현재 포인트가 마이너스 상태이므로 구매할 수 없습니다! 점수를 먼저 회복해 주세요. 😭");
+    }
+
+    // 2. 포인트 부족 차단 로직 (원래 있던 코드)
+    if (myPoints < p) {
+        return alert("포인트 부족!");
+    }
             if (l > 0) {
                 const ordersSnap = await db.ref('orders').once('value');
                 let count = 0;
