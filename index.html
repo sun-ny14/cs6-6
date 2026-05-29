@@ -491,6 +491,7 @@
                 }
             };
             
+            // 🛑 [복구] 학생들 인벤토리 & 관리자 승인 대기창 불러오기 
             db.ref('orders').on('value', snap => {
                 let uH = "", wH = "", adminH = ""; 
                 let myUnused = {}, myWaiting = {}, adminWaiting = {}; 
@@ -498,7 +499,7 @@
                 snap.forEach(c => {
                     const o = c.val(); const key = c.key;
                     if (o.user === myName) {
-                        if (o.status === '대기') {
+                        if (o.status === '대기' || o.status === '요청') { // 기존 호환성을 위해 유지
                             if (!myUnused[o.item]) myUnused[o.item] = [];
                             myUnused[o.item].push(key);
                         } else if (o.status === '사용요청') {
@@ -520,7 +521,7 @@
                 for (let item in myUnused) {
                     const orderKey = myUnused[item][0]; 
                     const shopItem = shopMap[item] || {};
-                    const isSoldOut = shopItem.isSoldOut === true;
+                    const isSoldOut = shopItem.isSoldOut === true || (shopItem.stock !== undefined && shopItem.stock <= 0);
                     
                     if (isSoldOut) {
                         const price = shopItem.price || 0;
@@ -574,37 +575,60 @@
                         </div>`;
                 }
                 
+                // 학생 화면에는 인벤토리 리스트를, 관리자 화면에는 요청 리스트를 띄워줍니다!
                 document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음";
                 document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "비었음"; 
                 const adminOrderEl = document.getElementById('order-list');
                 if (adminOrderEl) adminOrderEl.innerHTML = adminH || "요청 없음";
-            }); 
+            });
 
             initBudgetManager(); 
         }
 
         window.openAddShopPopup = function() { 
-            let h = `<h3>📦 새 물품</h3>상품명: <input type="text" id="add-item-name">가격: <input type="number" id="add-item-price">제한: <input type="number" id="add-item-limit" value="0">
+            let h = `<h3>📦 새 물품</h3>
+                    상품명: <input type="text" id="add-item-name">
+                    가격: <input type="number" id="add-item-price">
+                    제한: <input type="number" id="add-item-limit" value="0" placeholder="0이면 무제한">
+                    재고: <input type="number" id="add-item-stock" placeholder="빈칸이면 무제한(품절 안 됨)">
                     카테고리: <select id="add-item-cat"><option value="🍕 먹거리">🍕 먹거리</option><option value="🎫 쿠폰">🎫 쿠폰</option><option value="🎲 뽑기">🎲 뽑기</option><option value="✏️ 학용품">✏️ 학용품</option><option value="✨ 기타">✨ 기타</option></select>
-                    <button onclick="saveNewItem()" style="background:var(--primary); color:white;">등록</button>`; 
+                    <button onclick="saveNewItem()" style="background:var(--primary); color:white; margin-top: 15px;">등록</button>`; 
             openPopup("물품 추가", h); 
         };
         
         window.saveNewItem = function() { 
-            const n=document.getElementById('add-item-name').value, p=parseInt(document.getElementById('add-item-price').value), l=parseInt(document.getElementById('add-item-limit').value) || 0, c=document.getElementById('add-item-cat').value; 
-            if(n&&p) db.ref('shop').push({cat:c, name:n, price:p, limit:l}).then(()=>{alert("등록됨");closePopup();}); 
+            const n = document.getElementById('add-item-name').value;
+            const p = parseInt(document.getElementById('add-item-price').value);
+            const l = parseInt(document.getElementById('add-item-limit').value) || 0;
+            const c = document.getElementById('add-item-cat').value;
+            const s = document.getElementById('add-item-stock').value; // 재고 값
+            const stockVal = s !== "" ? parseInt(s) : null; // 빈칸이면 null 처리
+
+            if(n && p) {
+                db.ref('shop').push({cat:c, name:n, price:p, limit:l, stock: stockVal}).then(()=>{
+                    alert("✅ 성공적으로 등록되었습니다!");
+                    closePopup();
+                }); 
+            } else {
+                alert("상품명과 가격을 입력해 주세요!");
+            }
         };
 
         window.openEditShopPopup = function(key) {
             db.ref('shop/' + key).once('value', snap => {
                 const i = snap.val(); if(!i) return;
+                
+                // 기존에 저장된 재고 값이 있으면 불러오고, 없으면 빈칸
+                const stockVal = (i.stock !== undefined && i.stock !== null) ? i.stock : "";
+
                 let h = `<h3>🛍️ 물품 수정</h3>
                         상품명: <input type="text" id="edit-shop-name" value="${i.name}"><br>
                         가격: <input type="number" id="edit-shop-price" value="${i.price}"><br>
-                        제한: <input type="number" id="edit-shop-limit" value="${i.limit || 0}"><br>
+                        제한(1인당): <input type="number" id="edit-shop-limit" value="${i.limit || 0}"><br>
+                        남은 재고: <input type="number" id="edit-shop-stock" value="${stockVal}" placeholder="빈칸이면 무제한"><br>
                         상태: <label style="display:block; margin:10px 0; padding:10px; background:#fff5f5; border:1px solid #ffcccc; border-radius:8px;">
                                 <input type="checkbox" id="edit-shop-soldout" ${i.isSoldOut ? 'checked' : ''} style="transform:scale(1.5); margin-right:10px;">
-                                <b>🚫 품절 처리 (학생 사용 불가 및 환불 활성화)</b>
+                                <b>🚫 수동 품절 처리 (체크 시 즉시 품절)</b>
                               </label>
                         카테고리: <select id="edit-shop-cat"><option value="🍕 먹거리" ${i.cat==='🍕 먹거리'?'selected':''}>🍕 먹거리</option><option value="🎫 쿠폰" ${i.cat==='🎫 쿠폰'?'selected':''}>🎫 쿠폰</option><option value="🎲 뽑기" ${i.cat==='🎲 뽑기'?'selected':''}>🎲 뽑기</option><option value="✏️ 학용품" ${i.cat==='✏️ 학용품'?'selected':''}>✏️ 학용품</option><option value="✨ 기타" ${i.cat==='✨ 기타'?'selected':''}>✨ 기타</option></select>
                         <div style="display:flex; gap:10px; margin-top:15px;">
@@ -616,12 +640,25 @@
         };
 
         window.saveEditShop = function(k) { 
-            const n=document.getElementById('edit-shop-name').value, p=parseInt(document.getElementById('edit-shop-price').value), l=parseInt(document.getElementById('edit-shop-limit').value) || 0, c=document.getElementById('edit-shop-cat').value, s=document.getElementById('edit-shop-soldout').checked; 
-            db.ref('shop/'+k).update({name:n, price:p, limit:l, cat:c, isSoldOut:s}).then(()=>{alert("수정됨");closePopup();}); 
+            const n = document.getElementById('edit-shop-name').value;
+            const p = parseInt(document.getElementById('edit-shop-price').value);
+            const l = parseInt(document.getElementById('edit-shop-limit').value) || 0;
+            const c = document.getElementById('edit-shop-cat').value;
+            const sOut = document.getElementById('edit-shop-soldout').checked; 
+            
+            const s = document.getElementById('edit-shop-stock').value; // 수정된 재고 값
+            const stockVal = s !== "" ? parseInt(s) : null; 
+
+            db.ref('shop/'+k).update({name:n, price:p, limit:l, cat:c, isSoldOut:sOut, stock:stockVal}).then(()=>{
+                alert("✅ 수정 완료!");
+                closePopup();
+            }); 
         };
 
-        window.deleteShopItem = function(k) { if(confirm("삭제?")) db.ref('shop/'+k).remove().then(()=>{alert("삭제됨");closePopup();}); };
-
+        window.deleteShopItem = function(k) { 
+            if(confirm("정말로 삭제하시겠습니까?")) db.ref('shop/'+k).remove().then(()=>{alert("✅ 삭제되었습니다.");closePopup();}); 
+        };
+        
         function openUserHistory(un) {
             db.ref('users/' + un).once('value', sn => {
                 const u = sn.val() || {}, lv = u.lv || 1, pts = u.points || 0, isMeOrAdmin = (isAdmin || un === myName);
