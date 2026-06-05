@@ -189,6 +189,12 @@
         </section>
 <section id="tab-housing" class="tab-content">
             <div class="card">
+                <div id="admin-housing-control" style="display: none; margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 2px dashed #ffc107;">
+                    <span style="font-weight: bold; margin-right: 10px; color: #856404;">👑 총사령관 전용 영지 제어:</span>
+                    <button id="btn-housing-toggle" onclick="toggleHousingSystem()" style="width:auto; padding: 8px 15px; background: #4caf50; color: white; border: none; border-radius: 4px; font-weight: bold;">확인 중...</button>
+                    <span id="housing-status-text" style="font-size: 1rem; color: #856404; margin-left: 10px;"></span>
+                </div>
+
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 style="margin: 0;">🏰 용사의 영지</h2>
                     <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:12px 20px; border-radius:12px; font-weight:bold; border:none; font-size:1.1rem; cursor:pointer;">🛒 가구/배경 전용 상점</button>
@@ -1552,20 +1558,58 @@ window.buyItem = async function(k, n, p, l) {
                 });
             }
         };
-        // ==============================================================
+
+// ==============================================================
         // 🏰 완전히 분리된 하우징 전용 시스템 (가구/배경 상점 및 꾸미기)
         // ==============================================================
         let selectedFurnitureImg = null;
+        let isHousingEnabled = true; // 🌟 추가됨
+
+        // 👑 [선생님 전용] 비밀 스위치 상태 감지
+        db.ref('settings/housingEnabled').on('value', snap => {
+            isHousingEnabled = snap.val() !== false; 
+            const btn = document.getElementById('btn-housing-toggle');
+            const txt = document.getElementById('housing-status-text');
+            const menuBtn = document.getElementById('btn-housing');
+            
+            // 방꾸미기 탭 안에 있는 비밀 스위치 패널을 선생님(총사령관)일 때만 보여줌
+            const adminPanel = document.getElementById('admin-housing-control');
+            if (adminPanel) adminPanel.style.display = isAdmin ? 'block' : 'none';
+
+            // 상단 메뉴 버튼은 켜져있거나, 관리자일 때만 보임
+            if (menuBtn) menuBtn.style.display = (isHousingEnabled || isAdmin) ? 'inline-block' : 'none';
+
+            if (btn) {
+                if (isHousingEnabled) {
+                    btn.innerText = "🛑 학생 진입 차단 (OFF)"; btn.style.background = "#f44336";
+                    txt.innerText = "🟢 현재 학생들이 방을 꾸밀 수 있습니다.";
+                } else {
+                    btn.innerText = "🔓 시스템 개방 (ON)"; btn.style.background = "#4caf50";
+                    txt.innerText = "🔴 공사 중! (학생들의 메뉴에서 탭이 사라졌습니다)";
+                }
+            }
+        });
+
+        // 👑 [선생님 전용] 비밀 스위치 작동 버튼
+        window.toggleHousingSystem = function() {
+            if (!isAdmin) return alert("총사령관 권한이 필요합니다.");
+            db.ref('settings/housingEnabled').set(!isHousingEnabled);
+        };
 
         // 1. 하우징 탭 열릴 때 내 방과 인벤토리 렌더링
         window.openHousingTab = function() {
             if(!myName) return alert("용사 로그인이 필요합니다!");
+            
+            // 🌟 학생인데 하우징이 꺼져있으면 팝업 띄우고 튕겨냄
+            if (!isHousingEnabled && !isAdmin) {
+                return alert("🚧 [공사 공지] 지금은 총사령관이 영지 시스템을 조정 중입니다! 잠시 후 이용해 주세요. 🍌");
+            }
+            
             selectedFurnitureImg = null;
             if(document.getElementById('selected-furniture-display')) document.getElementById('selected-furniture-display').innerText = "없음";
             renderMyRoom();
             renderHousingInventory();
         };
-
         // 2. 가구/배경 전용 상점 팝업 열기 (학생 & 관리자 공용)
         window.openHousingShopPopup = function() {
             // housingShop 이라는 완전히 독립된 DB 경로를 사용합니다.
