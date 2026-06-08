@@ -93,7 +93,7 @@
             <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
             <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
             <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
-           <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 영지</button>
+           <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
             <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
         </nav>
 
@@ -208,9 +208,9 @@
         </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="margin:0;">🏰 용사의 영지</h2>
+            <h2 style="margin:0;">🏰 용사의 방</h2>
             <div>
-                <button onclick="openVisitList()" style="background:#007bff; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; margin-right:10px;">🔍 친구 영지 방문</button>
+                <button onclick="openVisitList()" style="background:#007bff; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; margin-right:10px;">🔍 친구 방 방문</button>
                 <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점</button>
             </div>
         </div>
@@ -386,6 +386,14 @@
                 if (isAdmin) renderAdminList();
                 generateNewLayout();   
             });
+             db.ref('settings/housingEnabled').on('value', snap => {
+    isHousingEnabled = snap.val() !== false;
+    
+    // 관리자일 때만 제어 패널을 보여줌 (중요!)
+    const adminPanel = document.getElementById('admin-housing-control');
+    if (adminPanel) {
+        adminPanel.style.display = isAdmin ? 'block' : 'none';
+    }
 
             let currentShopCat = "전체";
             
@@ -1610,7 +1618,7 @@ window.toggleHousingSystem = () => {
 // 2. [탭] 하우징 탭 열기 (접근 제어)
 window.openHousingTab = function() {
     if(!myName) return alert("로그인이 필요합니다!");
-    if(!isHousingEnabled && !isAdmin) return alert("🚧 [공사 공지] 지금은 총사령관이 영지 시스템을 조정 중입니다! 잠시 후 이용해 주세요. 🍌");
+    if(!isHousingEnabled && !isAdmin) return alert("🚧 [공사 공지] 지금은 총사령관이 방 시스템을 조정 중입니다! 잠시 후 이용해 주세요. 🍌");
     renderMyRoom();
     renderHousingInventory();
 };
@@ -1769,7 +1777,7 @@ window.placeOrApplyHousingItem = function(img, category) {
             x: 290, // 640의 절반 부근
             y: 210  // 480의 절반 부근
         }).then(() => renderMyRoom());
-        alert("영지 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
+        alert("방 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
     }
 };
 
@@ -1862,7 +1870,7 @@ window.buyHousingItem = async function(key, name, price, category, img) {
     if(currentTab === 'housing') renderHousingInventory();
     openHousingShopPopup(); 
 };
-// 8. [소셜] 친구 영지 목록 보기
+// 8. [소셜] 친구 방 목록 보기
 window.openVisitList = function() {
     db.ref('users').once('value', snap => {
         const users = snap.val() || {};
@@ -1875,7 +1883,7 @@ window.openVisitList = function() {
             }
         }
         h += `</div>`;
-        openPopup("🔍 누구의 영지를 방문할까요?", h);
+        openPopup("🔍 누구의 방를 방문할까요?", h);
     });
 };
 
@@ -1923,7 +1931,7 @@ window.visitRoom = function(targetName) {
         }
 
         h += `</div></div>`;
-        openPopup(`🏰 ${targetName} 용사의 영지`, h);
+        openPopup(`🏰 ${targetName} 용사의 방`, h);
     });
 };
 
