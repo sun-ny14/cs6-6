@@ -40,7 +40,7 @@
         #guide-list .hero-card { padding: 25px 15px;  border-radius: 12px; border: 1px solid #ccc;  box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-size: 1.2rem;  }
         #guide-list .hero-card b { font-size: 1.3rem;  }
         #guide-list .hero-card:hover { transform: translateY(-3px); border-color: var(--primary); }
-      
+       
         /* 🏰 용사의 방 크기 640x480 고정 및 배경 비율 맞춤 */
         #housing-canvas, .room-container {
             width: 100% !important;
@@ -48,11 +48,10 @@
             height: 480px !important;
             margin: 0 auto !important;
             position: relative;
-            background-size: 100% 100% !important; /* 이미지가 640x480 크기에 꽉 차게 찌그러지더라도 맞춤 */
+            background-size: 100% 100% !important; 
             background-repeat: no-repeat !important;
-            aspect-ratio: auto !important; /* 기존 정사각형 비율 강제 취소 */
+            aspect-ratio: auto !important; 
         }
-        /* 👆 여기까지 👆 */
     </style>
 </head>
 <body>
@@ -211,6 +210,11 @@
             <div id="my-room-container" style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 6px solid #5d4037; border-radius: 15px; background-color: #d7ccc8; background-size: 100% 100%; background-repeat: no-repeat; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden;">
                 <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
             </div>
+            
+            <div style="width: 100%; background: #f8f9fa; padding: 15px; border-radius: 15px; border: 2px solid #ddd;">
+                <h3 style="margin-top:0;">🎒 내 하우징 보관함</h3>
+                <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px;"></div>
+            </div>
         </div>
     </div>
 </section>
@@ -235,6 +239,13 @@
 
         let myName = "", isAdmin = false, isHelper = false, currentUsers = [], routineItems = [], giftList = [], rIdx = 0;
         let currentTab = sessionStorage.getItem('activeTab') || 'main';
+        let currentShopCat = "전체";
+        let currentLayout = {}; 
+        let isEditMode = false;
+        let selectedStudentForMove = null;
+        let isCheckingIn = false;
+        let isHousingEnabled = true;
+        let totalBudget = 100000; 
 
         function getTodayKST() { const now = new Date(); const krTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); return krTime.getUTCFullYear() + "-" + String(krTime.getUTCMonth() + 1).padStart(2, '0') + "-" + String(krTime.getUTCDate()).padStart(2, '0'); }
         function forceScreenDisplay(status) {
@@ -338,189 +349,101 @@
             });
         }
 
+        // ==========================================
+        // 🌟 여기가 가장 중요합니다. (중괄호 문제 완벽 해결 구간)
+        // ==========================================
         function startApp() {
-            if (isAdmin || isHelper || myName === "총사령관") { const orderMgr = document.getElementById('admin-order-mgr'); if (orderMgr) orderMgr.style.display = 'block'; }
+            if (isAdmin || isHelper || myName === "총사령관") { 
+                const orderMgr = document.getElementById('admin-order-mgr'); 
+                if (orderMgr) orderMgr.style.display = 'block'; 
+            }
             
-           // 전역 변수로 상태 저장 (에러 방지용)
-window.isHousingEnabled = true;
+            window.isHousingEnabled = true;
 
-// ==========================================
-// 1. 기존 핵심 설정 기능 (절대 건드리지 않고 그대로 유지!)
-// ==========================================
-db.ref('settings').on('value', snap => {
-    const s = snap.val() || {}; 
-    giftList = s.giftList || []; 
-    routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
-    
-    if(isAdmin) { 
-        document.getElementById('conf-pass').value = s.password || ""; 
-        document.getElementById('conf-late').value = s.lateTime || "08:40"; 
-        document.getElementById('conf-close').value = s.closeTime || "09:00"; 
-        document.getElementById('conf-routine').value = s.routineText || ""; 
-        document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; 
-    }
-    document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
-    
-    // 선생님 기본 배경화면 설정값 불러오기
-    if(document.getElementById('admin-default-bg')) {
-        document.getElementById('admin-default-bg').value = s.defaultBg || "";
-    }
-    window.currentDefaultBg = s.defaultBg || "";
-});
-generateNewLayout();
+            // 1. 기존 핵심 설정 기능
+            db.ref('settings').on('value', snap => {
+                const s = snap.val() || {}; 
+                giftList = s.giftList || []; 
+                routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
+                
+                if(isAdmin) { 
+                    document.getElementById('conf-pass').value = s.password || ""; 
+                    document.getElementById('conf-late').value = s.lateTime || "08:40"; 
+                    document.getElementById('conf-close').value = s.closeTime || "09:00"; 
+                    document.getElementById('conf-routine').value = s.routineText || ""; 
+                    document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; 
+                }
+                document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
+                
+                if(document.getElementById('admin-default-bg')) {
+                    document.getElementById('admin-default-bg').value = s.defaultBg || "";
+                }
+                window.currentDefaultBg = s.defaultBg || "";
+            });
+            generateNewLayout();
 
-// ==========================================
-// 2. 유저 목록 불러오기 (기존 기능 그대로 유지!)
-// ==========================================
-db.ref('users').on('value', snap => {
-    let users = []; 
-    snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
-    currentUsers = users.sort((a, b) => (a.name === myName ? -1 : b.name === myName ? 1 : (a.no || 99) - (b.no || 99)));
-    
-    let h = ""; 
-    currentUsers.forEach(u => { 
-        if(u.name === "총사령관") return; 
-        const isMe = (u.name === myName);
-        const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
-        
-        h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
-                <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
-                <b style="font-size:1.3rem; display:block; margin-top:12px; color:var(--dark);">
-                    ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
-                </b>
-                ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : ''}
-              </div>`; 
-    }); 
-    document.getElementById('hero-grid').innerHTML = h;
-    if (isAdmin) renderAdminList();
-    generateNewLayout();   
-});
-
-// ==========================================
-// 3. 👑 용사의 방 온오프 상태 관리
-// ==========================================
-db.ref('settings/housingEnabled').on('value', snap => {
-    window.isHousingEnabled = snap.val() !== false; // 기본값 true
-    
-    // 관리자 제어 패널 (선생님에게만 보임)
-    const adminPanel = document.getElementById('admin-housing-control');
-    if (adminPanel) {
-        adminPanel.style.display = isAdmin ? 'block' : 'none';
-    }
-
-    // 학생들에게 용사의 방 탭 온/오프 제어
-    const housingTabBtn = document.querySelector('button[onclick*="tab-housing"]'); // 탭 버튼
-    const housingTabContent = document.getElementById('tab-housing'); // 탭 내용물
-    
-    if (!isAdmin && !window.isHousingEnabled) {
-        // 학생이고 꺼져있으면 탭 완전히 숨기기
-        if (housingTabBtn) housingTabBtn.style.display = 'none';
-        if (housingTabContent) housingTabContent.style.display = 'none';
-    } else {
-        // 켜져있거나 선생님이면 다시 보이기
-        if (housingTabBtn) housingTabBtn.style.display = 'block';
-        if (housingTabContent && housingTabContent.classList.contains('active')) {
-            housingTabContent.style.display = 'block';
-        }
-    }
-    
- // 관리자 패널의 상태 텍스트 & 버튼 색상 업데이트
-    const statusText = document.getElementById('housing-status-text');
-    const toggleBtn = document.getElementById('btn-housing-toggle');
-    if (statusText && toggleBtn) {
-        statusText.innerText = isHousingEnabled ? "현재 상태: 🟢 켜짐" : "현재 상태: 🔴 꺼짐";
-        statusText.style.color = isHousingEnabled ? "green" : "red";
-        toggleBtn.innerText = isHousingEnabled ? "끄기(OFF)로 변경" : "켜기(ON)으로 변경";
-        toggleBtn.style.backgroundColor = isHousingEnabled ? "#e74c3c" : "#2ecc71";
-    }
-});
-} // 🌟 [수정 완료] startApp 함수를 닫는 올바른 괄호입니다.
-
-        let currentShopCat = "전체";
-            
-            // 1. 상점 데이터 실시간 불러오기
-            db.ref('shop').on('value', snap => { 
-                window.shopData = snap; 
-                window.renderShop(); // 데이터가 바뀔 때마다 화면을 새로 그립니다.
+            // 2. 유저 목록 불러오기
+            db.ref('users').on('value', snap => {
+                let users = []; 
+                snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
+                currentUsers = users.sort((a, b) => (a.name === myName ? -1 : b.name === myName ? 1 : (a.no || 99) - (b.no || 99)));
+                
+                let h = ""; 
+                currentUsers.forEach(u => { 
+                    if(u.name === "총사령관") return; 
+                    const isMe = (u.name === myName);
+                    const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
+                    
+                    h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
+                            <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
+                            <b style="font-size:1.3rem; display:block; margin-top:12px; color:var(--dark);">
+                                ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
+                            </b>
+                            ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : ''}
+                          </div>`; 
+                }); 
+                document.getElementById('hero-grid').innerHTML = h;
+                if (isAdmin) renderAdminList();
+                generateNewLayout();   
             });
 
-            window.changeShopCat = function(cat) {
-                currentShopCat = cat;
-                window.renderShop();
-            };
-
-            window.renderShop = function() {
-                const shopDiv = document.getElementById('shop-list'); 
-                if (!shopDiv) return;
+            // 3. 용사의 방 온오프 상태 관리
+            db.ref('settings/housingEnabled').on('value', snap => {
+                window.isHousingEnabled = snap.val() !== false; 
                 
-                let html = "";
+                const adminPanel = document.getElementById('admin-housing-control');
+                if (adminPanel) adminPanel.style.display = isAdmin ? 'block' : 'none';
 
-                if (isAdmin) {
-                    html += `<button onclick="openAddShopPopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px; width:100%; border:none; padding:15px; border-radius:10px; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 물품 등록</button>`;
-                }
-
-                const categories = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
-                html += `<div style="display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px;">`;
-                categories.forEach(c => {
-                    const isActive = (currentShopCat === c);
-                    html += `<button onclick="changeShopCat('${c}')" style="padding: 10px 15px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; white-space: nowrap; background: ${isActive ? 'var(--primary)' : '#eee'}; color: ${isActive ? 'white' : '#333'}; box-shadow: ${isActive ? '0 2px 4px rgba(0,0,0,0.2)' : 'none'};">${c}</button>`;
-                });
-                html += `</div>`;
-
-                let hasItems = false; 
-
-                if (window.shopData) {
-                    window.shopData.forEach(child => {
-                        const k = child.key;         
-                        const item = child.val();    
-                        
-                        if (currentShopCat !== "전체" && item.cat !== currentShopCat) return;
-                        hasItems = true; 
-                        
-                        let btnHtml = "";
-                        let stockText = "";
-
-                        if (item.stock !== undefined && item.stock !== null) {
-                            stockText = `<div style="font-size:12px; color:red; margin-bottom: 8px; font-weight: bold;">(남은 수량: ${item.stock}개)</div>`;
-                            if (item.stock <= 0) {
-                                btnHtml = `<button disabled style="background-color: #cccccc; color: #666666; cursor: not-allowed; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold;">품절 🚫</button>`;
-                            } else {
-                                btnHtml = `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
-                            }
-                        } else {
-                            btnHtml = `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
-                        }
-
-                        let adminBtnHtml = "";
-                        if (isAdmin) {
-                            adminBtnHtml = `<button onclick="openEditShopPopup('${k}')" style="background-color: #ff9800; color: white; border: none; padding: 8px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 8px;">⚙️ 수정/삭제</button>`;
-                        }
-
-                        let limitText = (item.limit > 0) ? `최대 ${item.limit}회 구매 가능` : '무제한 구매 가능';
-
-                        html += `
-                            <div class="shop-card" style="border: 1px solid #e0e0e0; padding: 15px; margin: 10px; border-radius: 10px; display: inline-block; width: 220px; vertical-align: top; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; background-color: #ffffff;">
-                                <div style="font-size:12px; color:#999; margin-bottom:5px;">${item.cat || '미분류'}</div>
-                                <h3 style="margin-top: 5px; margin-bottom: 5px; font-size: 18px; color: #333;">${item.name}</h3>
-                                ${stockText}
-                                <p style="font-size: 18px; font-weight: bold; color: #2196F3; margin: 10px 0;">💰 ${item.price} P</p>
-                                <p style="font-size: 12px; color: #888; margin-bottom: 15px;">🔄 ${limitText}</p>
-                                <div>
-                                    ${btnHtml}
-                                    ${adminBtnHtml}
-                                </div>
-                            </div>
-                        `;
-                    });
+                const housingTabBtn = document.querySelector('button[onclick*="tab-housing"]'); 
+                const housingTabContent = document.getElementById('tab-housing'); 
+                
+                if (!isAdmin && !window.isHousingEnabled) {
+                    if (housingTabBtn) housingTabBtn.style.display = 'none';
+                    if (housingTabContent) housingTabContent.style.display = 'none';
+                } else {
+                    if (housingTabBtn) housingTabBtn.style.display = 'block';
+                    if (housingTabContent && housingTabContent.classList.contains('active')) {
+                        housingTabContent.style.display = 'block';
+                    }
                 }
                 
-                if (!hasItems) {
-                    html += `<div style="text-align: center; padding: 40px; color: #888; font-size: 1.2rem;">해당 카테고리에 등록된 물품이 없습니다. 텅~ 💨</div>`;
+                const statusText = document.getElementById('housing-current-status');
+                const toggleBtn = document.getElementById('housing-toggle-btn');
+                if (statusText && toggleBtn) {
+                    statusText.innerText = window.isHousingEnabled ? "켜짐 (ON)" : "꺼짐 (OFF)";
+                    statusText.style.color = window.isHousingEnabled ? "#2ecc71" : "#e74c3c";
+                    toggleBtn.innerText = window.isHousingEnabled ? "끄기(OFF)로 변경하기" : "켜기(ON)으로 변경하기";
+                    toggleBtn.style.backgroundColor = window.isHousingEnabled ? "#e74c3c" : "#2ecc71";
                 }
+            });
 
-                shopDiv.innerHTML = html;
-            };
-            
+            // 4. 상점 데이터
+            db.ref('shop').on('value', snap => { 
+                window.shopData = snap; 
+                window.renderShop(); 
+            });
+
+            // 5. 도감 데이터
             db.ref('pointGuide').on('value', snap => { 
                 if (!isAdmin) {
                     const guideListEl = document.getElementById('guide-list');
@@ -533,9 +456,7 @@ db.ref('settings/housingEnabled').on('value', snap => {
                 let h = "", addH = `<button onclick="openAddGuidePopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:20px; width:100%; border:none; padding:20px; border-radius:12px; font-size:1.3rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 도감 기준 등록</button>`;
                 
                 const guideTitle = document.querySelector('#tab-points h2');
-                if (guideTitle) {
-                    guideTitle.innerHTML = `📜 포인트 도감 <small style="font-size:1rem; color:#666;">(클릭 시 일괄 지급)</small>`;
-                }
+                if (guideTitle) guideTitle.innerHTML = `📜 포인트 도감 <small style="font-size:1rem; color:#666;">(클릭 시 일괄 지급)</small>`;
                 
                 snap.forEach(c => { 
                     const g = c.val(); 
@@ -555,30 +476,7 @@ db.ref('settings/housingEnabled').on('value', snap => {
                 }
             });
 
-            window.openAddGuidePopup = function() {
-                let h = `<h3 style="margin-top:0;">📜 새 도감 등록</h3>
-                         항목명: <input type="text" id="add-guide-title" placeholder="예: 숙제 완료"><br>
-                         지급 P: <input type="number" id="add-guide-p" value="0"><br>
-                         지급 E: <input type="number" id="add-guide-e" value="0"><br>
-                         <button onclick="saveNewGuide()" style="background:var(--primary); color:white; margin-top:15px; padding:15px; border-radius:10px; border:none; width:100%; font-weight:bold; font-size:1.2rem; cursor:pointer;">등록하기</button>`;
-                openPopup("도감 추가", h);
-            };
-
-            window.saveNewGuide = function() {
-                const t = document.getElementById('add-guide-title').value;
-                const p = parseInt(document.getElementById('add-guide-p').value) || 0;
-                const e = parseInt(document.getElementById('add-guide-e').value) || 0;
-                if(t) db.ref('pointGuide').push({title: t, p: p, e: e}).then(() => { alert("도감에 성공적으로 등록되었습니다!"); closePopup(); });
-            };
-
-            window.deleteGuideItem = function(key) {
-                if(confirm("정말 삭제하시겠습니까?")) {
-                    db.ref('pointGuide/' + key).remove().then(() => {
-                        alert("항목이 삭제되었습니다.");
-                    });
-                }
-            };
-            
+            // 6. 상점 주문 관리
             db.ref('orders').on('value', snap => {
                 let uH = "", wH = "", adminH = ""; 
                 let myUnused = {}, myWaiting = {}, adminWaiting = {}; 
@@ -669,7 +567,112 @@ db.ref('settings/housingEnabled').on('value', snap => {
             });
 
             initBudgetManager(); 
-        }
+        } 
+        // 🌟 [수정 완료] 드디어 startApp() 함수가 제대로 닫혔습니다!
+
+        // ==========================================
+        // 이 아래부터는 글로벌 영역 기능들입니다.
+        // ==========================================
+
+        window.changeShopCat = function(cat) {
+            currentShopCat = cat;
+            window.renderShop();
+        };
+
+        window.renderShop = function() {
+            const shopDiv = document.getElementById('shop-list'); 
+            if (!shopDiv) return;
+            
+            let html = "";
+
+            if (isAdmin) {
+                html += `<button onclick="openAddShopPopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px; width:100%; border:none; padding:15px; border-radius:10px; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 물품 등록</button>`;
+            }
+
+            const categories = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
+            html += `<div style="display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px;">`;
+            categories.forEach(c => {
+                const isActive = (currentShopCat === c);
+                html += `<button onclick="changeShopCat('${c}')" style="padding: 10px 15px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; white-space: nowrap; background: ${isActive ? 'var(--primary)' : '#eee'}; color: ${isActive ? 'white' : '#333'}; box-shadow: ${isActive ? '0 2px 4px rgba(0,0,0,0.2)' : 'none'};">${c}</button>`;
+            });
+            html += `</div>`;
+
+            let hasItems = false; 
+
+            if (window.shopData) {
+                window.shopData.forEach(child => {
+                    const k = child.key;         
+                    const item = child.val();    
+                    
+                    if (currentShopCat !== "전체" && item.cat !== currentShopCat) return;
+                    hasItems = true; 
+                    
+                    let btnHtml = "";
+                    let stockText = "";
+
+                    if (item.stock !== undefined && item.stock !== null) {
+                        stockText = `<div style="font-size:12px; color:red; margin-bottom: 8px; font-weight: bold;">(남은 수량: ${item.stock}개)</div>`;
+                        if (item.stock <= 0) {
+                            btnHtml = `<button disabled style="background-color: #cccccc; color: #666666; cursor: not-allowed; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold;">품절 🚫</button>`;
+                        } else {
+                            btnHtml = `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
+                        }
+                    } else {
+                        btnHtml = `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
+                    }
+
+                    let adminBtnHtml = "";
+                    if (isAdmin) {
+                        adminBtnHtml = `<button onclick="openEditShopPopup('${k}')" style="background-color: #ff9800; color: white; border: none; padding: 8px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 8px;">⚙️ 수정/삭제</button>`;
+                    }
+
+                    let limitText = (item.limit > 0) ? `최대 ${item.limit}회 구매 가능` : '무제한 구매 가능';
+
+                    html += `
+                        <div class="shop-card" style="border: 1px solid #e0e0e0; padding: 15px; margin: 10px; border-radius: 10px; display: inline-block; width: 220px; vertical-align: top; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; background-color: #ffffff;">
+                            <div style="font-size:12px; color:#999; margin-bottom:5px;">${item.cat || '미분류'}</div>
+                            <h3 style="margin-top: 5px; margin-bottom: 5px; font-size: 18px; color: #333;">${item.name}</h3>
+                            ${stockText}
+                            <p style="font-size: 18px; font-weight: bold; color: #2196F3; margin: 10px 0;">💰 ${item.price} P</p>
+                            <p style="font-size: 12px; color: #888; margin-bottom: 15px;">🔄 ${limitText}</p>
+                            <div>
+                                ${btnHtml}
+                                ${adminBtnHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            if (!hasItems) {
+                html += `<div style="text-align: center; padding: 40px; color: #888; font-size: 1.2rem;">해당 카테고리에 등록된 물품이 없습니다. 텅~ 💨</div>`;
+            }
+            shopDiv.innerHTML = html;
+        };
+
+        window.openAddGuidePopup = function() {
+            let h = `<h3 style="margin-top:0;">📜 새 도감 등록</h3>
+                     항목명: <input type="text" id="add-guide-title" placeholder="예: 숙제 완료"><br>
+                     지급 P: <input type="number" id="add-guide-p" value="0"><br>
+                     지급 E: <input type="number" id="add-guide-e" value="0"><br>
+                     <button onclick="saveNewGuide()" style="background:var(--primary); color:white; margin-top:15px; padding:15px; border-radius:10px; border:none; width:100%; font-weight:bold; font-size:1.2rem; cursor:pointer;">등록하기</button>`;
+            openPopup("도감 추가", h);
+        };
+
+        window.saveNewGuide = function() {
+            const t = document.getElementById('add-guide-title').value;
+            const p = parseInt(document.getElementById('add-guide-p').value) || 0;
+            const e = parseInt(document.getElementById('add-guide-e').value) || 0;
+            if(t) db.ref('pointGuide').push({title: t, p: p, e: e}).then(() => { alert("도감에 성공적으로 등록되었습니다!"); closePopup(); });
+        };
+
+        window.deleteGuideItem = function(key) {
+            if(confirm("정말 삭제하시겠습니까?")) {
+                db.ref('pointGuide/' + key).remove().then(() => {
+                    alert("항목이 삭제되었습니다.");
+                });
+            }
+        };
 
         window.openAddShopPopup = function() { 
             let h = `<h3>📦 새 물품</h3>
@@ -703,7 +706,6 @@ db.ref('settings/housingEnabled').on('value', snap => {
         window.openEditShopPopup = function(key) {
             db.ref('shop/' + key).once('value', snap => {
                 const i = snap.val(); if(!i) return;
-                
                 const stockVal = (i.stock !== undefined && i.stock !== null) ? i.stock : "";
 
                 let h = `<h3>🛍️ 물품 수정</h3>
@@ -838,8 +840,6 @@ db.ref('settings/housingEnabled').on('value', snap => {
                 });
             } else { forceScreenDisplay('login'); }
         });
-
-        let totalBudget = 100000; 
 
         function initBudgetManager() {
             db.ref('settings/budgetTotal').on('value', s => { totalBudget = s.val() || 0; });
@@ -1097,8 +1097,6 @@ db.ref('settings/housingEnabled').on('value', snap => {
             });
         }
 
-        let isCheckingIn = false; 
-
         async function submitCheckIn() {
             if (isCheckingIn) return; 
             
@@ -1244,11 +1242,6 @@ db.ref('settings/housingEnabled').on('value', snap => {
             `;
         }
     
-        // ⚠️ 변수 중복 선언 에러(SyntaxError)를 해결하기 위해 'let'을 제거하고 값만 할당합니다.
-        currentLayout = {}; 
-        isEditMode = false;
-        selectedStudentForMove = null;
-
         function toggleSeatEditMode() {
             isEditMode = !isEditMode;
             const panel = document.getElementById('seat-edit-panel');
@@ -1388,7 +1381,7 @@ db.ref('settings/housingEnabled').on('value', snap => {
 
                 const worksheet = XLSX.utils.aoa_to_sheet(rows);
                 const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "등교기록");
+                XLS.utils.book_append_sheet(workbook, worksheet, "등교기록");
                 XLSX.writeFile(workbook, `6-6_등교기록_${targetMonth}.xlsx`);
             });
         }
@@ -1478,26 +1471,6 @@ db.ref('settings/housingEnabled').on('value', snap => {
                 closePopup();
                 generateNewLayout(); 
             }
-        }
-
-        function saveCurrentLayout() {
-            const rows = document.getElementById('seat-rows').value;
-            const cols = document.getElementById('seat-cols').value;
-            
-            db.ref('seatLayoutData').set({
-                layout: currentLayout,
-                config: {
-                    rows: parseInt(rows),
-                    cols: parseInt(cols)
-                },
-                updatedAt: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => {
-                alert("좌석 배치가 안전하게 저장되었습니다! 이제 새로고침해도 유지됩니다.");
-                isEditMode = false; 
-                toggleSeatEditMode(); 
-            }).catch(err => {
-                alert("저장 실패: " + err.message);
-            });
         }
 
         function openExclusionPopup() {
@@ -1594,18 +1567,17 @@ db.ref('settings/housingEnabled').on('value', snap => {
         };
 
         // ==============================================================
-        // 🏰 통합 하우징 시스템 (배경 고정 + 좌표 자유배치 + 온/오프 + 분류 상점)
+        // 🏰 통합 하우징 시스템 
         // ==============================================================
-        let isHousingEnabled = true;
 
         window.toggleHousingSystem = () => {
             if(!isAdmin) return;
-            db.ref('settings/housingEnabled').set(!isHousingEnabled);
+            db.ref('settings/housingEnabled').set(!window.isHousingEnabled);
         };
 
         window.openHousingTab = function() {
             if(!myName) return alert("로그인이 필요합니다!");
-            if(!isHousingEnabled && !isAdmin) return alert("🚧 [공사 공지] 지금은 총사령관이 방 시스템을 조정 중입니다! 잠시 후 이용해 주세요. 🍌");
+            if(!window.isHousingEnabled && !isAdmin) return alert("🚧 [공사 공지] 지금은 총사령관이 방 시스템을 조정 중입니다! 잠시 후 이용해 주세요. 🍌");
             renderMyRoom();
             renderHousingInventory();
         };
@@ -1616,32 +1588,32 @@ db.ref('settings/housingEnabled').on('value', snap => {
                 const r = new FileReader();
                 r.onload = function(e) {
                     const base64Img = e.target.result;
-                    db.ref('settings/defaultHousingBackground').set(base64Img).then(() => {
+                    db.ref('settings/defaultBg').set(base64Img).then(() => {
                         alert("기본 배경이 저장되었습니다! 모든 용사의 방에 적용됩니다. ✨");
+                        window.currentDefaultBg = base64Img;
                         renderMyRoom(); 
-                    });
+                    }).catch(err => alert("❌ 이미지 용량이 너무 커서 실패했습니다. (가급적 해상도를 낮춰주세요)"));
                 };
                 r.readAsDataURL(input.files[0]);
             }
         };
 
-        // 🌟 [바이브 코딩 수정] 전체 방 정보를 불러와서 화면에 그리는 기능 완벽 복구
         window.renderMyRoom = function() {
             const container = document.getElementById('my-room-container'); 
             if(!container) return;
             
-            db.ref('settings/defaultHousingBackground').once('value').then(defaultSnap => {
-                const defaultBg = defaultSnap.val() || '#d7ccc8'; 
+            db.ref('settings/defaultBg').once('value').then(defaultSnap => {
+                const defaultBg = defaultSnap.val() || window.currentDefaultBg || '#d7ccc8'; 
                 
                 db.ref(`users/${myName}/myRoom`).once('value', snap => {
-                    const room = snap.val() || {}; // 🌟 room 전체 객체를 가져오도록 수정
+                    const room = snap.val() || {}; 
                     const myBg = room.background;
                     
                     container.style.backgroundImage = `url('${myBg || defaultBg}')`;
-                    container.style.backgroundSize = "cover";
+                    container.style.backgroundSize = "100% 100%";
                     container.style.backgroundPosition = "center";
                     
-                    const layer = document.getElementById('my-room-canvas'); // 🌟 layer를 찾아서 비우도록 수정
+                    const layer = document.getElementById('my-room-canvas'); 
                     if(layer) layer.innerHTML = "";
 
                     if(room.objects) {
@@ -1682,8 +1654,8 @@ db.ref('settings/housingEnabled').on('value', snap => {
                                     
                                     if(newX < 0) newX = 0;
                                     if(newY < 0) newY = 0;
-                                    if(newX > 440) newX = 440; // 화면 이탈 방지
-                                    if(newY > 440) newY = 440;
+                                    if(newX > 580) newX = 580; // 화면 이탈 방지 (640-60)
+                                    if(newY > 420) newY = 420; // 480-60
                                     
                                     div.style.left = newX + 'px';
                                     div.style.top = newY + 'px';
@@ -1720,7 +1692,7 @@ db.ref('settings/housingEnabled').on('value', snap => {
                                     }
                                 };
                             };
-                            if(layer) layer.appendChild(div); // 🌟 화면에 그려주기 추가
+                            if(layer) layer.appendChild(div); 
                         });
                     }
                 });
@@ -1729,6 +1701,8 @@ db.ref('settings/housingEnabled').on('value', snap => {
 
         window.renderHousingInventory = function() {
             const list = document.getElementById('housing-inventory-list');
+            if(!list) return;
+
             db.ref(`users/${myName}/housingInventory`).once('value', snap => {
                 list.innerHTML = '';
                 const inv = snap.val() || {};
@@ -1757,8 +1731,8 @@ db.ref('settings/housingEnabled').on('value', snap => {
                 db.ref(`users/${myName}/myRoom/objects/${objId}`).set({
                     img: img,
                     type: category,
-                    x: 220, 
-                    y: 220  
+                    x: 290, 
+                    y: 210  
                 }).then(() => renderMyRoom());
                 alert("방 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
             }
@@ -1856,7 +1830,7 @@ db.ref('settings/housingEnabled').on('value', snap => {
                 const users = snap.val() || {};
                 let h = `<div style="max-height:400px; overflow-y:auto; padding:10px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">`;
                 for(let name in users) {
-                    if(name !== myName) { 
+                    if(name !== myName && name !== "총사령관") { 
                         h += `<button onclick="visitRoom('${name}')" style="background:#e9ecef; border:1px solid #ced4da; padding:15px; border-radius:10px; cursor:pointer; width:120px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                                 🏠<br>${name}의 방
                               </button>`;
@@ -1867,29 +1841,25 @@ db.ref('settings/housingEnabled').on('value', snap => {
             });
         };
 
-       window.visitRoom = function(targetName) {
-    // 💡 팁: 실제 데이터가 저장된 경로를 정확히 적어주세요. 
-    // 만약 데이터가 users/가 아니라 rooms/ 라면 아래 ref 경로를 바꿔야 합니다.
-    db.ref(`users/${targetName}/myRoom`).once('value', snap => {
-        const room = snap.val() || {};
-        
-        // 💡 해결: 배경이 없으면 선생님이 설정하신 '기본 배경(window.currentDefaultBg)'을 쓰도록 수정!
-        const bg = room.background || window.currentDefaultBg || 'https://via.placeholder.com/500x500.png?text=Empty';
-        
-        let h = `<div style="text-align:center;">
-                    <div style="position:relative; width:450px; height:450px; background-image:url('${bg}'); background-size:cover; background-position:center; border:4px solid #5d4037; border-radius:10px; margin:0 auto; overflow:hidden;">`;
-        
-        if(room.objects) {
-            for(let k in room.objects) {
-                let o = room.objects[k];
-                // 좌표 비율 보정 (기존 500px 기준 -> 450px 팝업 기준)
-                let adjustedX = (o.x || 0) * (450/640); 
-                let adjustedY = (o.y || 0) * (450/480);
-                h += `<div style="position:absolute; left:${adjustedX}px; top:${adjustedY}px; width:50px; height:50px;">
-                        <img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated;">
-                      </div>`;
-            }
-        }
+        window.visitRoom = function(targetName) {
+            db.ref(`users/${targetName}/myRoom`).once('value', snap => {
+                const room = snap.val() || {};
+                
+                const bg = room.background || window.currentDefaultBg || '#d7ccc8';
+                
+                let h = `<div style="text-align:center;">
+                            <div style="position:relative; width:100%; max-width:450px; aspect-ratio: 4/3; background-image:url('${bg}'); background-size:100% 100%; background-position:center; border:4px solid #5d4037; border-radius:10px; margin:0 auto; overflow:hidden;">`;
+                
+                if(room.objects) {
+                    for(let k in room.objects) {
+                        let o = room.objects[k];
+                        let adjustedX = (o.x || 0) * (450/640); 
+                        let adjustedY = (o.y || 0) * (450/480);
+                        h += `<div style="position:absolute; left:${adjustedX}px; top:${adjustedY}px; width:45px; height:45px;">
+                                <img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated;">
+                              </div>`;
+                    }
+                }
                 h += `      </div>
                             
                             <div style="margin-top:15px; display:flex; gap:10px; justify-content:center;">
@@ -1917,7 +1887,7 @@ db.ref('settings/housingEnabled').on('value', snap => {
             });
         };
 
-       window.leaveInteraction = function(targetName, msg) {
+        window.leaveInteraction = function(targetName, msg) {
             const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             db.ref(`users/${targetName}/myRoom/interactions`).push({
                 from: myName,
@@ -1929,34 +1899,13 @@ db.ref('settings/housingEnabled').on('value', snap => {
             });
         };
 
-       // --- 🏰 중복 함수 정리 및 화면 동기화 최종 로직 ---
-        function toggleHousing() {
-            // 실시간으로 반영된 시스템 상태(window.isHousingEnabled)를 기준으로 작동하도록 수정
+        window.toggleHousing = function() {
             const newState = !window.isHousingEnabled; 
             db.ref('settings/housingEnabled').set(newState).then(() => {
                 alert(newState ? "🟢 용사의 방 시스템이 [켜짐] 상태가 되었습니다." : "🔴 용사의 방 시스템이 [꺼짐] 상태가 되었습니다.");
                 location.reload(); 
             });
-        }
-
-        function uploadDefaultBackground(input) {
-            if (!input.files || input.files.length === 0) return;
-            const file = input.files[0];
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const base64Image = e.target.result; 
-                db.ref('settings/defaultBg').set(base64Image).then(() => {
-                    alert("🖼️ 기본 배경 이미지가 성공적으로 업로드되었습니다! ✨");
-                    window.currentDefaultBg = base64Image; 
-                    if(document.getElementById('my-room-container')) {
-                        document.getElementById('my-room-container').style.backgroundImage = `url(${base64Image})`;
-                    }
-                }).catch(err => {
-                    alert("❌ 저장 실패! 이미지 용량이 너무 큰 것 같습니다. (권장: 640x480 이하)");
-                });
-            };
-            reader.readAsDataURL(file);
-        }
+        };
     </script>
 </body>
 </html>
