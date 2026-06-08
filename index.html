@@ -424,31 +424,19 @@ db.ref('settings/housingEnabled').on('value', snap => {
         }
     }
     
-    // 관리자 패널의 상태 텍스트 & 버튼 색상 업데이트
+   // 관리자 패널의 상태 텍스트 & 버튼 색상 업데이트
     const statusText = document.getElementById('housing-status-text');
     const toggleBtn = document.getElementById('btn-housing-toggle');
-    
     if (statusText && toggleBtn) {
-        statusText.innerText = window.isHousingEnabled ? "현재 상태: 🟢 켜짐" : "현재 상태: 🔴 꺼짐";
-        statusText.style.color = window.isHousingEnabled ? "green" : "red";
-        toggleBtn.innerText = window.isHousingEnabled ? "끄기(OFF)로 변경" : "켜기(ON)으로 변경";
-        toggleBtn.style.backgroundColor = window.isHousingEnabled ? "#e74c3c" : "#2ecc71";
+        statusText.innerText = isHousingEnabled ? "현재 상태: 🟢 켜짐" : "현재 상태: 🔴 꺼짐";
+        statusText.style.color = isHousingEnabled ? "green" : "red";
+        toggleBtn.innerText = isHousingEnabled ? "끄기(OFF)로 변경" : "켜기(ON)으로 변경";
+        toggleBtn.style.backgroundColor = isHousingEnabled ? "#e74c3c" : "#2ecc71";
     }
 });
+        }); // startApp 함수를 정상적으로 종료하는 중괄호
 
-// ==========================================
-// 4. 용사의 방 토글(끄기/켜기) 함수
-// ==========================================
-window.toggleHousingSystem = function() {
-    const newState = !window.isHousingEnabled; 
-    db.ref('settings/housingEnabled').set(newState).then(() => {
-        // 데이터베이스가 바뀌면 새로고침해서 화면에 즉각 반영!
-        location.reload(); 
-    });
-};
-            }); // 🌟 [바이브 코딩 수정] 이 괄호가 지워져서 아래쪽 전체가 고장났었습니다!
-
-            let currentShopCat = "전체";
+        let currentShopCat = "전체";
             
             // 1. 상점 데이터 실시간 불러오기
             db.ref('shop').on('value', snap => { 
@@ -1256,9 +1244,10 @@ window.toggleHousingSystem = function() {
             `;
         }
     
-        let currentLayout = {}; 
-        let isEditMode = false;
-        let selectedStudentForMove = null;
+        // ⚠️ 변수 중복 선언 에러(SyntaxError)를 해결하기 위해 'let'을 제거하고 값만 할당합니다.
+        currentLayout = {}; 
+        isEditMode = false;
+        selectedStudentForMove = null;
 
         function toggleSeatEditMode() {
             isEditMode = !isEditMode;
@@ -1928,7 +1917,7 @@ window.toggleHousingSystem = function() {
             });
         };
 
-        window.leaveInteraction = function(targetName, msg) {
+       window.leaveInteraction = function(targetName, msg) {
             const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             db.ref(`users/${targetName}/myRoom/interactions`).push({
                 from: myName,
@@ -1939,54 +1928,36 @@ window.toggleHousingSystem = function() {
                 visitRoom(targetName); 
             });
         };
-        // 👇 스크립트 맨 아래 빈 공간에 붙여넣기 👇
 
-let isHousingOn = true; // 전역 변수로 현재 상태 저장
+        // --- 🏰 중복 함수 정리 및 화면 동기화 최종 로직 ---
+        let isHousingOn = true; 
 
-// 1. 용사의 방 온오프 전환 함수
-function toggleHousing() {
-    const newState = !isHousingOn; // 현재 상태 뒤집기
-    db.ref('settings/housingEnabled').set(newState).then(() => {
-        alert(newState ? "🟢 용사의 방 시스템이 [켜짐] 상태가 되었습니다." : "🔴 용사의 방 시스템이 [꺼짐] 상태가 되었습니다.");
-    });
-}
-
-// 🖼️ 2. 이미지 파일을 올려서 파이어베이스에 저장하는 함수
-function uploadDefaultBackground(input) {
-    // 파일이 제대로 선택되었는지 확인
-    if (!input.files || input.files.length === 0) return;
-    
-    const file = input.files[0];
-    const reader = new FileReader();
-    
-    // 이미지를 다 읽었을 때 실행되는 마법
-    reader.onload = function(e) {
-        const base64Image = e.target.result; // 이미지를 데이터 형태로 변환
-        
-        // 파이어베이스에 저장!
-        db.ref('settings/defaultBg').set(base64Image).then(() => {
-            alert("🖼️ 기본 배경 이미지가 성공적으로 업로드되었습니다! ✨");
-            window.currentDefaultBg = base64Image; // 현재 내 화면에도 바로 기억시킴
-            
-            // 만약 현재 화면이 내 방이라면 다시 그려주기
-            if(document.getElementById('my-room-container')) {
-                document.getElementById('my-room-container').style.backgroundImage = `url(${base64Image})`;
-            }
-        }).catch(err => {
-            alert("❌ 저장 실패! 이미지 용량이 너무 큰 것 같습니다. (권장: 640x480 이하)");
-        });
-    };
-    
-    // 파일을 데이터로 읽기 시작!
-    reader.readAsDataURL(file);
-}
         function toggleHousing() {
-    const newState = !isHousingOn; 
-    db.ref('settings/housingEnabled').set(newState).then(() => {
-        // 💡 추가: 상태 변경 후 즉시 화면 다시 그리기/새로고침
-        location.reload(); // 가장 확실하게 상태를 새로 고침합니다.
-    });
-}
+            const newState = !isHousingOn; 
+            db.ref('settings/housingEnabled').set(newState).then(() => {
+                alert(newState ? "🟢 용사의 방 시스템이 [켜짐] 상태가 되었습니다." : "🔴 용사의 방 시스템이 [꺼짐] 상태가 되었습니다.");
+                location.reload(); 
+            });
+        }
+
+        function uploadDefaultBackground(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Image = e.target.result; 
+                db.ref('settings/defaultBg').set(base64Image).then(() => {
+                    alert("🖼️ 기본 배경 이미지가 성공적으로 업로드되었습니다! ✨");
+                    window.currentDefaultBg = base64Image; 
+                    if(document.getElementById('my-room-container')) {
+                        document.getElementById('my-room-container').style.backgroundImage = `url(${base64Image})`;
+                    }
+                }).catch(err => {
+                    alert("❌ 저장 실패! 이미지 용량이 너무 큰 것 같습니다. (권장: 640x480 이하)");
+                });
+            };
+            reader.readAsDataURL(file);
+        }
     </script>
 </body>
 </html>
