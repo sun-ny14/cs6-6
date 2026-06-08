@@ -341,7 +341,13 @@
         function startApp() {
             if (isAdmin || isHelper || myName === "총사령관") { const orderMgr = document.getElementById('admin-order-mgr'); if (orderMgr) orderMgr.style.display = 'block'; }
             
-           db.ref('settings').on('value', snap => {
+           // 전역 변수로 상태 저장 (에러 방지용)
+window.isHousingEnabled = true;
+
+// ==========================================
+// 1. 기존 핵심 설정 기능 (절대 건드리지 않고 그대로 유지!)
+// ==========================================
+db.ref('settings').on('value', snap => {
     const s = snap.val() || {}; 
     giftList = s.giftList || []; 
     routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
@@ -355,7 +361,7 @@
     }
     document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
     
-    // 💡 [추가된 부분] 선생님 기본 배경화면 설정값 불러오기
+    // 선생님 기본 배경화면 설정값 불러오기
     if(document.getElementById('admin-default-bg')) {
         document.getElementById('admin-default-bg').value = s.defaultBg || "";
     }
@@ -363,7 +369,9 @@
 });
 generateNewLayout();
 
+// ==========================================
 // 2. 유저 목록 불러오기 (기존 기능 그대로 유지!)
+// ==========================================
 db.ref('users').on('value', snap => {
     let users = []; 
     snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
@@ -381,16 +389,18 @@ db.ref('users').on('value', snap => {
                     ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
                 </b>
                 ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : ''}
-                </div>`; 
+              </div>`; 
     }); 
     document.getElementById('hero-grid').innerHTML = h;
     if (isAdmin) renderAdminList();
     generateNewLayout();   
 });
 
-// 3. 👑 용사의 방 온오프 상태 관리 (여기만 새롭게 업그레이드됨!)
+// ==========================================
+// 3. 👑 용사의 방 온오프 상태 관리
+// ==========================================
 db.ref('settings/housingEnabled').on('value', snap => {
-    isHousingEnabled = snap.val() !== false; // 기본값 true
+    window.isHousingEnabled = snap.val() !== false; // 기본값 true
     
     // 관리자 제어 패널 (선생님에게만 보임)
     const adminPanel = document.getElementById('admin-housing-control');
@@ -402,7 +412,7 @@ db.ref('settings/housingEnabled').on('value', snap => {
     const housingTabBtn = document.querySelector('button[onclick*="tab-housing"]'); // 탭 버튼
     const housingTabContent = document.getElementById('tab-housing'); // 탭 내용물
     
-    if (!isAdmin && !isHousingEnabled) {
+    if (!isAdmin && !window.isHousingEnabled) {
         // 학생이고 꺼져있으면 탭 완전히 숨기기
         if (housingTabBtn) housingTabBtn.style.display = 'none';
         if (housingTabContent) housingTabContent.style.display = 'none';
@@ -417,13 +427,25 @@ db.ref('settings/housingEnabled').on('value', snap => {
     // 관리자 패널의 상태 텍스트 & 버튼 색상 업데이트
     const statusText = document.getElementById('housing-status-text');
     const toggleBtn = document.getElementById('btn-housing-toggle');
+    
     if (statusText && toggleBtn) {
-        statusText.innerText = isHousingEnabled ? "현재 상태: 🟢 켜짐" : "현재 상태: 🔴 꺼짐";
-        statusText.style.color = isHousingEnabled ? "green" : "red";
-        toggleBtn.innerText = isHousingEnabled ? "끄기(OFF)로 변경" : "켜기(ON)으로 변경";
-        toggleBtn.style.backgroundColor = isHousingEnabled ? "#e74c3c" : "#2ecc71";
+        statusText.innerText = window.isHousingEnabled ? "현재 상태: 🟢 켜짐" : "현재 상태: 🔴 꺼짐";
+        statusText.style.color = window.isHousingEnabled ? "green" : "red";
+        toggleBtn.innerText = window.isHousingEnabled ? "끄기(OFF)로 변경" : "켜기(ON)으로 변경";
+        toggleBtn.style.backgroundColor = window.isHousingEnabled ? "#e74c3c" : "#2ecc71";
     }
 });
+
+// ==========================================
+// 4. 용사의 방 토글(끄기/켜기) 함수
+// ==========================================
+window.toggleHousingSystem = function() {
+    const newState = !window.isHousingEnabled; 
+    db.ref('settings/housingEnabled').set(newState).then(() => {
+        // 데이터베이스가 바뀌면 새로고침해서 화면에 즉각 반영!
+        location.reload(); 
+    });
+};
             }); // 🌟 [바이브 코딩 수정] 이 괄호가 지워져서 아래쪽 전체가 고장났었습니다!
 
             let currentShopCat = "전체";
