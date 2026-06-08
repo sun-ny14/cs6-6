@@ -189,16 +189,26 @@
         </section>
 <section id="tab-housing" class="tab-content">
             <div class="card" style="max-width: 800px; margin: 0 auto;">
-                <div id="admin-housing-control" style="display: none; margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 2px dashed #ffc107;">
-                    <span style="font-weight: bold; color: #856404;">👑 총사령관 제어:</span>
-                    <button id="btn-housing-toggle" onclick="toggleHousingSystem()" style="padding: 5px 10px;"></button>
-                    <span id="housing-status-text"></span>
-                </div>
+                <div id="admin-housing-control" style="display:none; margin-bottom: 20px; padding: 15px; background: #fff3cd; border: 2px dashed #ffc107; border-radius: 8px;">
+            <div style="margin-bottom: 10px;">
+                <span style="font-weight:bold; color:#856404; margin-right:10px;">👑 총사령관 제어:</span>
+                <button id="btn-housing-toggle" onclick="toggleHousingSystem()" style="padding: 5px 10px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;"></button>
+                <span id="housing-status-text" style="margin-left:10px; font-size:0.9rem;"></span>
+            </div>
+            <div style="border-top: 1px solid #ffeeba; padding-top: 10px; font-size: 0.9rem;">
+                <span style="font-weight:bold; color:#856404; margin-right:10px;">🖼️ 기본 교실 배경 설정:</span>
+                <input type="file" accept="image/*" onchange="uploadDefaultBackground(this)" style="font-size:0.8rem; cursor:pointer;">
+                <span style="color:#666; font-size:0.8rem;">(아직 배경을 안 산 학생들 방에 기본으로 깔릴 도트 이미지를 올려주세요)</span>
+            </div>
+        </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">🏰 용사의 영지</h2>
-                    <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 15px; border-radius:8px; border:none; cursor:pointer;">🛒 상점</button>
-                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="margin:0;">🏰 용사의 영지</h2>
+            <div>
+                <button onclick="openVisitList()" style="background:#007bff; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; margin-right:10px;">🔍 친구 영지 방문</button>
+                <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점</button>
+            </div>
+        </div>
                 
                 <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
                     <div id="my-room-container" style="position: relative; width: 100%; max-width: 500px; height: 500px; border: 6px solid #5d4037; border-radius: 15px; background-color: #d7ccc8; background-size: cover; background-position: center; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden;">
@@ -1559,201 +1569,368 @@ window.buyItem = async function(k, n, p, l) {
             }
         };
 
+// [여기부터 복사해서 붙여넣기]
 // ==============================================================
-        // 🏰 완전히 분리된 하우징 전용 시스템 (가구/배경 상점 및 꾸미기)
-        // ==============================================================
-        let selectedFurnitureImg = null;
-        let isHousingEnabled = true; // 🌟 추가됨
+// 🏰 통합 하우징 시스템 (배경 고정 + 좌표 자유배치 + 온/오프 + 분류 상점)
+// ==============================================================
+let isHousingEnabled = true;
 
-        // 👑 [선생님 전용] 비밀 스위치 상태 감지
-        db.ref('settings/housingEnabled').on('value', snap => {
-            isHousingEnabled = snap.val() !== false; 
-            const btn = document.getElementById('btn-housing-toggle');
-            const txt = document.getElementById('housing-status-text');
-            const menuBtn = document.getElementById('btn-housing');
+// 1. [👑 제어] 시스템 온/오프 실시간 감지
+db.ref('settings/housingEnabled').on('value', snap => {
+    isHousingEnabled = snap.val() !== false; // 기본값 true
+    const btn = document.getElementById('btn-housing-toggle');
+    const txt = document.getElementById('housing-status-text');
+    const panel = document.getElementById('admin-housing-control');
+    const menuBtn = document.getElementById('btn-housing');
+    
+    if(panel) panel.style.display = isAdmin ? 'block' : 'none';
+    if(menuBtn) menuBtn.style.display = (isHousingEnabled || isAdmin) ? 'inline-block' : 'none';
+    
+    if(btn) {
+        if(isHousingEnabled) {
+            btn.innerText = "🛑 학생 차단 (OFF)"; btn.style.background = "#f44336"; btn.style.color = "#fff";
+            txt.innerText = "🟢 현재 학생들이 방을 꾸밀 수 있습니다.";
+        } else {
+            btn.innerText = "🔓 시스템 개방 (ON)"; btn.style.background = "#4caf50"; btn.style.color = "#fff";
+            txt.innerText = "🔴 공사 중! (학생 메뉴에서 숨김)";
+        }
+    }
+});
+
+window.toggleHousingSystem = () => {
+    if(!isAdmin) return;
+    db.ref('settings/housingEnabled').set(!isHousingEnabled);
+};
+
+// 2. [탭] 하우징 탭 열기 (접근 제어)
+window.openHousingTab = function() {
+    if(!myName) return alert("로그인이 필요합니다!");
+    if(!isHousingEnabled && !isAdmin) return alert("🚧 [공사 공지] 지금은 총사령관이 영지 시스템을 조정 중입니다! 잠시 후 이용해 주세요. 🍌");
+    renderMyRoom();
+    renderHousingInventory();
+};
+
+// 👑 [선생님 전용] 기본 배경 업로드 기능
+window.uploadDefaultBackground = function(input) {
+    if (!isAdmin) return;
+    if (input.files && input.files[0]) {
+        const r = new FileReader();
+        r.onload = function(e) {
+            db.ref('settings/defaultHousingBackground').set(e.target.result).then(() => {
+                alert("기본 배경이 성공적으로 설정되었습니다! ✨");
+                renderMyRoom(); // 화면 즉시 갱신
+            });
+        };
+        r.readAsDataURL(input.files[0]);
+    }
+};
+
+// 3. [렌더링] 배경 고정 및 오브젝트 마우스 드래그 배치 + 자동 저장
+window.renderMyRoom = function() {
+    const container = document.getElementById('room-canvas');
+    const layer = document.getElementById('objects-layer');
+    
+    // 🌟 먼저 DB에서 선생님이 올린 '기본 배경'을 불러옵니다.
+    db.ref('settings/defaultHousingBackground').once('value').then(bgSnap => {
+        // 선생님이 올린 배경이 없으면 회색 기본 이미지 출력
+        const defaultBg = bgSnap.val() || 'https://via.placeholder.com/640x480.png?text=Default+Classroom';
+        
+        db.ref(`users/${myName}/myRoom`).once('value', snap => {
+            const room = snap.val() || {};
+            // 학생이 따로 산 배경(room.background)이 있으면 그걸 쓰고, 없으면 방금 불러온 defaultBg를 씁니다!
+            container.style.backgroundImage = `url('${room.background || defaultBg}')`;
+            layer.innerHTML = '';
             
-            // 방꾸미기 탭 안에 있는 비밀 스위치 패널을 선생님(총사령관)일 때만 보여줌
-            const adminPanel = document.getElementById('admin-housing-control');
-            if (adminPanel) adminPanel.style.display = isAdmin ? 'block' : 'none';
+            if(room.objects) {
+                Object.keys(room.objects).forEach(key => {
+                    const o = room.objects[key];
+                    const div = document.createElement('div');
+                    div.style.position = 'absolute';
+                    div.style.left = o.x + 'px';
+                    div.style.top = o.y + 'px';
+                    div.style.width = '60px'; // 가구 기본 크기
+                    div.style.height = '60px';
+                    div.style.cursor = 'grab';
+                    div.title = "마우스로 드래그해서 이동하세요 (더블클릭 시 삭제)";
+                    div.innerHTML = `<img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; pointer-events:none;">`;
+                    
+                    // 🗑️ 더블클릭 시 삭제
+                    div.ondblclick = () => {
+                        if(confirm("이 가구를 삭제하시겠습니까?")) {
+                            db.ref(`users/${myName}/myRoom/objects/${key}`).remove().then(()=>renderMyRoom());
+                        }
+                    };
 
-            // 상단 메뉴 버튼은 켜져있거나, 관리자일 때만 보임
-            if (menuBtn) menuBtn.style.display = (isHousingEnabled || isAdmin) ? 'inline-block' : 'none';
+                    // 🖱️ 드래그 앤 드롭 (마우스 이벤트)
+                    div.onmousedown = function(e) {
+                        e.preventDefault();
+                        div.style.cursor = 'grabbing';
+                        div.style.zIndex = 1000;
+                        
+                        let startX = e.clientX;
+                        let startY = e.clientY;
+                        let initialX = parseInt(div.style.left);
+                        let initialY = parseInt(div.style.top);
 
-            if (btn) {
-                if (isHousingEnabled) {
-                    btn.innerText = "🛑 학생 진입 차단 (OFF)"; btn.style.background = "#f44336";
-                    txt.innerText = "🟢 현재 학생들이 방을 꾸밀 수 있습니다.";
-                } else {
-                    btn.innerText = "🔓 시스템 개방 (ON)"; btn.style.background = "#4caf50";
-                    txt.innerText = "🔴 공사 중! (학생들의 메뉴에서 탭이 사라졌습니다)";
-                }
+                        document.onmousemove = function(e) {
+                            let dx = e.clientX - startX;
+                            let dy = e.clientY - startY;
+                            
+                            let newX = initialX + dx;
+                            let newY = initialY + dy;
+                            
+                            if(newX < 0) newX = 0;
+                            if(newY < 0) newY = 0;
+                            if(newX > 580) newX = 580;
+                            if(newY > 420) newY = 420;
+                            
+                            div.style.left = newX + 'px';
+                            div.style.top = newY + 'px';
+                        };
+
+                        document.onmouseup = function() {
+                            document.onmousemove = null;
+                            document.onmouseup = null;
+                            div.style.cursor = 'grab';
+                            div.style.zIndex = '';
+                            
+                            const finalX = parseInt(div.style.left);
+                            const finalY = parseInt(div.style.top);
+                            
+                            let isColliding = false;
+                            Object.keys(room.objects).forEach(otherKey => {
+                                if(otherKey !== key) {
+                                    const other = room.objects[otherKey];
+                                    if (finalX < other.x + 50 && finalX + 50 > other.x && 
+                                        finalY < other.y + 50 && finalY + 50 > other.y) {
+                                        isColliding = true;
+                                    }
+                                }
+                            });
+
+                            if(isColliding) {
+                                alert("앗! 다른 가구와 겹칩니다! 빈 공간에 놓아주세요.");
+                                div.style.left = initialX + 'px';
+                                div.style.top = initialY + 'px';
+                            } else {
+                                db.ref(`users/${myName}/myRoom/objects/${key}`).update({x: finalX, y: finalY});
+                                room.objects[key].x = finalX;
+                                room.objects[key].y = finalY;
+                            }
+                        };
+                    };
+                    layer.appendChild(div);
+                });
             }
         });
+    });
+};
 
-        // 👑 [선생님 전용] 비밀 스위치 작동 버튼
-        window.toggleHousingSystem = function() {
-            if (!isAdmin) return alert("총사령관 권한이 필요합니다.");
-            db.ref('settings/housingEnabled').set(!isHousingEnabled);
-        };
+// 4. [인벤토리] 배치 로직
+window.renderHousingInventory = function() {
+    const list = document.getElementById('housing-inventory-list');
+    db.ref(`users/${myName}/housingInventory`).once('value', snap => {
+        list.innerHTML = '';
+        const inv = snap.val() || {};
+        let hasItems = false;
+        for(let k in inv) {
+            hasItems = true;
+            const i = inv[k];
+            list.innerHTML += `<div style="border:1px solid #ccc; padding:10px; border-radius:8px; text-align:center; min-width:80px; background:#f8f9fa;">
+                <div style="font-size:0.75rem; color:#666; font-weight:bold;">${i.category}</div>
+                <img src="${i.img}" style="width:40px; height:40px; object-fit:contain; image-rendering:pixelated; margin:5px 0;">
+                <div style="font-size:0.85rem; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${i.name}</div>
+                <button onclick="placeOrApplyHousingItem('${i.img}', '${i.category}')" style="width:100%; padding:5px; margin-top:5px; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">${i.category==='배경'?'배경적용':'배치하기'}</button>
+            </div>`;
+        }
+        if(!hasItems) list.innerHTML = `<p style="color:#888; font-size:0.9rem; margin-top:10px;">아직 구매한 하우징 아이템이 없습니다.</p>`;
+    });
+};
 
-        // 1. 하우징 탭 열릴 때 내 방과 인벤토리 렌더링
-        window.openHousingTab = function() {
-            if(!myName) return alert("용사 로그인이 필요합니다!");
-            
-            // 🌟 학생인데 하우징이 꺼져있으면 팝업 띄우고 튕겨냄
-            if (!isHousingEnabled && !isAdmin) {
-                return alert("🚧 [공사 공지] 지금은 총사령관이 영지 시스템을 조정 중입니다! 잠시 후 이용해 주세요. 🍌");
-            }
-            
-            selectedFurnitureImg = null;
-            if(document.getElementById('selected-furniture-display')) document.getElementById('selected-furniture-display').innerText = "없음";
-            renderMyRoom();
-            renderHousingInventory();
-        };
-        // 2. 가구/배경 전용 상점 팝업 열기 (학생 & 관리자 공용)
-        window.openHousingShopPopup = function() {
-            // housingShop 이라는 완전히 독립된 DB 경로를 사용합니다.
-            db.ref('housingShop').once('value', snap => {
-                let h = `<div style="display:flex; flex-wrap:wrap; gap:10px; max-height:60vh; overflow-y:auto; padding:5px;">`;
-                
-                // 관리자에게만 보이는 등록 버튼
-                if(isAdmin) {
-                    h = `<button onclick="openAddHousingItem()" style="width:100%; padding:15px; background:var(--dark); color:white; font-weight:bold; border-radius:10px; border:none; margin-bottom:15px;">+ 새 가구/배경 등록하기</button>` + h;
-                }
-                
-                const items = snap.val() || {};
-                let hasItems = false;
-                for(let key in items) {
-                    hasItems = true;
+window.placeOrApplyHousingItem = function(img, category) {
+    if(category === '배경') {
+        if(confirm("방 전체 배경을 이 이미지로 바꾸시겠습니까?")) {
+            db.ref(`users/${myName}/myRoom/background`).set(img).then(() => renderMyRoom());
+        }
+    } else {
+        // 가구 또는 사람: 캔버스 정중앙 근처에 배치
+        const objId = Date.now();
+        db.ref(`users/${myName}/myRoom/objects/${objId}`).set({
+            img: img,
+            type: category,
+            x: 290, // 640의 절반 부근
+            y: 210  // 480의 절반 부근
+        }).then(() => renderMyRoom());
+        alert("영지 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
+    }
+};
+
+// 5. [상점] 하우징 상점 열기 (분류별)
+window.openHousingShopPopup = function() {
+    db.ref('housingShop').once('value', snap => {
+        let h = `<div style="max-height:60vh; overflow-y:auto; padding:5px;">`;
+        if(isAdmin) {
+            h += `<button onclick="openAddHousingItem()" style="width:100%; padding:15px; background:#343a40; color:white; font-weight:bold; border-radius:10px; border:none; margin-bottom:15px; cursor:pointer;">+ 새 아이템 등록하기 (선생님 전용)</button>`;
+        }
+        
+        const items = snap.val() || {};
+        const categories = ["🖼️ 배경", "🪑 가구", "👤 사람"];
+        
+        categories.forEach(cat => {
+            h += `<h3 style="margin-bottom:10px; border-bottom:2px solid #ddd; padding-bottom:5px;">${cat}</h3>`;
+            h += `<div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">`;
+            let count = 0;
+            for(let key in items) {
+                if(items[key].category === cat.substring(3)) { // 이모지 떼고 비교
+                    count++;
                     const i = items[key];
-                    h += `<div style="border:1px solid #ddd; border-radius:10px; padding:10px; text-align:center; width:calc(50% - 15px); background:#f8f9fa;">
-                            <div style="font-size:0.8rem; color:var(--primary); font-weight:bold;">${i.type}</div>
-                            <img src="${i.img}" style="width:60px; height:60px; image-rendering:pixelated; margin:8px 0; object-fit:contain;">
-                            <div style="font-weight:bold; font-size:1.1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${i.name}</div>
+                    h += `<div style="border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center; width:calc(50% - 15px); background:#fff;">
+                            <img src="${i.img}" style="width:50px; height:50px; object-fit:contain; image-rendering:pixelated; margin-bottom:5px;">
+                            <div style="font-weight:bold; font-size:1rem;">${i.name}</div>
                             <div style="color:var(--red); font-weight:bold; margin-bottom:8px;">${i.price}P</div>
-                            <button onclick="buyHousingItem('${key}', '${i.name}', ${i.price}, '${i.type}', '${i.img}')" style="background:var(--green); color:white; border:none; border-radius:5px; padding:8px; width:100%; font-weight:bold;">구매하기</button>
-                            ${isAdmin ? `<button onclick="if(confirm('삭제?')) db.ref('housingShop/${key}').remove().then(()=>openHousingShopPopup())" style="background:#7f8c8d; color:white; border:none; border-radius:5px; padding:5px; width:100%; margin-top:5px;">삭제</button>` : ''}
+                            <button onclick="buyHousingItem('${key}', '${i.name}', ${i.price}, '${i.category}', '${i.img}')" style="background:#28a745; color:white; border:none; border-radius:4px; padding:5px 10px; width:100%; cursor:pointer;">구매</button>
+                            ${isAdmin ? `<button onclick="if(confirm('삭제?')) db.ref('housingShop/${key}').remove().then(()=>openHousingShopPopup())" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:4px; width:100%; margin-top:5px; font-size:0.8rem; cursor:pointer;">삭제</button>` : ''}
                           </div>`;
                 }
-                if(!hasItems) h += `<p style="text-align:center; width:100%; color:#999; padding:20px;">아직 상점에 등록된 가구가 없습니다.</p>`;
-                h += `</div>`;
-                openPopup("🛒 가구/배경 전용 상점", h);
-            });
-        };
-
-        // 3. [관리자] 하우징 아이템 등록 (이미지 업로드)
-        window.openAddHousingItem = function() {
-            let h = `<h3>🏰 하우징 아이템 직접 등록</h3>
-                     <label>이름: <input type="text" id="h-item-name" placeholder="예: 전설의 바나나 소파"></label>
-                     <label>가격: <input type="number" id="h-item-price" value="0"></label>
-                     <label>종류: <select id="h-item-type"><option value="가구">🪑 가구 (칸에 배치)</option><option value="배경">🖼️ 배경 (방 전체 배경)</option></select></label>
-                     <label>도트 이미지 업로드: <input type="file" accept="image/*" onchange="previewHousingImage(this)" style="margin-top:5px;"></label>
-                     <div style="text-align:center; margin-top:10px; background:#eee; padding:10px; border-radius:8px;">
-                        <img id="h-img-preview" style="max-width:80px; max-height:80px; display:none; image-rendering:pixelated;">
-                     </div>
-                     <button onclick="saveHousingItem()" style="background:var(--primary); color:white; padding:15px; width:100%; margin-top:15px; border-radius:8px; border:none; font-weight:bold;">DB에 등록하기</button>`;
-            openPopup("아이템 업로드", h);
-        };
-
-        window.previewHousingImage = function(input) {
-            if (input.files && input.files[0]) {
-                const r = new FileReader();
-                r.onload = function(e) { document.getElementById('h-img-preview').src = e.target.result; document.getElementById('h-img-preview').style.display = 'inline-block'; }
-                r.readAsDataURL(input.files[0]);
             }
-        };
+            if(count === 0) h += `<p style="color:#aaa; font-size:0.9rem; width:100%;">등록된 상품이 없습니다.</p>`;
+            h += `</div>`;
+        });
+        h += `</div>`;
+        openPopup("🛒 하우징 전문 상점", h);
+    });
+};
 
-        window.saveHousingItem = function() {
-            const n = document.getElementById('h-item-name').value;
-            const p = parseInt(document.getElementById('h-item-price').value) || 0;
-            const t = document.getElementById('h-item-type').value;
-            const img = document.getElementById('h-img-preview').src;
-            
-            if(!n || !img || !img.startsWith('data:image')) return alert("이름과 이미지를 모두 올려주세요!");
-            db.ref('housingShop').push({name:n, price:p, type:t, img:img}).then(() => { alert("등록 완료!"); openHousingShopPopup(); });
-        };
+// 6. [상점 등록] 카테고리 포함 등록 기능 (선생님 전용)
+window.openAddHousingItem = function() {
+    if(!isAdmin) return;
+    let h = `<h3 style="margin-top:0;">아이템 직접 업로드</h3>
+             <label style="display:block; margin-bottom:10px;">이름: <input type="text" id="h-item-name" style="width:100%; padding:5px;"></label>
+             <label style="display:block; margin-bottom:10px;">가격: <input type="number" id="h-item-price" value="0" style="width:100%; padding:5px;"></label>
+             <label style="display:block; margin-bottom:10px; font-weight:bold; color:blue;">항목 선택:
+               <select id="h-item-cat" style="width:100%; padding:5px;">
+                 <option value="배경">🖼️ 배경 (640x480 권장)</option>
+                 <option value="가구">🪑 가구 (자유 배치)</option>
+                 <option value="사람">👤 사람 (자유 배치)</option>
+               </select>
+             </label>
+             <label style="display:block; margin-bottom:10px;">이미지 첨부: <input type="file" accept="image/*" onchange="previewHousingImage(this)"></label>
+             <div style="text-align:center; margin-bottom:10px;"><img id="h-img-preview" style="max-width:100px; display:none; image-rendering:pixelated;"></div>
+             <button onclick="saveHousingItem()" style="background:var(--primary); color:white; padding:10px; width:100%; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">DB에 등록하기</button>`;
+    openPopup("새 아이템 등록", h);
+};
 
-        // 4. [학생] 하우징 아이템 구매 (포인트 차감 및 전용 인벤토리 저장)
-        window.buyHousingItem = async function(key, name, price, type, img) {
-            const sn = await db.ref('users/' + myName).once('value');
-            const myPts = sn.val().points || 0;
-            
-            if(myPts < 0 || myPts < price) return alert("포인트가 마이너스이거나 부족합니다! 😭");
-            if(!confirm(`[${name}]을(를) ${price}P에 구매하시겠습니까? (하우징 전용 인벤토리로 들어갑니다)`)) return;
-            
-            await db.ref('users/' + myName).update({ points: myPts - price });
-            // housingInventory 라는 독립된 경로에 저장
-            await db.ref(`users/${myName}/housingInventory`).push({ name: name, type: type, img: img });
-            
-            alert("구매 완료! 내 영지의 인벤토리를 확인하세요.");
-            if(currentTab === 'housing') openHousingTab(); // 화면 갱신
-            openHousingShopPopup(); // 상점 잔액 갱신을 위해 다시 열기
-        };
+window.previewHousingImage = function(input) {
+    if (input.files && input.files[0]) {
+        const r = new FileReader();
+        r.onload = function(e) { document.getElementById('h-img-preview').src = e.target.result; document.getElementById('h-img-preview').style.display = 'inline-block'; }
+        r.readAsDataURL(input.files[0]);
+    }
+};
 
-        // 5. [학생] 내 하우징 인벤토리 렌더링
-        window.renderHousingInventory = function() {
-            const list = document.getElementById('housing-inventory-list');
-            list.innerHTML = `<button onclick="selectFurnitureToPlace('REMOVE', '지우개', '가구')" style="width:100%; padding:10px; background:#ffc9c9; border:1px solid #fa5252; color:#d32f2f; border-radius:8px; font-weight:bold; margin-bottom:10px; cursor:pointer;">🧹 설치된 가구 지우기</button>`;
-            
-            db.ref(`users/${myName}/housingInventory`).once('value', snap => {
-                const inv = snap.val() || {};
-                let gridHtml = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">`;
-                for(let k in inv) {
-                    const i = inv[k];
-                    gridHtml += `<div style="border:1px solid #ccc; padding:8px; border-radius:8px; text-align:center; background:#f8f9fa;">
-                        <div style="font-size:0.75rem; color:#666;">${i.type}</div>
-                        <img src="${i.img}" style="width:40px; height:40px; image-rendering:pixelated; margin:5px 0; object-fit:contain;">
-                        <div style="font-size:0.85rem; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${i.name}</div>
-                        <button onclick="selectFurnitureToPlace('${i.img}', '${i.name}', '${i.type}')" style="width:100%; padding:5px; margin-top:5px; background:var(--primary); color:white; border:none; border-radius:5px; cursor:pointer;">${i.type==='배경'?'배경적용':'선택'}</button>
-                    </div>`;
-                }
-                gridHtml += `</div>`;
-                if(Object.keys(inv).length === 0) gridHtml = `<p style="font-size:0.9rem; color:#888; text-align:center;">전용 상점에서 가구를 구매해보세요!</p>`;
-                list.innerHTML += gridHtml;
-            });
-        };
+window.saveHousingItem = function() {
+    if(!isAdmin) return alert("관리자만 가능합니다!");
+    const n = document.getElementById('h-item-name').value;
+    const p = parseInt(document.getElementById('h-item-price').value) || 0;
+    const cat = document.getElementById('h-item-cat').value;
+    const img = document.getElementById('h-img-preview').src;
+    
+    if(!n || !img || !img.startsWith('data:image')) return alert("이름과 이미지를 모두 확인해주세요!");
+    db.ref('housingShop').push({name:n, price:p, category:cat, img:img}).then(() => { alert("등록 완료!"); openHousingShopPopup(); });
+};
 
-        // 6. 가구/배경 선택 및 방 꾸미기 적용
-        window.selectFurnitureToPlace = function(img, name, type) {
-            if(type === '배경') {
-                if(confirm(`방 전체 배경을 [${name}] 이미지로 바꾸시겠습니까?`)) {
-                    db.ref(`users/${myName}/myRoom/background`).set(img).then(() => renderMyRoom());
-                }
-                return;
+// 7. [상점 구매]
+window.buyHousingItem = async function(key, name, price, category, img) {
+    const sn = await db.ref('users/' + myName).once('value');
+    const myPts = sn.val().points || 0;
+    
+    if(myPts < 0 || myPts < price) return alert("포인트가 마이너스이거나 부족합니다! 😭");
+    if(!confirm(`[${name}]을(를) ${price}P에 구매할까요?`)) return;
+    
+    await db.ref('users/' + myName).update({ points: myPts - price });
+    await db.ref(`users/${myName}/housingInventory`).push({ name: name, category: category, img: img });
+    
+    alert("구매 완료! 인벤토리를 확인하세요.");
+    if(currentTab === 'housing') renderHousingInventory();
+    openHousingShopPopup(); 
+};
+// 8. [소셜] 친구 영지 목록 보기
+window.openVisitList = function() {
+    db.ref('users').once('value', snap => {
+        const users = snap.val() || {};
+        let h = `<div style="max-height:400px; overflow-y:auto; padding:10px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">`;
+        for(let name in users) {
+            if(name !== myName) { // 내 방은 목록에서 제외
+                h += `<button onclick="visitRoom('${name}')" style="background:#e9ecef; border:1px solid #ced4da; padding:15px; border-radius:10px; cursor:pointer; width:120px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        🏠<br>${name}의 방
+                      </button>`;
             }
-            // 가구일 경우
-            selectedFurnitureImg = img;
-            document.getElementById('selected-furniture-display').innerText = name;
-        };
+        }
+        h += `</div>`;
+        openPopup("🔍 누구의 영지를 방문할까요?", h);
+    });
+};
 
-        // 7. 내 방(그리드) 렌더링
-        window.renderMyRoom = function() {
-            const canvas = document.getElementById('my-room-canvas');
-            const container = document.getElementById('my-room-container');
-            canvas.innerHTML = '';
-            
-            db.ref(`users/${myName}/myRoom`).once('value', snap => {
-                const room = snap.val() || {};
-                
-                // 배경 세팅
-                if(room.background) container.style.backgroundImage = `url(${room.background})`;
-                else container.style.backgroundImage = 'none';
+// 9. [소셜] 친구 방 구경 및 인사 남기기
+window.visitRoom = function(targetName) {
+    db.ref(`users/${targetName}/myRoom`).once('value', snap => {
+        const room = snap.val() || {};
+        
+        let h = `<div style="text-align:center;">
+                    <div style="position:relative; width:480px; height:360px; background-image:url('${room.background || 'https://via.placeholder.com/640x480.png?text=Default'}'); background-size:cover; border:4px solid #5d4037; border-radius:10px; margin:0 auto; overflow:hidden;">`;
+        
+        // 친구 방 가구들 렌더링 (보기 전용이라 이벤트 없음)
+        if(room.objects) {
+            for(let k in room.objects) {
+                let o = room.objects[k];
+                // 640x480 -> 480x360 비율에 맞춰 좌표 조정 (0.75 곱함)
+                let adjustedX = o.x * 0.75;
+                let adjustedY = o.y * 0.75;
+                h += `<div style="position:absolute; left:${adjustedX}px; top:${adjustedY}px; width:45px; height:45px;">
+                        <img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated;">
+                      </div>`;
+            }
+        }
+        h += `      </div>
+                    
+                    <div style="margin-top:15px; display:flex; gap:10px; justify-content:center;">
+                        <button onclick="leaveInteraction('${targetName}', '❤️ 하트 표시를 남겼습니다.')" style="background:#ff4d4f; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">❤️ 하트 남기기</button>
+                        <button onclick="leaveInteraction('${targetName}', '👋 인사를 남겼습니다.')" style="background:#1890ff; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">👋 인사 남기기</button>
+                        <button onclick="leaveInteraction('${targetName}', '👍 멋지다고 칭찬했습니다.')" style="background:#52c41a; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">👍 멋져요!</button>
+                    </div>
 
-                // 9칸 타일 세팅
-                for(let i=1; i<=9; i++) {
-                    const tile = document.createElement('div');
-                    tile.className = 'room-tile';
-                    if(room[`grid_${i}`]) tile.innerHTML = `<img src="${room[`grid_${i}`]}" class="pixelated-img">`;
-                    tile.onclick = () => {
-                        if(!selectedFurnitureImg) return alert("오른쪽 인벤토리에서 설치할 가구(또는 지우개)를 먼저 선택하세요!");
-                        const ref = db.ref(`users/${myName}/myRoom/grid_${i}`);
-                        if(selectedFurnitureImg === 'REMOVE') ref.remove().then(() => renderMyRoom());
-                        else ref.set(selectedFurnitureImg).then(() => renderMyRoom());
-                    };
-                    canvas.appendChild(tile);
-                }
+                    <div style="margin-top:15px; height:120px; overflow-y:auto; border:1px solid #ddd; border-radius:8px; background:#f9f9f9; padding:10px; text-align:left; font-size:0.9rem;">`;
+        
+        if(room.interactions) {
+            // 시간순 정렬을 위해 배열로 변환 후 역순 출력
+            const interacts = Object.values(room.interactions).reverse();
+            interacts.forEach(i => {
+                h += `<div style="border-bottom:1px solid #eee; padding:5px 0;">
+                        <span style="color:#888; font-size:0.8rem;">[${i.time}]</span> 
+                        <strong style="color:#0056b3;">${i.from}</strong>님께서 ${i.msg}
+                      </div>`;
             });
-        };
+        } else {
+            h += `<div style="color:#aaa; text-align:center; margin-top:20px;">아직 방문자가 없습니다. 첫 방문자가 되어주세요!</div>`;
+        }
+
+        h += `</div></div>`;
+        openPopup(`🏰 ${targetName} 용사의 영지`, h);
+    });
+};
+
+// 10. [소셜] 인사 DB 저장 로직
+window.leaveInteraction = function(targetName, msg) {
+    const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    db.ref(`users/${targetName}/myRoom/interactions`).push({
+        from: myName,
+        msg: msg,
+        time: timeStr
+    }).then(() => {
+        alert("방명록이 기록되었습니다! ✨");
+        visitRoom(targetName); // 화면 새로고침해서 방명록 띄우기
+    });
+};
     </script>
 </body>
 </html>
