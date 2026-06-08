@@ -341,44 +341,89 @@
         function startApp() {
             if (isAdmin || isHelper || myName === "총사령관") { const orderMgr = document.getElementById('admin-order-mgr'); if (orderMgr) orderMgr.style.display = 'block'; }
             
-            db.ref('settings').on('value', snap => {
-                const s = snap.val() || {}; giftList = s.giftList || []; routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
-                if(isAdmin) { document.getElementById('conf-pass').value = s.password || ""; document.getElementById('conf-late').value = s.lateTime || "08:40"; document.getElementById('conf-close').value = s.closeTime || "09:00"; document.getElementById('conf-routine').value = s.routineText || ""; document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; }
-                document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
-            });
-            generateNewLayout();
+           db.ref('settings').on('value', snap => {
+    const s = snap.val() || {}; 
+    giftList = s.giftList || []; 
+    routineItems = s.routineText?.split('\n').filter(t=>t.trim()) || [];
+    
+    if(isAdmin) { 
+        document.getElementById('conf-pass').value = s.password || ""; 
+        document.getElementById('conf-late').value = s.lateTime || "08:40"; 
+        document.getElementById('conf-close').value = s.closeTime || "09:00"; 
+        document.getElementById('conf-routine').value = s.routineText || ""; 
+        document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; 
+    }
+    document.getElementById('checkin-guide').innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
+    
+    // 💡 [추가된 부분] 선생님 기본 배경화면 설정값 불러오기
+    if(document.getElementById('admin-default-bg')) {
+        document.getElementById('admin-default-bg').value = s.defaultBg || "";
+    }
+    window.currentDefaultBg = s.defaultBg || "";
+});
+generateNewLayout();
 
-            db.ref('users').on('value', snap => {
-                let users = []; snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
-                currentUsers = users.sort((a, b) => (a.name === myName ? -1 : b.name === myName ? 1 : (a.no || 99) - (b.no || 99)));
-                
-                let h = ""; 
-                currentUsers.forEach(u => { 
-                    if(u.name === "총사령관") return; 
-                    const isMe = (u.name === myName);
-                    const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
-                    
-                    h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
-                            <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
-                            <b style="font-size:1.3rem; display:block; margin-top:12px; color:var(--dark);">
-                                ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
-                            </b>
-                            ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : ''}
-                          </div>`; 
-                }); 
-                document.getElementById('hero-grid').innerHTML = h;
-                if (isAdmin) renderAdminList();
-                generateNewLayout();   
-            });
-            
-            db.ref('settings/housingEnabled').on('value', snap => {
-                isHousingEnabled = snap.val() !== false;
-                
-                // 관리자일 때만 제어 패널을 보여줌
-                const adminPanel = document.getElementById('admin-housing-control');
-                if (adminPanel) {
-                    adminPanel.style.display = isAdmin ? 'block' : 'none';
-                }
+// 2. 유저 목록 불러오기 (기존 기능 그대로 유지!)
+db.ref('users').on('value', snap => {
+    let users = []; 
+    snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
+    currentUsers = users.sort((a, b) => (a.name === myName ? -1 : b.name === myName ? 1 : (a.no || 99) - (b.no || 99)));
+    
+    let h = ""; 
+    currentUsers.forEach(u => { 
+        if(u.name === "총사령관") return; 
+        const isMe = (u.name === myName);
+        const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
+        
+        h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
+                <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
+                <b style="font-size:1.3rem; display:block; margin-top:12px; color:var(--dark);">
+                    ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
+                </b>
+                ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : ''}
+                </div>`; 
+    }); 
+    document.getElementById('hero-grid').innerHTML = h;
+    if (isAdmin) renderAdminList();
+    generateNewLayout();   
+});
+
+// 3. 👑 용사의 방 온오프 상태 관리 (여기만 새롭게 업그레이드됨!)
+db.ref('settings/housingEnabled').on('value', snap => {
+    isHousingEnabled = snap.val() !== false; // 기본값 true
+    
+    // 관리자 제어 패널 (선생님에게만 보임)
+    const adminPanel = document.getElementById('admin-housing-control');
+    if (adminPanel) {
+        adminPanel.style.display = isAdmin ? 'block' : 'none';
+    }
+
+    // 학생들에게 용사의 방 탭 온/오프 제어
+    const housingTabBtn = document.querySelector('button[onclick*="tab-housing"]'); // 탭 버튼
+    const housingTabContent = document.getElementById('tab-housing'); // 탭 내용물
+    
+    if (!isAdmin && !isHousingEnabled) {
+        // 학생이고 꺼져있으면 탭 완전히 숨기기
+        if (housingTabBtn) housingTabBtn.style.display = 'none';
+        if (housingTabContent) housingTabContent.style.display = 'none';
+    } else {
+        // 켜져있거나 선생님이면 다시 보이기
+        if (housingTabBtn) housingTabBtn.style.display = 'block';
+        if (housingTabContent && housingTabContent.classList.contains('active')) {
+            housingTabContent.style.display = 'block';
+        }
+    }
+    
+    // 관리자 패널의 상태 텍스트 & 버튼 색상 업데이트
+    const statusText = document.getElementById('housing-status-text');
+    const toggleBtn = document.getElementById('btn-housing-toggle');
+    if (statusText && toggleBtn) {
+        statusText.innerText = isHousingEnabled ? "현재 상태: 🟢 켜짐" : "현재 상태: 🔴 꺼짐";
+        statusText.style.color = isHousingEnabled ? "green" : "red";
+        toggleBtn.innerText = isHousingEnabled ? "끄기(OFF)로 변경" : "켜기(ON)으로 변경";
+        toggleBtn.style.backgroundColor = isHousingEnabled ? "#e74c3c" : "#2ecc71";
+    }
+});
             }); // 🌟 [바이브 코딩 수정] 이 괄호가 지워져서 아래쪽 전체가 고장났었습니다!
 
             let currentShopCat = "전체";
@@ -1811,23 +1856,29 @@
             });
         };
 
-        window.visitRoom = function(targetName) {
-            db.ref(`users/${targetName}/myRoom`).once('value', snap => {
-                const room = snap.val() || {};
-                
-                let h = `<div style="text-align:center;">
-                            <div style="position:relative; width:450px; height:450px; background-image:url('${room.background || 'https://via.placeholder.com/500x500.png?text=Default'}'); background-size:cover; background-position:center; border:4px solid #5d4037; border-radius:10px; margin:0 auto; overflow:hidden;">`;
-                
-                if(room.objects) {
-                    for(let k in room.objects) {
-                        let o = room.objects[k];
-                        let adjustedX = o.x * (450/500); // 팝업 크기 비율에 맞춰 조정
-                        let adjustedY = o.y * (450/500);
-                        h += `<div style="position:absolute; left:${adjustedX}px; top:${adjustedY}px; width:54px; height:54px;">
-                                <img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated;">
-                              </div>`;
-                    }
-                }
+       window.visitRoom = function(targetName) {
+    // 💡 팁: 실제 데이터가 저장된 경로를 정확히 적어주세요. 
+    // 만약 데이터가 users/가 아니라 rooms/ 라면 아래 ref 경로를 바꿔야 합니다.
+    db.ref(`users/${targetName}/myRoom`).once('value', snap => {
+        const room = snap.val() || {};
+        
+        // 💡 해결: 배경이 없으면 선생님이 설정하신 '기본 배경(window.currentDefaultBg)'을 쓰도록 수정!
+        const bg = room.background || window.currentDefaultBg || 'https://via.placeholder.com/500x500.png?text=Empty';
+        
+        let h = `<div style="text-align:center;">
+                    <div style="position:relative; width:450px; height:450px; background-image:url('${bg}'); background-size:cover; background-position:center; border:4px solid #5d4037; border-radius:10px; margin:0 auto; overflow:hidden;">`;
+        
+        if(room.objects) {
+            for(let k in room.objects) {
+                let o = room.objects[k];
+                // 좌표 비율 보정 (기존 500px 기준 -> 450px 팝업 기준)
+                let adjustedX = (o.x || 0) * (450/640); 
+                let adjustedY = (o.y || 0) * (450/480);
+                h += `<div style="position:absolute; left:${adjustedX}px; top:${adjustedY}px; width:50px; height:50px;">
+                        <img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated;">
+                      </div>`;
+            }
+        }
                 h += `      </div>
                             
                             <div style="margin-top:15px; display:flex; gap:10px; justify-content:center;">
@@ -1906,6 +1957,13 @@ function uploadDefaultBackground(input) {
     
     // 파일을 데이터로 읽기 시작!
     reader.readAsDataURL(file);
+}
+        function toggleHousing() {
+    const newState = !isHousingOn; 
+    db.ref('settings/housingEnabled').set(newState).then(() => {
+        // 💡 추가: 상태 변경 후 즉시 화면 다시 그리기/새로고침
+        location.reload(); // 가장 확실하게 상태를 새로 고침합니다.
+    });
 }
     </script>
 </body>
