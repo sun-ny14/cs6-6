@@ -40,6 +40,19 @@
         #guide-list .hero-card { padding: 25px 15px;  border-radius: 12px; border: 1px solid #ccc;  box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-size: 1.2rem;  }
         #guide-list .hero-card b { font-size: 1.3rem;  }
         #guide-list .hero-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+      
+        /* 🏰 용사의 방 크기 640x480 고정 및 배경 비율 맞춤 */
+        #housing-canvas, .room-container {
+            width: 100% !important;
+            max-width: 640px !important;
+            height: 480px !important;
+            margin: 0 auto !important;
+            position: relative;
+            background-size: 100% 100% !important; /* 이미지가 640x480 크기에 꽉 차게 찌그러지더라도 맞춤 */
+            background-repeat: no-repeat !important;
+            aspect-ratio: auto !important; /* 기존 정사각형 비율 강제 취소 */
+        }
+        /* 👆 여기까지 👆 */
     </style>
 </head>
 <body>
@@ -166,43 +179,41 @@
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
         
-        <section id="tab-housing" class="tab-content">
-            <div class="card" style="max-width: 800px; margin: 0 auto;">
-                <div id="admin-housing-control" style="display:none; background:#fff3cd; padding:15px; border-radius:10px; margin-bottom:15px; border:2px solid #ffeeba;">
-                    <div style="margin-bottom: 10px;">
-                        <span style="font-weight:bold; color:#856404; margin-right:10px;">👑 총사령관 제어:</span>
-                        <button id="btn-housing-toggle" onclick="toggleHousingSystem()" style="padding: 5px 10px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;"></button>
-                        <span id="housing-status-text" style="margin-left:10px; font-size:0.9rem;"></span>
-                    </div>
-                    <div style="border-top: 1px solid #ffeeba; padding-top: 10px; font-size: 0.9rem;">
-                        <span style="font-weight:bold; color:#856404; margin-right:10px;">🖼️ 기본 교실 배경 설정:</span>
-                        <input type="file" accept="image/*" onchange="uploadDefaultBackground(this)" style="font-size:0.8rem; cursor:pointer;">
-                        <span style="color:#666; font-size:0.8rem;">(배경을 안 산 학생들 방에 기본으로 깔릴 이미지를 올려주세요)</span>
-                    </div>
-                </div>
-
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h2 style="margin:0;">🏰 용사의 방</h2>
-                    <div>
-                        <button onclick="openVisitList()" style="background:#007bff; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; margin-right:10px;">🔍 친구 방 방문</button>
-                        <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점</button>
-                    </div>
-                </div>
-                
-                <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
-                    <div id="my-room-container" style="position: relative; width: 100%; max-width: 500px; height: 500px; border: 6px solid #5d4037; border-radius: 15px; background-color: #d7ccc8; background-size: cover; background-position: center; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden;">
-                        <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
-                    </div>
-
-                    <div style="width: 100%; max-width: 500px; border: 2px solid #ddd; border-radius: 10px; padding: 15px; background: #fff;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <h3 style="margin:0;">🎒 인벤토리</h3>
-                        </div>
-                        <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;"></div>
-                    </div>
-                </div>
+      <section id="tab-housing" class="tab-content">
+    <div class="card" style="max-width: 800px; margin: 0 auto;">
+        
+        <div id="admin-housing-control" style="display:none; border: 3px solid #3498db; padding: 20px; border-radius: 15px; margin-bottom: 20px; background-color: #f8f9fa;">
+            <h3 style="margin-top: 0; color: #2c3e50;">👑 용사의 방 관리자 시스템</h3>
+            
+            <div style="background: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px; border: 2px solid #ccc;">
+                <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 5px;">현재 용사의 방 상태</div>
+                <div id="housing-current-status" style="font-size: 3rem; font-weight: bold; color: #2ecc71; margin-bottom: 15px;">켜짐 (ON)</div>
+                <button id="housing-toggle-btn" onclick="toggleHousing()" style="background-color: #e74c3c; color: white; font-weight: bold; font-size: 1.2rem; width: 100%;">끄기(OFF)로 변경하기</button>
             </div>
-        </section>
+
+           <div style="background: white; padding: 15px; border-radius: 10px; border: 2px solid #ccc; margin-top: 10px;">
+    <strong style="font-size: 1.2rem;">🖼️ 기본 교실 배경 설정 (640x480 권장)</strong>
+    <p style="font-size: 1rem; color: #7f8c8d; margin: 5px 0;">파일을 선택하면 자동으로 기본 배경이 업데이트됩니다.</p>
+    
+    <input type="file" accept="image/*" onchange="uploadDefaultBackground(this)" 
+           style="padding: 10px; font-size: 1.1rem; cursor: pointer; width: 100%; border: 1px dashed #3498db; background: #ecf0f1; border-radius: 8px;">
+</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="margin:0;">🏰 용사의 방</h2>
+            <div>
+                <button onclick="openVisitList()" style="background:#007bff; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; margin-right:10px;">🔍 친구 방 방문</button>
+                <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점</button>
+            </div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
+            <div id="my-room-container" style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 6px solid #5d4037; border-radius: 15px; background-color: #d7ccc8; background-size: 100% 100%; background-repeat: no-repeat; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden;">
+                <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+            </div>
+        </div>
+    </div>
+</section>
 
         <style>
             .room-tile { background-color: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; transition: 0.2s; }
@@ -1855,6 +1866,47 @@
                 visitRoom(targetName); 
             });
         };
+        // 👇 스크립트 맨 아래 빈 공간에 붙여넣기 👇
+
+let isHousingOn = true; // 전역 변수로 현재 상태 저장
+
+// 1. 용사의 방 온오프 전환 함수
+function toggleHousing() {
+    const newState = !isHousingOn; // 현재 상태 뒤집기
+    db.ref('settings/housingEnabled').set(newState).then(() => {
+        alert(newState ? "🟢 용사의 방 시스템이 [켜짐] 상태가 되었습니다." : "🔴 용사의 방 시스템이 [꺼짐] 상태가 되었습니다.");
+    });
+}
+
+// 🖼️ 2. 이미지 파일을 올려서 파이어베이스에 저장하는 함수
+function uploadDefaultBackground(input) {
+    // 파일이 제대로 선택되었는지 확인
+    if (!input.files || input.files.length === 0) return;
+    
+    const file = input.files[0];
+    const reader = new FileReader();
+    
+    // 이미지를 다 읽었을 때 실행되는 마법
+    reader.onload = function(e) {
+        const base64Image = e.target.result; // 이미지를 데이터 형태로 변환
+        
+        // 파이어베이스에 저장!
+        db.ref('settings/defaultBg').set(base64Image).then(() => {
+            alert("🖼️ 기본 배경 이미지가 성공적으로 업로드되었습니다! ✨");
+            window.currentDefaultBg = base64Image; // 현재 내 화면에도 바로 기억시킴
+            
+            // 만약 현재 화면이 내 방이라면 다시 그려주기
+            if(document.getElementById('my-room-container')) {
+                document.getElementById('my-room-container').style.backgroundImage = `url(${base64Image})`;
+            }
+        }).catch(err => {
+            alert("❌ 저장 실패! 이미지 용량이 너무 큰 것 같습니다. (권장: 640x480 이하)");
+        });
+    };
+    
+    // 파일을 데이터로 읽기 시작!
+    reader.readAsDataURL(file);
+}
     </script>
 </body>
 </html>
