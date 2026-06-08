@@ -424,7 +424,7 @@ db.ref('settings/housingEnabled').on('value', snap => {
         }
     }
     
-   // 관리자 패널의 상태 텍스트 & 버튼 색상 업데이트
+ // 관리자 패널의 상태 텍스트 & 버튼 색상 업데이트
     const statusText = document.getElementById('housing-status-text');
     const toggleBtn = document.getElementById('btn-housing-toggle');
     if (statusText && toggleBtn) {
@@ -434,7 +434,7 @@ db.ref('settings/housingEnabled').on('value', snap => {
         toggleBtn.style.backgroundColor = isHousingEnabled ? "#e74c3c" : "#2ecc71";
     }
 });
-        }); // startApp 함수를 정상적으로 종료하는 중괄호
+} // 🌟 [수정 완료] startApp 함수를 닫는 올바른 괄호입니다.
 
         let currentShopCat = "전체";
             
@@ -1929,11 +1929,10 @@ db.ref('settings/housingEnabled').on('value', snap => {
             });
         };
 
-        // --- 🏰 중복 함수 정리 및 화면 동기화 최종 로직 ---
-        let isHousingOn = true; 
-
+       // --- 🏰 중복 함수 정리 및 화면 동기화 최종 로직 ---
         function toggleHousing() {
-            const newState = !isHousingOn; 
+            // 실시간으로 반영된 시스템 상태(window.isHousingEnabled)를 기준으로 작동하도록 수정
+            const newState = !window.isHousingEnabled; 
             db.ref('settings/housingEnabled').set(newState).then(() => {
                 alert(newState ? "🟢 용사의 방 시스템이 [켜짐] 상태가 되었습니다." : "🔴 용사의 방 시스템이 [꺼짐] 상태가 되었습니다.");
                 location.reload(); 
