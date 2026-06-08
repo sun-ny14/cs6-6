@@ -188,37 +188,37 @@
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
 <section id="tab-housing" class="tab-content">
-            <div class="card">
+            <div class="card" style="max-width: 800px; margin: 0 auto;">
                 <div id="admin-housing-control" style="display: none; margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 2px dashed #ffc107;">
-                    <span style="font-weight: bold; margin-right: 10px; color: #856404;">👑 총사령관 전용 영지 제어:</span>
-                    <button id="btn-housing-toggle" onclick="toggleHousingSystem()" style="width:auto; padding: 8px 15px; background: #4caf50; color: white; border: none; border-radius: 4px; font-weight: bold;">확인 중...</button>
-                    <span id="housing-status-text" style="font-size: 1rem; color: #856404; margin-left: 10px;"></span>
+                    <span style="font-weight: bold; color: #856404;">👑 총사령관 제어:</span>
+                    <button id="btn-housing-toggle" onclick="toggleHousingSystem()" style="padding: 5px 10px;"></button>
+                    <span id="housing-status-text"></span>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 style="margin: 0;">🏰 용사의 영지</h2>
-                    <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:12px 20px; border-radius:12px; font-weight:bold; border:none; font-size:1.1rem; cursor:pointer;">🛒 가구/배경 전용 상점</button>
+                    <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 15px; border-radius:8px; border:none; cursor:pointer;">🛒 상점</button>
                 </div>
                 
-                <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
-                    <div id="my-room-container" style="position: relative; width: 320px; height: 320px; border: 4px solid #8e744a; border-radius: 10px; background-color: #f1f3f5; background-size: cover; background-position: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.1);">
-                        <div id="my-room-canvas" style="width: 100%; height: 100%; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 5px; padding: 10px; box-sizing: border-box;"></div>
+                <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
+                    <div id="my-room-container" style="position: relative; width: 100%; max-width: 500px; height: 500px; border: 6px solid #5d4037; border-radius: 15px; background-color: #d7ccc8; background-size: cover; background-position: center; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden;">
+                        <div id="my-room-canvas" style="width: 100%; height: 100%; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 2px; padding: 5px; box-sizing: border-box;"></div>
                     </div>
 
-                    <div style="width: 300px; border: 2px dashed #adb5bd; border-radius: 10px; padding: 15px; background: #ffffff;">
-                        <h3 style="margin-top: 0; font-size: 1.2rem;">🎒 하우징 인벤토리</h3>
-                        <div style="margin-bottom: 10px; padding: 8px; background: #e9ecef; border-radius: 5px; font-weight: bold; font-size: 1rem;">
-                            선택된 가구: <span id="selected-furniture-display" style="color: #228be6;">없음</span>
+                    <div style="width: 100%; max-width: 500px; border: 2px solid #ddd; border-radius: 10px; padding: 15px; background: #fff;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="margin:0;">🎒 인벤토리</h3>
+                            <div id="selected-furniture-display" style="color: #228be6; font-weight: bold;">선택된 가구: 없음</div>
                         </div>
-                        <div id="housing-inventory-list" style="max-height: 200px; overflow-y: auto;"></div>
+                        <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;"></div>
                     </div>
                 </div>
             </div>
         </section>
 
         <style>
-            .room-tile { background-color: rgba(255,255,255,0.6); border: 1px dashed #ced4da; border-radius: 5px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; overflow: hidden; }
-            .room-tile:hover { background-color: rgba(232,245,233,0.8); border-color: #4caf50; }
+            .room-tile { background-color: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; transition: 0.2s; }
+            .room-tile:hover { background-color: rgba(255,255,255,0.6); }
             .pixelated-img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
         </style>
         
