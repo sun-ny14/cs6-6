@@ -33,35 +33,13 @@
         .floating-btn { position: fixed; bottom: 25px; width: 85px; height: 85px; border-radius: 45px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 999; font-size: 2.2rem; display: none; align-items: center; justify-content: center; border: none; cursor: pointer; }
         #floating-point-btn { right: 25px; background: var(--gold); color: var(--dark); }
         #floating-multi-btn { right: 120px; background: #2ecc71; color: white; }
-        /* 비활성화 버튼 스타일 (추가) */
         button:disabled { background: #bdc3c7 !important; color: #7f8c8d !important; cursor: not-allowed; }
         
-        /* =========================================
-        도감(포인트 기준) 전용 레이아웃 추가
-        ========================================= */
-        #guide-list.hero-grid {
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
-            gap: 15px;
-        }
-        /* 새 도감 등록 버튼이 한 줄을 다 차지하도록 수정 */
-        #guide-list > button {
-            grid-column: 1 / -1; 
-        }
-        /* 도감 전용 카드 디자인 */
-        #guide-list .hero-card {
-            padding: 25px 15px; 
-            border-radius: 12px;
-            border: 1px solid #ccc; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            font-size: 1.2rem; 
-        }
-        #guide-list .hero-card b {
-            font-size: 1.3rem; 
-        }
-        #guide-list .hero-card:hover {
-            transform: translateY(-3px);
-            border-color: var(--primary);
-        }
+        #guide-list.hero-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));  gap: 15px; }
+        #guide-list > button { grid-column: 1 / -1;  }
+        #guide-list .hero-card { padding: 25px 15px;  border-radius: 12px; border: 1px solid #ccc;  box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-size: 1.2rem;  }
+        #guide-list .hero-card b { font-size: 1.3rem;  }
+        #guide-list .hero-card:hover { transform: translateY(-3px); border-color: var(--primary); }
     </style>
 </head>
 <body>
@@ -93,7 +71,7 @@
             <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
             <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
             <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
-           <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
+            <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
             <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
         </nav>
 
@@ -187,43 +165,38 @@
             <div class="card"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4"></textarea><button onclick="saveGifts()">보상 저장</button></div>
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
-<section id="tab-housing" class="tab-content">
+        
+        <section id="tab-housing" class="tab-content">
             <div class="card" style="max-width: 800px; margin: 0 auto;">
-               <div id="admin-housing-control" style="display:none; ...">
-    <div style="border-top: 1px solid #ffeeba; padding-top: 10px; font-size: 0.9rem;">
-        <span style="font-weight:bold; color:#856404; margin-right:10px;">🖼️ 새 배경 업로드:</span>
-        <input type="file" accept="image/*" onchange="uploadDefaultBackground(this)" style="font-size:0.8rem; cursor:pointer;">
-    </div>
-</div>
-            <div style="margin-bottom: 10px;">
-                <span style="font-weight:bold; color:#856404; margin-right:10px;">👑 총사령관 제어:</span>
-                <button id="btn-housing-toggle" onclick="toggleHousingSystem()" style="padding: 5px 10px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;"></button>
-                <span id="housing-status-text" style="margin-left:10px; font-size:0.9rem;"></span>
-            </div>
-            <div style="border-top: 1px solid #ffeeba; padding-top: 10px; font-size: 0.9rem;">
-                <span style="font-weight:bold; color:#856404; margin-right:10px;">🖼️ 기본 교실 배경 설정:</span>
-                <input type="file" accept="image/*" onchange="uploadDefaultBackground(this)" style="font-size:0.8rem; cursor:pointer;">
-                <span style="color:#666; font-size:0.8rem;">(아직 배경을 안 산 학생들 방에 기본으로 깔릴 도트 이미지를 올려주세요)</span>
-            </div>
-        </div>
+                <div id="admin-housing-control" style="display:none; background:#fff3cd; padding:15px; border-radius:10px; margin-bottom:15px; border:2px solid #ffeeba;">
+                    <div style="margin-bottom: 10px;">
+                        <span style="font-weight:bold; color:#856404; margin-right:10px;">👑 총사령관 제어:</span>
+                        <button id="btn-housing-toggle" onclick="toggleHousingSystem()" style="padding: 5px 10px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;"></button>
+                        <span id="housing-status-text" style="margin-left:10px; font-size:0.9rem;"></span>
+                    </div>
+                    <div style="border-top: 1px solid #ffeeba; padding-top: 10px; font-size: 0.9rem;">
+                        <span style="font-weight:bold; color:#856404; margin-right:10px;">🖼️ 기본 교실 배경 설정:</span>
+                        <input type="file" accept="image/*" onchange="uploadDefaultBackground(this)" style="font-size:0.8rem; cursor:pointer;">
+                        <span style="color:#666; font-size:0.8rem;">(배경을 안 산 학생들 방에 기본으로 깔릴 이미지를 올려주세요)</span>
+                    </div>
+                </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="margin:0;">🏰 용사의 방</h2>
-            <div>
-                <button onclick="openVisitList()" style="background:#007bff; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; margin-right:10px;">🔍 친구 방 방문</button>
-                <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점</button>
-            </div>
-        </div>
+                    <h2 style="margin:0;">🏰 용사의 방</h2>
+                    <div>
+                        <button onclick="openVisitList()" style="background:#007bff; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; margin-right:10px;">🔍 친구 방 방문</button>
+                        <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점</button>
+                    </div>
+                </div>
                 
                 <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
                     <div id="my-room-container" style="position: relative; width: 100%; max-width: 500px; height: 500px; border: 6px solid #5d4037; border-radius: 15px; background-color: #d7ccc8; background-size: cover; background-position: center; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden;">
-                        <div id="my-room-canvas" style="width: 100%; height: 100%; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 2px; padding: 5px; box-sizing: border-box;"></div>
+                        <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
                     </div>
 
                     <div style="width: 100%; max-width: 500px; border: 2px solid #ddd; border-radius: 10px; padding: 15px; background: #fff;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <h3 style="margin:0;">🎒 인벤토리</h3>
-                            <div id="selected-furniture-display" style="color: #228be6; font-weight: bold;">선택된 가구: 없음</div>
                         </div>
                         <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;"></div>
                     </div>
@@ -386,14 +359,16 @@
                 if (isAdmin) renderAdminList();
                 generateNewLayout();   
             });
-             db.ref('settings/housingEnabled').on('value', snap => {
-    isHousingEnabled = snap.val() !== false;
-    
-    // 관리자일 때만 제어 패널을 보여줌 (중요!)
-    const adminPanel = document.getElementById('admin-housing-control');
-    if (adminPanel) {
-        adminPanel.style.display = isAdmin ? 'block' : 'none';
-    }
+            
+            db.ref('settings/housingEnabled').on('value', snap => {
+                isHousingEnabled = snap.val() !== false;
+                
+                // 관리자일 때만 제어 패널을 보여줌
+                const adminPanel = document.getElementById('admin-housing-control');
+                if (adminPanel) {
+                    adminPanel.style.display = isAdmin ? 'block' : 'none';
+                }
+            }); // 🌟 [바이브 코딩 수정] 이 괄호가 지워져서 아래쪽 전체가 고장났었습니다!
 
             let currentShopCat = "전체";
             
@@ -403,50 +378,42 @@
                 window.renderShop(); // 데이터가 바뀔 때마다 화면을 새로 그립니다.
             });
 
-            // 🛑 [부활] 카테고리 변경 함수
             window.changeShopCat = function(cat) {
                 currentShopCat = cat;
                 window.renderShop();
             };
 
-            // 2. 화면에 상점 리스트 그려주는 함수
             window.renderShop = function() {
                 const shopDiv = document.getElementById('shop-list'); 
                 if (!shopDiv) return;
                 
                 let html = "";
 
-                // 🌟 [추가 1] 관리자(선생님)일 경우에만 맨 위에 '새 물품 추가' 버튼 생성
                 if (isAdmin) {
                     html += `<button onclick="openAddShopPopup()" style="background:var(--gold); color:var(--dark); font-weight:bold; margin-bottom:15px; width:100%; border:none; padding:15px; border-radius:10px; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 물품 등록</button>`;
                 }
 
-                // 🌟 [부활 2] 카테고리 필터 버튼 렌더링
                 const categories = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
                 html += `<div style="display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px;">`;
                 categories.forEach(c => {
                     const isActive = (currentShopCat === c);
-                    // 선택된 카테고리는 파란색, 나머지는 회색으로 표시됩니다.
                     html += `<button onclick="changeShopCat('${c}')" style="padding: 10px 15px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; white-space: nowrap; background: ${isActive ? 'var(--primary)' : '#eee'}; color: ${isActive ? 'white' : '#333'}; box-shadow: ${isActive ? '0 2px 4px rgba(0,0,0,0.2)' : 'none'};">${c}</button>`;
                 });
                 html += `</div>`;
 
-                let hasItems = false; // 현재 카테고리에 아이템이 있는지 확인
+                let hasItems = false; 
 
                 if (window.shopData) {
                     window.shopData.forEach(child => {
                         const k = child.key;         
                         const item = child.val();    
                         
-                        // 🌟 [부활 3] 카테고리 필터링! ('전체'가 아니고, 현재 탭과 상품의 카테고리가 다르면 건너뜀)
                         if (currentShopCat !== "전체" && item.cat !== currentShopCat) return;
-                        
-                        hasItems = true; // 아이템이 하나라도 통과하면 true
+                        hasItems = true; 
                         
                         let btnHtml = "";
                         let stockText = "";
 
-                        // 재고(stock) 설정 및 품절 확인
                         if (item.stock !== undefined && item.stock !== null) {
                             stockText = `<div style="font-size:12px; color:red; margin-bottom: 8px; font-weight: bold;">(남은 수량: ${item.stock}개)</div>`;
                             if (item.stock <= 0) {
@@ -458,7 +425,6 @@
                             btnHtml = `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
                         }
 
-                        // 관리자용 수정 버튼
                         let adminBtnHtml = "";
                         if (isAdmin) {
                             adminBtnHtml = `<button onclick="openEditShopPopup('${k}')" style="background-color: #ff9800; color: white; border: none; padding: 8px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 8px;">⚙️ 수정/삭제</button>`;
@@ -466,7 +432,6 @@
 
                         let limitText = (item.limit > 0) ? `최대 ${item.limit}회 구매 가능` : '무제한 구매 가능';
 
-                        // 📦 상품 카드 HTML 조립
                         html += `
                             <div class="shop-card" style="border: 1px solid #e0e0e0; padding: 15px; margin: 10px; border-radius: 10px; display: inline-block; width: 220px; vertical-align: top; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; background-color: #ffffff;">
                                 <div style="font-size:12px; color:#999; margin-bottom:5px;">${item.cat || '미분류'}</div>
@@ -483,7 +448,6 @@
                     });
                 }
                 
-                // 만약 해당 카테고리에 물건이 하나도 없다면?
                 if (!hasItems) {
                     html += `<div style="text-align: center; padding: 40px; color: #888; font-size: 1.2rem;">해당 카테고리에 등록된 물품이 없습니다. 텅~ 💨</div>`;
                 }
@@ -549,7 +513,6 @@
                 }
             };
             
-            // 🛑 [복구] 학생들 인벤토리 & 관리자 승인 대기창 불러오기 
             db.ref('orders').on('value', snap => {
                 let uH = "", wH = "", adminH = ""; 
                 let myUnused = {}, myWaiting = {}, adminWaiting = {}; 
@@ -557,7 +520,7 @@
                 snap.forEach(c => {
                     const o = c.val(); const key = c.key;
                     if (o.user === myName) {
-                        if (o.status === '대기' || o.status === '요청') { // 기존 호환성을 위해 유지
+                        if (o.status === '대기' || o.status === '요청') {
                             if (!myUnused[o.item]) myUnused[o.item] = [];
                             myUnused[o.item].push(key);
                         } else if (o.status === '사용요청') {
@@ -633,7 +596,6 @@
                         </div>`;
                 }
                 
-                // 학생 화면에는 인벤토리 리스트를, 관리자 화면에는 요청 리스트를 띄워줍니다!
                 document.getElementById('inv-unused').querySelector('.list').innerHTML = uH || "비었음";
                 document.getElementById('inv-waiting').querySelector('.list').innerHTML = wH || "비었음"; 
                 const adminOrderEl = document.getElementById('order-list');
@@ -659,8 +621,8 @@
             const p = parseInt(document.getElementById('add-item-price').value);
             const l = parseInt(document.getElementById('add-item-limit').value) || 0;
             const c = document.getElementById('add-item-cat').value;
-            const s = document.getElementById('add-item-stock').value; // 재고 값
-            const stockVal = s !== "" ? parseInt(s) : null; // 빈칸이면 null 처리
+            const s = document.getElementById('add-item-stock').value; 
+            const stockVal = s !== "" ? parseInt(s) : null; 
 
             if(n && p) {
                 db.ref('shop').push({cat:c, name:n, price:p, limit:l, stock: stockVal}).then(()=>{
@@ -676,7 +638,6 @@
             db.ref('shop/' + key).once('value', snap => {
                 const i = snap.val(); if(!i) return;
                 
-                // 기존에 저장된 재고 값이 있으면 불러오고, 없으면 빈칸
                 const stockVal = (i.stock !== undefined && i.stock !== null) ? i.stock : "";
 
                 let h = `<h3>🛍️ 물품 수정</h3>
@@ -704,7 +665,7 @@
             const c = document.getElementById('edit-shop-cat').value;
             const sOut = document.getElementById('edit-shop-soldout').checked; 
             
-            const s = document.getElementById('edit-shop-stock').value; // 수정된 재고 값
+            const s = document.getElementById('edit-shop-stock').value; 
             const stockVal = s !== "" ? parseInt(s) : null; 
 
             db.ref('shop/'+k).update({name:n, price:p, limit:l, cat:c, isSoldOut:sOut, stock:stockVal}).then(()=>{
@@ -725,67 +686,55 @@
             });
         }
 
-window.buyItem = async function(k, n, p, l) {
-    // 1. 내 정보 및 포인트 불러오기
-    const sn = await db.ref('users/' + myName).once('value');
-    const myPoints = sn.val().points || 0;
+        window.buyItem = async function(k, n, p, l) {
+            const sn = await db.ref('users/' + myName).once('value');
+            const myPoints = sn.val().points || 0;
 
-    // 🛑 2. 마이너스 포인트 차단 (가장 먼저!)
-    if (myPoints < 0) {
-        return alert("현재 포인트가 마이너스 상태이므로 구매할 수 없습니다! 점수를 먼저 회복해 주세요. 😭");
-    }
-
-    // 🛑 3. 포인트 부족 차단
-    if (myPoints < p) {
-        return alert("포인트 부족!");
-    }
-
-    // 🛑 4. 상품 재고(stock) 확인 차단 (품절 기능)
-    const itemSnap = await db.ref('shop/' + k).once('value');
-    const itemData = itemSnap.val();
-    
-    // DB에 재고(stock) 값이 있고, 그게 0 이하라면 튕겨냄
-    if (itemData && itemData.stock !== undefined && itemData.stock <= 0) {
-        return alert("앗! 방금 품절된 상품입니다. 😭");
-    }
-
-    // 🛑 5. 구매 횟수(limit) 제한 확인 (선생님이 쓰시던 기존 로직)
-    if (l > 0) {
-        const ordersSnap = await db.ref('orders').once('value');
-        let count = 0;
-        ordersSnap.forEach(child => {
-            const o = child.val();
-            if (o.user === myName && o.item === n) {
-                count++; 
+            if (myPoints < 0) {
+                return alert("현재 포인트가 마이너스 상태이므로 구매할 수 없습니다! 점수를 먼저 회복해 주세요. 😭");
             }
-        });
-        if (count >= l) {
-            return alert(`이 상품은 최대 ${l}번까지만 구매할 수 있습니다!`);
-        }
-    }
 
-    // --- 🟢 여기까지 모든 검사를 통과했다면 실제 구매 진행! ---
+            if (myPoints < p) {
+                return alert("포인트 부족!");
+            }
 
-    // 6. 내 포인트 차감
-    await db.ref('users/' + myName).update({ points: myPoints - p });
+            const itemSnap = await db.ref('shop/' + k).once('value');
+            const itemData = itemSnap.val();
+            
+            if (itemData && itemData.stock !== undefined && itemData.stock <= 0) {
+                return alert("앗! 방금 품절된 상품입니다. 😭");
+            }
 
-    // 7. 상품 재고 1개 차감 (재고가 설정된 한정 상품일 경우에만)
-    if (itemData && itemData.stock !== undefined && itemData.stock > 0) {
-        await db.ref('shop/' + k).update({ stock: itemData.stock - 1 });
-    }
+            if (l > 0) {
+                const ordersSnap = await db.ref('orders').once('value');
+                let count = 0;
+                ordersSnap.forEach(child => {
+                    const o = child.val();
+                    if (o.user === myName && o.item === n) {
+                        count++; 
+                    }
+                });
+                if (count >= l) {
+                    return alert(`이 상품은 최대 ${l}번까지만 구매할 수 있습니다!`);
+                }
+            }
 
-    // 8. 주문 내역(orders)에 저장
-    // (이 부분은 선생님 기존 코드의 주문 저장 방식과 최대한 비슷하게 맞췄습니다)
-    await db.ref('orders').push({
-        user: myName,
-        item: n,
-        price: p,
-        time: new Date().getTime(),
-        status: "요청" // 관리자 승인 대기 상태
-    });
+            await db.ref('users/' + myName).update({ points: myPoints - p });
 
-    alert(`✅ [${n}] 구매 완료! 관리자 승인을 기다려주세요.`);
-};
+            if (itemData && itemData.stock !== undefined && itemData.stock > 0) {
+                await db.ref('shop/' + k).update({ stock: itemData.stock - 1 });
+            }
+
+            await db.ref('orders').push({
+                user: myName,
+                item: n,
+                price: p,
+                time: new Date().getTime(),
+                status: "요청" 
+            });
+
+            alert(`✅ [${n}] 구매 완료! 관리자 승인을 기다려주세요.`);
+        };
 
         auth.onAuthStateChanged(user => {
             if (user) {
@@ -1070,15 +1019,11 @@ window.buyItem = async function(k, n, p, l) {
         function saveGifts() { db.ref('settings').update({ giftList: document.getElementById('conf-gifts').value.split('\n').filter(t=>t.trim()) }).then(() => alert("보상 저장!")); }
         function bulkReg() { document.getElementById('bulk-in').value.split('\n').forEach(l => { const [n,e]=l.split(',').map(s=>s.trim()); if(n&&e) { db.ref('userEmails/'+e.replace(/\./g,',')).set(n); db.ref('users/'+n).update({points:0, exp:0, lv:1}); }}); alert("완료"); }
         
-        // 🎲 [새 기능] 관리자용 난수 자동 생성 및 적용 함수
         function generateRandomPassword() {
-            // 1000 ~ 9999 사이의 4자리 난수 생성
             const randomPass = Math.floor(1000 + Math.random() * 9000).toString(); 
             
-            // 파이어베이스 DB의 원래 세팅 경로(settings.password)에 바로 덮어씌움 -> 기존 기능과 완벽 호환!
             db.ref('settings').update({ password: randomPass }).then(() => {
                 alert(`오늘의 등교 암호가 [${randomPass}]로 설정되었습니다!\n칠판이나 메신저로 안내해주세요.`);
-                // 관리자 화면에 현재 설정된 비밀번호 표시
                 document.getElementById('conf-pass').value = randomPass; 
             }).catch(error => {
                 console.error("비밀번호 저장 실패:", error);
@@ -1088,7 +1033,6 @@ window.buyItem = async function(k, n, p, l) {
 
         let isCheckingIn = false; 
 
-        // ⏱️ [기존 코드 보존] 선생님께서 짜두신 완벽한 등교 함수를 그대로 유지합니다!
         async function submitCheckIn() {
             if (isCheckingIn) return; 
             
@@ -1582,371 +1526,335 @@ window.buyItem = async function(k, n, p, l) {
             }
         };
 
-// [여기부터 복사해서 붙여넣기]
-// ==============================================================
-// 🏰 통합 하우징 시스템 (배경 고정 + 좌표 자유배치 + 온/오프 + 분류 상점)
-// ==============================================================
-let isHousingEnabled = true;
+        // ==============================================================
+        // 🏰 통합 하우징 시스템 (배경 고정 + 좌표 자유배치 + 온/오프 + 분류 상점)
+        // ==============================================================
+        let isHousingEnabled = true;
 
-// 1. [👑 제어] 시스템 온/오프 실시간 감지
-db.ref('settings/housingEnabled').on('value', snap => {
-    isHousingEnabled = snap.val() !== false; // 기본값 true
-    const btn = document.getElementById('btn-housing-toggle');
-    const txt = document.getElementById('housing-status-text');
-    const panel = document.getElementById('admin-housing-control');
-    const menuBtn = document.getElementById('btn-housing');
-    
-    if(panel) panel.style.display = isAdmin ? 'block' : 'none';
-    if(menuBtn) menuBtn.style.display = (isHousingEnabled || isAdmin) ? 'inline-block' : 'none';
-    
-    if(btn) {
-        if(isHousingEnabled) {
-            btn.innerText = "🛑 학생 차단 (OFF)"; btn.style.background = "#f44336"; btn.style.color = "#fff";
-            txt.innerText = "🟢 현재 학생들이 방을 꾸밀 수 있습니다.";
-        } else {
-            btn.innerText = "🔓 시스템 개방 (ON)"; btn.style.background = "#4caf50"; btn.style.color = "#fff";
-            txt.innerText = "🔴 공사 중! (학생 메뉴에서 숨김)";
-        }
-    }
-});
+        window.toggleHousingSystem = () => {
+            if(!isAdmin) return;
+            db.ref('settings/housingEnabled').set(!isHousingEnabled);
+        };
 
-window.toggleHousingSystem = () => {
-    if(!isAdmin) return;
-    db.ref('settings/housingEnabled').set(!isHousingEnabled);
-};
+        window.openHousingTab = function() {
+            if(!myName) return alert("로그인이 필요합니다!");
+            if(!isHousingEnabled && !isAdmin) return alert("🚧 [공사 공지] 지금은 총사령관이 방 시스템을 조정 중입니다! 잠시 후 이용해 주세요. 🍌");
+            renderMyRoom();
+            renderHousingInventory();
+        };
 
-// 2. [탭] 하우징 탭 열기 (접근 제어)
-window.openHousingTab = function() {
-    if(!myName) return alert("로그인이 필요합니다!");
-    if(!isHousingEnabled && !isAdmin) return alert("🚧 [공사 공지] 지금은 총사령관이 방 시스템을 조정 중입니다! 잠시 후 이용해 주세요. 🍌");
-    renderMyRoom();
-    renderHousingInventory();
-};
+        window.uploadDefaultBackground = function(input) {
+            if (!isAdmin) return;
+            if (input.files && input.files[0]) {
+                const r = new FileReader();
+                r.onload = function(e) {
+                    const base64Img = e.target.result;
+                    db.ref('settings/defaultHousingBackground').set(base64Img).then(() => {
+                        alert("기본 배경이 저장되었습니다! 모든 용사의 방에 적용됩니다. ✨");
+                        renderMyRoom(); 
+                    });
+                };
+                r.readAsDataURL(input.files[0]);
+            }
+        };
 
-// 👑 [선생님 전용] 기본 배경 업로드 기능
-// 기존 함수를 찾아서 이 내용으로 수정 (기존 기능 + 파일 업로드 기능)
-window.uploadDefaultBackground = function(input) {
-    if (!isAdmin) return;
-    if (input.files && input.files[0]) {
-        const r = new FileReader();
-        r.onload = function(e) {
-            const base64Img = e.target.result;
-            // 파이어베이스에 이미지 텍스트 데이터 저장
-            db.ref('settings/defaultHousingBackground').set(base64Img).then(() => {
-                alert("기본 배경이 저장되었습니다! 모든 용사의 방에 적용됩니다. ✨");
-                renderMyRoom(); 
+        // 🌟 [바이브 코딩 수정] 전체 방 정보를 불러와서 화면에 그리는 기능 완벽 복구
+        window.renderMyRoom = function() {
+            const container = document.getElementById('my-room-container'); 
+            if(!container) return;
+            
+            db.ref('settings/defaultHousingBackground').once('value').then(defaultSnap => {
+                const defaultBg = defaultSnap.val() || '#d7ccc8'; 
+                
+                db.ref(`users/${myName}/myRoom`).once('value', snap => {
+                    const room = snap.val() || {}; // 🌟 room 전체 객체를 가져오도록 수정
+                    const myBg = room.background;
+                    
+                    container.style.backgroundImage = `url('${myBg || defaultBg}')`;
+                    container.style.backgroundSize = "cover";
+                    container.style.backgroundPosition = "center";
+                    
+                    const layer = document.getElementById('my-room-canvas'); // 🌟 layer를 찾아서 비우도록 수정
+                    if(layer) layer.innerHTML = "";
+
+                    if(room.objects) {
+                        Object.keys(room.objects).forEach(key => {
+                            const o = room.objects[key];
+                            const div = document.createElement('div');
+                            div.style.position = 'absolute';
+                            div.style.left = o.x + 'px';
+                            div.style.top = o.y + 'px';
+                            div.style.width = '60px';
+                            div.style.height = '60px';
+                            div.style.cursor = 'grab';
+                            div.title = "마우스로 드래그해서 이동하세요 (더블클릭 시 삭제)";
+                            div.innerHTML = `<img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; pointer-events:none;">`;
+                            
+                            div.ondblclick = () => {
+                                if(confirm("이 가구를 삭제하시겠습니까?")) {
+                                    db.ref(`users/${myName}/myRoom/objects/${key}`).remove().then(()=>renderMyRoom());
+                                }
+                            };
+
+                            div.onmousedown = function(e) {
+                                e.preventDefault();
+                                div.style.cursor = 'grabbing';
+                                div.style.zIndex = 1000;
+                                
+                                let startX = e.clientX;
+                                let startY = e.clientY;
+                                let initialX = parseInt(div.style.left);
+                                let initialY = parseInt(div.style.top);
+
+                                document.onmousemove = function(e) {
+                                    let dx = e.clientX - startX;
+                                    let dy = e.clientY - startY;
+                                    
+                                    let newX = initialX + dx;
+                                    let newY = initialY + dy;
+                                    
+                                    if(newX < 0) newX = 0;
+                                    if(newY < 0) newY = 0;
+                                    if(newX > 440) newX = 440; // 화면 이탈 방지
+                                    if(newY > 440) newY = 440;
+                                    
+                                    div.style.left = newX + 'px';
+                                    div.style.top = newY + 'px';
+                                };
+
+                                document.onmouseup = function() {
+                                    document.onmousemove = null;
+                                    document.onmouseup = null;
+                                    div.style.cursor = 'grab';
+                                    div.style.zIndex = '';
+                                    
+                                    const finalX = parseInt(div.style.left);
+                                    const finalY = parseInt(div.style.top);
+                                    
+                                    let isColliding = false;
+                                    Object.keys(room.objects).forEach(otherKey => {
+                                        if(otherKey !== key) {
+                                            const other = room.objects[otherKey];
+                                            if (finalX < other.x + 50 && finalX + 50 > other.x && 
+                                                finalY < other.y + 50 && finalY + 50 > other.y) {
+                                                isColliding = true;
+                                            }
+                                        }
+                                    });
+
+                                    if(isColliding) {
+                                        alert("앗! 다른 가구와 겹칩니다! 빈 공간에 놓아주세요.");
+                                        div.style.left = initialX + 'px';
+                                        div.style.top = initialY + 'px';
+                                    } else {
+                                        db.ref(`users/${myName}/myRoom/objects/${key}`).update({x: finalX, y: finalY});
+                                        room.objects[key].x = finalX;
+                                        room.objects[key].y = finalY;
+                                    }
+                                };
+                            };
+                            if(layer) layer.appendChild(div); // 🌟 화면에 그려주기 추가
+                        });
+                    }
+                });
             });
         };
-        r.readAsDataURL(input.files[0]);
-    }
-};
 
-// 3. [렌더링] 배경 고정 및 오브젝트 마우스 드래그 배치 + 자동 저장
-window.renderMyRoom = function() {
-    const container = document.getElementById('my-room-container'); 
-    if(!container) return;
-    
-    // DB에서 기본 배경 가져오기
-    db.ref('settings/defaultHousingBackground').once('value').then(defaultSnap => {
-        const defaultBg = defaultSnap.val() || '#d7ccc8'; // 저장된 배경이 없으면 기존 색상
-        
-        db.ref(`users/${myName}/myRoom/background`).once('value', snap => {
-            const myBg = snap.val();
-            // 내 배경이 있으면 내 배경, 없으면 관리자가 올린 기본 배경!
-            container.style.backgroundImage = `url('${myBg || defaultBg}')`;
-            container.style.backgroundSize = "cover";
-            container.style.backgroundPosition = "center";
-            
-            if(room.objects) {
-                Object.keys(room.objects).forEach(key => {
-                    const o = room.objects[key];
-                    const div = document.createElement('div');
-                    div.style.position = 'absolute';
-                    div.style.left = o.x + 'px';
-                    div.style.top = o.y + 'px';
-                    div.style.width = '60px'; // 가구 기본 크기
-                    div.style.height = '60px';
-                    div.style.cursor = 'grab';
-                    div.title = "마우스로 드래그해서 이동하세요 (더블클릭 시 삭제)";
-                    div.innerHTML = `<img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; pointer-events:none;">`;
-                    
-                    // 🗑️ 더블클릭 시 삭제
-                    div.ondblclick = () => {
-                        if(confirm("이 가구를 삭제하시겠습니까?")) {
-                            db.ref(`users/${myName}/myRoom/objects/${key}`).remove().then(()=>renderMyRoom());
-                        }
-                    };
-
-                    // 🖱️ 드래그 앤 드롭 (마우스 이벤트)
-                    div.onmousedown = function(e) {
-                        e.preventDefault();
-                        div.style.cursor = 'grabbing';
-                        div.style.zIndex = 1000;
-                        
-                        let startX = e.clientX;
-                        let startY = e.clientY;
-                        let initialX = parseInt(div.style.left);
-                        let initialY = parseInt(div.style.top);
-
-                        document.onmousemove = function(e) {
-                            let dx = e.clientX - startX;
-                            let dy = e.clientY - startY;
-                            
-                            let newX = initialX + dx;
-                            let newY = initialY + dy;
-                            
-                            if(newX < 0) newX = 0;
-                            if(newY < 0) newY = 0;
-                            if(newX > 580) newX = 580;
-                            if(newY > 420) newY = 420;
-                            
-                            div.style.left = newX + 'px';
-                            div.style.top = newY + 'px';
-                        };
-
-                        document.onmouseup = function() {
-                            document.onmousemove = null;
-                            document.onmouseup = null;
-                            div.style.cursor = 'grab';
-                            div.style.zIndex = '';
-                            
-                            const finalX = parseInt(div.style.left);
-                            const finalY = parseInt(div.style.top);
-                            
-                            let isColliding = false;
-                            Object.keys(room.objects).forEach(otherKey => {
-                                if(otherKey !== key) {
-                                    const other = room.objects[otherKey];
-                                    if (finalX < other.x + 50 && finalX + 50 > other.x && 
-                                        finalY < other.y + 50 && finalY + 50 > other.y) {
-                                        isColliding = true;
-                                    }
-                                }
-                            });
-
-                            if(isColliding) {
-                                alert("앗! 다른 가구와 겹칩니다! 빈 공간에 놓아주세요.");
-                                div.style.left = initialX + 'px';
-                                div.style.top = initialY + 'px';
-                            } else {
-                                db.ref(`users/${myName}/myRoom/objects/${key}`).update({x: finalX, y: finalY});
-                                room.objects[key].x = finalX;
-                                room.objects[key].y = finalY;
-                            }
-                        };
-                    };
-                    layer.appendChild(div);
-                });
-            }
-        });
-    });
-};
-
-// 4. [인벤토리] 배치 로직
-window.renderHousingInventory = function() {
-    const list = document.getElementById('housing-inventory-list');
-    db.ref(`users/${myName}/housingInventory`).once('value', snap => {
-        list.innerHTML = '';
-        const inv = snap.val() || {};
-        let hasItems = false;
-        for(let k in inv) {
-            hasItems = true;
-            const i = inv[k];
-            list.innerHTML += `<div style="border:1px solid #ccc; padding:10px; border-radius:8px; text-align:center; min-width:80px; background:#f8f9fa;">
-                <div style="font-size:0.75rem; color:#666; font-weight:bold;">${i.category}</div>
-                <img src="${i.img}" style="width:40px; height:40px; object-fit:contain; image-rendering:pixelated; margin:5px 0;">
-                <div style="font-size:0.85rem; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${i.name}</div>
-                <button onclick="placeOrApplyHousingItem('${i.img}', '${i.category}')" style="width:100%; padding:5px; margin-top:5px; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">${i.category==='배경'?'배경적용':'배치하기'}</button>
-            </div>`;
-        }
-        if(!hasItems) list.innerHTML = `<p style="color:#888; font-size:0.9rem; margin-top:10px;">아직 구매한 하우징 아이템이 없습니다.</p>`;
-    });
-};
-
-window.placeOrApplyHousingItem = function(img, category) {
-    if(category === '배경') {
-        if(confirm("방 전체 배경을 이 이미지로 바꾸시겠습니까?")) {
-            db.ref(`users/${myName}/myRoom/background`).set(img).then(() => renderMyRoom());
-        }
-    } else {
-        // 가구 또는 사람: 캔버스 정중앙 근처에 배치
-        const objId = Date.now();
-        db.ref(`users/${myName}/myRoom/objects/${objId}`).set({
-            img: img,
-            type: category,
-            x: 290, // 640의 절반 부근
-            y: 210  // 480의 절반 부근
-        }).then(() => renderMyRoom());
-        alert("방 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
-    }
-};
-
-// 5. [상점] 하우징 상점 열기 (분류별)
-window.openHousingShopPopup = function() {
-    db.ref('housingShop').once('value', snap => {
-        let h = `<div style="max-height:60vh; overflow-y:auto; padding:5px;">`;
-        if(isAdmin) {
-            h += `<button onclick="openAddHousingItem()" style="width:100%; padding:15px; background:#343a40; color:white; font-weight:bold; border-radius:10px; border:none; margin-bottom:15px; cursor:pointer;">+ 새 아이템 등록하기 (선생님 전용)</button>`;
-        }
-        
-        const items = snap.val() || {};
-        const categories = ["🖼️ 배경", "🪑 가구", "👤 사람"];
-        
-        categories.forEach(cat => {
-            h += `<h3 style="margin-bottom:10px; border-bottom:2px solid #ddd; padding-bottom:5px;">${cat}</h3>`;
-            h += `<div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">`;
-            let count = 0;
-            for(let key in items) {
-                if(items[key].category === cat.substring(3)) { // 이모지 떼고 비교
-                    count++;
-                    const i = items[key];
-                    h += `<div style="border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center; width:calc(50% - 15px); background:#fff;">
-                            <img src="${i.img}" style="width:50px; height:50px; object-fit:contain; image-rendering:pixelated; margin-bottom:5px;">
-                            <div style="font-weight:bold; font-size:1rem;">${i.name}</div>
-                            <div style="color:var(--red); font-weight:bold; margin-bottom:8px;">${i.price}P</div>
-                            <button onclick="buyHousingItem('${key}', '${i.name}', ${i.price}, '${i.category}', '${i.img}')" style="background:#28a745; color:white; border:none; border-radius:4px; padding:5px 10px; width:100%; cursor:pointer;">구매</button>
-                            ${isAdmin ? `<button onclick="if(confirm('삭제?')) db.ref('housingShop/${key}').remove().then(()=>openHousingShopPopup())" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:4px; width:100%; margin-top:5px; font-size:0.8rem; cursor:pointer;">삭제</button>` : ''}
-                          </div>`;
+        window.renderHousingInventory = function() {
+            const list = document.getElementById('housing-inventory-list');
+            db.ref(`users/${myName}/housingInventory`).once('value', snap => {
+                list.innerHTML = '';
+                const inv = snap.val() || {};
+                let hasItems = false;
+                for(let k in inv) {
+                    hasItems = true;
+                    const i = inv[k];
+                    list.innerHTML += `<div style="border:1px solid #ccc; padding:10px; border-radius:8px; text-align:center; min-width:80px; background:#f8f9fa;">
+                        <div style="font-size:0.75rem; color:#666; font-weight:bold;">${i.category}</div>
+                        <img src="${i.img}" style="width:40px; height:40px; object-fit:contain; image-rendering:pixelated; margin:5px 0;">
+                        <div style="font-size:0.85rem; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${i.name}</div>
+                        <button onclick="placeOrApplyHousingItem('${i.img}', '${i.category}')" style="width:100%; padding:5px; margin-top:5px; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">${i.category==='배경'?'배경적용':'배치하기'}</button>
+                    </div>`;
                 }
-            }
-            if(count === 0) h += `<p style="color:#aaa; font-size:0.9rem; width:100%;">등록된 상품이 없습니다.</p>`;
-            h += `</div>`;
-        });
-        h += `</div>`;
-        openPopup("🛒 하우징 전문 상점", h);
-    });
-};
-
-// 6. [상점 등록] 카테고리 포함 등록 기능 (선생님 전용)
-window.openAddHousingItem = function() {
-    if(!isAdmin) return;
-    let h = `<h3 style="margin-top:0;">아이템 직접 업로드</h3>
-             <label style="display:block; margin-bottom:10px;">이름: <input type="text" id="h-item-name" style="width:100%; padding:5px;"></label>
-             <label style="display:block; margin-bottom:10px;">가격: <input type="number" id="h-item-price" value="0" style="width:100%; padding:5px;"></label>
-             <label style="display:block; margin-bottom:10px; font-weight:bold; color:blue;">항목 선택:
-               <select id="h-item-cat" style="width:100%; padding:5px;">
-                 <option value="배경">🖼️ 배경 (640x480 권장)</option>
-                 <option value="가구">🪑 가구 (자유 배치)</option>
-                 <option value="사람">👤 사람 (자유 배치)</option>
-               </select>
-             </label>
-             <label style="display:block; margin-bottom:10px;">이미지 첨부: <input type="file" accept="image/*" onchange="previewHousingImage(this)"></label>
-             <div style="text-align:center; margin-bottom:10px;"><img id="h-img-preview" style="max-width:100px; display:none; image-rendering:pixelated;"></div>
-             <button onclick="saveHousingItem()" style="background:var(--primary); color:white; padding:10px; width:100%; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">DB에 등록하기</button>`;
-    openPopup("새 아이템 등록", h);
-};
-
-window.previewHousingImage = function(input) {
-    if (input.files && input.files[0]) {
-        const r = new FileReader();
-        r.onload = function(e) { document.getElementById('h-img-preview').src = e.target.result; document.getElementById('h-img-preview').style.display = 'inline-block'; }
-        r.readAsDataURL(input.files[0]);
-    }
-};
-
-window.saveHousingItem = function() {
-    if(!isAdmin) return alert("관리자만 가능합니다!");
-    const n = document.getElementById('h-item-name').value;
-    const p = parseInt(document.getElementById('h-item-price').value) || 0;
-    const cat = document.getElementById('h-item-cat').value;
-    const img = document.getElementById('h-img-preview').src;
-    
-    if(!n || !img || !img.startsWith('data:image')) return alert("이름과 이미지를 모두 확인해주세요!");
-    db.ref('housingShop').push({name:n, price:p, category:cat, img:img}).then(() => { alert("등록 완료!"); openHousingShopPopup(); });
-};
-
-// 7. [상점 구매]
-window.buyHousingItem = async function(key, name, price, category, img) {
-    const sn = await db.ref('users/' + myName).once('value');
-    const myPts = sn.val().points || 0;
-    
-    if(myPts < 0 || myPts < price) return alert("포인트가 마이너스이거나 부족합니다! 😭");
-    if(!confirm(`[${name}]을(를) ${price}P에 구매할까요?`)) return;
-    
-    await db.ref('users/' + myName).update({ points: myPts - price });
-    await db.ref(`users/${myName}/housingInventory`).push({ name: name, category: category, img: img });
-    
-    alert("구매 완료! 인벤토리를 확인하세요.");
-    if(currentTab === 'housing') renderHousingInventory();
-    openHousingShopPopup(); 
-};
-// 8. [소셜] 친구 방 목록 보기
-window.openVisitList = function() {
-    db.ref('users').once('value', snap => {
-        const users = snap.val() || {};
-        let h = `<div style="max-height:400px; overflow-y:auto; padding:10px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">`;
-        for(let name in users) {
-            if(name !== myName) { // 내 방은 목록에서 제외
-                h += `<button onclick="visitRoom('${name}')" style="background:#e9ecef; border:1px solid #ced4da; padding:15px; border-radius:10px; cursor:pointer; width:120px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                        🏠<br>${name}의 방
-                      </button>`;
-            }
-        }
-        h += `</div>`;
-        openPopup("🔍 누구의 방를 방문할까요?", h);
-    });
-};
-
-// 9. [소셜] 친구 방 구경 및 인사 남기기
-window.visitRoom = function(targetName) {
-    db.ref(`users/${targetName}/myRoom`).once('value', snap => {
-        const room = snap.val() || {};
-        
-        let h = `<div style="text-align:center;">
-                    <div style="position:relative; width:480px; height:360px; background-image:url('${room.background || 'https://via.placeholder.com/640x480.png?text=Default'}'); background-size:cover; border:4px solid #5d4037; border-radius:10px; margin:0 auto; overflow:hidden;">`;
-        
-        // 친구 방 가구들 렌더링 (보기 전용이라 이벤트 없음)
-        if(room.objects) {
-            for(let k in room.objects) {
-                let o = room.objects[k];
-                // 640x480 -> 480x360 비율에 맞춰 좌표 조정 (0.75 곱함)
-                let adjustedX = o.x * 0.75;
-                let adjustedY = o.y * 0.75;
-                h += `<div style="position:absolute; left:${adjustedX}px; top:${adjustedY}px; width:45px; height:45px;">
-                        <img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated;">
-                      </div>`;
-            }
-        }
-        h += `      </div>
-                    
-                    <div style="margin-top:15px; display:flex; gap:10px; justify-content:center;">
-                        <button onclick="leaveInteraction('${targetName}', '❤️ 하트 표시를 남겼습니다.')" style="background:#ff4d4f; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">❤️ 하트 남기기</button>
-                        <button onclick="leaveInteraction('${targetName}', '👋 인사를 남겼습니다.')" style="background:#1890ff; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">👋 인사 남기기</button>
-                        <button onclick="leaveInteraction('${targetName}', '👍 멋지다고 칭찬했습니다.')" style="background:#52c41a; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">👍 멋져요!</button>
-                    </div>
-
-                    <div style="margin-top:15px; height:120px; overflow-y:auto; border:1px solid #ddd; border-radius:8px; background:#f9f9f9; padding:10px; text-align:left; font-size:0.9rem;">`;
-        
-        if(room.interactions) {
-            // 시간순 정렬을 위해 배열로 변환 후 역순 출력
-            const interacts = Object.values(room.interactions).reverse();
-            interacts.forEach(i => {
-                h += `<div style="border-bottom:1px solid #eee; padding:5px 0;">
-                        <span style="color:#888; font-size:0.8rem;">[${i.time}]</span> 
-                        <strong style="color:#0056b3;">${i.from}</strong>님께서 ${i.msg}
-                      </div>`;
+                if(!hasItems) list.innerHTML = `<p style="color:#888; font-size:0.9rem; margin-top:10px;">아직 구매한 하우징 아이템이 없습니다.</p>`;
             });
-        } else {
-            h += `<div style="color:#aaa; text-align:center; margin-top:20px;">아직 방문자가 없습니다. 첫 방문자가 되어주세요!</div>`;
-        }
+        };
 
-        h += `</div></div>`;
-        openPopup(`🏰 ${targetName} 용사의 방`, h);
-    });
-};
+        window.placeOrApplyHousingItem = function(img, category) {
+            if(category === '배경') {
+                if(confirm("방 전체 배경을 이 이미지로 바꾸시겠습니까?")) {
+                    db.ref(`users/${myName}/myRoom/background`).set(img).then(() => renderMyRoom());
+                }
+            } else {
+                const objId = Date.now();
+                db.ref(`users/${myName}/myRoom/objects/${objId}`).set({
+                    img: img,
+                    type: category,
+                    x: 220, 
+                    y: 220  
+                }).then(() => renderMyRoom());
+                alert("방 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
+            }
+        };
 
-// 10. [소셜] 인사 DB 저장 로직
-window.leaveInteraction = function(targetName, msg) {
-    const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    db.ref(`users/${targetName}/myRoom/interactions`).push({
-        from: myName,
-        msg: msg,
-        time: timeStr
-    }).then(() => {
-        alert("방명록이 기록되었습니다! ✨");
-        visitRoom(targetName); // 화면 새로고침해서 방명록 띄우기
-    });
-};
+        window.openHousingShopPopup = function() {
+            db.ref('housingShop').once('value', snap => {
+                let h = `<div style="max-height:60vh; overflow-y:auto; padding:5px;">`;
+                if(isAdmin) {
+                    h += `<button onclick="openAddHousingItem()" style="width:100%; padding:15px; background:#343a40; color:white; font-weight:bold; border-radius:10px; border:none; margin-bottom:15px; cursor:pointer;">+ 새 아이템 등록하기 (선생님 전용)</button>`;
+                }
+                
+                const items = snap.val() || {};
+                const categories = ["🖼️ 배경", "🪑 가구", "👤 사람"];
+                
+                categories.forEach(cat => {
+                    h += `<h3 style="margin-bottom:10px; border-bottom:2px solid #ddd; padding-bottom:5px;">${cat}</h3>`;
+                    h += `<div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">`;
+                    let count = 0;
+                    for(let key in items) {
+                        if(items[key].category === cat.substring(3)) {
+                            count++;
+                            const i = items[key];
+                            h += `<div style="border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center; width:calc(50% - 15px); background:#fff;">
+                                    <img src="${i.img}" style="width:50px; height:50px; object-fit:contain; image-rendering:pixelated; margin-bottom:5px;">
+                                    <div style="font-weight:bold; font-size:1rem;">${i.name}</div>
+                                    <div style="color:var(--red); font-weight:bold; margin-bottom:8px;">${i.price}P</div>
+                                    <button onclick="buyHousingItem('${key}', '${i.name}', ${i.price}, '${i.category}', '${i.img}')" style="background:#28a745; color:white; border:none; border-radius:4px; padding:5px 10px; width:100%; cursor:pointer;">구매</button>
+                                    ${isAdmin ? `<button onclick="if(confirm('삭제?')) db.ref('housingShop/${key}').remove().then(()=>openHousingShopPopup())" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:4px; width:100%; margin-top:5px; font-size:0.8rem; cursor:pointer;">삭제</button>` : ''}
+                                  </div>`;
+                        }
+                    }
+                    if(count === 0) h += `<p style="color:#aaa; font-size:0.9rem; width:100%;">등록된 상품이 없습니다.</p>`;
+                    h += `</div>`;
+                });
+                h += `</div>`;
+                openPopup("🛒 하우징 전문 상점", h);
+            });
+        };
+
+        window.openAddHousingItem = function() {
+            if(!isAdmin) return;
+            let h = `<h3 style="margin-top:0;">아이템 직접 업로드</h3>
+                     <label style="display:block; margin-bottom:10px;">이름: <input type="text" id="h-item-name" style="width:100%; padding:5px;"></label>
+                     <label style="display:block; margin-bottom:10px;">가격: <input type="number" id="h-item-price" value="0" style="width:100%; padding:5px;"></label>
+                     <label style="display:block; margin-bottom:10px; font-weight:bold; color:blue;">항목 선택:
+                       <select id="h-item-cat" style="width:100%; padding:5px;">
+                         <option value="배경">🖼️ 배경 (640x480 권장)</option>
+                         <option value="가구">🪑 가구 (자유 배치)</option>
+                         <option value="사람">👤 사람 (자유 배치)</option>
+                       </select>
+                     </label>
+                     <label style="display:block; margin-bottom:10px;">이미지 첨부: <input type="file" accept="image/*" onchange="previewHousingImage(this)"></label>
+                     <div style="text-align:center; margin-bottom:10px;"><img id="h-img-preview" style="max-width:100px; display:none; image-rendering:pixelated;"></div>
+                     <button onclick="saveHousingItem()" style="background:var(--primary); color:white; padding:10px; width:100%; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">DB에 등록하기</button>`;
+            openPopup("새 아이템 등록", h);
+        };
+
+        window.previewHousingImage = function(input) {
+            if (input.files && input.files[0]) {
+                const r = new FileReader();
+                r.onload = function(e) { document.getElementById('h-img-preview').src = e.target.result; document.getElementById('h-img-preview').style.display = 'inline-block'; }
+                r.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.saveHousingItem = function() {
+            if(!isAdmin) return alert("관리자만 가능합니다!");
+            const n = document.getElementById('h-item-name').value;
+            const p = parseInt(document.getElementById('h-item-price').value) || 0;
+            const cat = document.getElementById('h-item-cat').value;
+            const img = document.getElementById('h-img-preview').src;
+            
+            if(!n || !img || !img.startsWith('data:image')) return alert("이름과 이미지를 모두 확인해주세요!");
+            db.ref('housingShop').push({name:n, price:p, category:cat, img:img}).then(() => { alert("등록 완료!"); openHousingShopPopup(); });
+        };
+
+        window.buyHousingItem = async function(key, name, price, category, img) {
+            const sn = await db.ref('users/' + myName).once('value');
+            const myPts = sn.val().points || 0;
+            
+            if(myPts < 0 || myPts < price) return alert("포인트가 마이너스이거나 부족합니다! 😭");
+            if(!confirm(`[${name}]을(를) ${price}P에 구매할까요?`)) return;
+            
+            await db.ref('users/' + myName).update({ points: myPts - price });
+            await db.ref(`users/${myName}/housingInventory`).push({ name: name, category: category, img: img });
+            
+            alert("구매 완료! 인벤토리를 확인하세요.");
+            if(currentTab === 'housing') renderHousingInventory();
+            openHousingShopPopup(); 
+        };
+
+        window.openVisitList = function() {
+            db.ref('users').once('value', snap => {
+                const users = snap.val() || {};
+                let h = `<div style="max-height:400px; overflow-y:auto; padding:10px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">`;
+                for(let name in users) {
+                    if(name !== myName) { 
+                        h += `<button onclick="visitRoom('${name}')" style="background:#e9ecef; border:1px solid #ced4da; padding:15px; border-radius:10px; cursor:pointer; width:120px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                                🏠<br>${name}의 방
+                              </button>`;
+                    }
+                }
+                h += `</div>`;
+                openPopup("🔍 누구의 방를 방문할까요?", h);
+            });
+        };
+
+        window.visitRoom = function(targetName) {
+            db.ref(`users/${targetName}/myRoom`).once('value', snap => {
+                const room = snap.val() || {};
+                
+                let h = `<div style="text-align:center;">
+                            <div style="position:relative; width:450px; height:450px; background-image:url('${room.background || 'https://via.placeholder.com/500x500.png?text=Default'}'); background-size:cover; background-position:center; border:4px solid #5d4037; border-radius:10px; margin:0 auto; overflow:hidden;">`;
+                
+                if(room.objects) {
+                    for(let k in room.objects) {
+                        let o = room.objects[k];
+                        let adjustedX = o.x * (450/500); // 팝업 크기 비율에 맞춰 조정
+                        let adjustedY = o.y * (450/500);
+                        h += `<div style="position:absolute; left:${adjustedX}px; top:${adjustedY}px; width:54px; height:54px;">
+                                <img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated;">
+                              </div>`;
+                    }
+                }
+                h += `      </div>
+                            
+                            <div style="margin-top:15px; display:flex; gap:10px; justify-content:center;">
+                                <button onclick="leaveInteraction('${targetName}', '❤️ 하트 표시를 남겼습니다.')" style="background:#ff4d4f; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">❤️ 하트 남기기</button>
+                                <button onclick="leaveInteraction('${targetName}', '👋 인사를 남겼습니다.')" style="background:#1890ff; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">👋 인사 남기기</button>
+                                <button onclick="leaveInteraction('${targetName}', '👍 멋지다고 칭찬했습니다.')" style="background:#52c41a; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">👍 멋져요!</button>
+                            </div>
+
+                            <div style="margin-top:15px; height:120px; overflow-y:auto; border:1px solid #ddd; border-radius:8px; background:#f9f9f9; padding:10px; text-align:left; font-size:0.9rem;">`;
+                
+                if(room.interactions) {
+                    const interacts = Object.values(room.interactions).reverse();
+                    interacts.forEach(i => {
+                        h += `<div style="border-bottom:1px solid #eee; padding:5px 0;">
+                                <span style="color:#888; font-size:0.8rem;">[${i.time}]</span> 
+                                <strong style="color:#0056b3;">${i.from}</strong>님께서 ${i.msg}
+                              </div>`;
+                    });
+                } else {
+                    h += `<div style="color:#aaa; text-align:center; margin-top:20px;">아직 방문자가 없습니다. 첫 방문자가 되어주세요!</div>`;
+                }
+
+                h += `</div></div>`;
+                openPopup(`🏰 ${targetName} 용사의 방`, h);
+            });
+        };
+
+        window.leaveInteraction = function(targetName, msg) {
+            const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            db.ref(`users/${targetName}/myRoom/interactions`).push({
+                from: myName,
+                msg: msg,
+                time: timeStr
+            }).then(() => {
+                alert("방명록이 기록되었습니다! ✨");
+                visitRoom(targetName); 
+            });
+        };
     </script>
 </body>
 </html>
