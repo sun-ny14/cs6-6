@@ -1753,46 +1753,96 @@
             }
         };
 
-        window.loadHousingShop = function(category) {
-    // 아이템이 표시될 HTML 구역을 찾습니다.
+        // 1. 누락되었던 하우징 상점 열기(스크롤 이동) 함수 추가
+window.openHousingShopPopup = function() {
+    // 이미 하단에 상점 영역이 있으므로, 화면을 상점 쪽으로 부드럽게 스크롤합니다.
+    document.getElementById('housing-shop-area').scrollIntoView({ behavior: 'smooth' });
+    loadHousingShop('전체');
+};
+
+// 2. 카테고리 버그 수정 및 관리자 등록/삭제 버튼 추가
+window.loadHousingShop = function(category) {
     const shopContent = document.getElementById('housing-shop-content');
-    if (!shopContent) {
-        console.error("아이템을 띄울 'housing-shop-content' 구역이 HTML에 없습니다!");
-        return;
-    }
+    if (!shopContent) return;
 
     db.ref('housingShop').once('value', snap => {
         const items = snap.val();
         let html = '';
 
+        // [추가] 관리자 전용 새 아이템 등록 버튼
+        if (isAdmin && category === '전체') {
+            html += `<div style="width: 100%; text-align: center; margin-bottom: 15px;">
+                        <button onclick="openAddHousingItem()" style="background:var(--gold); color:var(--dark); padding:10px 20px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 하우징 아이템 등록하기</button>
+                     </div>`;
+        }
+
         if (items) {
             Object.keys(items).forEach(key => {
                 const item = items[key];
-                // 💡 등록할 때 쓴 카테고리('배경', '가구' 등)와 일치하는 것만 렌더링!
-                if (item.cat === category || category === '전체') {
-                    // 데이터베이스에 img로 저장되었을지 url로 저장되었을지 몰라 둘 다 대응했습니다!
+                // [버그 수정] item.cat이 아니라 item.category로 비교해야 합니다!
+                if (item.category === category || category === '전체') {
                     const imageUrl = item.url || item.img || ''; 
                     
+                    // [추가] 관리자 전용 상점 아이템 삭제 버튼
+                    let adminBtn = isAdmin ? `<button onclick="deleteHousingItem('${key}')" style="margin-top:5px; padding: 5px; width: 100%; cursor: pointer; border: none; background: #ff4d4f; color:white; border-radius: 4px; font-weight: bold;">🗑️ 삭제</button>` : '';
+
                     html += `
-                    <div class="h-shop-item" style="border: 2px solid #ddd; padding: 10px; margin: 5px; border-radius: 8px; width: 130px; text-align: center; display: inline-block;">
+                    <div class="h-shop-item" style="border: 2px solid #ddd; padding: 10px; margin: 5px; border-radius: 8px; width: 130px; text-align: center; display: inline-block; vertical-align: top; background: white;">
                         <div style="height: 80px; overflow: hidden; border-radius: 4px; margin-bottom: 5px; background: #eee;">
-                            <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+                            <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;">
                         </div>
                         <h4 style="margin: 5px 0; font-size: 14px; word-break: keep-all;">${item.name}</h4>
                         <p style="margin: 5px 0; color: #ff9900; font-weight: bold;">💎 ${item.price}P</p>
-                        <button onclick="buyHousingItem('${key}')" style="padding: 5px; width: 100%; cursor: pointer; border: none; background: #ffeb3b; border-radius: 4px; font-weight: bold;">구매하기</button>
+                        <button onclick="buyHousingItem('${key}')" style="padding: 5px; width: 100%; cursor: pointer; border: none; background: #ffeb3b; border-radius: 4px; font-weight: bold; color: #333;">구매하기</button>
+                        ${adminBtn}
                     </div>
                     `;
                 }
             });
         }
 
-        if (html === '') {
-            html = '<p style="text-align:center; padding: 20px; color:#888;">이 카테고리에 아직 등록된 아이템이 없습니다! 텅~ 🌬️</p>';
+        if (html === '' || (isAdmin && category === '전체' && Object.keys(items || {}).length === 0)) {
+            html += '<p style="text-align:center; padding: 20px; color:#888; width: 100%;">이 카테고리에 아직 등록된 아이템이 없습니다! 텅~ 🌬️</p>';
         }
 
         shopContent.innerHTML = html;
     });
+};
+
+// 3. 구매 시 undefined 에러가 나던 현상 완벽 수정 (안전하게 DB에서 직접 조회)
+window.buyHousingItem = async function(key) {
+    const sn = await db.ref('users/' + myName).once('value');
+    const myPts = sn.val().points || 0;
+    
+    // DB에서 아이템 정보를 직접 가져옵니다. (안전함)
+    const itemSnap = await db.ref('housingShop/' + key).once('value');
+    const item = itemSnap.val();
+    if(!item) return alert("존재하지 않는 아이템입니다.");
+    
+    const price = parseInt(item.price) || 0;
+    const name = item.name;
+    const category = item.category;
+    const img = item.img || item.url;
+
+    if(myPts < 0 || myPts < price) return alert("포인트가 마이너스이거나 부족합니다! 😭");
+    if(!confirm(`[${name}] 아이템을 ${price}P에 구매하시겠습니까?`)) return;
+    
+    // 포인트 차감 및 인벤토리 지급
+    await db.ref('users/' + myName).update({ points: myPts - price });
+    await db.ref(`users/${myName}/housingInventory`).push({ name: name, category: category, img: img });
+    
+    alert("✅ 구매 완료! 내 하우징 보관함을 확인하세요.");
+    if(currentTab === 'housing') renderHousingInventory();
+};
+
+// 4. (보너스) 실수로 올린 상점 아이템을 관리자가 삭제할 수 있는 기능 추가
+window.deleteHousingItem = function(key) {
+    if(confirm("이 하우징 아이템을 상점에서 영구 삭제할까요?")) {
+        db.ref('housingShop/' + key).remove().then(() => {
+            alert("삭제되었습니다.");
+            loadHousingShop('전체');
+        });
+    }
 };
 
         window.openAddHousingItem = function() {
@@ -1843,7 +1893,7 @@
             await db.ref(`users/${myName}/housingInventory`).push({ name: name, category: category, img: img });
             
             alert("구매 완료! 인벤토리를 확인하세요.");
-            if(currentTab === 'housing') renderHousingInventory();
+            if(currentTab === 'housing') renderHousingInventory();openHousing
             openHousingShopPopup(); 
         };
 
