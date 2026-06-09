@@ -211,11 +211,26 @@
                 <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
             </div>
             
-            <div style="width: 100%; background: #f8f9fa; padding: 15px; border-radius: 15px; border: 2px solid #ddd;">
+            <div style="width: 100%; background: #f8f9fa; padding: 15px; border-radius: 15px; border: 2px solid #ddd; margin-top: 20px;">
                 <h3 style="margin-top:0;">🎒 내 하우징 보관함</h3>
                 <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px;"></div>
             </div>
-        </div>
+
+            <div id="housing-shop-area" style="width: 100%; text-align: center; padding: 20px; margin-top: 20px; border-top: 2px dashed #ccc;">
+                <h3>🛍️ 하우징 상점</h3>
+                
+                <div style="margin-bottom: 15px;">
+                    <button onclick="loadHousingShop('전체')" style="padding: 5px 10px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background: white;">전체보기</button>
+                    <button onclick="loadHousingShop('배경')" style="padding: 5px 10px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background: white;">🖼️ 배경</button>
+                    <button onclick="loadHousingShop('가구')" style="padding: 5px 10px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background: white;">🪑 가구</button>
+                    <button onclick="loadHousingShop('인물')" style="padding: 5px 10px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background: white;">🧍 인물</button>
+                </div>
+                
+                <div id="housing-shop-content" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; min-height: 150px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+                    <p style="color: #999;">위에 있는 카테고리 버튼을 누르면 아이템이 뜹니다!</p>
+                </div>
+            </div>
+            </div>
     </div>
 </section>
 
@@ -1738,40 +1753,47 @@
             }
         };
 
-        window.openHousingShopPopup = function() {
-            db.ref('housingShop').once('value', snap => {
-                let h = `<div style="max-height:60vh; overflow-y:auto; padding:5px;">`;
-                if(isAdmin) {
-                    h += `<button onclick="openAddHousingItem()" style="width:100%; padding:15px; background:#343a40; color:white; font-weight:bold; border-radius:10px; border:none; margin-bottom:15px; cursor:pointer;">+ 새 아이템 등록하기 (선생님 전용)</button>`;
+        window.loadHousingShop = function(category) {
+    // 아이템이 표시될 HTML 구역을 찾습니다.
+    const shopContent = document.getElementById('housing-shop-content');
+    if (!shopContent) {
+        console.error("아이템을 띄울 'housing-shop-content' 구역이 HTML에 없습니다!");
+        return;
+    }
+
+    db.ref('housingShop').once('value', snap => {
+        const items = snap.val();
+        let html = '';
+
+        if (items) {
+            Object.keys(items).forEach(key => {
+                const item = items[key];
+                // 💡 등록할 때 쓴 카테고리('배경', '가구' 등)와 일치하는 것만 렌더링!
+                if (item.cat === category || category === '전체') {
+                    // 데이터베이스에 img로 저장되었을지 url로 저장되었을지 몰라 둘 다 대응했습니다!
+                    const imageUrl = item.url || item.img || ''; 
+                    
+                    html += `
+                    <div class="h-shop-item" style="border: 2px solid #ddd; padding: 10px; margin: 5px; border-radius: 8px; width: 130px; text-align: center; display: inline-block;">
+                        <div style="height: 80px; overflow: hidden; border-radius: 4px; margin-bottom: 5px; background: #eee;">
+                            <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <h4 style="margin: 5px 0; font-size: 14px; word-break: keep-all;">${item.name}</h4>
+                        <p style="margin: 5px 0; color: #ff9900; font-weight: bold;">💎 ${item.price}P</p>
+                        <button onclick="buyHousingItem('${key}')" style="padding: 5px; width: 100%; cursor: pointer; border: none; background: #ffeb3b; border-radius: 4px; font-weight: bold;">구매하기</button>
+                    </div>
+                    `;
                 }
-                
-                const items = snap.val() || {};
-                const categories = ["🖼️ 배경", "🪑 가구", "👤 사람"];
-                
-                categories.forEach(cat => {
-                    h += `<h3 style="margin-bottom:10px; border-bottom:2px solid #ddd; padding-bottom:5px;">${cat}</h3>`;
-                    h += `<div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">`;
-                    let count = 0;
-                    for(let key in items) {
-                        if(items[key].category === cat.substring(3)) {
-                            count++;
-                            const i = items[key];
-                            h += `<div style="border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center; width:calc(50% - 15px); background:#fff;">
-                                    <img src="${i.img}" style="width:50px; height:50px; object-fit:contain; image-rendering:pixelated; margin-bottom:5px;">
-                                    <div style="font-weight:bold; font-size:1rem;">${i.name}</div>
-                                    <div style="color:var(--red); font-weight:bold; margin-bottom:8px;">${i.price}P</div>
-                                    <button onclick="buyHousingItem('${key}', '${i.name}', ${i.price}, '${i.category}', '${i.img}')" style="background:#28a745; color:white; border:none; border-radius:4px; padding:5px 10px; width:100%; cursor:pointer;">구매</button>
-                                    ${isAdmin ? `<button onclick="if(confirm('삭제?')) db.ref('housingShop/${key}').remove().then(()=>openHousingShopPopup())" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:4px; width:100%; margin-top:5px; font-size:0.8rem; cursor:pointer;">삭제</button>` : ''}
-                                  </div>`;
-                        }
-                    }
-                    if(count === 0) h += `<p style="color:#aaa; font-size:0.9rem; width:100%;">등록된 상품이 없습니다.</p>`;
-                    h += `</div>`;
-                });
-                h += `</div>`;
-                openPopup("🛒 하우징 전문 상점", h);
             });
-        };
+        }
+
+        if (html === '') {
+            html = '<p style="text-align:center; padding: 20px; color:#888;">이 카테고리에 아직 등록된 아이템이 없습니다! 텅~ 🌬️</p>';
+        }
+
+        shopContent.innerHTML = html;
+    });
+};
 
         window.openAddHousingItem = function() {
             if(!isAdmin) return;
