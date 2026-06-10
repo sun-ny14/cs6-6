@@ -1913,11 +1913,15 @@ window.deleteHousingItem = function(key) {
             });
         };
 
-        window.visitRoom = function(targetName) {
-            db.ref(`users/${targetName}/myRoom`).once('value', snap => {
-                const room = snap.val() || {};
-                
-                const bg = room.background || window.currentDefaultBg || '#d7ccc8';
+       window.visitRoom = function(targetName) {
+    db.ref(`users/${targetName}/myRoom`).once('value', snap => {
+        const room = snap.val() || {};
+        
+        // 1. 방에 저장된 파일명이 있으면 그걸 쓰고, 없으면 기본 설정된 이름을 씁니다.
+        const bgFileName = room.background || window.currentDefaultBg || 'default_bg.png';
+        
+        // 2. 프로젝트 ID(cs6-6class)를 사용하여 주소를 자동으로 완성!
+        const bg = `https://firebasestorage.googleapis.com/v0/b/cs6-6class.appspot.com/o/${bgFileName}?alt=media`;
                 
                 let h = `<div style="text-align:center;">
                             <div style="position:relative; width:100%; max-width:450px; aspect-ratio: 4/3; background-image:url('${bg}'); background-size:100% 100%; background-position:center; border:4px solid #5d4037; border-radius:10px; margin:0 auto; overflow:hidden;">`;
