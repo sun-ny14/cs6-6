@@ -180,62 +180,29 @@
         
       <section id="tab-housing" class="tab-content">
     <div class="card" style="max-width: 800px; margin: 0 auto;">
-        
         <div id="admin-housing-control" style="display:none; border: 3px solid #3498db; padding: 20px; border-radius: 15px; margin-bottom: 20px; background-color: #f8f9fa;">
             <h3 style="margin-top: 0; color: #2c3e50;">👑 용사의 방 관리자 시스템</h3>
-            
-            <div style="background: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px; border: 2px solid #ccc;">
-                <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 5px;">현재 용사의 방 상태</div>
-                <div id="housing-current-status" style="font-size: 3rem; font-weight: bold; color: #2ecc71; margin-bottom: 15px;">켜짐 (ON)</div>
-                <button id="housing-toggle-btn" onclick="toggleHousing()" style="background-color: #e74c3c; color: white; font-weight: bold; font-size: 1.2rem; width: 100%;">끄기(OFF)로 변경하기</button>
-            </div>
-
-           <div style="background: white; padding: 15px; border-radius: 10px; border: 2px solid #ccc; margin-top: 10px;">
-    <strong style="font-size: 1.2rem;">🖼️ 기본 교실 배경 설정 (640x480 권장)</strong>
-    <p style="font-size: 1rem; color: #7f8c8d; margin: 5px 0;">파일을 선택하면 자동으로 기본 배경이 업데이트됩니다.</p>
-    
-    <input type="file" accept="image/*" onchange="uploadDefaultBackground(this)" 
-           style="padding: 10px; font-size: 1.1rem; cursor: pointer; width: 100%; border: 1px dashed #3498db; background: #ecf0f1; border-radius: 8px;">
-</div>
+            <button id="housing-toggle-btn" onclick="toggleHousing()" style="background-color: #e74c3c; color: white; width: 100%; padding: 15px; border-radius: 10px;">상태 변경</button>
         </div>
+
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <h2 style="margin:0;">🏰 용사의 방</h2>
-            <div>
-                <button onclick="openVisitList()" style="background:#007bff; color:white; padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; margin-right:10px;">🔍 친구 방 방문</button>
-                <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점</button>
-            </div>
+            <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 20px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점 열기</button>
         </div>
         
-        <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
-            <div id="my-room-container" style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 6px solid #5d4037; border-radius: 15px; background-color: #d7ccc8; background-size: 100% 100%; background-repeat: no-repeat; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden;">
-                <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
-            </div>
-            
-            <div style="width: 100%; background: #f8f9fa; padding: 15px; border-radius: 15px; border: 2px solid #ddd; margin-top: 20px;">
-                <h3 style="margin-top:0;">🎒 내 하우징 보관함</h3>
-                <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px;"></div>
-            <div style="margin-top: 20px; text-align: center;">
-    <button onclick="saveMyRoom()" style="padding: 15px 40px; background-color: #2ecc71; color: white; border: none; border-radius: 10px; font-size: 1.5rem; font-weight: bold; cursor: pointer;">
-        💾 방 저장하기
-    </button>
-</div>
-            </div>
+        <div id="my-room-container" style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 6px solid #5d4037; border-radius: 15px; background-size: 100% 100%; background-repeat: no-repeat; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden; margin: 0 auto;">
+            <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+        </div>
 
-            <div id="housing-shop-area" style="width: 100%; text-align: center; padding: 20px; margin-top: 20px; border-top: 2px dashed #ccc;">
-                <h3>🛍️ 하우징 상점</h3>
-                
-                <div style="margin-bottom: 15px;">
-                    <button onclick="loadHousingShop('전체')" style="padding: 5px 10px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background: white;">전체보기</button>
-                    <button onclick="loadHousingShop('배경')" style="padding: 5px 10px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background: white;">🖼️ 배경</button>
-                    <button onclick="loadHousingShop('가구')" style="padding: 5px 10px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background: white;">🪑 가구</button>
-                    <button onclick="loadHousingShop('인물')" style="padding: 5px 10px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background: white;">🧍 인물</button>
+        <div style="margin-top: 20px; text-align: center;">
+            <button onclick="saveMyRoom()" style="padding: 15px 40px; background-color: #2ecc71; color: white; border: none; border-radius: 10px; font-size: 1.5rem; font-weight: bold; cursor: pointer;">💾 방 저장하기</button>
+        </div>
+
+        <div style="width: 100%; background: #f8f9fa; padding: 15px; border-radius: 15px; border: 2px solid #ddd; margin-top: 20px;">
+            <h3 style="margin-top:0;">🎒 내 하우징 보관함 (구매한 아이템)</h3>
+            <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; min-height: 100px;">
                 </div>
-                
-                <div id="housing-shop-content" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; min-height: 150px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
-                    <p style="color: #999;">위에 있는 카테고리 버튼을 누르면 아이템이 뜹니다!</p>
-                </div>
-            </div>
-            </div>
+        </div>
     </div>
 </section>
 
@@ -1755,59 +1722,65 @@
         };
 
         // 1. 누락되었던 하우징 상점 열기(스크롤 이동) 함수 추가
-window.openHousingShopPopup = function() {
-    // 이미 하단에 상점 영역이 있으므로, 화면을 상점 쪽으로 부드럽게 스크롤합니다.
-    document.getElementById('housing-shop-area').scrollIntoView({ behavior: 'smooth' });
-    loadHousingShop('전체');
+// 하우징 물품 추가/수정 팝업창 (파일 업로드 기능 포함)
+window.openAddHousingShopPopup = function(itemKey = null, itemData = {}) {
+    let h = `
+        <h3 style="margin-top:0;">${itemKey ? '⚙️ 아이템 수정' : '🆕 새 아이템 등록'}</h3>
+        <label>이름:</label>
+        <input type="text" id="hs-name" value="${itemData.name || ''}" style="width:100%; margin-bottom:10px;">
+        
+        <label>가격(P):</label>
+        <input type="number" id="hs-price" value="${itemData.price || 0}" style="width:100%; margin-bottom:10px;">
+        
+        <label>카테고리:</label>
+        <select id="hs-cat" style="width:100%; margin-bottom:10px;">
+            <option value="배경" ${itemData.category === '배경' ? 'selected' : ''}>🖼️ 배경</option>
+            <option value="가구" ${itemData.category === '가구' ? 'selected' : ''}>🪑 가구</option>
+            <option value="인물" ${itemData.category === '인물' ? 'selected' : ''}>🧍 인물</option>
+        </select>
+        
+        <label>이미지 파일 (선택 시 업로드):</label>
+        <input type="file" id="hs-file" accept="image/*" style="width:100%; margin-bottom:10px;">
+        <input type="hidden" id="hs-img-url" value="${itemData.img || ''}">
+        
+        <button onclick="saveHousingItem('${itemKey}')" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">저장하기</button>
+        ${itemKey ? `<button onclick="deleteHousingItem('${itemKey}')" style="width:100%; padding:15px; background:var(--red); color:white; border:none; border-radius:10px; margin-top:5px; cursor:pointer;">삭제하기</button>` : ''}
+    `;
+    openPopup("하우징 아이템 관리", h);
 };
 
-// 2. 카테고리 버그 수정 및 관리자 등록/삭제 버튼 추가
-window.loadHousingShop = function(category) {
-    const shopContent = document.getElementById('housing-shop-content');
-    if (!shopContent) return;
+// DB에 저장하는 함수 (이미지 업로드 포함)
+window.saveHousingItem = async function(key) {
+    const fileInput = document.getElementById('hs-file');
+    const name = document.getElementById('hs-name').value;
+    const price = parseInt(document.getElementById('hs-price').value);
+    const category = document.getElementById('hs-cat').value;
+    let imgUrl = document.getElementById('hs-img-url').value;
 
-    db.ref('housingShop').once('value', snap => {
-        const items = snap.val();
-        let html = '';
+    if (!name || price === null) return alert("이름과 가격을 입력해주세요!");
 
-        // [추가] 관리자 전용 새 아이템 등록 버튼
-        if (isAdmin && category === '전체') {
-            html += `<div style="width: 100%; text-align: center; margin-bottom: 15px;">
-                        <button onclick="openAddHousingItem()" style="background:var(--gold); color:var(--dark); padding:10px 20px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">+ 새 하우징 아이템 등록하기</button>
-                     </div>`;
-        }
+    // 1. 새 파일이 선택되었으면 Storage에 업로드
+    if (fileInput.files.length > 0) {
+        alert("이미지를 업로드 중입니다... 잠시만 기다려주세요.");
+        const file = fileInput.files[0];
+        const storageRef = firebase.storage().ref('housing_items/' + Date.now() + '_' + file.name);
+        const snapshot = await storageRef.put(file);
+        imgUrl = await snapshot.ref.getDownloadURL();
+    }
 
-        if (items) {
-            Object.keys(items).forEach(key => {
-                const item = items[key];
-                // [버그 수정] item.cat이 아니라 item.category로 비교해야 합니다!
-                if (item.category === category || category === '전체') {
-                    const imageUrl = item.url || item.img || ''; 
-                    
-                    // [추가] 관리자 전용 상점 아이템 삭제 버튼
-                    let adminBtn = isAdmin ? `<button onclick="deleteHousingItem('${key}')" style="margin-top:5px; padding: 5px; width: 100%; cursor: pointer; border: none; background: #ff4d4f; color:white; border-radius: 4px; font-weight: bold;">🗑️ 삭제</button>` : '';
+    if (!imgUrl) return alert("이미지를 선택하거나 등록해주세요!");
 
-                    html += `
-                    <div class="h-shop-item" style="border: 2px solid #ddd; padding: 10px; margin: 5px; border-radius: 8px; width: 130px; text-align: center; display: inline-block; vertical-align: top; background: white;">
-                        <div style="height: 80px; overflow: hidden; border-radius: 4px; margin-bottom: 5px; background: #eee;">
-                            <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;">
-                        </div>
-                        <h4 style="margin: 5px 0; font-size: 14px; word-break: keep-all;">${item.name}</h4>
-                        <p style="margin: 5px 0; color: #ff9900; font-weight: bold;">💎 ${item.price}P</p>
-                        <button onclick="buyHousingItem('${key}')" style="padding: 5px; width: 100%; cursor: pointer; border: none; background: #ffeb3b; border-radius: 4px; font-weight: bold; color: #333;">구매하기</button>
-                        ${adminBtn}
-                    </div>
-                    `;
-                }
-            });
-        }
-
-        if (html === '' || (isAdmin && category === '전체' && Object.keys(items || {}).length === 0)) {
-            html += '<p style="text-align:center; padding: 20px; color:#888; width: 100%;">이 카테고리에 아직 등록된 아이템이 없습니다! 텅~ 🌬️</p>';
-        }
-
-        shopContent.innerHTML = html;
-    });
+    // 2. DB 저장
+    const data = { name, img: imgUrl, price, category };
+    if (key && key !== 'null') {
+        await db.ref('housingShop/' + key).update(data);
+    } else {
+        await db.ref('housingShop').push(data);
+    }
+    
+    alert("✅ 성공적으로 저장되었습니다!");
+    closePopup();
+    loadHousingShop('전체'); // 리스트 새로고침
 };
 
 // 3. 구매 시 undefined 에러가 나던 현상 완벽 수정 (안전하게 DB에서 직접 조회)
@@ -1872,31 +1845,55 @@ window.deleteHousingItem = function(key) {
             }
         };
 
-        window.saveHousingItem = function() {
-            if(!isAdmin) return alert("관리자만 가능합니다!");
-            const n = document.getElementById('h-item-name').value;
-            const p = parseInt(document.getElementById('h-item-price').value) || 0;
-            const cat = document.getElementById('h-item-cat').value;
-            const img = document.getElementById('h-img-preview').src;
-            
-            if(!n || !img || !img.startsWith('data:image')) return alert("이름과 이미지를 모두 확인해주세요!");
-            db.ref('housingShop').push({name:n, price:p, category:cat, img:img}).then(() => { alert("등록 완료!"); openHousingShopPopup(); });
-        };
+      // 1. 등록 팝업 (파일 선택창 포함)
+window.openAddHousingShopPopup = function(itemKey = null, itemData = {}) {
+    let h = `
+        <label>아이템명:</label><input type="text" id="hs-name" value="${itemData.name || ''}" style="width:100%; margin-bottom:10px;">
+        <label>가격:</label><input type="number" id="hs-price" value="${itemData.price || 0}" style="width:100%; margin-bottom:10px;">
+        <label>종류:</label>
+        <select id="hs-cat" style="width:100%; margin-bottom:10px;">
+            <option value="배경" ${itemData.category === '배경' ? 'selected' : ''}>배경</option>
+            <option value="가구" ${itemData.category === '가구' ? 'selected' : ''}>가구</option>
+            <option value="인물" ${itemData.category === '인물' ? 'selected' : ''}>인물</option>
+        </select>
+        <label>이미지 파일 선택:</label>
+        <input type="file" id="hs-file" accept="image/*" style="width:100%; margin-bottom:10px;">
+        <button onclick="saveHousingItem('${itemKey}')" style="width:100%; padding:15px; background:#2ecc71; color:white; border:none; cursor:pointer;">저장하기</button>
+    `;
+    openPopup("아이템 등록", h);
+};
 
-        window.buyHousingItem = async function(key, name, price, category, img) {
-            const sn = await db.ref('users/' + myName).once('value');
-            const myPts = sn.val().points || 0;
-            
-            if(myPts < 0 || myPts < price) return alert("포인트가 마이너스이거나 부족합니다! 😭");
-            if(!confirm(`[${name}]을(를) ${price}P에 구매할까요?`)) return;
-            
-            await db.ref('users/' + myName).update({ points: myPts - price });
-            await db.ref(`users/${myName}/housingInventory`).push({ name: name, category: category, img: img });
-            
-            alert("구매 완료! 인벤토리를 확인하세요.");
-            if(currentTab === 'housing') renderHousingInventory();openHousing
-            openHousingShopPopup(); 
-        };
+// 2. 자동 업로드 및 DB 등록 로직
+window.saveHousingItem = async function(key) {
+    const file = document.getElementById('hs-file').files[0];
+    const name = document.getElementById('hs-name').value;
+    const price = parseInt(document.getElementById('hs-price').value);
+    const cat = document.getElementById('hs-cat').value;
+
+    if (!name || (!file && !key)) return alert("파일과 이름을 확인해주세요!");
+
+    let imgUrl = "";
+
+    // 파일이 있다면 스토리지에 올리고 URL을 따옴 (무료 용량 내에서 처리)
+    if (file) {
+        const ref = firebase.storage().ref('housing/' + Date.now() + '_' + file.name);
+        const snapshot = await ref.put(file);
+        imgUrl = await snapshot.ref.getDownloadURL();
+    }
+
+    const data = { name, price, category: cat, img: imgUrl || "" };
+    
+    if (key && key !== 'null') {
+        if (!imgUrl) delete data.img; // 이미지 수정 안 할 시 기존 유지
+        db.ref('housingShop/' + key).update(data);
+    } else {
+        db.ref('housingShop').push(data);
+    }
+    
+    alert("등록 완료!");
+    closePopup();
+    loadHousingShop('전체');
+};
 
         window.openVisitList = function() {
             db.ref('users').once('value', snap => {
