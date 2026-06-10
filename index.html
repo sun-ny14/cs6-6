@@ -214,6 +214,11 @@
             <div style="width: 100%; background: #f8f9fa; padding: 15px; border-radius: 15px; border: 2px solid #ddd; margin-top: 20px;">
                 <h3 style="margin-top:0;">🎒 내 하우징 보관함</h3>
                 <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px;"></div>
+            <div style="margin-top: 20px; text-align: center;">
+    <button onclick="saveMyRoom()" style="padding: 15px 40px; background-color: #2ecc71; color: white; border: none; border-radius: 10px; font-size: 1.5rem; font-weight: bold; cursor: pointer;">
+        💾 방 저장하기
+    </button>
+</div>
             </div>
 
             <div id="housing-shop-area" style="width: 100%; text-align: center; padding: 20px; margin-top: 20px; border-top: 2px dashed #ccc;">
@@ -785,7 +790,7 @@
             const itemData = itemSnap.val();
             
             if (itemData && itemData.stock !== undefined && itemData.stock <= 0) {
-                return alert("앗! 방금 품절된 상품입니다. 😭");
+                return alert("앗!  품절된 상품입니다. 😭");
             }
 
             if (l > 0) {
@@ -1982,6 +1987,24 @@ window.deleteHousingItem = function(key) {
                 location.reload(); 
             });
         };
+        // 방 꾸미기 저장 함수
+window.saveMyRoom = function() {
+    const layer = document.getElementById('my-room-canvas');
+    let objects = {};
+    
+    // 현재 배치된 모든 가구의 좌표를 가져와서 객체로 구성
+    Array.from(layer.children).forEach((child, index) => {
+        objects[index] = {
+            img: child.querySelector('img').src,
+            x: parseInt(child.style.left),
+            y: parseInt(child.style.top)
+        };
+    });
+
+    db.ref(`users/${myName}/myRoom/objects`).set(objects).then(() => {
+        alert("방 배치가 성공적으로 저장되었습니다! 🏠✨");
+    });
+};
     </script>
 </body>
 </html>
