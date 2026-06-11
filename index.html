@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; --bg: #ecf0f1; }
-        body { font-family: 'Pretendard', sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; font-size: 1.4rem; }
+        body { font-family: 'Pretendard', sans-seri// 3. 용사의 방 온오프 상태 관리f; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; font-size: 1.4rem; }
         input, button, textarea, select { width: 100%; padding: 18px; margin: 10px 0; border-radius: 12px; border: 2px solid #ccc; box-sizing: border-box; font-size: 1.4rem; }
         #loading-screen { display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); color: white; z-index: 3000; font-size: 1.8rem; }
         #login-screen { display: none; justify-content: center; align-items: center; min-height: 100vh; background: var(--dark); padding: 20px; }
@@ -402,19 +402,29 @@
                 const adminPanel = document.getElementById('admin-housing-control');
                 if (adminPanel) adminPanel.style.display = isAdmin ? 'block' : 'none';
 
-                const housingTabBtn = document.querySelector('button[onclick*="tab-housing"]'); 
+                // 정확한 ID로 하우징 탭 버튼 선택
+                const housingTabBtn = document.getElementById('btn-housing'); 
                 const housingTabContent = document.getElementById('tab-housing'); 
                 
                 if (!isAdmin && !window.isHousingEnabled) {
+                    // [학생 + 방 닫힘 상태] : 탭 메뉴 버튼을 완전히 숨김
                     if (housingTabBtn) housingTabBtn.style.display = 'none';
                     if (housingTabContent) housingTabContent.style.display = 'none';
+
+                    // 만약 학생이 지금 '방' 탭을 보고 있었는데 방이 닫혔다면, 메인 탭으로 강제 이동
+                    if (currentTab === 'housing') {
+                        showTab('main');
+                        alert("🚧 총사령관님이 용사의 방을 임시로 닫았습니다. 메인 화면으로 이동합니다.");
+                    }
                 } else {
-                    if (housingTabBtn) housingTabBtn.style.display = 'block';
+                    // [관리자이거나 방 열림 상태] : 탭 메뉴 버튼을 다시 보여줌
+                    if (housingTabBtn) housingTabBtn.style.display = ''; // 빈 문자열로 두면 CSS 원래 설정(flex) 복구됨
                     if (housingTabContent && housingTabContent.classList.contains('active')) {
                         housingTabContent.style.display = 'block';
                     }
                 }
                 
+                // 관리자 패널의 현재 상태 텍스트 및 버튼 색상 변경
                 const statusText = document.getElementById('housing-current-status');
                 const toggleBtn = document.getElementById('housing-toggle-btn');
                 if (statusText && toggleBtn) {
