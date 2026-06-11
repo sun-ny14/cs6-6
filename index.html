@@ -733,11 +733,45 @@
         function openUserHistory(un) {
             db.ref('users/' + un).once('value', sn => {
                 const u = sn.val() || {}, lv = u.lv || 1, pts = u.points || 0, isMeOrAdmin = (isAdmin || un === myName);
-                let h = `<div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; border:2px solid #eee;"><div style="flex:0 0 100px; text-align:center;">${getAvatar(lv, u.selectedAnimal)}<div style="margin-top:8px; font-weight:bold;">LV.${lv}</div>${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; background:var(--gold); border:none; border-radius:5px;">모습 변경</button>` : ''}</div><div style="flex:1;"><h3 style="margin:0;">${un} 용사</h3>${isMeOrAdmin ? `<div>💰 <b>${pts}P</b></div><div>✨ EXP: <b>${u.exp||0} / 100</b></div>` : `<p style="color:red;">🛡️ 정보는 비밀입니다!</p>`}</div></div>`;
+                
+                // [추가된 코드] 관리자 전용 한도 리셋 버튼
+                const adminResetBtn = isAdmin ? `<button onclick="resetUserItemLimit('${un}')" style="margin-top:10px; padding:8px 12px; background:var(--purple); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🔄 특정 상품 구매한도 리셋</button>` : '';
+
+                let h = `<div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; border:2px solid #eee;"><div style="flex:0 0 100px; text-align:center;">${getAvatar(lv, u.selectedAnimal)}<div style="margin-top:8px; font-weight:bold;">LV.${lv}</div>${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; background:var(--gold); border:none; border-radius:5px;">모습 변경</button>` : ''}</div><div style="flex:1;"><h3 style="margin:0;">${un} 용사</h3>${isMeOrAdmin ? `<div>💰 <b>${pts}P</b></div><div>✨ EXP: <b>${u.exp||0} / 100</b></div>${adminResetBtn}` : `<p style="color:red;">🛡️ 정보는 비밀입니다!</p>`}</div></div>`;
                 if (isMeOrAdmin) { db.ref('pointLogs').once('value', lsn => { let uL = []; lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); }); let logHtml = `<div style="max-height:200px; overflow-y:auto; margin-top:10px;">`; uL.reverse().slice(0, 20).forEach(l => { logHtml += `<div class="list-item"><span>${l.reason}<br><small>${l.time}</small></span><strong>${l.amount}P</strong></div>`; }); openPopup(`${un} 정보`, h + logHtml + `</div>`); }); } else { openPopup(`${un} 정보`, h); }
             });
         }
+// 특정 학생의 특정 아이템 구매 한도를 초기화하는 함수
+        window.resetUserItemLimit = async function(userName) {
+            // 1. 초기화할 상품명 입력받기
+            const itemName = prompt(`${userName} 학생의 구매 한도를 리셋할 '상품명'을 정확히 입력하세요.\n(주의: 띄어쓰기까지 상점에 등록된 이름과 똑같아야 합니다.)`);
+            if (!itemName) return;
 
+            if (!confirm(`${userName} 용사의 [${itemName}] 구매 기록을 초기화하시겠습니까?\n과거 구매 내역(연대기)은 보존되며, 상점에서 다시 구매할 수 있게 됩니다.`)) return;
+
+            const ordersSnap = await db.ref('orders').once('value');
+            let resetCount = 0;
+            const updates = {};
+
+            // 2. 해당 학생이 구매한 특정 상품 기록 찾기
+            ordersSnap.forEach(child => {
+                const o = child.val();
+                if (o.user === userName && o.item === itemName) {
+                    // 3. 꼼수: 아이템 이름 뒤에 꼬리표를 달아 다음 구매 시 카운팅 되지 않도록 예외 처리
+                    updates[`orders/${child.key}/item`] = `${itemName} (한도리셋)`;
+                    resetCount++;
+                }
+            });
+
+            // 4. DB 일괄 업데이트 및 결과 안내
+            if (resetCount > 0) {
+                await db.ref().update(updates);
+                alert(`✅ 완료! ${userName} 용사의 [${itemName}] 한도가 초기화되었습니다. (적용 횟수: ${resetCount}건)`);
+                closePopup(); // 팝업 닫기 (새로고침 유도)
+            } else {
+                alert(`⚠️ 해당 학생이 [${itemName}]을(를) 구매한 기록을 찾을 수 없습니다. 이름을 다시 확인해 주세요.`);
+            }
+        };
         window.buyItem = async function(k, n, p, l) {
             const sn = await db.ref('users/' + myName).once('value');
             const myPoints = sn.val().points || 0;
