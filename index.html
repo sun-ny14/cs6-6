@@ -1659,8 +1659,9 @@
                             const div = document.createElement('div');
                             
                             // 기본 크기 한도 설정 (인물 vs 가구)
-                            let baseW = o.type === '인물' ? 32 : 48;
-                            let baseH = o.type === '인물' ? 48 : 48;
+                            // 기본 크기 한도 설정 (인물 vs 가구)
+let baseW = o.type === '인물' ? 64 : 48;
+let baseH = o.type === '인물' ? 96 : 48;
 
                             let currentW = o.w || baseW;
                             let currentH = o.h || baseH;
@@ -1760,11 +1761,12 @@
 
         // 🛠️ 2. 아이템 크기 조절 및 삭제 팝업
         window.openItemEditor = function(key, type, currentW, currentH) {
-            const baseW = type === '인물' ? 32 : 48;
-            const baseH = type === '인물' ? 48 : 48;
+            const baseW = type === '인물' ? 64 : 48;
+const baseH = type === '인물' ? 96 : 48;
 
-            const maxW = baseW * 1.5, maxH = baseH * 1.5;
-            const minW = baseW * 0.5, minH = baseH * 0.5;
+// 최대 크기 한도를 1.5배에서 2.0배로 상향
+const maxW = baseW * 2.0, maxH = baseH * 2.0;
+const minW = baseW * 0.5, minH = baseH * 0.5;
 
             let h = `
                 <div style="text-align:center; padding: 10px;">
