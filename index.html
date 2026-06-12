@@ -1656,85 +1656,159 @@
                         Object.keys(room.objects).forEach(key => {
                             const o = room.objects[key];
                             const div = document.createElement('div');
-                            div.style.position = 'absolute';
-                            div.style.left = o.x + 'px';
-                            div.style.top = o.y + 'px';
-                            div.style.width = '60px';
-                            div.style.height = '60px';
-                            div.style.cursor = 'grab';
-                            div.title = "마우스로 드래그해서 이동하세요 (더블클릭 시 삭제)";
-                            div.innerHTML = `<img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; pointer-events:none;">`;
                             
-                            div.ondblclick = () => {
-                                if(confirm("이 가구를 삭제하시겠습니까?")) {
-                                    db.ref(`users/${myName}/myRoom/objects/${key}`).remove().then(()=>renderMyRoom());
-                                }
+                            // 💡 1. 사용자 요청에 따른 기본 크기 한도 설정
+                            let baseW = o.type === '인물' ? 32 : 48;
+                            let baseH = o.type === '인물' ? 48 : 48;
+
+                            // 저장된 크기가 있으면 불러오고, 없으면 기본 크기 적용
+                            let currentW = o.w || baseW;
+                            let currentH = o.h || baseH;
+
+                            div.style.position = 'absolute';
+                            div.style.left = (o.x || 0) + 'px';
+                            div.style.top = (o.y || 0) + 'px';
+                            div.style.width = currentW + 'px';
+                            div.style.height = currentH + 'px';
+                            div.style.cursor = 'grab';
+                            div.title = "드래그: 이동 / 더블클릭(길게누르기): 크기 조절 및 삭제";
+                            
+                            div.innerHTML = `<img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; pointer-events:none; background:transparent;">`;
+                            
+                            // 💻 PC: 더블클릭 시 관리 메뉴 오픈
+                            div.ondblclick = (e) => {
+                                e.stopPropagation();
+                                openItemEditor(key, o.type, currentW, currentH);
                             };
 
-                            div.onmousedown = function(e) {
-                                e.preventDefault();
+                            // 📱 모바일 & PC 공통: 드래그 및 길게 누르기(Long Press) 로직
+                            let pressTimer;
+                            let isDragging = false;
+
+                            const startDrag = function(e) {
+                                isDragging = false;
                                 div.style.cursor = 'grabbing';
                                 div.style.zIndex = 1000;
                                 
-                                let startX = e.clientX;
-                                let startY = e.clientY;
-                                let initialX = parseInt(div.style.left);
-                                let initialY = parseInt(div.style.top);
+                                const isTouch = e.type.includes('touch');
+                                const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+                                const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+                                
+                                let startX = clientX;
+                                let startY = clientY;
+                                let initialX = parseInt(div.style.left) || 0;
+                                let initialY = parseInt(div.style.top) || 0;
 
-                                document.onmousemove = function(e) {
-                                    let dx = e.clientX - startX;
-                                    let dy = e.clientY - startY;
+                                // 0.6초간 안 움직이고 누르고 있으면 설정 팝업 오픈
+                                pressTimer = setTimeout(() => {
+                                    if(!isDragging && isTouch) {
+                                        openItemEditor(key, o.type, currentW, currentH);
+                                    }
+                                }, 600);
+
+                                const moveDrag = function(e) {
+                                    isDragging = true;
+                                    clearTimeout(pressTimer); // 움직이면 길게누르기 취소
+                                    
+                                    if (e.type.includes('touch')) e.preventDefault(); 
+                                    
+                                    const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                                    const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                                    
+                                    let dx = currentX - startX;
+                                    let dy = currentY - startY;
                                     
                                     let newX = initialX + dx;
                                     let newY = initialY + dy;
                                     
+                                    // 💡 아이템의 현재 크기(currentW, currentH)를 반영하여 벽 이탈 완벽 방지
                                     if(newX < 0) newX = 0;
                                     if(newY < 0) newY = 0;
-                                    if(newX > 580) newX = 580; // 화면 이탈 방지 (640-60)
-                                    if(newY > 420) newY = 420; // 480-60
+                                    if(newX > (640 - currentW)) newX = (640 - currentW); 
+                                    if(newY > (480 - currentH)) newY = (480 - currentH);
                                     
                                     div.style.left = newX + 'px';
                                     div.style.top = newY + 'px';
                                 };
 
-                                document.onmouseup = function() {
-                                    document.onmousemove = null;
-                                    document.onmouseup = null;
+                                const endDrag = function() {
+                                    clearTimeout(pressTimer);
+                                    document.removeEventListener('mousemove', moveDrag);
+                                    document.removeEventListener('touchmove', moveDrag);
+                                    document.removeEventListener('mouseup', endDrag);
+                                    document.removeEventListener('touchend', endDrag);
+                                    
                                     div.style.cursor = 'grab';
                                     div.style.zIndex = '';
                                     
                                     const finalX = parseInt(div.style.left);
                                     const finalY = parseInt(div.style.top);
                                     
-                                    let isColliding = false;
-                                    Object.keys(room.objects).forEach(otherKey => {
-                                        if(otherKey !== key) {
-                                            const other = room.objects[otherKey];
-                                            if (finalX < other.x + 50 && finalX + 50 > other.x && 
-                                                finalY < other.y + 50 && finalY + 50 > other.y) {
-                                                isColliding = true;
-                                            }
-                                        }
-                                    });
-
-                                    if(isColliding) {
-                                        alert("앗! 다른 가구와 겹칩니다! 빈 공간에 놓아주세요.");
-                                        div.style.left = initialX + 'px';
-                                        div.style.top = initialY + 'px';
-                                    } else {
-                                        db.ref(`users/${myName}/myRoom/objects/${key}`).update({x: finalX, y: finalY});
-                                        room.objects[key].x = finalX;
-                                        room.objects[key].y = finalY;
-                                    }
+                                    // 💡 드래그를 놓는 즉시 DB에 실시간 위치 저장
+                                    db.ref(`users/${myName}/myRoom/objects/${key}`).update({x: finalX, y: finalY});
                                 };
+
+                                document.addEventListener('mousemove', moveDrag);
+                                document.addEventListener('touchmove', moveDrag, {passive: false});
+                                document.addEventListener('mouseup', endDrag);
+                                document.addEventListener('touchend', endDrag);
                             };
+
+                            div.addEventListener('mousedown', startDrag);
+                            div.addEventListener('touchstart', startDrag, {passive: false});
+                            
                             if(layer) layer.appendChild(div); 
                         });
                     }
                 });
             });
         };
+// 2. 아이템 크기 조절 및 삭제 관리 팝업
+        window.openItemEditor = function(key, type, currentW, currentH) {
+            // 최대/최소 한도 설정 (기본 크기의 1.5배까지만 커지고, 0.5배까지만 작아짐)
+            const baseW = type === '인물' ? 32 : 48;
+            const baseH = type === '인물' ? 48 : 48;
 
+            const maxW = baseW * 1.5; 
+            const maxH = baseH * 1.5;
+            const minW = baseW * 0.5; 
+            const minH = baseH * 0.5;
+
+            let h = `
+                <div style="text-align:center; padding: 10px;">
+                    <h3 style="margin-top:0;">🛠️ 가구/인물 설정</h3>
+                    <p style="color:#666; font-size:1.1rem;">현재 크기: ${Math.round(currentW)} x ${Math.round(currentH)}</p>
+                    <div style="display:flex; justify-content:center; gap:15px; margin-bottom: 20px;">
+                        <button onclick="resizeRoomItem('${key}', ${currentW*1.2}, ${currentH*1.2}, ${maxW}, ${maxH}, 'up')" style="flex:1; padding:15px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">➕ 크게</button>
+                        <button onclick="resizeRoomItem('${key}', ${currentW*0.8}, ${currentH*0.8}, ${minW}, ${minH}, 'down')" style="flex:1; padding:15px; background:var(--gold); color:var(--dark); border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">➖ 작게</button>
+                    </div>
+                    <button onclick="deleteRoomItem('${key}')" style="padding:15px; width:100%; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">🗑️ 이 아이템 치우기</button>
+                </div>
+            `;
+            openPopup("아이템 관리", h);
+        };
+
+        // 크기 변경 값 DB 업데이트
+        window.resizeRoomItem = function(key, newW, newH, limitW, limitH, dir) {
+            if (dir === 'up' && (newW > limitW || newH > limitH)) return alert("해당 아이템을 더 이상 크게 만들 수 없습니다!");
+            if (dir === 'down' && (newW < limitW || newH < limitH)) return alert("해당 아이템을 더 이상 작게 만들 수 없습니다!");
+
+            db.ref(`users/${myName}/myRoom/objects/${key}`).update({w: Math.round(newW), h: Math.round(newH)}).then(() => {
+                renderMyRoom(); // 화면 즉시 적용
+                closePopup(); 
+            });
+        };
+
+        // 아이템 개별 삭제
+        window.deleteRoomItem = function(key) {
+            if(confirm("정말 방에서 이 아이템을 치우시겠습니까?")) {
+                db.ref(`users/${myName}/myRoom/objects/${key}`).remove().then(() => {
+                    renderMyRoom();
+                    closePopup();
+                });
+            }
+        };
+        
         window.renderHousingInventory = function() {
             const list = document.getElementById('housing-inventory-list');
             if(!list) return;
@@ -1887,20 +1961,9 @@ window.saveHousingItem = function(key) {
         
 // 5. 방 저장 기능 (현재 좌표값을 수집하여 저장)
 window.saveMyRoom = function() {
-    const layer = document.getElementById('my-room-canvas');
-    if(!layer) return;
-    let objects = {};
-    Array.from(layer.children).forEach((child, index) => {
-        objects[index] = {
-            img: child.querySelector('img').src,
-            x: parseInt(child.style.left) || 0,
-            y: parseInt(child.style.top) || 0
+            // (1단계 코드에서 실시간 자동 저장이 되도록 구현하였으므로 이 버튼은 안심용 안내만 띄웁니다.)
+            alert("방 배치가 성공적으로 저장되었습니다! 🏠✨");
         };
-    });
-    db.ref(`users/${myName}/myRoom/objects`).set(objects).then(() => {
-        alert("방 배치가 성공적으로 저장되었습니다! 🏠✨");
-    });
-};
     </script>
 </body>
 </html>
