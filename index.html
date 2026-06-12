@@ -178,34 +178,40 @@
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
         
-      <section id="tab-housing" class="tab-content">
-    <div class="card" style="max-width: 800px; margin: 0 auto;">
-        <div id="admin-housing-control" style="display:none; border: 3px solid #3498db; padding: 20px; border-radius: 15px; margin-bottom: 20px; background-color: #f8f9fa;">
-    <h3 style="margin-top: 0; color: #2c3e50;">👑 용사의 방 관리자 시스템</h3>
-    <h4 style="margin: 10px 0;">현재 상태: <span id="housing-current-status" style="font-weight:bold;">확인 중...</span></h4>
-    <button id="housing-toggle-btn" onclick="toggleHousing()" style="background-color: #e74c3c; color: white; width: 100%; padding: 15px; border-radius: 10px; font-weight:bold;">상태 변경</button>
-</div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="margin:0;">🏰 용사의 방</h2>
-            <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 20px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점 열기</button>
-        </div>
-        
-        <div id="my-room-container" style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 6px solid #5d4037; border-radius: 15px; background-size: 100% 100%; background-repeat: no-repeat; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden; margin: 0 auto;">
-            <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
-        </div>
-
-        <div style="margin-top: 20px; text-align: center;">
-            <button onclick="saveMyRoom()" style="padding: 15px 40px; background-color: #2ecc71; color: white; border: none; border-radius: 10px; font-size: 1.5rem; font-weight: bold; cursor: pointer;">💾 방 저장하기</button>
-        </div>
-
-        <div style="width: 100%; background: #f8f9fa; padding: 15px; border-radius: 15px; border: 2px solid #ddd; margin-top: 20px;">
-            <h3 style="margin-top:0;">🎒 내 하우징 보관함 (구매한 아이템)</h3>
-            <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; min-height: 100px;">
+  <section id="tab-housing" class="tab-content">
+            <div class="card" style="max-width: 800px; margin: 0 auto;">
+                
+                <!-- 관리자 전용 하우징 컨트롤 (상태 텍스트 포함, 닫는 태그 완벽 보존) -->
+                <div id="admin-housing-control" style="display:none; border: 3px solid #3498db; padding: 20px; border-radius: 15px; margin-bottom: 20px; background-color: #f8f9fa;">
+                    <h3 style="margin-top: 0; color: #2c3e50;">👑 용사의 방 관리자 시스템</h3>
+                    <h4 style="margin: 10px 0;">현재 상태: <span id="housing-current-status" style="font-weight:bold;">확인 중...</span></h4>
+                    <button id="housing-toggle-btn" onclick="toggleHousing()" style="background-color: #e74c3c; color: white; width: 100%; padding: 15px; border-radius: 10px; font-weight:bold;">상태 변경</button>
                 </div>
-        </div>
-    </div>
-</section>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2 style="margin:0;">🏰 용사의 방</h2>
+                    <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 20px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점 열기</button>
+                </div>
+                
+                <!-- 용사의 방 캔버스 영역 -->
+                <div id="my-room-container" style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 6px solid #5d4037; border-radius: 15px; background-size: 100% 100%; background-repeat: no-repeat; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden; margin: 0 auto;">
+                    <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+                </div>
+
+                <!-- 방 저장하기 버튼 -->
+                <div style="margin-top: 20px; text-align: center;">
+                    <button onclick="saveMyRoom()" style="padding: 15px 40px; background-color: #2ecc71; color: white; border: none; border-radius: 10px; font-size: 1.5rem; font-weight: bold; cursor: pointer;">💾 방 저장하기</button>
+                </div>
+
+                <!-- 하우징 인벤토리 영역 -->
+                <div style="width: 100%; background: #f8f9fa; padding: 15px; border-radius: 15px; border: 2px solid #ddd; margin-top: 20px; box-sizing: border-box;">
+                    <h3 style="margin-top:0;">🎒 내 하우징 보관함 (구매한 아이템)</h3>
+                    <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; min-height: 100px;">
+                    </div>
+                </div>
+                
+            </div>
+        </section>
 
         <style>
             .room-tile { background-color: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; transition: 0.2s; }
