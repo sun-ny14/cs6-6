@@ -1606,9 +1606,12 @@
         // 🏰 통합 하우징 시스템 (중복 제거 및 최신 기능 완벽 통합본)
         // ==============================================================
 
-        window.toggleHousingSystem = () => {
+       window.toggleHousing = function() {
             if(!isAdmin) return;
-            db.ref('settings/housingEnabled').set(!window.isHousingEnabled);
+            const newState = !window.isHousingEnabled;
+            db.ref('settings/housingEnabled').set(newState).then(() => {
+                alert(newState ? "🟢 용사의 방 시스템이 [켜짐] 상태가 되었습니다." : "🔴 용사의 방 시스템이 [꺼짐] 상태가 되었습니다.");
+            });
         };
 
         window.openHousingTab = function() {
@@ -1658,10 +1661,14 @@
                             const o = room.objects[key];
                             const div = document.createElement('div');
                             
-                            // 기본 크기 한도 설정 (인물 vs 가구)
-                            // 기본 크기 한도 설정 (인물 vs 가구)
-let baseW = o.type === '인물' ? 64 : 48;
-let baseH = o.type === '인물' ? 96 : 48;
+                           // '인물'이나 '사람'이 들어간 모든 카테고리를 찾아냅니다.
+                            let isPerson = (o.type && (o.type.includes('인물') || o.type.includes('사람')));
+                            let baseW = isPerson ? 64 : 48;
+                            let baseH = isPerson ? 96 : 48;
+
+                            // 저장된 크기가 있으면 불러오고, 없으면 2배 커진 기본 크기 적용
+                            let currentW = o.w || baseW;
+                            let currentH = o.h || baseH;
 
                             let currentW = o.w || baseW;
                             let currentH = o.h || baseH;
@@ -1761,8 +1768,9 @@ let baseH = o.type === '인물' ? 96 : 48;
 
         // 🛠️ 2. 아이템 크기 조절 및 삭제 팝업
         window.openItemEditor = function(key, type, currentW, currentH) {
-            const baseW = type === '인물' ? 64 : 48;
-const baseH = type === '인물' ? 96 : 48;
+           let isPerson = (type && (type.includes('인물') || type.includes('사람')));
+            const baseW = isPerson ? 64 : 48;
+            const baseH = isPerson ? 96 : 48;
 
 // 최대 크기 한도를 1.5배에서 2.0배로 상향
 const maxW = baseW * 4.0, maxH = baseH * 4.0;
