@@ -1602,8 +1602,8 @@
             }
         };
 
-        // ==============================================================
-        // 🏰 통합 하우징 시스템 
+     // ==============================================================
+        // 🏰 통합 하우징 시스템 (중복 제거 및 최신 기능 완벽 통합본)
         // ==============================================================
 
         window.toggleHousingSystem = () => {
@@ -1634,6 +1634,7 @@
             }
         };
 
+        // 🏠 1. 방 렌더링 (모바일 터치, 실시간 저장, 투명 배경, 크기 조절 통합)
         window.renderMyRoom = function() {
             const container = document.getElementById('my-room-container'); 
             if(!container) return;
@@ -1657,11 +1658,10 @@
                             const o = room.objects[key];
                             const div = document.createElement('div');
                             
-                            // 💡 1. 사용자 요청에 따른 기본 크기 한도 설정
+                            // 기본 크기 한도 설정 (인물 vs 가구)
                             let baseW = o.type === '인물' ? 32 : 48;
                             let baseH = o.type === '인물' ? 48 : 48;
 
-                            // 저장된 크기가 있으면 불러오고, 없으면 기본 크기 적용
                             let currentW = o.w || baseW;
                             let currentH = o.h || baseH;
 
@@ -1673,15 +1673,16 @@
                             div.style.cursor = 'grab';
                             div.title = "드래그: 이동 / 더블클릭(길게누르기): 크기 조절 및 삭제";
                             
+                            // 투명 배경 및 픽셀아트 렌더링 유지
                             div.innerHTML = `<img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; pointer-events:none; background:transparent;">`;
                             
-                            // 💻 PC: 더블클릭 시 관리 메뉴 오픈
+                            // 💻 PC: 더블클릭 이벤트
                             div.ondblclick = (e) => {
                                 e.stopPropagation();
                                 openItemEditor(key, o.type, currentW, currentH);
                             };
 
-                            // 📱 모바일 & PC 공통: 드래그 및 길게 누르기(Long Press) 로직
+                            // 📱 마우스/터치 통합 드래그 및 길게 누르기 이벤트
                             let pressTimer;
                             let isDragging = false;
 
@@ -1699,29 +1700,24 @@
                                 let initialX = parseInt(div.style.left) || 0;
                                 let initialY = parseInt(div.style.top) || 0;
 
-                                // 0.6초간 안 움직이고 누르고 있으면 설정 팝업 오픈
+                                // 0.6초 길게 누르면 설정 팝업
                                 pressTimer = setTimeout(() => {
-                                    if(!isDragging && isTouch) {
-                                        openItemEditor(key, o.type, currentW, currentH);
-                                    }
+                                    if(!isDragging && isTouch) openItemEditor(key, o.type, currentW, currentH);
                                 }, 600);
 
                                 const moveDrag = function(e) {
                                     isDragging = true;
-                                    clearTimeout(pressTimer); // 움직이면 길게누르기 취소
+                                    clearTimeout(pressTimer); 
                                     
                                     if (e.type.includes('touch')) e.preventDefault(); 
                                     
                                     const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
                                     const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
                                     
-                                    let dx = currentX - startX;
-                                    let dy = currentY - startY;
+                                    let newX = initialX + (currentX - startX);
+                                    let newY = initialY + (currentY - startY);
                                     
-                                    let newX = initialX + dx;
-                                    let newY = initialY + dy;
-                                    
-                                    // 💡 아이템의 현재 크기(currentW, currentH)를 반영하여 벽 이탈 완벽 방지
+                                    // 화면 이탈 방지
                                     if(newX < 0) newX = 0;
                                     if(newY < 0) newY = 0;
                                     if(newX > (640 - currentW)) newX = (640 - currentW); 
@@ -1741,10 +1737,9 @@
                                     div.style.cursor = 'grab';
                                     div.style.zIndex = '';
                                     
+                                    // 드래그 종료 즉시 좌표 실시간 저장
                                     const finalX = parseInt(div.style.left);
                                     const finalY = parseInt(div.style.top);
-                                    
-                                    // 💡 드래그를 놓는 즉시 DB에 실시간 위치 저장
                                     db.ref(`users/${myName}/myRoom/objects/${key}`).update({x: finalX, y: finalY});
                                 };
 
@@ -1756,27 +1751,24 @@
 
                             div.addEventListener('mousedown', startDrag);
                             div.addEventListener('touchstart', startDrag, {passive: false});
-                            
                             if(layer) layer.appendChild(div); 
                         });
                     }
                 });
             });
         };
-// 2. 아이템 크기 조절 및 삭제 관리 팝업
+
+        // 🛠️ 2. 아이템 크기 조절 및 삭제 팝업
         window.openItemEditor = function(key, type, currentW, currentH) {
-            // 최대/최소 한도 설정 (기본 크기의 1.5배까지만 커지고, 0.5배까지만 작아짐)
             const baseW = type === '인물' ? 32 : 48;
             const baseH = type === '인물' ? 48 : 48;
 
-            const maxW = baseW * 1.5; 
-            const maxH = baseH * 1.5;
-            const minW = baseW * 0.5; 
-            const minH = baseH * 0.5;
+            const maxW = baseW * 1.5, maxH = baseH * 1.5;
+            const minW = baseW * 0.5, minH = baseH * 0.5;
 
             let h = `
                 <div style="text-align:center; padding: 10px;">
-                    <h3 style="margin-top:0;">🛠️ 가구/인물 설정</h3>
+                    <h3 style="margin-top:0;">🛠️ ${type} 설정</h3>
                     <p style="color:#666; font-size:1.1rem;">현재 크기: ${Math.round(currentW)} x ${Math.round(currentH)}</p>
                     <div style="display:flex; justify-content:center; gap:15px; margin-bottom: 20px;">
                         <button onclick="resizeRoomItem('${key}', ${currentW*1.2}, ${currentH*1.2}, ${maxW}, ${maxH}, 'up')" style="flex:1; padding:15px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">➕ 크게</button>
@@ -1788,27 +1780,23 @@
             openPopup("아이템 관리", h);
         };
 
-        // 크기 변경 값 DB 업데이트
         window.resizeRoomItem = function(key, newW, newH, limitW, limitH, dir) {
             if (dir === 'up' && (newW > limitW || newH > limitH)) return alert("해당 아이템을 더 이상 크게 만들 수 없습니다!");
             if (dir === 'down' && (newW < limitW || newH < limitH)) return alert("해당 아이템을 더 이상 작게 만들 수 없습니다!");
-
             db.ref(`users/${myName}/myRoom/objects/${key}`).update({w: Math.round(newW), h: Math.round(newH)}).then(() => {
-                renderMyRoom(); // 화면 즉시 적용
-                closePopup(); 
+                renderMyRoom(); closePopup(); 
             });
         };
 
-        // 아이템 개별 삭제
         window.deleteRoomItem = function(key) {
             if(confirm("정말 방에서 이 아이템을 치우시겠습니까?")) {
                 db.ref(`users/${myName}/myRoom/objects/${key}`).remove().then(() => {
-                    renderMyRoom();
-                    closePopup();
+                    renderMyRoom(); closePopup();
                 });
             }
         };
-        
+
+        // 🎒 3. 내 하우징 보관함 로드 및 아이템 배치
         window.renderHousingInventory = function() {
             const list = document.getElementById('housing-inventory-list');
             if(!list) return;
@@ -1818,8 +1806,7 @@
                 const inv = snap.val() || {};
                 let hasItems = false;
                 for(let k in inv) {
-                    hasItems = true;
-                    const i = inv[k];
+                    hasItems = true; const i = inv[k];
                     list.innerHTML += `<div style="border:1px solid #ccc; padding:10px; border-radius:8px; text-align:center; min-width:80px; background:#f8f9fa;">
                         <div style="font-size:0.75rem; color:#666; font-weight:bold;">${i.category}</div>
                         <img src="${i.img}" style="width:40px; height:40px; object-fit:contain; image-rendering:pixelated; margin:5px 0;">
@@ -1839,98 +1826,102 @@
             } else {
                 const objId = Date.now();
                 db.ref(`users/${myName}/myRoom/objects/${objId}`).set({
-                    img: img,
-                    type: category,
-                    x: 290, 
-                    y: 210  
+                    img: img, type: category, x: 290, y: 210  
                 }).then(() => renderMyRoom());
                 alert("방 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
             }
         };
 
-        // ==============================================================
-// 🏰 통합 하우징 시스템 (상점, 업로드, 드래그 앤 드롭, 저장)
-// ==============================================================
-
-// 1. 하우징 상점 열기 (학생 및 관리자 공통)
-window.openHousingShopPopup = function() {
-    let h = `
-        <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px; text-align:center;">
-            <button onclick="loadHousingShop('전체')" style="padding:10px; margin:2px;">전체</button>
-            <button onclick="loadHousingShop('배경')" style="padding:10px; margin:2px;">🖼️ 배경</button>
-            <button onclick="loadHousingShop('가구')" style="padding:10px; margin:2px;">🪑 가구</button>
-        </div>
-        ${isAdmin ? `<button onclick="openAddHousingShopPopup()" style="background:var(--green); color:white; font-weight:bold; margin-bottom:15px; width:100%; border:none; padding:15px; border-radius:10px; cursor:pointer;">+ 새 아이템 직접 등록</button>` : ''}
-        <div id="housing-shop-items" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:15px; max-height:50vh; overflow-y:auto; padding:5px;">로딩 중...</div>
-    `;
-    openPopup("🛒 하우징 상점", h);
-    loadHousingShop('전체');
-};
-
-// 2. 상점 아이템 로드 및 화면 출력
-window.loadHousingShop = function(filterCat) {
-    const container = document.getElementById('housing-shop-items');
-    if (!container) return;
-    db.ref('housingShop').once('value', snap => {
-        let html = ""; let hasItems = false;
-        snap.forEach(child => {
-            const k = child.key; const item = child.val();
-            if (filterCat !== '전체' && item.category !== filterCat) return;
-            hasItems = true;
-            html += `
-                <div style="border:1px solid #ddd; padding:10px; border-radius:12px; text-align:center; background:white;">
-                    <div style="font-size:0.75rem; color:#888;">${item.category}</div>
-                    <img src="${item.img}" style="width:50px; height:50px; object-fit:contain; image-rendering:pixelated; margin:8px 0;">
-                    <div style="font-weight:bold;">${item.name}</div>
-                    <div style="color:var(--primary); font-weight:bold; margin:5px 0;">${item.price}P</div>
-                    <button onclick="buyHousingItem('${k}')" style="width:100%; padding:6px; background:var(--gold); font-weight:bold; border:none; border-radius:6px;">구매하기</button>
+        // 🛒 4. 하우징 상점 및 관리 로직
+        window.openHousingShopPopup = function() {
+            let h = `
+                <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px; text-align:center;">
+                    <button onclick="loadHousingShop('전체')" style="padding:10px; margin:2px;">전체</button>
+                    <button onclick="loadHousingShop('배경')" style="padding:10px; margin:2px;">🖼️ 배경</button>
+                    <button onclick="loadHousingShop('가구')" style="padding:10px; margin:2px;">🪑 가구</button>
+                    <button onclick="loadHousingShop('인물')" style="padding:10px; margin:2px;">👤 인물</button>
                 </div>
+                ${isAdmin ? `<button onclick="openAddHousingShopPopup()" style="background:var(--green); color:white; font-weight:bold; margin-bottom:15px; width:100%; border:none; padding:15px; border-radius:10px; cursor:pointer;">+ 새 아이템 직접 등록</button>` : ''}
+                <div id="housing-shop-items" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:15px; max-height:50vh; overflow-y:auto; padding:5px;">로딩 중...</div>
             `;
-        });
-        container.innerHTML = hasItems ? html : `<div style="grid-column:1/-1; text-align:center; color:#999;">등록된 아이템이 없습니다.</div>`;
-    });
-};
+            openPopup("🛒 하우징 상점", h);
+            loadHousingShop('전체');
+        };
 
-// 3. 관리자 전용 - 아이템 등록 팝업
-window.openAddHousingShopPopup = function(itemKey = null, itemData = {}) {
-    let h = `
-        <label>아이템명:</label><input type="text" id="hs-name" value="${itemData.name || ''}">
-        <label>가격(P):</label><input type="number" id="hs-price" value="${itemData.price || 0}">
-        <label>카테고리:</label>
-        <select id="hs-cat"><option value="배경">🖼️ 배경</option><option value="가구">🪑 가구</option></select>
-        <label>이미지 파일 (Storage 없이 DB에 직접 텍스트로 저장됩니다):</label>
-        <input type="file" id="hs-file" accept="image/*">
-        <button onclick="saveHousingItem('${itemKey}')" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; margin-top:15px;">저장하기</button>
-    `;
-    openPopup("아이템 직접 등록", h);
-};
+        window.loadHousingShop = function(filterCat) {
+            const container = document.getElementById('housing-shop-items');
+            if (!container) return;
+            db.ref('housingShop').once('value', snap => {
+                let html = ""; let hasItems = false;
+                snap.forEach(child => {
+                    const k = child.key; const item = child.val();
+                    if (filterCat !== '전체' && item.category !== filterCat) return;
+                    hasItems = true;
+                    html += `
+                        <div style="border:1px solid #ddd; padding:10px; border-radius:12px; text-align:center; background:white;">
+                            <div style="font-size:0.75rem; color:#888;">${item.category}</div>
+                            <img src="${item.img}" style="width:50px; height:50px; object-fit:contain; image-rendering:pixelated; margin:8px 0;">
+                            <div style="font-weight:bold;">${item.name}</div>
+                            <div style="color:var(--primary); font-weight:bold; margin:5px 0;">${item.price}P</div>
+                            <button onclick="buyHousingItem('${k}')" style="width:100%; padding:6px; background:var(--gold); font-weight:bold; border:none; border-radius:6px;">구매하기</button>
+                            ${isAdmin ? `<button onclick="deleteHousingShopItem('${k}')" style="width:100%; padding:4px; margin-top:5px; background:var(--red); color:white; border:none; border-radius:6px; font-size:0.8rem;">삭제</button>` : ''}
+                        </div>
+                    `;
+                });
+                container.innerHTML = hasItems ? html : `<div style="grid-column:1/-1; text-align:center; color:#999;">등록된 아이템이 없습니다.</div>`;
+            });
+        };
 
-// 4. 스토리지 제거 - 이미지를 Base64 문자열로 변환하여 DB에 저장
-window.saveHousingItem = function(key) {
-    const fileInput = document.getElementById('hs-file');
-    const name = document.getElementById('hs-name').value;
-    const price = parseInt(document.getElementById('hs-price').value);
-    const cat = document.getElementById('hs-cat').value;
+        // 관리자 전용 삭제 (추가)
+        window.deleteHousingShopItem = function(key) {
+            if(confirm("상점에서 이 아이템을 영구 삭제하시겠습니까?")) {
+                db.ref('housingShop/' + key).remove().then(() => loadHousingShop('전체'));
+            }
+        };
 
-    if (!name || isNaN(price)) return alert("이름과 가격을 확인해주세요!");
+        window.openAddHousingShopPopup = function(itemKey = null, itemData = {}) {
+            let h = `
+                <label>아이템명:</label><input type="text" id="hs-name" value="${itemData.name || ''}">
+                <label>가격(P):</label><input type="number" id="hs-price" value="${itemData.price || 0}">
+                <label>카테고리:</label>
+                <select id="hs-cat">
+                    <option value="배경">🖼️ 배경</option>
+                    <option value="가구">🪑 가구</option>
+                    <option value="인물">👤 인물</option>
+                </select>
+                <label>이미지 첨부 (DB 직접 저장):</label>
+                <input type="file" id="hs-file" accept="image/*">
+                <button onclick="saveHousingItem('${itemKey}')" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; margin-top:15px;">저장하기</button>
+            `;
+            openPopup("아이템 직접 등록", h);
+        };
 
-    const proceedSave = (imgString) => {
-        const data = { name, price, category: cat, img: imgString };
-        db.ref('housingShop').push(data).then(() => {
-            alert("✅ 성공적으로 등록되었습니다!");
-            closePopup(); openHousingShopPopup();
-        });
-    };
+        window.saveHousingItem = function(key) {
+            const fileInput = document.getElementById('hs-file');
+            const name = document.getElementById('hs-name').value;
+            const price = parseInt(document.getElementById('hs-price').value);
+            const cat = document.getElementById('hs-cat').value;
 
-    if (fileInput.files && fileInput.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) { proceedSave(e.target.result); }; // Base64 변환 핵심 로직
-        reader.readAsDataURL(fileInput.files[0]);
-    } else {
-        alert("이미지 파일을 반드시 첨부해 주세요!");
-    }
-};
-// 하우징 아이템 구매 (스토리지 없이 작동하는 통합 버전 + 관리자 무제한 패스)
+            if (!name || isNaN(price)) return alert("이름과 가격을 확인해주세요!");
+
+            const proceedSave = (imgString) => {
+                const data = { name, price, category: cat, img: imgString };
+                db.ref('housingShop').push(data).then(() => {
+                    alert("✅ 성공적으로 등록되었습니다!");
+                    closePopup(); openHousingShopPopup();
+                });
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) { proceedSave(e.target.result); }; 
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                alert("이미지 파일을 반드시 첨부해 주세요!");
+            }
+        };
+
+        // 구매 및 관리자 한도 패스
         window.buyHousingItem = async function(key) {
             const sn = await db.ref('users/' + myName).once('value');
             const myPts = sn.val().points || 0;
@@ -1944,14 +1935,12 @@ window.saveHousingItem = function(key) {
             const category = item.category;
             const img = item.img || item.url;
 
-            // 관리자가 아닐 때만 포인트 부족 검사
             if(!isAdmin && (myPts < 0 || myPts < price)) {
                 return alert("포인트가 마이너스이거나 부족합니다! 😭");
             }
 
             if(!confirm(`[${name}] 아이템을 ${price}P에 구매하시겠습니까?`)) return;
             
-            // 포인트 차감 (관리자는 마이너스가 되더라도 강제 진행)
             await db.ref('users/' + myName).update({ points: myPts - price });
             await db.ref(`users/${myName}/housingInventory`).push({ name: name, category: category, img: img });
             
@@ -1959,10 +1948,9 @@ window.saveHousingItem = function(key) {
             if(currentTab === 'housing') renderHousingInventory();
         };
         
-// 5. 방 저장 기능 (현재 좌표값을 수집하여 저장)
-window.saveMyRoom = function() {
-            // (1단계 코드에서 실시간 자동 저장이 되도록 구현하였으므로 이 버튼은 안심용 안내만 띄웁니다.)
-            alert("방 배치가 성공적으로 저장되었습니다! 🏠✨");
+        // 💾 5. 방 저장 버튼 처리 (자동 저장으로 대체되었으므로 안내문 출력)
+        window.saveMyRoom = function() {
+            alert("가구나 인물을 움직이면 실시간으로 자동 저장됩니다! 🏠✨");
         };
     </script>
 </body>
