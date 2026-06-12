@@ -1681,13 +1681,16 @@
                             div.style.cursor = 'grab';
                             div.title = "드래그: 이동 / 더블클릭(길게누르기): 크기 조절 및 삭제";
                             
-                            // 투명 배경 및 픽셀아트 렌더링 유지
-                            div.innerHTML = `<img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; pointer-events:none; background:transparent;">`;
+                           // 💡 좌우 반전(flipX) 데이터가 참이면 거울처럼 뒤집기
+                            const flipStyle = o.flipX ? 'transform: scaleX(-1);' : '';
                             
-                            // 💻 PC: 더블클릭 이벤트
+                            // 투명 배경 및 픽셀아트 렌더링 유지 (+ 반전 스타일 추가)
+                            div.innerHTML = `<img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; pointer-events:none; background:transparent; ${flipStyle}">`;
+                            
+                            // 💻 PC: 더블클릭 이벤트 (반전 상태 o.flipX 도 같이 넘겨줌)
                             div.ondblclick = (e) => {
                                 e.stopPropagation();
-                                openItemEditor(key, o.type, currentW, currentH);
+                                openItemEditor(key, o.type, currentW, currentH, o.flipX);
                             };
 
                             // 📱 마우스/터치 통합 드래그 및 길게 누르기 이벤트
@@ -1708,11 +1711,10 @@
                                 let initialX = parseInt(div.style.left) || 0;
                                 let initialY = parseInt(div.style.top) || 0;
 
-                                // 0.6초 길게 누르면 설정 팝업
+                                // 0.6초 길게 누르면 설정 팝업 (반전 상태 o.flipX 도 같이 넘겨줌)
                                 pressTimer = setTimeout(() => {
-                                    if(!isDragging && isTouch) openItemEditor(key, o.type, currentW, currentH);
+                                    if(!isDragging && isTouch) openItemEditor(key, o.type, currentW, currentH, o.flipX);
                                 }, 600);
-
                                 const moveDrag = function(e) {
                                     isDragging = true;
                                     clearTimeout(pressTimer); 
@@ -1766,28 +1768,38 @@
             });
         };
 
-        // 🛠️ 2. 아이템 크기 조절 및 삭제 팝업
-        window.openItemEditor = function(key, type, currentW, currentH) {
-           let isPerson = (type && (type.includes('인물') || type.includes('사람')));
+       // 🛠️ 2. 아이템 크기 조절, 반전 및 삭제 팝업
+        window.openItemEditor = function(key, type, currentW, currentH, isFlipped) {
+            let isPerson = (type && (type.includes('인물') || type.includes('사람')));
             const baseW = isPerson ? 64 : 48;
             const baseH = isPerson ? 96 : 48;
 
-// 최대 크기 한도를 1.5배에서 2.0배로 상향
-const maxW = baseW * 4.0, maxH = baseH * 4.0;
-const minW = baseW * 0.5, minH = baseH * 0.5;
+            const maxW = baseW * 4.0, maxH = baseH * 4.0;
+            const minW = baseW * 0.5, minH = baseH * 0.5;
 
             let h = `
                 <div style="text-align:center; padding: 10px;">
                     <h3 style="margin-top:0;">🛠️ ${type} 설정</h3>
                     <p style="color:#666; font-size:1.1rem;">현재 크기: ${Math.round(currentW)} x ${Math.round(currentH)}</p>
-                    <div style="display:flex; justify-content:center; gap:15px; margin-bottom: 20px;">
-                        <button onclick="resizeRoomItem('${key}', ${currentW*1.2}, ${currentH*1.2}, ${maxW}, ${maxH}, 'up')" style="flex:1; padding:15px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">➕ 크게</button>
-                        <button onclick="resizeRoomItem('${key}', ${currentW*0.8}, ${currentH*0.8}, ${minW}, ${minH}, 'down')" style="flex:1; padding:15px; background:var(--gold); color:var(--dark); border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">➖ 작게</button>
+                    <div style="display:flex; justify-content:center; gap:10px; margin-bottom: 20px;">
+                        <button onclick="resizeRoomItem('${key}', ${currentW*1.2}, ${currentH*1.2}, ${maxW}, ${maxH}, 'up')" style="flex:1; padding:15px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem;">➕ 크게</button>
+                        <button onclick="resizeRoomItem('${key}', ${currentW*0.8}, ${currentH*0.8}, ${minW}, ${minH}, 'down')" style="flex:1; padding:15px; background:var(--gold); color:var(--dark); border:none; border-radius:10px; font-weight:bold; font-size:1.1rem;">➖ 작게</button>
+                        <button onclick="toggleFlipRoomItem('${key}', ${isFlipped ? true : false})" style="flex:1; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem;">↔️ 반전</button>
                     </div>
                     <button onclick="deleteRoomItem('${key}')" style="padding:15px; width:100%; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">🗑️ 이 아이템 치우기</button>
                 </div>
             `;
             openPopup("아이템 관리", h);
+        };
+
+        // 좌우 반전 값 DB 업데이트 함수 추가
+        window.toggleFlipRoomItem = function(key, currentFlipState) {
+            db.ref(`users/${myName}/myRoom/objects/${key}`).update({
+                flipX: !currentFlipState
+            }).then(() => {
+                renderMyRoom(); // 화면 즉시 적용
+                closePopup(); 
+            });
         };
 
         window.resizeRoomItem = function(key, newW, newH, limitW, limitH, dir) {
