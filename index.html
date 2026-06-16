@@ -306,17 +306,22 @@
 
         function handleLogin() { auth.signInWithPopup(provider); }
         
-        function showTab(t) { 
+        ffunction showTab(t) { 
             currentTab = t; 
             sessionStorage.setItem('activeTab', t); 
-            document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active')); 
+            
+            // 💡 핵심: 탭 내용들을 숨길 때, 강제로 켜진 스타일 도장도 싹 지워줍니다.
+            document.querySelectorAll('.tab-content').forEach(s => {
+                s.classList.remove('active');
+                s.style.display = ''; 
+            }); 
+            
             document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); 
             document.getElementById('tab-'+t).classList.add('active'); 
             if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active'); 
             if(t==='points') loadMyLogs(); 
             if(t==='logs') renderCheckinBoard(); 
         }
-
         function openPopup(t,h,r=false) { document.getElementById('pop-title').innerHTML=t; document.getElementById('pop-content').innerHTML=h; document.getElementById('common-overlay').style.display='flex'; window.routineActive=r; }
         function closePopup() { if(window.routineActive && ++rIdx < routineItems.length) document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; else { document.getElementById('common-overlay').style.display='none'; rIdx = 0; } }
         function closePointPopup() { document.getElementById('point-popup').style.display='none'; }
@@ -422,12 +427,11 @@
                         showTab('main');
                         alert("🚧 총사령관님이 용사의 방을 임시로 닫았습니다. 메인 화면으로 이동합니다.");
                     }
-                } else {
+               } else {
                     // [관리자이거나 방 열림 상태] : 탭 메뉴 버튼을 다시 보여줌
-                    if (housingTabBtn) housingTabBtn.style.display = ''; // 빈 문자열로 두면 CSS 원래 설정(flex) 복구됨
-                    if (housingTabContent && housingTabContent.classList.contains('active')) {
-                        housingTabContent.style.display = 'block';
-                    }
+                    if (housingTabBtn) housingTabBtn.style.display = ''; 
+                    // 💡 강제로 'block'을 주지 않고 빈 문자열('')로 초기화하여 탭 시스템 룰을 따르게 합니다.
+                    if (housingTabContent) housingTabContent.style.display = ''; 
                 }
                 
                 // 관리자 패널의 현재 상태 텍스트 및 버튼 색상 변경
