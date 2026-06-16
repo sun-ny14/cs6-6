@@ -753,10 +753,27 @@
                 // 관리자 전용 한도 리셋 버튼
                 const adminResetBtn = isAdmin ? `<button onclick="resetUserItemLimit('${un}')" style="margin-top:10px; padding:8px 12px; background:var(--purple); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🔄 특정 상품 구매한도 리셋</button>` : '';
                 
-                // 💡 추가된 부분: 친구 방 방문 버튼
-                const visitRoomBtn = `<button onclick="visitFriendRoom('${un}')" style="margin-top:10px; padding:10px; background:var(--green); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%; font-size:1.1rem;">🏰 용사의 방 구경가기</button>`;
+                // 💡 방 구경가기 버튼 (나를 포함한 모든 사람의 방에 구경 갈 수 있음)
+                const visitRoomBtn = `<button onclick="visitFriendRoom('${un}')" style="margin-top:15px; padding:15px; background:var(--green); color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer; width:100%; font-size:1.2rem; box-shadow:0 4px 6px rgba(0,0,0,0.1);">🏰 ${un} 용사의 방 구경가기</button>`;
 
-                let h = `<div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; border:2px solid #eee;"><div style="flex:0 0 100px; text-align:center;">${getAvatar(lv, u.selectedAnimal)}<div style="margin-top:8px; font-weight:bold;">LV.${lv}</div>${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; background:var(--gold); border:none; border-radius:5px;">모습 변경</button>` : ''}</div><div style="flex:1;"><h3 style="margin:0;">${un} 용사</h3>${isMeOrAdmin ? `<div>💰 <b>${pts}P</b></div><div>✨ EXP: <b>${u.exp||0} / 100</b></div>${adminResetBtn}` : `<p style="color:red;">🛡️ 정보는 비밀입니다!</p>`}${visitRoomBtn}</div></div>`;
+                // HTML 구조를 분리하여 버튼이 무조건 아래쪽에 꽉 차게 보이도록 수정
+                let h = `
+                <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; border:2px solid #eee;">
+                    <div style="flex:0 0 100px; text-align:center;">
+                        ${getAvatar(lv, u.selectedAnimal)}
+                        <div style="margin-top:8px; font-weight:bold;">LV.${lv}</div>
+                        ${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; background:var(--gold); border:none; border-radius:5px;">모습 변경</button>` : ''}
+                    </div>
+                    
+                    <div style="flex:1; min-width: 150px;">
+                        <h3 style="margin:0 0 10px 0;">${un} 용사</h3>
+                        ${isMeOrAdmin ? `<div>💰 <b>${pts}P</b></div><div>✨ EXP: <b>${u.exp||0} / 100</b></div>${adminResetBtn}` : `<p style="color:var(--red); font-weight:bold;">🛡️ 정보는 비밀입니다!</p>`}
+                    </div>
+                    
+                    <div style="width: 100%;">
+                        ${visitRoomBtn}
+                    </div>
+                </div>`;
                 
                 if (isMeOrAdmin) { 
                     db.ref('pointLogs').once('value', lsn => { 
