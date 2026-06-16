@@ -518,10 +518,10 @@
                                 <span><del>${item}</del> <b style="color:var(--red);">(품절)</b> <b>x${myUnused[item].length}</b></span>
                                 <button onclick="refundItem('${orderKey}', '${item}', ${price})" style="padding:8px 12px; background:var(--red); color:white; border-radius:8px; border:none; font-weight:bold;">${price}P 환불</button>
                                </div>`;
-                    } else {
+                   } else {
                         uH += `<div class="list-item" style="display:flex; align-items:center; justify-content:space-between;">
                                 <span>${item} <b>x${myUnused[item].length}</b></span>
-                                <button onclick="if(confirm('${item} 사용?')) db.ref('orders/${orderKey}').update({status:'사용요청'})" style="padding:8px 12px; background:var(--primary); color:white; border-radius:8px; border:none; font-weight:bold;">사용</button>
+                                <button onclick="useInventoryItem('${orderKey}', '${item}')" style="padding:8px 12px; background:var(--primary); color:white; border-radius:8px; border:none; font-weight:bold;">사용</button>
                                </div>`;
                     }
                 }
@@ -750,13 +750,30 @@
             db.ref('users/' + un).once('value', sn => {
                 const u = sn.val() || {}, lv = u.lv || 1, pts = u.points || 0, isMeOrAdmin = (isAdmin || un === myName);
                 
-                // [추가된 코드] 관리자 전용 한도 리셋 버튼
+                // 관리자 전용 한도 리셋 버튼
                 const adminResetBtn = isAdmin ? `<button onclick="resetUserItemLimit('${un}')" style="margin-top:10px; padding:8px 12px; background:var(--purple); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🔄 특정 상품 구매한도 리셋</button>` : '';
+                
+                // 💡 추가된 부분: 친구 방 방문 버튼
+                const visitRoomBtn = `<button onclick="visitFriendRoom('${un}')" style="margin-top:10px; padding:10px; background:var(--green); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%; font-size:1.1rem;">🏰 용사의 방 구경가기</button>`;
 
-                let h = `<div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; border:2px solid #eee;"><div style="flex:0 0 100px; text-align:center;">${getAvatar(lv, u.selectedAnimal)}<div style="margin-top:8px; font-weight:bold;">LV.${lv}</div>${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; background:var(--gold); border:none; border-radius:5px;">모습 변경</button>` : ''}</div><div style="flex:1;"><h3 style="margin:0;">${un} 용사</h3>${isMeOrAdmin ? `<div>💰 <b>${pts}P</b></div><div>✨ EXP: <b>${u.exp||0} / 100</b></div>${adminResetBtn}` : `<p style="color:red;">🛡️ 정보는 비밀입니다!</p>`}</div></div>`;
-                if (isMeOrAdmin) { db.ref('pointLogs').once('value', lsn => { let uL = []; lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); }); let logHtml = `<div style="max-height:200px; overflow-y:auto; margin-top:10px;">`; uL.reverse().slice(0, 20).forEach(l => { logHtml += `<div class="list-item"><span>${l.reason}<br><small>${l.time}</small></span><strong>${l.amount}P</strong></div>`; }); openPopup(`${un} 정보`, h + logHtml + `</div>`); }); } else { openPopup(`${un} 정보`, h); }
+                let h = `<div style="display:flex; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; border:2px solid #eee;"><div style="flex:0 0 100px; text-align:center;">${getAvatar(lv, u.selectedAnimal)}<div style="margin-top:8px; font-weight:bold;">LV.${lv}</div>${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; background:var(--gold); border:none; border-radius:5px;">모습 변경</button>` : ''}</div><div style="flex:1;"><h3 style="margin:0;">${un} 용사</h3>${isMeOrAdmin ? `<div>💰 <b>${pts}P</b></div><div>✨ EXP: <b>${u.exp||0} / 100</b></div>${adminResetBtn}` : `<p style="color:red;">🛡️ 정보는 비밀입니다!</p>`}${visitRoomBtn}</div></div>`;
+                
+                if (isMeOrAdmin) { 
+                    db.ref('pointLogs').once('value', lsn => { 
+                        let uL = []; 
+                        lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); }); 
+                        let logHtml = `<div style="max-height:200px; overflow-y:auto; margin-top:10px;">`; 
+                        uL.reverse().slice(0, 20).forEach(l => { 
+                            logHtml += `<div class="list-item"><span>${l.reason}<br><small>${l.time}</small></span><strong>${l.amount}P</strong></div>`; 
+                        }); 
+                        openPopup(`${un} 정보`, h + logHtml + `</div>`); 
+                    }); 
+                } else { 
+                    openPopup(`${un} 정보`, h); 
+                }
             });
         }
+        
 // 특정 학생의 특정 아이템 구매 한도를 초기화하는 함수
         window.resetUserItemLimit = async function(userName) {
             // 1. 초기화할 상품명 입력받기
@@ -1574,14 +1591,118 @@
             await db.ref('orders/' + orderKey).remove();
             alert(`✅ ${price}P 환불이 완료되었습니다! (연대기 확인 가능)`);
         };
-
-        window.approveSingleItem = function(key, user, item) {
+window.approveSingleItem = async function(key, user, item) {
             if(confirm(`${user} 용사의 [${item}] 1개를 승인하시겠습니까?`)) {
+                // 💡 리셋 쿠폰 자동 처리 마법!
+                const resetMatch = item.match(/\(요청:\s*(.+)\)/);
+                if(resetMatch) {
+                    const targetItem = resetMatch[1];
+                    const ordersSnap = await db.ref('orders').once('value');
+                    const updates = {};
+                    ordersSnap.forEach(child => {
+                        const o = child.val();
+                        if (o.user === user && o.item === targetItem) {
+                            updates[`orders/${child.key}/item`] = `${targetItem} (한도리셋)`;
+                        }
+                    });
+                    await db.ref().update(updates);
+                    alert(`✨ 자동 리셋 완료! ${user} 용사는 이제 [${targetItem}]을(를) 다시 살 수 있습니다.`);
+                }
+
                 db.ref('orders/' + key).update({status: '완료'})
-                  .then(() => alert("✅ 개별 승인 완료!"));
+                  .then(() => { if(!resetMatch) alert("✅ 개별 승인 완료!"); });
             }
         };
 
+        window.approveUserAll = async function(keyStr, user) {
+            if(confirm(`${user} 용사의 모든 사용 요청을 승인하시겠습니까?`)) {
+                const keys = keyStr.split(',');
+                const updates = {};
+                
+                // 💡 일괄 승인 시에도 리셋 쿠폰이 섞여 있으면 자동 처리
+                for (let k of keys) {
+                    const snap = await db.ref('orders/' + k).once('value');
+                    const o = snap.val();
+                    if(o && o.item) {
+                        const resetMatch = o.item.match(/\(요청:\s*(.+)\)/);
+                        if(resetMatch) {
+                            const targetItem = resetMatch[1];
+                            const ordersSnap = await db.ref('orders').once('value');
+                            ordersSnap.forEach(child => {
+                                const pastOrder = child.val();
+                                if (pastOrder.user === user && pastOrder.item === targetItem) {
+                                    updates[`orders/${child.key}/item`] = `${targetItem} (한도리셋)`;
+                                }
+                            });
+                        }
+                    }
+                    updates['orders/' + k + '/status'] = '완료';
+                }
+                
+                await db.ref().update(updates);
+                alert("✅ 일괄 승인 및 (리셋 쿠폰이 있다면) 자동 리셋까지 완벽하게 처리되었습니다!");
+            }
+        };
+
+        // 💡 인벤토리 아이템 사용 제어 및 리셋 쿠폰 팝업 연결
+        window.useInventoryItem = function(orderKey, itemName) {
+            // 상품명에 '리셋'이나 '초기화'가 들어가면 특수 팝업 띄우기
+            if(itemName.includes('리셋') || itemName.includes('초기화')) {
+                db.ref('orders').once('value', snap => {
+                    let boughtItems = new Set();
+                    snap.forEach(c => {
+                        const o = c.val();
+                        // 내가 샀던 아이템 중 리셋 쿠폰류가 아닌 것들만 드롭다운에 추가
+                        if(o.user === myName && o.item && !o.item.includes('리셋') && !o.item.includes('초기화')) {
+                            boughtItems.add(o.item.replace(' (한도리셋)', '')); // 기존 꼬리표 떼고 원본 이름만
+                        }
+                    });
+
+                    if(boughtItems.size === 0) {
+                        return alert("아직 구매한 다른 상품이 없어 리셋할 항목이 없습니다!");
+                    }
+
+                    let h = `
+                        <div style="text-align:center;">
+                            <h3 style="margin-top:0;">🔄 어떤 상품을 다시 구매하고 싶나요?</h3>
+                            <p style="color:#666; font-size:1rem;">리셋할 상품을 아래에서 골라주세요.<br>(내가 과거에 샀던 물건만 표시됩니다)</p>
+                            <select id="reset-target-item" style="width:100%; padding:15px; font-size:1.2rem; border-radius:10px; margin-bottom:20px; border:2px solid var(--primary);">
+                    `;
+                    boughtItems.forEach(item => {
+                        h += `<option value="${item}">${item}</option>`;
+                    });
+                    h += `  </select>
+                            <button onclick="submitResetRequest('${orderKey}', '${itemName}')" style="width:100%; padding:15px; background:var(--gold); color:var(--dark); border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">총사령관에게 승인 요청하기</button>
+                        </div>`;
+                    openPopup("마법의 리셋 쿠폰 사용", h);
+                });
+            } else {
+                // 일반 아이템 사용
+                if(confirm(`[${itemName}] 아이템을 사용하시겠습니까?\n(총사령관의 승인 후 최종 처리됩니다)`)) {
+                    db.ref('orders/' + orderKey).update({status:'사용요청'}).then(() => {
+                        alert("사용 요청이 전송되었습니다!");
+                    });
+                }
+            }
+        };
+
+        // 💡 리셋 쿠폰 최종 요청 전송
+        window.submitResetRequest = function(orderKey, couponName) {
+            const target = document.getElementById('reset-target-item').value;
+            if(!target) return alert("상품을 선택해주세요!");
+            
+            // 이름 뒤에 꼬리표 붙이기 (예: 구매수량 리셋 쿠폰 (요청: 컵라면))
+            const newMemo = `${couponName} (요청: ${target})`;
+            
+            db.ref('orders/' + orderKey).update({
+                status: '사용요청',
+                item: newMemo 
+            }).then(() => {
+                alert(`✅ [${target}] 리셋 요청 전송 완료!\n총사령관 승인 즉시 다시 구매할 수 있게 됩니다.`);
+                closePopup();
+            });
+        };
+        
         window.rejectSingleItem = function(key, user, item) {
             if(confirm(`${user} 용사의 [${item}] 요청을 거절하고 포인트를 환불하시겠습니까?`)) {
                 let refundP = 0;
@@ -1970,6 +2091,69 @@
         // 💾 5. 방 저장 버튼 처리 (자동 저장으로 대체되었으므로 안내문 출력)
         window.saveMyRoom = function() {
             alert("가구나 인물을 움직이면 실시간으로 자동 저장됩니다! 🏠✨");
+        };
+
+        // 🏰 친구 방 방문 기능
+        window.visitFriendRoom = function(targetUser) {
+            db.ref(`users/${targetUser}/myRoom`).once('value', snap => {
+                const room = snap.val() || {};
+                
+                db.ref('settings/defaultBg').once('value').then(defaultSnap => {
+                    const defaultBg = defaultSnap.val() || window.currentDefaultBg || '#d7ccc8';
+                    const bgImg = room.background || defaultBg;
+                    
+                    let objectsHtml = "";
+                    if(room.objects) {
+                        Object.keys(room.objects).forEach(key => {
+                            const o = room.objects[key];
+                            // 크기 및 반전 속성 그대로 적용
+                            let isPerson = (o.type && (o.type.includes('인물') || o.type.includes('사람')));
+                            let currentW = o.w || (isPerson ? 64 : 48);
+                            let currentH = o.h || (isPerson ? 96 : 48);
+                            const flipStyle = o.flipX ? 'transform: scaleX(-1);' : '';
+                            
+                            objectsHtml += `<div style="position:absolute; left:${o.x||0}px; top:${o.y||0}px; width:${currentW}px; height:${currentH}px; pointer-events:none;">
+                                <img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; background:transparent; ${flipStyle}">
+                            </div>`;
+                        });
+                    }
+
+                    // 반응 개수 불러오기
+                    const likes = room.likes || 0;
+                    const hearts = room.hearts || 0;
+
+                    let h = `
+                        <div style="text-align:center;">
+                            <h3 style="margin-top:0;">${targetUser} 용사의 방 🏰</h3>
+                            <div style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 4px solid #5d4037; border-radius: 15px; background-image: url('${bgImg}'); background-size: 100% 100%; background-position: center; overflow: hidden; margin: 0 auto; margin-bottom: 20px;">
+                                ${objectsHtml}
+                            </div>
+                            
+                            <div style="display:flex; justify-content:center; gap:15px; margin-bottom:10px;">
+                                <button onclick="sendRoomReaction('${targetUser}', 'likes')" style="flex:1; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                                    👍 멋져요! (${likes})
+                                </button>
+                                <button onclick="sendRoomReaction('${targetUser}', 'hearts')" style="flex:1; padding:15px; background:var(--red); color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                                    ❤️ 귀여워요! (${hearts})
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    openPopup(`${targetUser}의 방 구경하기`, h);
+                });
+            });
+        };
+
+        // 💖 반응 DB 업데이트 함수
+        window.sendRoomReaction = function(targetUser, type) {
+            const ref = db.ref(`users/${targetUser}/myRoom/${type}`);
+            ref.once('value', snap => {
+                const currentCount = snap.val() || 0;
+                ref.set(currentCount + 1).then(() => {
+                    alert("성공적으로 반응을 남겼습니다! ✨");
+                    visitFriendRoom(targetUser); // 팝업 새로고침 (숫자 즉시 반영)
+                });
+            });
         };
     </script>
 </body>
