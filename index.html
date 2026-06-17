@@ -1614,6 +1614,8 @@
         };
 window.approveSingleItem = async function(key, user, item) {
             if(confirm(`${user} 용사의 [${item}] 1개를 승인하시겠습니까?`)) {
+                const timeStr = new Date().toLocaleString();
+                
                 // 💡 리셋 쿠폰 자동 처리 마법!
                 const resetMatch = item.match(/\(요청:\s*(.+)\)/);
                 if(resetMatch) {
@@ -1626,6 +1628,16 @@ window.approveSingleItem = async function(key, user, item) {
                             updates[`orders/${child.key}/item`] = `${targetItem} (한도리셋)`;
                         }
                     });
+                    
+                    // 💡 연대기(pointLogs)에 리셋 기록 강제 추가
+                    const logRef = db.ref('pointLogs').push();
+                    updates[`pointLogs/${logRef.key}`] = {
+                        name: user,
+                        reason: `📜 [리셋] 구매 수량 리셋 쿠폰 승인 완료! (대상: ${targetItem})`,
+                        amount: 0,
+                        time: timeStr
+                    };
+                    
                     await db.ref().update(updates);
                     alert(`✨ 자동 리셋 완료! ${user} 용사는 이제 [${targetItem}]을(를) 다시 살 수 있습니다.`);
                 }
@@ -1639,8 +1651,9 @@ window.approveSingleItem = async function(key, user, item) {
             if(confirm(`${user} 용사의 모든 사용 요청을 승인하시겠습니까?`)) {
                 const keys = keyStr.split(',');
                 const updates = {};
+                const timeStr = new Date().toLocaleString();
                 
-                // 💡 일괄 승인 시에도 리셋 쿠폰이 섞여 있으면 자동 처리
+                // 일괄 승인 시에도 리셋 쿠폰이 섞여 있으면 자동 처리 및 로그 생성
                 for (let k of keys) {
                     const snap = await db.ref('orders/' + k).once('value');
                     const o = snap.val();
@@ -1655,16 +1668,24 @@ window.approveSingleItem = async function(key, user, item) {
                                     updates[`orders/${child.key}/item`] = `${targetItem} (한도리셋)`;
                                 }
                             });
+                            
+                            // 💡 연대기(pointLogs)에 리셋 기록 추가
+                            const logRef = db.ref('pointLogs').push();
+                            updates[`pointLogs/${logRef.key}`] = {
+                                name: user,
+                                reason: `📜 [리셋] 구매 수량 리셋 쿠폰 승인 완료! (대상: ${targetItem})`,
+                                amount: 0,
+                                time: timeStr
+                            };
                         }
                     }
                     updates['orders/' + k + '/status'] = '완료';
                 }
                 
                 await db.ref().update(updates);
-                alert("✅ 일괄 승인 및 (리셋 쿠폰이 있다면) 자동 리셋까지 완벽하게 처리되었습니다!");
+                alert("✅ 일괄 승인 및 자동 리셋, 연대기 기록까지 완벽하게 처리되었습니다!");
             }
         };
-
         // 💡 인벤토리 아이템 사용 제어 및 리셋 쿠폰 팝업 연결
         window.useInventoryItem = function(orderKey, itemName) {
             // 상품명에 '리셋'이나 '초기화'가 들어가면 특수 팝업 띄우기
@@ -2165,14 +2186,47 @@ window.approveSingleItem = async function(key, user, item) {
             });
         };
 
-        // 💖 반응 DB 업데이트 함수
+       // 💖 반응 DB 업데이트 함수 (중복 방지 & 방명록 알림 추가)
         window.sendRoomReaction = function(targetUser, type) {
-            const ref = db.ref(`users/${targetUser}/myRoom/${type}`);
-            ref.once('value', snap => {
-                const currentCount = snap.val() || 0;
-                ref.set(currentCount + 1).then(() => {
-                    alert("성공적으로 반응을 남겼습니다! ✨");
-                    visitFriendRoom(targetUser); // 팝업 새로고침 (숫자 즉시 반영)
+            // 본인 방 어뷰징(자기 추천) 방지 옵션
+            if (targetUser === myName) {
+                return alert("자신의 방에는 반응을 남길 수 없습니다! 거울을 보고 칭찬해주세요 😅");
+            }
+
+            // 💡 1. 내가 이미 이 반응을 눌렀는지 확인하는 '중복 방지용 도장' 경로
+            const reactionRef = db.ref(`users/${targetUser}/myRoom/reactions_${type}/${myName}`);
+            
+            reactionRef.once('value', snap => {
+                if (snap.exists()) {
+                    // 이미 도장이 찍혀있다면 튕겨냅니다.
+                    alert("이미 이 반응을 남기셨습니다! (각 반응은 한 친구에게 한 번씩만 누를 수 있어요)");
+                    return;
+                }
+
+                // 💡 2. 아직 안 눌렀다면 정상적으로 진행
+                const countRef = db.ref(`users/${targetUser}/myRoom/${type}`);
+                countRef.once('value', countSnap => {
+                    const currentCount = countSnap.val() || 0;
+                    
+                    // 카운트 +1 업데이트
+                    countRef.set(currentCount + 1);
+                    
+                    // 내가 눌렀다는 도장 쾅! (다음번엔 중복 처리됨)
+                    reactionRef.set(true);
+                    
+                    // 💡 3. 정보창(포인트 로그)에 방명록 알림 남기기
+                    const reactionText = type === 'likes' ? '👍멋져요' : '❤️귀여워요';
+                    const timeStr = new Date().toLocaleString();
+                    
+                    db.ref('pointLogs').push({
+                        name: targetUser,
+                        reason: `💌 [방명록] ${myName} 용사가 내 방에 ${reactionText}를 눌렀습니다!`,
+                        amount: 0, // 포인트 변동 없이 기록만 남김
+                        time: timeStr
+                    }).then(() => {
+                        alert("성공적으로 반응을 남겼습니다! ✨");
+                        visitFriendRoom(targetUser); // 팝업 새로고침하여 숫자 즉시 반영
+                    });
                 });
             });
         };
