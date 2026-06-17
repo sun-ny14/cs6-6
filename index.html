@@ -2135,7 +2135,7 @@ window.approveSingleItem = async function(key, user, item) {
             alert("가구나 인물을 움직이면 실시간으로 자동 저장됩니다! 🏠✨");
         };
 
-        // 🏰 친구 방 방문 기능
+       // 🏰 친구 방 방문 및 내부에 방명록(자동 기록만 허용) 출력 기능
         window.visitFriendRoom = function(targetUser) {
             db.ref(`users/${targetUser}/myRoom`).once('value', snap => {
                 const room = snap.val() || {};
@@ -2148,7 +2148,6 @@ window.approveSingleItem = async function(key, user, item) {
                     if(room.objects) {
                         Object.keys(room.objects).forEach(key => {
                             const o = room.objects[key];
-                            // 크기 및 반전 속성 그대로 적용
                             let isPerson = (o.type && (o.type.includes('인물') || o.type.includes('사람')));
                             let currentW = o.w || (isPerson ? 64 : 48);
                             let currentH = o.h || (isPerson ? 96 : 48);
@@ -2160,9 +2159,34 @@ window.approveSingleItem = async function(key, user, item) {
                         });
                     }
 
-                    // 반응 개수 불러오기
                     const likes = room.likes || 0;
                     const hearts = room.hearts || 0;
+
+                    // 💡 1. 용사의 방 전용 방문 기록 (버튼 반응만 기록됨)
+                    let guestbookHtml = `
+                        <div style="margin-top:20px; text-align:left; background:#f8f9fa; padding:15px; border-radius:15px; border:2px solid #e9ecef;">
+                            <h4 style="margin:0 0 10px 0; color:#495057;">📝 방문 기록</h4>
+                            <div style="max-height:150px; overflow-y:auto; padding-right:5px;">
+                    `;
+                    
+                    if (room.guestbook) {
+                        // 최신순으로 정렬하여 출력
+                        Object.values(room.guestbook).reverse().forEach(e => {
+                            // 사용자가 직접 입력한 한마디 기록이 혹시 남아있다면 필터링(숨김 처리)하거나 전부 보여줍니다.
+                            // 여기서는 기존 데이터 호환을 위해 그대로 보여줍니다.
+                            guestbookHtml += `
+                                <div style="padding:8px 0; border-bottom:1px solid #eee; font-size:0.95rem; display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#333; font-weight:bold;">${e.text}</span>
+                                    <small style="color:#999; font-size:0.8rem;">${e.time}</small>
+                                </div>`;
+                        });
+                    } else {
+                        guestbookHtml += `<p style="color:#aaa; margin:10px 0; font-size:0.9rem; text-align:center;">아직 방문 기록이 없습니다. 첫 번째로 반응을 남겨보세요! ✨</p>`;
+                    }
+                    
+                    guestbookHtml += `
+                            </div>
+                        </div>`;
 
                     let h = `
                         <div style="text-align:center;">
@@ -2179,6 +2203,8 @@ window.approveSingleItem = async function(key, user, item) {
                                     ❤️ 귀여워요! (${hearts})
                                 </button>
                             </div>
+
+                            ${guestbookHtml}
                         </div>
                     `;
                     openPopup(`${targetUser}의 방 구경하기`, h);
@@ -2186,46 +2212,37 @@ window.approveSingleItem = async function(key, user, item) {
             });
         };
 
-       // 💖 반응 DB 업데이트 함수 (중복 방지 & 방명록 알림 추가)
+        // 💖 반응 클릭 시 방명록에 자동으로 기록해주는 함수 (1인 1회 제한)
         window.sendRoomReaction = function(targetUser, type) {
-            // 본인 방 어뷰징(자기 추천) 방지 옵션
             if (targetUser === myName) {
-                return alert("자신의 방에는 반응을 남길 수 없습니다! 거울을 보고 칭찬해주세요 😅");
+                return alert("자신의 방에는 반응을 남길 수 없습니다! 😅");
             }
 
-            // 💡 1. 내가 이미 이 반응을 눌렀는지 확인하는 '중복 방지용 도장' 경로
             const reactionRef = db.ref(`users/${targetUser}/myRoom/reactions_${type}/${myName}`);
             
             reactionRef.once('value', snap => {
                 if (snap.exists()) {
-                    // 이미 도장이 찍혀있다면 튕겨냅니다.
-                    alert("이미 이 반응을 남기셨습니다! (각 반응은 한 친구에게 한 번씩만 누를 수 있어요)");
+                    alert("이미 이 반응을 남기셨습니다! (각 반응은 한 번씩만 누를 수 있어요)");
                     return;
                 }
 
-                // 💡 2. 아직 안 눌렀다면 정상적으로 진행
                 const countRef = db.ref(`users/${targetUser}/myRoom/${type}`);
                 countRef.once('value', countSnap => {
                     const currentCount = countSnap.val() || 0;
                     
-                    // 카운트 +1 업데이트
                     countRef.set(currentCount + 1);
+                    reactionRef.set(true); // 중복 방지 도장
                     
-                    // 내가 눌렀다는 도장 쾅! (다음번엔 중복 처리됨)
-                    reactionRef.set(true);
+                    const reactionText = type === 'likes' ? '👍 멋져요' : '❤️ 귀여워요';
+                    const timeStr = new Date().toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                     
-                    // 💡 3. 정보창(포인트 로그)에 방명록 알림 남기기
-                    const reactionText = type === 'likes' ? '👍멋져요' : '❤️귀여워요';
-                    const timeStr = new Date().toLocaleString();
-                    
-                    db.ref('pointLogs').push({
-                        name: targetUser,
-                        reason: `💌 [방명록] ${myName} 용사가 내 방에 ${reactionText}를 눌렀습니다!`,
-                        amount: 0, // 포인트 변동 없이 기록만 남김
+                    db.ref(`users/${targetUser}/myRoom/guestbook`).push({
+                        user: myName,
+                        text: `💌 ${myName} 용사가 ${reactionText}를 보냈습니다!`,
                         time: timeStr
                     }).then(() => {
-                        alert("성공적으로 반응을 남겼습니다! ✨");
-                        visitFriendRoom(targetUser); // 팝업 새로고침하여 숫자 즉시 반영
+                        alert("반응을 성공적으로 기록했습니다! ✨");
+                        visitFriendRoom(targetUser); 
                     });
                 });
             });
