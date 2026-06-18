@@ -2135,94 +2135,21 @@ window.approveSingleItem = async function(key, user, item) {
             alert("가구나 인물을 움직이면 실시간으로 자동 저장됩니다! 🏠✨");
         };
 
-       // 🏰 친구 방 방문 및 내부에 방명록(자동 기록만 허용) 출력 기능
-        window.visitFriendRoom = function(targetUser) {
-            db.ref(`users/${targetUser}/myRoom`).once('value', snap => {
-                const room = snap.val() || {};
-                
-                db.ref('settings/defaultBg').once('value').then(defaultSnap => {
-                    const defaultBg = defaultSnap.val() || window.currentDefaultBg || '#d7ccc8';
-                    const bgImg = room.background || defaultBg;
-                    
-                    let objectsHtml = "";
-                    if(room.objects) {
-                        Object.keys(room.objects).forEach(key => {
-                            const o = room.objects[key];
-                            let isPerson = (o.type && (o.type.includes('인물') || o.type.includes('사람')));
-                            let currentW = o.w || (isPerson ? 64 : 48);
-                            let currentH = o.h || (isPerson ? 96 : 48);
-                            const flipStyle = o.flipX ? 'transform: scaleX(-1);' : '';
-                            
-                            objectsHtml += `<div style="position:absolute; left:${o.x||0}px; top:${o.y||0}px; width:${currentW}px; height:${currentH}px; pointer-events:none;">
-                                <img src="${o.img}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; background:transparent; ${flipStyle}">
-                            </div>`;
-                        });
-                    }
-
-                    const likes = room.likes || 0;
-                    const hearts = room.hearts || 0;
-
-                    // 💡 1. 용사의 방 전용 방문 기록 (버튼 반응만 기록됨)
-                    let guestbookHtml = `
-                        <div style="margin-top:20px; text-align:left; background:#f8f9fa; padding:15px; border-radius:15px; border:2px solid #e9ecef;">
-                            <h4 style="margin:0 0 10px 0; color:#495057;">📝 방문 기록</h4>
-                            <div style="max-height:150px; overflow-y:auto; padding-right:5px;">
-                    `;
-                    
-                    if (room.guestbook) {
-                        // 최신순으로 정렬하여 출력
-                        Object.values(room.guestbook).reverse().forEach(e => {
-                            // 사용자가 직접 입력한 한마디 기록이 혹시 남아있다면 필터링(숨김 처리)하거나 전부 보여줍니다.
-                            // 여기서는 기존 데이터 호환을 위해 그대로 보여줍니다.
-                            guestbookHtml += `
-                                <div style="padding:8px 0; border-bottom:1px solid #eee; font-size:0.95rem; display:flex; justify-content:space-between; align-items:center;">
-                                    <span style="color:#333; font-weight:bold;">${e.text}</span>
-                                    <small style="color:#999; font-size:0.8rem;">${e.time}</small>
-                                </div>`;
-                        });
-                    } else {
-                        guestbookHtml += `<p style="color:#aaa; margin:10px 0; font-size:0.9rem; text-align:center;">아직 방문 기록이 없습니다. 첫 번째로 반응을 남겨보세요! ✨</p>`;
-                    }
-                    
-                    guestbookHtml += `
-                            </div>
-                        </div>`;
-
-                    let h = `
-                        <div style="text-align:center;">
-                            <h3 style="margin-top:0;">${targetUser} 용사의 방 🏰</h3>
-                            <div style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 4px solid #5d4037; border-radius: 15px; background-image: url('${bgImg}'); background-size: 100% 100%; background-position: center; overflow: hidden; margin: 0 auto; margin-bottom: 20px;">
-                                ${objectsHtml}
-                            </div>
-                            
-                            <div style="display:flex; justify-content:center; gap:15px; margin-bottom:10px;">
-                                <button onclick="sendRoomReaction('${targetUser}', 'likes')" style="flex:1; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-                                    👍 멋져요! (${likes})
-                                </button>
-                                <button onclick="sendRoomReaction('${targetUser}', 'hearts')" style="flex:1; padding:15px; background:var(--red); color:white; border:none; border-radius:10px; font-size:1.2rem; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-                                    ❤️ 귀여워요! (${hearts})
-                                </button>
-                            </div>
-
-                            ${guestbookHtml}
-                        </div>
-                    `;
-                    openPopup(`${targetUser}의 방 구경하기`, h);
-                });
-            });
-        };
-
-        // 💖 반응 클릭 시 방명록에 자동으로 기록해주는 함수 (1인 1회 제한)
+      // 💖 반응 클릭 시 방명록에 자동으로 기록해주는 함수 (하루에 1회 제한)
         window.sendRoomReaction = function(targetUser, type) {
             if (targetUser === myName) {
                 return alert("자신의 방에는 반응을 남길 수 없습니다! 😅");
             }
 
-            const reactionRef = db.ref(`users/${targetUser}/myRoom/reactions_${type}/${myName}`);
+            // 오늘 날짜 구하기 (예: "2026-06-18")
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            // 💡 경로 뒤에 오늘 날짜(todayStr)를 붙여서 '오늘 이미 눌렀는지' 확인합니다.
+            const reactionRef = db.ref(`users/${targetUser}/myRoom/reactions_${type}/${myName}/${todayStr}`);
             
             reactionRef.once('value', snap => {
                 if (snap.exists()) {
-                    alert("이미 이 반응을 남기셨습니다! (각 반응은 한 번씩만 누를 수 있어요)");
+                    alert("오늘 이미 이 반응을 남기셨습니다! 내일 다시 응원해주세요. 😉");
                     return;
                 }
 
@@ -2230,8 +2157,11 @@ window.approveSingleItem = async function(key, user, item) {
                 countRef.once('value', countSnap => {
                     const currentCount = countSnap.val() || 0;
                     
+                    // 카운트 +1 업데이트
                     countRef.set(currentCount + 1);
-                    reactionRef.set(true); // 중복 방지 도장
+                    
+                    // 💡 오늘 날짜 기준으로 도장 쾅! (오늘 안에는 더 이상 못 누름, 내일이 되면 경로가 바뀌어서 다시 누를 수 있음)
+                    reactionRef.set(true); 
                     
                     const reactionText = type === 'likes' ? '👍 멋져요' : '❤️ 귀여워요';
                     const timeStr = new Date().toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -2241,12 +2171,12 @@ window.approveSingleItem = async function(key, user, item) {
                         text: `💌 ${myName} 용사가 ${reactionText}를 보냈습니다!`,
                         time: timeStr
                     }).then(() => {
-                        alert("반응을 성공적으로 기록했습니다! ✨");
-                        visitFriendRoom(targetUser); 
+                        alert("오늘의 반응을 성공적으로 기록했습니다! ✨");
+                        visitFriendRoom(targetUser); // 팝업 새로고침하여 숫자 즉시 반영
                     });
                 });
             });
-        };
+                };
     </script>
 </body>
 </html>
