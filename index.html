@@ -1038,9 +1038,75 @@
             renderCheckinBoard(); 
         }
 
-        function renderCheckinBoard() {
-            generateNewLayout();
-        }
+        // 📅 등교로그 렌더링 (서류 미제출자 체크 기능 포함)
+        window.renderCheckinBoard = function() {
+            const board = document.getElementById('tab-logs');
+            if(!board) return;
+
+            db.ref('checkins').once('value', snap => {
+                let html = `
+                    <div style="text-align:center; margin-bottom:20px;">
+                        <h2>📅 등교 및 출결 관리</h2>
+                        <button onclick="openMonthlyCalendar()" style="padding:12px 20px; background:var(--purple); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                            📊 이번 달 출석부(달력) 보기
+                        </button>
+                    </div>
+                `;
+
+                let checkins = [];
+                snap.forEach(child => { checkins.push({ key: child.key, ...child.val() }); });
+                checkins.reverse(); // 최신순 정렬
+
+                // 💡 결석 및 교외체험학습 등 '서류'가 필요한데 미제출한 목록 필터링
+                let missingDocs = checkins.filter(c => 
+                    (c.reason && (c.reason.includes('결석') || c.reason.includes('체험학습'))) && !c.docSubmitted
+                );
+
+                if (isAdmin && missingDocs.length > 0) {
+                    html += `
+                    <div style="background:#ffebee; border:2px solid #ef5350; border-radius:10px; padding:15px; margin-bottom:20px; text-align:left;">
+                        <h4 style="margin:0 0 10px 0; color:#c62828;">⚠️ 서류 미제출자 명단 (이름을 클릭하면 확인 완료!)</h4>
+                        <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                    `;
+                    missingDocs.forEach(c => {
+                        // 사유 텍스트가 너무 길면 잘라서 보여주기
+                        let shortReason = c.reason.replace('교외체험학습', '체험').replace('결석', '결석');
+                        html += `
+                            <button onclick="completeDoc('${c.key}')" style="padding:8px 12px; background:white; border:2px solid #ef5350; color:#c62828; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                                ${c.user} (${shortReason})
+                            </button>
+                        `;
+                    });
+                    html += `</div></div>`;
+                }
+
+                // 일반 등교 로그 리스트
+                html += `<div class="list-container">`;
+                let hasData = false;
+                checkins.forEach(c => {
+                    hasData = true;
+                    let docTag = (c.docSubmitted) ? `<span style="color:#2e7d32; font-size:0.8rem; font-weight:bold; background:#e8f5e9; padding:3px 6px; border-radius:4px;">서류 완료</span>` : '';
+                    html += `
+                        <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
+                            <span><b>${c.user} 용사</b> - ${c.reason || '정상 등교'} ${docTag}</span>
+                            <small style="color:#666;">${c.time || ''}</small>
+                        </div>
+                    `;
+                });
+
+                if(!hasData) html += `<p style="text-align:center; color:#999; padding:20px;">출결 기록이 없습니다.</p>`;
+                html += `</div>`;
+                board.innerHTML = html;
+            });
+        };
+
+        // 서류 완료 처리 함수
+        window.completeDoc = function(key) {
+            if(!confirm("이 학생의 서류를 제출 완료 처리하시겠습니까?")) return;
+            db.ref(`checkins/${key}`).update({ docSubmitted: true }).then(() => {
+                renderCheckinBoard(); // 화면 즉시 갱신
+            });
+        };
         
         function loadMyLogs() {
             const listEl = document.getElementById('point-history-list');
@@ -2244,6 +2310,136 @@ window.approveSingleItem = async function(key, user, item) {
                         visitFriendRoom(targetUser); // 팝업 새로고침
                     });
                 });
+            });
+        };
+        // 📊 월간 출석부 렌더링 (주말 제외 달력형)
+        window.openMonthlyCalendar = function() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth(); // 0부터 시작하므로 +1 필요
+            
+            // 이번 달 평일 날짜 구하기
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            let weekdays = [];
+            for(let d = 1; d <= daysInMonth; d++) {
+                const dayOfWeek = new Date(year, month, d).getDay();
+                if(dayOfWeek !== 0 && dayOfWeek !== 6) { // 일요일(0), 토요일(6) 제외
+                    weekdays.push(d);
+                }
+            }
+
+            db.ref('checkins').once('value', checkinSnap => {
+                db.ref('users').once('value', userSnap => {
+                    const users = [];
+                    userSnap.forEach(u => users.push(u.key));
+                    users.sort(); // 이름 가나다순 정렬
+
+                    let attendanceData = {}; 
+                    users.forEach(u => attendanceData[u] = {});
+                    
+                    checkinSnap.forEach(child => {
+                        const c = child.val();
+                        if(c.time && users.includes(c.user)) {
+                            // 날짜 파싱 안전하게 처리
+                            const dateObj = new Date(c.time.replace(/\. /g, '-').replace('.', '')); 
+                            // 현재 시스템 저장 방식에 따라 파싱이 다를 수 있으나 Date 객체가 인식하도록 처리
+                            const d = new Date(c.time).getDate() || parseInt(c.time.split('.')[2]); 
+                            
+                            if(d && !isNaN(d)) {
+                                attendanceData[c.user][d] = c.reason;
+                            }
+                        }
+                    });
+
+                    // 표 그리기 (가로 스크롤 허용)
+                    let tableHtml = `
+                        <div style="margin-bottom:10px; font-size:0.9rem; color:#666;">
+                            O: 정상등교 / 결: 결석 / 체: 체험학습
+                        </div>
+                        <div style="overflow-x:auto; max-height:400px;">
+                        <table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;">
+                        <thead>
+                            <tr style="background:#f1f3f5;">
+                                <th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>
+                    `;
+                    
+                    weekdays.forEach(d => {
+                        tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`;
+                    });
+                    tableHtml += `</tr></thead><tbody>`;
+
+                    users.forEach(u => {
+                        tableHtml += `<tr>
+                            <td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
+                        weekdays.forEach(d => {
+                            let status = attendanceData[u][d];
+                            let mark = '';
+                            let color = 'transparent';
+                            if(status) {
+                                if(status.includes('정상') || status === '등교') { mark = 'O'; color = '#e8f5e9'; }
+                                else if(status.includes('결석')) { mark = '결'; color = '#ffebee'; }
+                                else if(status.includes('체험')) { mark = '체'; color = '#fff3e0'; }
+                                else { mark = status.substring(0,1); color = '#f3e5f5'; } // 기타 사유는 첫 글자
+                            }
+                            tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
+                        });
+                        tableHtml += `</tr>`;
+                    });
+                    tableHtml += `</tbody></table></div>`;
+
+                    openPopup(`${month + 1}월 학급 출석부`, tableHtml);
+                });
+            });
+        };
+        // 💡 원클릭/더블클릭 구분 타이머 변수
+        window.attendanceClickTimer = null;
+
+        // 👨‍🏫 선생님이 학생 이름을 클릭했을 때 작동하는 함수
+        window.handleCheckinClick = function(user) {
+            if (window.attendanceClickTimer) {
+                // 이미 타이머가 돌아가고 있는데 또 눌렀다 = 더블클릭!
+                clearTimeout(window.attendanceClickTimer);
+                window.attendanceClickTimer = null;
+                openDetailedCheckin(user);
+            } else {
+                // 한 번 눌렀다 = 0.25초 동안 기다려보고, 더 안 누르면 원클릭으로 간주!
+                window.attendanceClickTimer = setTimeout(() => {
+                    window.attendanceClickTimer = null;
+                    submitCheckin(user, '정상 등교');
+                }, 250); // 250ms 대기
+            }
+        };
+
+        // 팝업: 더블클릭 시 상세 사유 입력 (교외체험학습 포함)
+        window.openDetailedCheckin = function(user) {
+            let h = `
+                <div style="text-align:center;">
+                    <h3 style="margin-top:0;">${user} 용사의 출결 상태 변경</h3>
+                    <select id="checkin-reason" style="width:100%; padding:15px; font-size:1.1rem; border-radius:10px; margin-bottom:20px; border:2px solid var(--primary);">
+                        <option value="정상 등교">✅ 정상 등교</option>
+                        <option value="결석">❌ 결석 (질병/미인정 등)</option>
+                        <option value="교외체험학습">🎒 교외체험학습</option>
+                        <option value="지각">⏰ 지각</option>
+                        <option value="조퇴">🏃 조퇴</option>
+                    </select>
+                    <button onclick="submitCheckin('${user}', document.getElementById('checkin-reason').value)" style="width:100%; padding:15px; background:var(--gold); color:var(--dark); border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">출결 기록 저장</button>
+                </div>
+            `;
+            openPopup("출석 관리", h);
+        };
+
+        // DB 전송 함수
+        window.submitCheckin = function(user, reason) {
+            const timeStr = new Date().toLocaleString();
+            db.ref('checkins').push({
+                user: user,
+                reason: reason,
+                time: timeStr,
+                docSubmitted: false // 결석이나 체험학습일 경우 무조건 초기엔 미제출 상태로 세팅
+            }).then(() => {
+                alert(`[${user}] ${reason} 처리 완료! ✨`);
+                closePopup();
+                if(currentTab === 'logs') renderCheckinBoard(); // 로그 탭에 있다면 즉시 새로고침
             });
         };
     </script>
