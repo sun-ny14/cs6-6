@@ -2254,122 +2254,111 @@ window.approveSingleItem = async function(key, user, item) {
                 });
             });
         };
-        // 📊 월간 출석부 렌더링 (주말 제외 달력형)
+       // 📊 월간 출석부 렌더링 (출석 로그에 있는 모든 인물 자동 추출 버전)
         window.openMonthlyCalendar = function() {
             const now = new Date();
             const year = now.getFullYear();
-            const month = now.getMonth(); // 0부터 시작하므로 +1 필요
+            const month = now.getMonth(); 
             
             // 이번 달 평일 날짜 구하기
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             let weekdays = [];
             for(let d = 1; d <= daysInMonth; d++) {
                 const dayOfWeek = new Date(year, month, d).getDay();
-                if(dayOfWeek !== 0 && dayOfWeek !== 6) { // 일요일(0), 토요일(6) 제외
-                    weekdays.push(d);
-                }
+                if(dayOfWeek !== 0 && dayOfWeek !== 6) weekdays.push(d);
             }
 
             db.ref('checkins').once('value', checkinSnap => {
-                db.ref('users').once('value', userSnap => {
-                    const users = [];
-                    userSnap.forEach(u => users.push(u.key));
-                    users.sort(); // 이름 가나다순 정렬
+                let attendanceData = {}; 
+                let userSet = new Set(); // 출석 기록이 있는 사람들을 중복 없이 모을 주머니
 
-                    let attendanceData = {}; 
-                    users.forEach(u => attendanceData[u] = {});
+                checkinSnap.forEach(child => {
+                    const c = child.val();
+                    if(!c.time || !c.user) return;
                     
-                    checkinSnap.forEach(child => {
-                        const c = child.val();
-                        if(c.time && users.includes(c.user)) {
-                            // 날짜 파싱 안전하게 처리
-                            const dateObj = new Date(c.time.replace(/\. /g, '-').replace('.', '')); 
-                            // 현재 시스템 저장 방식에 따라 파싱이 다를 수 있으나 Date 객체가 인식하도록 처리
-                            const d = new Date(c.time).getDate() || parseInt(c.time.split('.')[2]); 
-                            
-                            if(d && !isNaN(d)) {
-                                attendanceData[c.user][d] = c.reason;
-                            }
+                    // 이번 달 기록만 필터링
+                    const dateObj = new Date(c.time.replace(/\. /g, '-').replace('.', ''));
+                    const itemMonth = isNaN(dateObj.getMonth()) ? new Date(c.time).getMonth() : dateObj.getMonth();
+                    
+                    if (itemMonth === month) {
+                        const d = isNaN(dateObj.getDate()) ? new Date(c.time).getDate() : dateObj.getDate();
+                        
+                        if(d && !isNaN(d)) {
+                            userSet.add(c.user); // 출석 로그에 등장한 이름 추가
+                            if(!attendanceData[c.user]) attendanceData[c.user] = {};
+                            attendanceData[c.user][d] = c.reason || '등교';
                         }
-                    });
-
-                    // 표 그리기 (가로 스크롤 허용)
-                    let tableHtml = `
-                        <div style="margin-bottom:10px; font-size:0.9rem; color:#666;">
-                            O: 정상등교 / 결: 결석 / 체: 체험학습
-                        </div>
-                        <div style="overflow-x:auto; max-height:400px;">
-                        <table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;">
-                        <thead>
-                            <tr style="background:#f1f3f5;">
-                                <th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>
-                    `;
-                    
-                    weekdays.forEach(d => {
-                        tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`;
-                    });
-                    tableHtml += `</tr></thead><tbody>`;
-
-                    users.forEach(u => {
-                        tableHtml += `<tr>
-                            <td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
-                        weekdays.forEach(d => {
-                            let status = attendanceData[u][d];
-                            let mark = '';
-                            let color = 'transparent';
-                            if(status) {
-                                if(status.includes('정상') || status === '등교') { mark = 'O'; color = '#e8f5e9'; }
-                                else if(status.includes('결석')) { mark = '결'; color = '#ffebee'; }
-                                else if(status.includes('체험')) { mark = '체'; color = '#fff3e0'; }
-                                else { mark = status.substring(0,1); color = '#f3e5f5'; } // 기타 사유는 첫 글자
-                            }
-                            tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
-                        });
-                        tableHtml += `</tr>`;
-                    });
-                    tableHtml += `</tbody></table></div>`;
-
-                    openPopup(`${month + 1}월 학급 출석부`, tableHtml);
+                    }
                 });
+
+                // 이름 순으로 정렬
+                const users = Array.from(userSet).sort();
+
+                let tableHtml = `
+                    <div style="margin-bottom:10px; font-size:0.9rem; color:#666;">
+                        O: 정상등교 / 결: 결석 / 체: 체험학습
+                    </div>
+                    <div style="overflow-x:auto; max-height:400px;">
+                    <table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;">
+                    <thead>
+                        <tr style="background:#f1f3f5;">
+                            <th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>
+                `;
+                
+                weekdays.forEach(d => { tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`; });
+                tableHtml += `</tr></thead><tbody>`;
+
+                users.forEach(u => {
+                    tableHtml += `<tr><td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
+                    weekdays.forEach(d => {
+                        let status = attendanceData[u][d];
+                        let mark = '', color = 'transparent';
+                        if(status) {
+                            if(status.includes('정상') || status === '등교') { mark = 'O'; color = '#e8f5e9'; }
+                            else if(status.includes('결석')) { mark = '결'; color = '#ffebee'; }
+                            else if(status.includes('체험학습')) { mark = '체'; color = '#fff3e0'; }
+                            else { mark = status.substring(0,1); color = '#f3e5f5'; } 
+                        }
+                        tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
+                    });
+                    tableHtml += `</tr>`;
+                });
+
+                if(users.length === 0) {
+                    tableHtml += `<tr><td colspan="${weekdays.length + 1}" style="padding:20px; color:#aaa;">이번 달 출석 기록이 없습니다.</td></tr>`;
+                }
+
+                tableHtml += `</tbody></table></div>`;
+                openPopup(`${month + 1}월 학급 출석부`, tableHtml);
             });
         };
-        // 💡 원클릭/더블클릭 구분 타이머 변수
+        // 💡 원클릭/더블클릭 마법 함수 (유령 클릭 방어 적용)
         window.attendanceClickTimer = null;
+        window.lastClickTime = {}; // 마지막으로 누른 시간 기록용
 
-        // 👨‍🏫 선생님이 학생 이름을 클릭했을 때 작동하는 함수
         window.handleCheckinClick = function(user) {
+            const now = Date.now();
+            const lastTime = window.lastClickTime[user] || 0;
+            const diff = now - lastTime;
+            
+            // 🚫 기기 오류로 0.05초(50ms) 이내에 겹쳐서 실행된 가짜 클릭은 무시! (사람은 이렇게 빨리 누를 수 없음)
+            if (diff < 50) return; 
+            
+            window.lastClickTime[user] = now;
+
             if (window.attendanceClickTimer) {
-                // 이미 타이머가 돌아가고 있는데 또 눌렀다 = 더블클릭!
+                // 정상적인 더블클릭 (타이머가 돌아가고 있을 때 한 번 더 누름)
                 clearTimeout(window.attendanceClickTimer);
                 window.attendanceClickTimer = null;
                 openDetailedCheckin(user);
             } else {
-                // 한 번 눌렀다 = 0.25초 동안 기다려보고, 더 안 누르면 원클릭으로 간주!
+                // 원클릭: 0.3초(300ms) 동안 더블클릭이 안 들어오면 '정상 등교'로 처리
                 window.attendanceClickTimer = setTimeout(() => {
                     window.attendanceClickTimer = null;
                     submitCheckin(user, '정상 등교');
-                }, 250); // 250ms 대기
+                }, 300); 
             }
         };
-
-        // 팝업: 더블클릭 시 상세 사유 입력 (교외체험학습 포함)
-        window.openDetailedCheckin = function(user) {
-            let h = `
-                <div style="text-align:center;">
-                    <h3 style="margin-top:0;">${user} 용사의 출결 상태 변경</h3>
-                    <select id="checkin-reason" style="width:100%; padding:15px; font-size:1.1rem; border-radius:10px; margin-bottom:20px; border:2px solid var(--primary);">
-                        <option value="정상 등교">✅ 정상 등교</option>
-                        <option value="결석">❌ 결석 (질병/미인정 등)</option>
-                        <option value="교외체험학습">🎒 교외체험학습</option>
-                        <option value="지각">⏰ 지각</option>
-                        <option value="조퇴">🏃 조퇴</option>
-                    </select>
-                    <button onclick="submitCheckin('${user}', document.getElementById('checkin-reason').value)" style="width:100%; padding:15px; background:var(--gold); color:var(--dark); border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">출결 기록 저장</button>
-                </div>
-            `;
-            openPopup("출석 관리", h);
-        };
-
         // DB 전송 함수
         window.submitCheckin = function(user, reason) {
             const timeStr = new Date().toLocaleString();
