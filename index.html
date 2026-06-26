@@ -2561,7 +2561,7 @@ window.approveSingleItem = async function(key, user, item) {
         const SUBJECTS = ['국어', '수학', '사회', '과학', '미술', '도덕', '음악', '체육', '실과'];
         let currentGradeSubject = '국어';
 
-        // 1. 성적 탭 메인 화면 렌더링 (과목 선택 버튼들)
+       // 1. 성적 탭 메인 화면 렌더링
         window.renderGradesMain = function() {
             const board = document.getElementById('tab-grades');
             if(!board) return;
@@ -2569,68 +2569,72 @@ window.approveSingleItem = async function(key, user, item) {
             let html = `
                 <div style="text-align:center; margin-bottom:20px;">
                     <h2>📝 학급 성적 및 평가 관리</h2>
-                    <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:15px; padding: 10px; background: #f1f3f5; border-radius: 10px;">
-            `;
-            
-            SUBJECTS.forEach(sub => {
-                const isActive = (sub === currentGradeSubject) ? 'background:var(--primary); color:white; transform:scale(1.05);' : 'background:white; color:#333; border:1px solid #ccc;';
-                html += `<button onclick="loadSubjectGrades('${sub}')" style="padding:10px 15px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; transition:0.2s; ${isActive}">${sub}</button>`;
-            });
-
-            html += `
+                    <div id="grades-subject-buttons" style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:15px; padding: 10px; background: #f1f3f5; border-radius: 10px;">
                     </div>
                 </div>
                 <div id="grades-content-area" style="margin-top:20px;"></div>
             `;
             board.innerHTML = html;
+            
+            // 처음 렌더링 시 목록 불러오기
             loadSubjectGrades(currentGradeSubject);
         };
 
-        // 2. 선택한 과목의 '평가 목록' 불러오기
+        // 2. 선택한 과목의 '평가 목록' 및 '+추가 버튼' 불러오기
         window.loadSubjectGrades = function(subject) {
             currentGradeSubject = subject;
-            renderGradesMain(); // 과목 버튼 색상 갱신
             
-            setTimeout(() => {
-                const contentArea = document.getElementById('grades-content-area');
-                if(!contentArea) return;
-
-                db.ref('grades/' + subject).once('value', snap => {
-                    let html = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #ccc; padding-bottom:10px;">
-                            <h3 style="margin:0;">📘 ${subject} 평가 목록</h3>
-                            <div>
-                                <button onclick="openNewGradePopup('${subject}', 'perf')" style="padding:8px 12px; background:#43a047; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ 수행평가</button>
-                                <button onclick="openNewGradePopup('${subject}', 'score')" style="padding:8px 12px; background:#1e88e5; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ 일반평가</button>
-                            </div>
-                        </div>
-                        <div style="display:grid; gap:10px;">
-                    `;
-
-                    let assessments = [];
-                    snap.forEach(child => { assessments.push({ key: child.key, ...child.val() }); });
-                    assessments.reverse(); // 최신순 정렬
-
-                    if(assessments.length === 0) {
-                        html += `<p style="text-align:center; color:#999; padding:20px;">아직 등록된 평가가 없습니다.</p>`;
-                    } else {
-                        assessments.forEach(a => {
-                            const typeIcon = a.type === 'perf' ? '📋 수행' : '💯 일반';
-                            const typeColor = a.type === 'perf' ? '#43a047' : '#1e88e5';
-                            html += `
-                                <div onclick="openGradeEditor('${subject}', '${a.key}')" style="padding:15px; background:white; border:1px solid #ddd; border-left:5px solid ${typeColor}; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                                    <span><strong style="color:${typeColor};">${typeIcon}</strong> &nbsp;|&nbsp; <b>${a.title}</b></span>
-                                    <small style="color:#888;">${a.date}</small>
-                                </div>
-                            `;
-                        });
-                    }
-                    html += `</div>`;
-                    contentArea.innerHTML = html;
+            // 💡 멈춤 버그 해결: 전체 화면을 다시 그리지 않고 과목 버튼 색상만 바꿉니다.
+            const btnContainer = document.getElementById('grades-subject-buttons');
+            if(btnContainer) {
+                let btnHtml = '';
+                SUBJECTS.forEach(sub => {
+                    const isActive = (sub === currentGradeSubject) ? 'background:var(--primary); color:white; transform:scale(1.05);' : 'background:white; color:#333; border:1px solid #ccc;';
+                    btnHtml += `<button onclick="loadSubjectGrades('${sub}')" style="padding:10px 15px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; transition:0.2s; ${isActive}">${sub}</button>`;
                 });
-            }, 50);
-        };
+                btnContainer.innerHTML = btnHtml;
+            }
 
+            const contentArea = document.getElementById('grades-content-area');
+            if(!contentArea) return;
+
+            db.ref('grades/' + subject).once('value', snap => {
+                // 💡 드디어 나타나는 + 버튼 영역!
+                let html = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #ccc; padding-bottom:10px;">
+                        <h3 style="margin:0;">📘 ${subject} 평가 목록</h3>
+                        <div>
+                            <button onclick="openNewGradePopup('${subject}', 'perf')" style="padding:8px 12px; background:#43a047; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ 수행평가 추가</button>
+                            <button onclick="openNewGradePopup('${subject}', 'score')" style="padding:8px 12px; background:#1e88e5; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ 일반평가 추가</button>
+                        </div>
+                    </div>
+                    <div style="display:grid; gap:10px;">
+                `;
+
+                let assessments = [];
+                snap.forEach(child => { assessments.push({ key: child.key, ...child.val() }); });
+                assessments.reverse(); 
+
+                if(assessments.length === 0) {
+                    html += `<div style="text-align:center; color:#666; padding:30px; border:2px dashed #ccc; border-radius:10px; background:#f9f9f9;">
+                        아직 등록된 평가가 없습니다.<br>오른쪽 위의 <b>[+ 추가]</b> 버튼을 눌러 평가를 만들어주세요!
+                    </div>`;
+                } else {
+                    assessments.forEach(a => {
+                        const typeIcon = a.type === 'perf' ? '📋 수행' : '💯 일반';
+                        const typeColor = a.type === 'perf' ? '#43a047' : '#1e88e5';
+                        html += `
+                            <div onclick="openGradeEditor('${subject}', '${a.key}')" style="padding:15px; background:white; border:1px solid #ddd; border-left:5px solid ${typeColor}; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                                <span><strong style="color:${typeColor};">${typeIcon}</strong> &nbsp;|&nbsp; <b>${a.title}</b></span>
+                                <small style="color:#888;">${a.date}</small>
+                            </div>
+                        `;
+                    });
+                }
+                html += `</div>`;
+                contentArea.innerHTML = html;
+            });
+        };
         // 3. 새 평가 만들기 (제목 입력)
         window.openNewGradePopup = function(subject, type) {
             const title = prompt(`[${subject}] 평가의 제목을 입력하세요.\n(예: 1단원 덧셈과 뺄셈, 시 낭송하기 등)`);
