@@ -2257,12 +2257,12 @@ window.approveSingleItem = async function(key, user, item) {
             });
         };
        // 📊 월간 출석부 렌더링 (출석 로그에 있는 모든 인물 자동 추출 버전)
+       // 📊 월간 출석부 렌더링 (DB 전체 학생 로드 + 정렬 폐기 버전)
         window.openMonthlyCalendar = function() {
             const now = new Date();
             const year = now.getFullYear();
             const month = now.getMonth(); 
             
-            // 이번 달 평일 날짜 구하기
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             let weekdays = [];
             for(let d = 1; d <= daysInMonth; d++) {
@@ -2270,70 +2270,75 @@ window.approveSingleItem = async function(key, user, item) {
                 if(dayOfWeek !== 0 && dayOfWeek !== 6) weekdays.push(d);
             }
 
-            db.ref('checkins').once('value', checkinSnap => {
-                let attendanceData = {}; 
-                let userSet = new Set(); // 출석 기록이 있는 사람들을 중복 없이 모을 주머니
+            // 💡 1. 출석 여부와 상관없이 DB의 전체 학생 명단을 순서대로 먼저 긁어옵니다.
+            db.ref('users').once('value', userSnap => {
+                let users = [];
+                userSnap.forEach(u => {
+                    users.push(u.key); // 🚫 정렬하지 않고 DB 번호 순서 유지
+                });
 
-                checkinSnap.forEach(child => {
-                    const c = child.val();
-                    if(!c.time || !c.user) return;
+                // 2. 출석 로그를 가져와서 학생 명단에 매칭합니다.
+                db.ref('checkins').once('value', checkinSnap => {
+                    let attendanceData = {}; 
+                    users.forEach(u => attendanceData[u] = {});
                     
-                    // 이번 달 기록만 필터링
-                    const dateObj = new Date(c.time.replace(/\. /g, '-').replace('.', ''));
-                    const itemMonth = isNaN(dateObj.getMonth()) ? new Date(c.time).getMonth() : dateObj.getMonth();
-                    
-                    if (itemMonth === month) {
-                        const d = isNaN(dateObj.getDate()) ? new Date(c.time).getDate() : dateObj.getDate();
+                    checkinSnap.forEach(child => {
+                        const c = child.val();
+                        if(!c.time || !c.user || !users.includes(c.user)) return;
                         
-                        if(d && !isNaN(d)) {
-                            userSet.add(c.user); // 출석 로그에 등장한 이름 추가
-                            if(!attendanceData[c.user]) attendanceData[c.user] = {};
-                            attendanceData[c.user][d] = c.reason || '등교';
+                        // 날짜 객체 안전 파싱
+                        const dateObj = new Date(c.time.replace(/\. /g, '-').replace('.', ''));
+                        const itemMonth = isNaN(dateObj.getMonth()) ? new Date(c.time).getMonth() : dateObj.getMonth();
+                        
+                        if (itemMonth === month) {
+                            const d = isNaN(dateObj.getDate()) ? new Date(c.time).getDate() : dateObj.getDate();
+                            if(d && !isNaN(d)) {
+                                attendanceData[c.user][d] = c.reason || '등교';
+                            }
                         }
-                    }
-                });
-
-                // 이름 순으로 정렬
-                const users = Array.from(userSet).sort();
-
-                let tableHtml = `
-                    <div style="margin-bottom:10px; font-size:0.9rem; color:#666;">
-                        O: 정상등교 / 결: 결석 / 체: 체험학습
-                    </div>
-                    <div style="overflow-x:auto; max-height:400px;">
-                    <table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;">
-                    <thead>
-                        <tr style="background:#f1f3f5;">
-                            <th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>
-                `;
-                
-                weekdays.forEach(d => { tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`; });
-                tableHtml += `</tr></thead><tbody>`;
-
-                users.forEach(u => {
-                    tableHtml += `<tr><td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
-                    weekdays.forEach(d => {
-                        let status = attendanceData[u][d];
-                        let mark = '', color = 'transparent';
-                        if(status) {
-                            if(status.includes('정상') || status === '등교') { mark = 'O'; color = '#e8f5e9'; }
-                            else if(status.includes('결석')) { mark = '결'; color = '#ffebee'; }
-                            else if(status.includes('체험학습')) { mark = '체'; color = '#fff3e0'; }
-                            else { mark = status.substring(0,1); color = '#f3e5f5'; } 
-                        }
-                        tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
                     });
-                    tableHtml += `</tr>`;
+
+                    let tableHtml = `
+                        <div style="margin-bottom:10px; font-size:0.9rem; color:#666;">
+                            O: 정상등교 / 결: 결석 / 체: 체험학습
+                        </div>
+                        <div style="overflow-x:auto; max-height:400px;">
+                        <table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;">
+                        <thead>
+                            <tr style="background:#f1f3f5;">
+                                <th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>
+                    `;
+                    
+                    weekdays.forEach(d => { tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`; });
+                    tableHtml += `</tr></thead><tbody>`;
+
+                    // DB 순서대로 한 줄씩 출력
+                    users.forEach(u => {
+                        tableHtml += `<tr><td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
+                        weekdays.forEach(d => {
+                            let status = attendanceData[u][d];
+                            let mark = '', color = 'transparent';
+                            if(status) {
+                                if(status.includes('정상') || status === '등교') { mark = 'O'; color = '#e8f5e9'; }
+                                else if(status.includes('결석')) { mark = '결'; color = '#ffebee'; }
+                                else if(status.includes('체험학습') || status.includes('체험')) { mark = '체'; color = '#fff3e0'; }
+                                else { mark = status.substring(0,1); color = '#f3e5f5'; } 
+                            }
+                            tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
+                        });
+                        tableHtml += `</tr>`;
+                    });
+
+                    if(users.length === 0) {
+                        tableHtml += `<tr><td colspan="${weekdays.length + 1}" style="padding:20px; color:#aaa;">DB에 등록된 사용자가 없습니다.</td></tr>`;
+                    }
+
+                    tableHtml += `</tbody></table></div>`;
+                    openPopup(`${month + 1}월 학급 출석부`, tableHtml);
                 });
-
-                if(users.length === 0) {
-                    tableHtml += `<tr><td colspan="${weekdays.length + 1}" style="padding:20px; color:#aaa;">이번 달 출석 기록이 없습니다.</td></tr>`;
-                }
-
-                tableHtml += `</tbody></table></div>`;
-                openPopup(`${month + 1}월 학급 출석부`, tableHtml);
             });
         };
+        
         // 💡 원클릭/더블클릭 마법 함수 (유령 클릭 방어 적용)
         window.attendanceClickTimer = null;
         window.lastClickTime = {}; // 마지막으로 누른 시간 기록용
@@ -2561,36 +2566,34 @@ window.approveSingleItem = async function(key, user, item) {
         const SUBJECTS = ['국어', '수학', '사회', '과학', '미술', '도덕', '음악', '체육', '실과'];
         let currentGradeSubject = '국어';
 
-       // 1. 성적 탭 메인 화면 렌더링
+       // 1. 성적 탭 메인 화면 렌더링 (과목 버튼 슬림화)
         window.renderGradesMain = function() {
             const board = document.getElementById('tab-grades');
             if(!board) return;
 
             let html = `
-                <div style="text-align:center; margin-bottom:20px;">
-                    <h2>📝 학급 성적 및 평가 관리</h2>
-                    <div id="grades-subject-buttons" style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:15px; padding: 10px; background: #f1f3f5; border-radius: 10px;">
+                <div style="text-align:center; margin-bottom:15px;">
+                    <h2 style="margin-bottom:10px;">📝 학급 성적 및 평가 관리</h2>
+                    <div id="grades-subject-buttons" style="display:flex; flex-wrap:nowrap; overflow-x:auto; justify-content:center; gap:5px; padding: 6px; background: #f1f3f5; border-radius: 8px;">
                     </div>
                 </div>
-                <div id="grades-content-area" style="margin-top:20px;"></div>
+                <div id="grades-content-area" style="margin-top:15px;"></div>
             `;
             board.innerHTML = html;
-            
-            // 처음 렌더링 시 목록 불러오기
             loadSubjectGrades(currentGradeSubject);
         };
 
-        // 2. 선택한 과목의 '평가 목록' 및 '+추가 버튼' 불러오기
+        // 2. 선택한 과목의 '평가 목록' 불러오기
         window.loadSubjectGrades = function(subject) {
             currentGradeSubject = subject;
             
-            // 💡 멈춤 버그 해결: 전체 화면을 다시 그리지 않고 과목 버튼 색상만 바꿉니다.
             const btnContainer = document.getElementById('grades-subject-buttons');
             if(btnContainer) {
                 let btnHtml = '';
                 SUBJECTS.forEach(sub => {
-                    const isActive = (sub === currentGradeSubject) ? 'background:var(--primary); color:white; transform:scale(1.05);' : 'background:white; color:#333; border:1px solid #ccc;';
-                    btnHtml += `<button onclick="loadSubjectGrades('${sub}')" style="padding:10px 15px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; transition:0.2s; ${isActive}">${sub}</button>`;
+                    const isActive = (sub === currentGradeSubject) ? 'background:var(--primary); color:white; font-weight:bold;' : 'background:white; color:#333; border:1px solid #ccc;';
+                    // 💡 padding을 6px 10px로 줄이고 글자 크기를 0.85rem으로 낮춤
+                    btnHtml += `<button onclick="loadSubjectGrades('${sub}')" style="padding:6px 10px; font-size:0.85rem; border:none; border-radius:5px; cursor:pointer; min-width:55px; transition:0.1s; ${isActive}">${sub}</button>`;
                 });
                 btnContainer.innerHTML = btnHtml;
             }
@@ -2599,13 +2602,12 @@ window.approveSingleItem = async function(key, user, item) {
             if(!contentArea) return;
 
             db.ref('grades/' + subject).once('value', snap => {
-                // 💡 드디어 나타나는 + 버튼 영역!
                 let html = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #ccc; padding-bottom:10px;">
                         <h3 style="margin:0;">📘 ${subject} 평가 목록</h3>
                         <div>
-                            <button onclick="openNewGradePopup('${subject}', 'perf')" style="padding:8px 12px; background:#43a047; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ 수행평가 추가</button>
-                            <button onclick="openNewGradePopup('${subject}', 'score')" style="padding:8px 12px; background:#1e88e5; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ 일반평가 추가</button>
+                            <button onclick="openNewGradePopup('${subject}', 'perf')" style="padding:6px 12px; font-size:0.88rem; background:#43a047; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px;">+ 수행평가 추가</button>
+                            <button onclick="openNewGradePopup('${subject}', 'score')" style="padding:6px 12px; font-size:0.88rem; background:#1e88e5; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">+ 일반평가 추가</button>
                         </div>
                     </div>
                     <div style="display:grid; gap:10px;">
@@ -2616,15 +2618,13 @@ window.approveSingleItem = async function(key, user, item) {
                 assessments.reverse(); 
 
                 if(assessments.length === 0) {
-                    html += `<div style="text-align:center; color:#666; padding:30px; border:2px dashed #ccc; border-radius:10px; background:#f9f9f9;">
-                        아직 등록된 평가가 없습니다.<br>오른쪽 위의 <b>[+ 추가]</b> 버튼을 눌러 평가를 만들어주세요!
-                    </div>`;
+                    html += `<div style="text-align:center; color:#666; padding:25px; border:2px dashed #ccc; border-radius:10px; background:#f9f9f9; font-size:0.95rem;">등록된 평가가 없습니다. 오른쪽 위의 [+ 추가] 버튼을 이용해 주세요.</div>`;
                 } else {
                     assessments.forEach(a => {
                         const typeIcon = a.type === 'perf' ? '📋 수행' : '💯 일반';
                         const typeColor = a.type === 'perf' ? '#43a047' : '#1e88e5';
                         html += `
-                            <div onclick="openGradeEditor('${subject}', '${a.key}')" style="padding:15px; background:white; border:1px solid #ddd; border-left:5px solid ${typeColor}; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                            <div onclick="openGradeEditor('${subject}', '${a.key}')" style="padding:12px; background:white; border:1px solid #ddd; border-left:5px solid ${typeColor}; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
                                 <span><strong style="color:${typeColor};">${typeIcon}</strong> &nbsp;|&nbsp; <b>${a.title}</b></span>
                                 <small style="color:#888;">${a.date}</small>
                             </div>
@@ -2651,24 +2651,18 @@ window.approveSingleItem = async function(key, user, item) {
             });
         };
 
-       // 4. 평가 입력 창 (올바른 DB 경로 참조 버전)
+      // 4. 평가 입력 창 (DB 등록 순서 100% 보장 버전)
         window.openGradeEditor = function(subject, key) {
             db.ref(`grades/${subject}/${key}`).once('value', snap => {
                 const data = snap.val();
                 if(!data) return;
                 
-                // 💡 [중요] 아이들이 저장된 진짜 DB 경로를 적어주세요! (기본값: 'users')
-                // 만약 'students'나 'settings/students'에 저장하셨다면 여기를 바꿔주시면 됩니다.
-                const studentDbPath = 'users'; 
-                
-                db.ref(studentDbPath).once('value', userSnap => {
+                // 💡 DB에서 유저 목록을 있는 그대로 순서대로 가져옵니다.
+                db.ref('users').once('value', userSnap => {
                     let users = [];
                     userSnap.forEach(u => {
-                        // 관리자(선생님) 본인은 성적표에서 뺄 수도 있습니다. 필요하면 아래 조건문을 쓰세요.
-                        // if(u.key.includes('선생님')) return;
-                        users.push(u.key); 
+                        users.push(u.key); // 🚫 절대 sort()하지 않고 DB 원본 번호 순서 그대로 쌓음
                     });
-                    users.sort(); 
 
                     let h = `
                         <div style="text-align:left;">
@@ -2733,7 +2727,6 @@ window.approveSingleItem = async function(key, user, item) {
                 });
             });
         };
-
         // 5. 수행평가 더블클릭 순환 로직 (매우잘함 -> 잘함 -> 보통)
         window.togglePerfGrade = function(u) {
             // 더블클릭 시 텍스트가 드래그(선택)되는 현상 방지
