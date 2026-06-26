@@ -2583,7 +2583,7 @@ window.approveSingleItem = async function(key, user, item) {
             loadSubjectGrades(currentGradeSubject);
         };
 
-        // 2. 선택한 과목의 '평가 목록' 불러오기
+       // 2. 선택한 과목의 '평가 목록' 불러오기 (글자 크기 확대 버전!)
         window.loadSubjectGrades = function(subject) {
             currentGradeSubject = subject;
             
@@ -2591,9 +2591,11 @@ window.approveSingleItem = async function(key, user, item) {
             if(btnContainer) {
                 let btnHtml = '';
                 SUBJECTS.forEach(sub => {
+                    // 💡 글자색과 배경색 스타일
                     const isActive = (sub === currentGradeSubject) ? 'background:var(--primary); color:white; font-weight:bold;' : 'background:white; color:#333; border:1px solid #ccc;';
-                    // 💡 padding을 6px 10px로 줄이고 글자 크기를 0.85rem으로 낮춤
-                    btnHtml += `<button onclick="loadSubjectGrades('${sub}')" style="padding:6px 10px; font-size:0.85rem; border:none; border-radius:5px; cursor:pointer; min-width:55px; transition:0.1s; ${isActive}">${sub}</button>`;
+                    
+                    // 💡 [글자 크기 수정!] font-size를 1.1rem으로 확 키우고, 패딩을 조절해서 글씨가 시원하게 보이도록 만들었습니다.
+                    btnHtml += `<button onclick="loadSubjectGrades('${sub}')" style="padding:8px 14px; font-size:1.1rem; border:none; border-radius:6px; cursor:pointer; min-width:65px; font-weight:bold; transition:0.1s; ${isActive}">${sub}</button>`;
                 });
                 btnContainer.innerHTML = btnHtml;
             }
@@ -2635,6 +2637,7 @@ window.approveSingleItem = async function(key, user, item) {
                 contentArea.innerHTML = html;
             });
         };
+        
         // 3. 새 평가 만들기 (제목 입력)
         window.openNewGradePopup = function(subject, type) {
             const title = prompt(`[${subject}] 평가의 제목을 입력하세요.\n(예: 1단원 덧셈과 뺄셈, 시 낭송하기 등)`);
