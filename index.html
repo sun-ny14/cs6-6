@@ -82,6 +82,7 @@
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
             <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
             <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
+            <button id="btn-grades" onclick="showTab('grades'); renderGradesMain();" style="display:none; background:var(--gold); color:var(--dark);">📝 성적관리</button>
             <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
             <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
             <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
@@ -122,6 +123,7 @@
                 <div id="seat-map-container" style="display:grid; gap:12px; width:100%; background:#f1f1f1; padding:15px; border-radius:15px; border: 1px solid #ddd;"></div>
             </div>
         </section> 
+        <div id="tab-grades" class="tab-content"></div>
 
         <section id="tab-budget" class="tab-content">
             <div style="background:white; padding:20px; border-radius:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
@@ -2542,6 +2544,248 @@ window.approveSingleItem = async function(key, user, item) {
                 alert(`[${user}] ${reason} 처리 완료!`);
                 closePopup();
                 appendExtraLogsUI(); // 로그 새로고침
+            });
+        };
+        // ==========================================
+        // 💡 관리자 전용 탭 숨김/표시 자동화 로직
+        // ==========================================
+        setInterval(() => {
+            const btn = document.getElementById('btn-grades');
+            // 관리자일 때만 성적 탭 버튼이 짠! 하고 나타납니다.
+            if(btn) btn.style.display = isAdmin ? 'inline-block' : 'none';
+        }, 1000);
+
+        // ==========================================
+        // 📝 성적 관리 핵심 기능 세트
+        // ==========================================
+        const SUBJECTS = ['국어', '수학', '사회', '과학', '미술', '도덕', '음악', '체육', '실과'];
+        let currentGradeSubject = '국어';
+
+        // 1. 성적 탭 메인 화면 렌더링 (과목 선택 버튼들)
+        window.renderGradesMain = function() {
+            const board = document.getElementById('tab-grades');
+            if(!board) return;
+
+            let html = `
+                <div style="text-align:center; margin-bottom:20px;">
+                    <h2>📝 학급 성적 및 평가 관리</h2>
+                    <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:15px; padding: 10px; background: #f1f3f5; border-radius: 10px;">
+            `;
+            
+            SUBJECTS.forEach(sub => {
+                const isActive = (sub === currentGradeSubject) ? 'background:var(--primary); color:white; transform:scale(1.05);' : 'background:white; color:#333; border:1px solid #ccc;';
+                html += `<button onclick="loadSubjectGrades('${sub}')" style="padding:10px 15px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; transition:0.2s; ${isActive}">${sub}</button>`;
+            });
+
+            html += `
+                    </div>
+                </div>
+                <div id="grades-content-area" style="margin-top:20px;"></div>
+            `;
+            board.innerHTML = html;
+            loadSubjectGrades(currentGradeSubject);
+        };
+
+        // 2. 선택한 과목의 '평가 목록' 불러오기
+        window.loadSubjectGrades = function(subject) {
+            currentGradeSubject = subject;
+            renderGradesMain(); // 과목 버튼 색상 갱신
+            
+            setTimeout(() => {
+                const contentArea = document.getElementById('grades-content-area');
+                if(!contentArea) return;
+
+                db.ref('grades/' + subject).once('value', snap => {
+                    let html = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #ccc; padding-bottom:10px;">
+                            <h3 style="margin:0;">📘 ${subject} 평가 목록</h3>
+                            <div>
+                                <button onclick="openNewGradePopup('${subject}', 'perf')" style="padding:8px 12px; background:#43a047; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ 수행평가</button>
+                                <button onclick="openNewGradePopup('${subject}', 'score')" style="padding:8px 12px; background:#1e88e5; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ 일반평가</button>
+                            </div>
+                        </div>
+                        <div style="display:grid; gap:10px;">
+                    `;
+
+                    let assessments = [];
+                    snap.forEach(child => { assessments.push({ key: child.key, ...child.val() }); });
+                    assessments.reverse(); // 최신순 정렬
+
+                    if(assessments.length === 0) {
+                        html += `<p style="text-align:center; color:#999; padding:20px;">아직 등록된 평가가 없습니다.</p>`;
+                    } else {
+                        assessments.forEach(a => {
+                            const typeIcon = a.type === 'perf' ? '📋 수행' : '💯 일반';
+                            const typeColor = a.type === 'perf' ? '#43a047' : '#1e88e5';
+                            html += `
+                                <div onclick="openGradeEditor('${subject}', '${a.key}')" style="padding:15px; background:white; border:1px solid #ddd; border-left:5px solid ${typeColor}; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                                    <span><strong style="color:${typeColor};">${typeIcon}</strong> &nbsp;|&nbsp; <b>${a.title}</b></span>
+                                    <small style="color:#888;">${a.date}</small>
+                                </div>
+                            `;
+                        });
+                    }
+                    html += `</div>`;
+                    contentArea.innerHTML = html;
+                });
+            }, 50);
+        };
+
+        // 3. 새 평가 만들기 (제목 입력)
+        window.openNewGradePopup = function(subject, type) {
+            const title = prompt(`[${subject}] 평가의 제목을 입력하세요.\n(예: 1단원 덧셈과 뺄셈, 시 낭송하기 등)`);
+            if(!title) return;
+
+            const key = db.ref(`grades/${subject}`).push().key;
+            db.ref(`grades/${subject}/${key}`).set({
+                title: title,
+                type: type,
+                date: new Date().toISOString().split('T')[0],
+                scores: {}
+            }).then(() => {
+                openGradeEditor(subject, key);
+            });
+        };
+
+        // 4. 평가 입력 창 (더블클릭 / 점수입력)
+        window.openGradeEditor = function(subject, key) {
+            db.ref(`grades/${subject}/${key}`).once('value', snap => {
+                const data = snap.val();
+                if(!data) return;
+                
+                db.ref('users').once('value', userSnap => {
+                    let users = [];
+                    userSnap.forEach(u => users.push(u.key));
+                    users.sort(); // 이름 가나다순
+
+                    let h = `
+                        <div style="text-align:left;">
+                            <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px;">
+                                ${data.title} <small style="color:#666; font-size:0.9rem;">(${data.type === 'perf' ? '수행평가' : '일반평가'})</small>
+                            </h3>
+                            <div style="max-height:400px; overflow-y:auto; padding-right:5px;">
+                                <table style="width:100%; border-collapse:collapse; text-align:center;">
+                                    <thead style="background:#f1f3f5; position:sticky; top:0; z-index:2;">
+                                        <tr>
+                                            <th style="padding:10px; border:1px solid #ccc; width:40%;">이름</th>
+                                            <th style="padding:10px; border:1px solid #ccc;">${data.type === 'perf' ? '결과 <small>(더블클릭으로 변경)</small>' : '점수 입력'}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                    `;
+
+                    let scores = data.scores || {};
+
+                    users.forEach((u, index) => {
+                        let val = scores[u] || (data.type === 'perf' ? '매우잘함◎' : '');
+                        
+                        if (data.type === 'perf') {
+                            // 💡 수행평가: 더블클릭 지원
+                            let color = val.includes('매우') ? 'var(--dark)' : (val.includes('보통') ? '#e65100' : '#1976d2');
+                            h += `
+                                <tr>
+                                    <td style="padding:10px; border:1px solid #ccc; font-weight:bold;">${u}</td>
+                                    <td style="padding:0; border:1px solid #ccc; background:white;">
+                                        <button id="grade-${u}" ondblclick="togglePerfGrade('${u}')" style="width:100%; height:100%; min-height:45px; padding:10px; background:transparent; border:none; font-size:1.1rem; cursor:pointer; font-weight:bold; color:${color}; transition:0.2s;">
+                                            ${val}
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            // 💡 일반평가: 탭(Tab) 키 이동 지원 및 점수 입력창
+                            h += `
+                                <tr>
+                                    <td style="padding:10px; border:1px solid #ccc; font-weight:bold;">${u}</td>
+                                    <td style="padding:10px; border:1px solid #ccc; background:white;">
+                                        <input type="number" id="grade-${u}" class="score-input" value="${val}" tabindex="${index + 1}" oninput="calcAvg()" placeholder="점수" style="width:80%; padding:8px; border:1px solid #ccc; border-radius:5px; text-align:center; font-size:1.1rem;">
+                                    </td>
+                                </tr>
+                            `;
+                        }
+                    });
+
+                    h += `</tbody></table></div>`;
+                    
+                    // 평균 표시 영역
+                    if(data.type === 'score') {
+                        h += `<div style="text-align:right; margin-top:15px; padding-right:10px; font-weight:bold; font-size:1.2rem; background:#e3f2fd; padding:10px; border-radius:8px;">평균: <span id="score-average" style="color:#1e88e5;">0.0점</span></div>`;
+                    }
+
+                    h += `
+                        <div style="margin-top:20px; display:flex; gap:10px;">
+                            <button onclick="saveGrades('${subject}', '${key}', '${data.type}')" style="flex:2; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">💾 성적 저장하기</button>
+                            <button onclick="deleteGrade('${subject}', '${key}')" style="flex:1; padding:15px; background:var(--red); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">🗑️ 삭제</button>
+                        </div>
+                    </div>`;
+                    
+                    openPopup("평가 기록", h);
+                    if(data.type === 'score') setTimeout(calcAvg, 100); // 팝업 뜨자마자 기존 평균 계산
+                });
+            });
+        };
+
+        // 5. 수행평가 더블클릭 순환 로직 (매우잘함 -> 잘함 -> 보통)
+        window.togglePerfGrade = function(u) {
+            // 더블클릭 시 텍스트가 드래그(선택)되는 현상 방지
+            window.getSelection().removeAllRanges();
+            
+            const el = document.getElementById(`grade-${u}`);
+            if(!el) return;
+            
+            if(el.innerText.includes('매우잘함')) {
+                el.innerText = '잘함○';
+                el.style.color = '#1976d2'; // 파란색
+            } else if(el.innerText.includes('잘함')) {
+                el.innerText = '보통△';
+                el.style.color = '#e65100'; // 주황색
+            } else {
+                el.innerText = '매우잘함◎';
+                el.style.color = 'var(--dark)'; // 검정색
+            }
+        };
+
+        // 6. 일반평가 실시간 평균 계산기
+        window.calcAvg = function() {
+            let sum = 0; let count = 0;
+            document.querySelectorAll('.score-input').forEach(input => {
+                const val = parseFloat(input.value);
+                if(!isNaN(val)) {
+                    sum += val;
+                    count++;
+                }
+            });
+            const avg = count === 0 ? 0 : (sum / count).toFixed(1);
+            const avgEl = document.getElementById('score-average');
+            if(avgEl) avgEl.innerText = avg + '점';
+        };
+
+        // 7. 성적 DB 저장
+        window.saveGrades = function(subject, key, type) {
+            let scores = {};
+            db.ref('users').once('value', snap => {
+                snap.forEach(child => {
+                    const u = child.key;
+                    const el = document.getElementById(`grade-${u}`);
+                    if(el) {
+                        scores[u] = type === 'perf' ? el.innerText.trim() : (el.value ? parseFloat(el.value) : '');
+                    }
+                });
+                db.ref(`grades/${subject}/${key}/scores`).set(scores).then(() => {
+                    alert("성적 데이터가 안전하게 저장되었습니다! ✅");
+                    closePopup();
+                    loadSubjectGrades(subject); // 리스트 새로고침
+                });
+            });
+        };
+
+        // 8. 평가 기록 삭제
+        window.deleteGrade = function(subject, key) {
+            if(!confirm("⚠️ 이 평가 기록을 완전히 삭제하시겠습니까? (복구 불가)")) return;
+            db.ref(`grades/${subject}/${key}`).remove().then(() => {
+                alert("삭제 완료되었습니다.");
+                closePopup();
+                loadSubjectGrades(subject);
             });
         };
     </script>
