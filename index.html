@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #3498db; --dark: #2c3e50; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; --purple: #9b59b6; --bg: #ecf0f1; }
-        body { font-family: 'Pretendard', sans-seri// 3. 용사의 방 온오프 상태 관리f; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; font-size: 1.4rem; }
+        body { font-family: 'Pretendard', sans-serif; margin: 0; background: var(--bg); color: #333; padding-bottom: 60px; font-size: 1.4rem; }
         input, button, textarea, select { width: 100%; padding: 18px; margin: 10px 0; border-radius: 12px; border: 2px solid #ccc; box-sizing: border-box; font-size: 1.4rem; }
         #loading-screen { display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); color: white; z-index: 3000; font-size: 1.8rem; }
         #login-screen { display: none; justify-content: center; align-items: center; min-height: 100vh; background: var(--dark); padding: 20px; }
@@ -1343,7 +1343,7 @@
             generateNewLayout(); 
         }
 
-        function renderSeatMap(rows, cols) {
+       function renderSeatMap(rows, cols) {
             const container = document.getElementById('seat-map-container');
             if(!container) return;
             container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -1397,8 +1397,45 @@
                             }
                         }
 
-                        cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction
+                        cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; color: ${textColor}; user-select:none;`;
 
+                        if (name) {
+                            cell.innerHTML = `
+                                <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px;">${name}</div>
+                                <div style="font-weight:bold; font-size:1.2rem;">${statusText}</div>
+                                <div style="font-size:1.1rem; margin-top:3px;">${logs[name]?.time && logs[name].time !== '-' ? '[' + logs[name].time + ']' : ''}</div>
+                            `;
+                        }
+                        
+                        cell.dataset.lastClick = 0;
+                        cell.onclick = () => {
+                            if (isEditMode) {
+                                openStudentPicker(posId, rows, cols);
+                                return;
+                            }
+                            if (!name) return;
+
+                            const now = Date.now();
+                            const lastClick = parseInt(cell.dataset.lastClick) || 0;
+                            if (now - lastClick < 50) return; 
+                            cell.dataset.lastClick = now;
+
+                            if (cell.clickTimer) {
+                                clearTimeout(cell.clickTimer);
+                                cell.clickTimer = null;
+                                openLogEditPopup(name, targetDate); 
+                            } else {
+                                cell.clickTimer = setTimeout(() => {
+                                    cell.clickTimer = null;
+                                    saveFastCheckin(name, targetDate);
+                                }, 250);
+                            }
+                        };
+                        container.appendChild(cell);
+                    }
+                }
+            });
+        }
         function openStudentPicker(posId, rows, cols) {
             const assignedNames = Object.values(currentLayout);
             let h = `<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; padding:10px;">`;
@@ -2771,102 +2808,7 @@ window.approveSingleItem = async function(key, user, item) {
                 loadSubjectGrades(subject);
             });
         };
-                    function renderSeatMap(rows, cols) {
-            const container = document.getElementById('seat-map-container');
-            if(!container) return;
-            container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-            container.innerHTML = "";
-            
-            const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
-            const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-            const selectedDay = weekDays[new Date(targetDate).getDay()];
-
-            Promise.all([
-                db.ref('checkinLogs').once('value'),
-                db.ref('settings/fixedExclusions').once('value')
-            ]).then(snaps => {
-                const logs = {};
-                snaps[0].forEach(l => { if(l.val().date === targetDate) logs[l.val().name] = l.val(); });
-                
-                const exclusionData = snaps[1].val() || {};
-                const todayExclusions = exclusionData[selectedDay] || [];
-
-                for (let r = 0; r < rows; r++) {
-                    for (let c = 0; c < cols; c++) {
-                        const posId = `${r}-${c}`;
-                        const name = currentLayout[posId] || "";
-                        const cell = document.createElement('div');
-                        
-                        let bgColor = "#eee"; 
-                        let statusText = "미등교";
-                        let textColor = "black";
-
-                        if (name) {
-                            const log = logs[name]; 
-                            const isFixedExcluded = todayExclusions.includes(name); 
-
-                            if (log) {
-                                statusText = log.result;
-                                if (log.result.includes('정상')) bgColor = "#ccffcc"; 
-                                else if (log.result.includes('지각')) bgColor = "#ffcccc"; 
-                                else {
-                                    bgColor = "#f39c12"; 
-                                    statusText = log.result;
-                                }
-                            } 
-                            else if (isFixedExcluded) {
-                                bgColor = "#3498db"; 
-                                statusText = "고정 제외";
-                                textColor = "white";
-                            } 
-                            else {
-                                bgColor = "#ffff00"; 
-                                statusText = "미등교";
-                            }
-                        }
-
-                        cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; color: ${textColor}; user-select:none;`;
-
-                        if (name) {
-                            cell.innerHTML = `
-                                <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px;">${name}</div>
-                                <div style="font-weight:bold; font-size:1.2rem;">${statusText}</div>
-                                <div style="font-size:1.1rem; margin-top:3px;">${logs[name]?.time && logs[name].time !== '-' ? '[' + logs[name].time + ']' : ''}</div>
-                            `;
-                        }
-                        
-                        // 💡 [수정됨] 마의 원클릭 / 더블클릭 구간!
-                        cell.dataset.lastClick = 0;
-                        cell.onclick = () => {
-                            if (isEditMode) {
-                                openStudentPicker(posId, rows, cols);
-                                return;
-                            }
-                            if (!name) return;
-
-                            const now = Date.now();
-                            const lastClick = parseInt(cell.dataset.lastClick) || 0;
-                            if (now - lastClick < 50) return; // 🚫 기기 오작동(유령클릭) 방어
-                            cell.dataset.lastClick = now;
-
-                            if (cell.clickTimer) {
-                                // 따닥! 두 번 눌렀을 때 -> 선생님의 원래 사유 창 띄우기
-                                clearTimeout(cell.clickTimer);
-                                cell.clickTimer = null;
-                                openLogEditPopup(name, targetDate); 
-                            } else {
-                                // 한 번 눌렀을 때 -> 0.25초 기다렸다가 정상 등교 쾌속 저장!
-                                cell.clickTimer = setTimeout(() => {
-                                    cell.clickTimer = null;
-                                    saveFastCheckin(name, targetDate);
-                                }, 250);
-                            }
-                        };
-                        container.appendChild(cell);
-                    }
-                }
-            });
-        }
+                  
                     // 💡 원클릭 '정상 등교' 쾌속 저장 함수 (선생님 DB 맞춤형)
         window.saveFastCheckin = function(name, targetDate) {
             db.ref('checkinLogs').once('value', snap => {
