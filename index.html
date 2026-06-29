@@ -1397,25 +1397,7 @@
                             }
                         }
 
-                        cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; color: ${textColor};`;
-
-                        if (name) {
-                            cell.innerHTML = `
-                                <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px;">${name}</div>
-                                <div style="font-weight:bold; font-size:1.2rem;">${statusText}</div>
-                                <div style="font-size:1.1rem; margin-top:3px;">${logs[name]?.time && logs[name].time !== '-' ? '[' + logs[name].time + ']' : ''}</div>
-                            `;
-                        }
-                        
-                        cell.onclick = () => {
-                            if (isEditMode) openStudentPicker(posId, rows, cols);
-                            else if (name) openLogEditPopup(name, targetDate); 
-                        };
-                        container.appendChild(cell);
-                    }
-                }
-            });
-        }
+                        cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction
 
         function openStudentPicker(posId, rows, cols) {
             const assignedNames = Object.values(currentLayout);
@@ -2256,86 +2238,82 @@ window.approveSingleItem = async function(key, user, item) {
                 });
             });
         };
-       // 📊 월간 출석부 렌더링 (출석 로그에 있는 모든 인물 자동 추출 버전)
-       // 📊 월간 출석부 렌더링 (DB 전체 학생 로드 + 정렬 폐기 버전)
+       /// 📊 월간 출석부 (선생님 전용 맞춤형 - currentLayout & checkinLogs 연동)
         window.openMonthlyCalendar = function() {
             const now = new Date();
             const year = now.getFullYear();
             const month = now.getMonth(); 
-            
             const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
             let weekdays = [];
             for(let d = 1; d <= daysInMonth; d++) {
                 const dayOfWeek = new Date(year, month, d).getDay();
                 if(dayOfWeek !== 0 && dayOfWeek !== 6) weekdays.push(d);
             }
 
-            // 💡 1. 출석 여부와 상관없이 DB의 전체 학생 명단을 순서대로 먼저 긁어옵니다.
-            db.ref('users').once('value', userSnap => {
-                let users = [];
-                userSnap.forEach(u => {
-                    users.push(u.key); // 🚫 정렬하지 않고 DB 번호 순서 유지
+            // 💡 1. 자리 배치도(currentLayout)에서 우리 반 명단 정확히 뽑아오기!
+            let users = [];
+            if (typeof currentLayout !== 'undefined' && currentLayout) {
+                Object.values(currentLayout).forEach(name => {
+                    if (name && !users.includes(name)) users.push(name);
                 });
+            }
 
-                // 2. 출석 로그를 가져와서 학생 명단에 매칭합니다.
-                db.ref('checkins').once('value', checkinSnap => {
-                    let attendanceData = {}; 
-                    users.forEach(u => attendanceData[u] = {});
+            if (users.length === 0) {
+                alert("자리 배치도에 저장된 아이들 명단이 없습니다!");
+                return;
+            }
+
+            // 💡 2. 선생님의 진짜 출결 DB인 'checkinLogs'에서 데이터 가져오기!
+            db.ref('checkinLogs').once('value', snap => {
+                let attendanceData = {}; 
+                users.forEach(u => attendanceData[u] = {});
+                
+                snap.forEach(child => {
+                    const c = child.val();
+                    if(!c.date || !c.name || !users.includes(c.name)) return;
                     
-                    checkinSnap.forEach(child => {
-                        const c = child.val();
-                        if(!c.time || !c.user || !users.includes(c.user)) return;
-                        
-                        // 날짜 객체 안전 파싱
-                        const dateObj = new Date(c.time.replace(/\. /g, '-').replace('.', ''));
-                        const itemMonth = isNaN(dateObj.getMonth()) ? new Date(c.time).getMonth() : dateObj.getMonth();
-                        
-                        if (itemMonth === month) {
-                            const d = isNaN(dateObj.getDate()) ? new Date(c.time).getDate() : dateObj.getDate();
-                            if(d && !isNaN(d)) {
-                                attendanceData[c.user][d] = c.reason || '등교';
-                            }
+                    const dateObj = new Date(c.date);
+                    if (dateObj.getFullYear() === year && dateObj.getMonth() === month) {
+                        const d = dateObj.getDate();
+                        if(d && !isNaN(d)) {
+                            attendanceData[c.name][d] = c.result || '등교';
                         }
-                    });
-
-                    let tableHtml = `
-                        <div style="margin-bottom:10px; font-size:0.9rem; color:#666;">
-                            O: 정상등교 / 결: 결석 / 체: 체험학습
-                        </div>
-                        <div style="overflow-x:auto; max-height:400px;">
-                        <table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;">
-                        <thead>
-                            <tr style="background:#f1f3f5;">
-                                <th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>
-                    `;
-                    
-                    weekdays.forEach(d => { tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`; });
-                    tableHtml += `</tr></thead><tbody>`;
-
-                    // DB 순서대로 한 줄씩 출력
-                    users.forEach(u => {
-                        tableHtml += `<tr><td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
-                        weekdays.forEach(d => {
-                            let status = attendanceData[u][d];
-                            let mark = '', color = 'transparent';
-                            if(status) {
-                                if(status.includes('정상') || status === '등교') { mark = 'O'; color = '#e8f5e9'; }
-                                else if(status.includes('결석')) { mark = '결'; color = '#ffebee'; }
-                                else if(status.includes('체험학습') || status.includes('체험')) { mark = '체'; color = '#fff3e0'; }
-                                else { mark = status.substring(0,1); color = '#f3e5f5'; } 
-                            }
-                            tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
-                        });
-                        tableHtml += `</tr>`;
-                    });
-
-                    if(users.length === 0) {
-                        tableHtml += `<tr><td colspan="${weekdays.length + 1}" style="padding:20px; color:#aaa;">DB에 등록된 사용자가 없습니다.</td></tr>`;
                     }
-
-                    tableHtml += `</tbody></table></div>`;
-                    openPopup(`${month + 1}월 학급 출석부`, tableHtml);
                 });
+
+                let tableHtml = `
+                    <div style="margin-bottom:10px; font-size:0.9rem; color:#666;">
+                        O: 정상등교 / 결: 결석 / 체: 체험학습
+                    </div>
+                    <div style="overflow-x:auto; max-height:400px;">
+                    <table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;">
+                    <thead>
+                        <tr style="background:#f1f3f5;">
+                            <th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>
+                `;
+                
+                weekdays.forEach(d => { tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`; });
+                tableHtml += `</tr></thead><tbody>`;
+
+                users.forEach(u => {
+                    tableHtml += `<tr><td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
+                    weekdays.forEach(d => {
+                        let status = attendanceData[u][d];
+                        let mark = '', color = 'transparent';
+                        if(status) {
+                            if(status.includes('정상')) { mark = 'O'; color = '#e8f5e9'; }
+                            else if(status.includes('결석')) { mark = '결'; color = '#ffebee'; }
+                            else if(status.includes('체험학습') || status.includes('체험')) { mark = '체'; color = '#fff3e0'; }
+                            else { mark = status.substring(0,1); color = '#f3e5f5'; } 
+                        }
+                        tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
+                    });
+                    tableHtml += `</tr>`;
+                });
+
+                tableHtml += `</tbody></table></div>`;
+                openPopup(`${month + 1}월 학급 출석부`, tableHtml);
             });
         };
         
@@ -2791,6 +2769,121 @@ window.approveSingleItem = async function(key, user, item) {
                 alert("삭제 완료되었습니다.");
                 closePopup();
                 loadSubjectGrades(subject);
+            });
+        };
+                    function renderSeatMap(rows, cols) {
+            const container = document.getElementById('seat-map-container');
+            if(!container) return;
+            container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            container.innerHTML = "";
+            
+            const targetDate = document.getElementById('checkin-date-filter').value || getTodayKST();
+            const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+            const selectedDay = weekDays[new Date(targetDate).getDay()];
+
+            Promise.all([
+                db.ref('checkinLogs').once('value'),
+                db.ref('settings/fixedExclusions').once('value')
+            ]).then(snaps => {
+                const logs = {};
+                snaps[0].forEach(l => { if(l.val().date === targetDate) logs[l.val().name] = l.val(); });
+                
+                const exclusionData = snaps[1].val() || {};
+                const todayExclusions = exclusionData[selectedDay] || [];
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const posId = `${r}-${c}`;
+                        const name = currentLayout[posId] || "";
+                        const cell = document.createElement('div');
+                        
+                        let bgColor = "#eee"; 
+                        let statusText = "미등교";
+                        let textColor = "black";
+
+                        if (name) {
+                            const log = logs[name]; 
+                            const isFixedExcluded = todayExclusions.includes(name); 
+
+                            if (log) {
+                                statusText = log.result;
+                                if (log.result.includes('정상')) bgColor = "#ccffcc"; 
+                                else if (log.result.includes('지각')) bgColor = "#ffcccc"; 
+                                else {
+                                    bgColor = "#f39c12"; 
+                                    statusText = log.result;
+                                }
+                            } 
+                            else if (isFixedExcluded) {
+                                bgColor = "#3498db"; 
+                                statusText = "고정 제외";
+                                textColor = "white";
+                            } 
+                            else {
+                                bgColor = "#ffff00"; 
+                                statusText = "미등교";
+                            }
+                        }
+
+                        cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; color: ${textColor}; user-select:none;`;
+
+                        if (name) {
+                            cell.innerHTML = `
+                                <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px;">${name}</div>
+                                <div style="font-weight:bold; font-size:1.2rem;">${statusText}</div>
+                                <div style="font-size:1.1rem; margin-top:3px;">${logs[name]?.time && logs[name].time !== '-' ? '[' + logs[name].time + ']' : ''}</div>
+                            `;
+                        }
+                        
+                        // 💡 [수정됨] 마의 원클릭 / 더블클릭 구간!
+                        cell.dataset.lastClick = 0;
+                        cell.onclick = () => {
+                            if (isEditMode) {
+                                openStudentPicker(posId, rows, cols);
+                                return;
+                            }
+                            if (!name) return;
+
+                            const now = Date.now();
+                            const lastClick = parseInt(cell.dataset.lastClick) || 0;
+                            if (now - lastClick < 50) return; // 🚫 기기 오작동(유령클릭) 방어
+                            cell.dataset.lastClick = now;
+
+                            if (cell.clickTimer) {
+                                // 따닥! 두 번 눌렀을 때 -> 선생님의 원래 사유 창 띄우기
+                                clearTimeout(cell.clickTimer);
+                                cell.clickTimer = null;
+                                openLogEditPopup(name, targetDate); 
+                            } else {
+                                // 한 번 눌렀을 때 -> 0.25초 기다렸다가 정상 등교 쾌속 저장!
+                                cell.clickTimer = setTimeout(() => {
+                                    cell.clickTimer = null;
+                                    saveFastCheckin(name, targetDate);
+                                }, 250);
+                            }
+                        };
+                        container.appendChild(cell);
+                    }
+                }
+            });
+        }
+                    // 💡 원클릭 '정상 등교' 쾌속 저장 함수 (선생님 DB 맞춤형)
+        window.saveFastCheckin = function(name, targetDate) {
+            db.ref('checkinLogs').once('value', snap => {
+                let keyToUpdate = null;
+                snap.forEach(child => {
+                    const val = child.val();
+                    if (val.name === name && val.date === targetDate) keyToUpdate = child.key;
+                });
+
+                const timeStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+                const data = { name: name, date: targetDate, result: '정상 등교', time: timeStr };
+
+                if (keyToUpdate) {
+                    db.ref('checkinLogs/' + keyToUpdate).update(data).then(() => generateNewLayout());
+                } else {
+                    db.ref('checkinLogs').push(data).then(() => generateNewLayout());
+                }
             });
         };
     </script>
