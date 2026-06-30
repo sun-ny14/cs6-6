@@ -2381,20 +2381,26 @@ window.approveSingleItem = async function(key, user, item) {
                 }, 300); 
             }
         };
-        // DB 전송 함수
-        window.submitCheckin = function(user, reason) {
-            const timeStr = new Date().toLocaleString();
-            db.ref('checkins').push({
-                user: user,
-                reason: reason,
-                time: timeStr,
-                docSubmitted: false // 결석이나 체험학습일 경우 무조건 초기엔 미제출 상태로 세팅
-            }).then(() => {
-                alert(`[${user}] ${reason} 처리 완료! ✨`);
-                closePopup();
-                if(currentTab === 'logs') renderCheckinBoard(); // 로그 탭에 있다면 즉시 새로고침
-            });
-        };
+        // ✅ 1. 출석 기록 저장 함수 교체 (정상 등교 시 시간 지우기)
+window.submitCheckin = function(user, reason) {
+    // 오늘 날짜 가져오기 (달력 기록용으로 필수!)
+    const todayStr = getTodayKST(); 
+    
+    // 💡 핵심: '정상 등교'일 때는 시간을 "-"로 만들고, 아닐 때는 현재 시간 기록!
+    const timeStr = (reason === '정상 등교') ? "-" : new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+    db.ref('checkins').push({
+        user: user, 
+        reason: reason, 
+        date: todayStr,  // <-- 달력에서 날짜를 찾기 위해 새로 추가된 부분!
+        time: timeStr, 
+        docSubmitted: false
+    }).then(() => {
+        alert(`[${user}] ${reason} 처리 완료! ✨`);
+        closePopup();
+        appendExtraLogsUI(); // 로그 새로고침
+    });
+};
         // ==========================================
         // 💡 기존 화면 '아래'에 달력과 로그를 덧붙여주는 안전한 함수
         // ==========================================
@@ -2471,60 +2477,95 @@ window.approveSingleItem = async function(key, user, item) {
             db.ref(`checkins/${key}`).update({ docSubmitted: true }).then(() => { appendExtraLogsUI(); });
         };
 
-        // 💡 월간 달력 보기
-        window.openMonthlyCalendar = function() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth(); 
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            let weekdays = [];
-            for(let d = 1; d <= daysInMonth; d++) {
-                const dayOfWeek = new Date(year, month, d).getDay();
-                if(dayOfWeek !== 0 && dayOfWeek !== 6) weekdays.push(d);
+       // ✅ 월간 달력 함수 (지각/결석 표기 완벽 반영 버전)
+window.openMonthlyCalendar = function() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); 
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    let weekdays = [];
+    for(let d = 1; d <= daysInMonth; d++) {
+        const dayOfWeek = new Date(year, month, d).getDay();
+        if(dayOfWeek !== 0 && dayOfWeek !== 6) weekdays.push(d);
+    }
+
+    // 💡 우리 반 전체 학생 명단 불러오기
+    const users = [];
+    if (typeof currentUsers !== 'undefined') {
+        currentUsers.forEach(u => {
+            if (u.name !== "총사령관") users.push(u.name);
+        });
+    }
+
+    db.ref('checkins').once('value', checkinSnap => {
+        let attendanceData = {}; 
+        users.forEach(u => attendanceData[u] = {});
+        
+        const targetMonthStr = year + "-" + String(month + 1).padStart(2, '0');
+
+        checkinSnap.forEach(child => {
+            const c = child.val();
+            if(c.user && users.includes(c.user)) {
+                let d = null;
+                if (c.date && c.date.startsWith(targetMonthStr)) {
+                    d = parseInt(c.date.split('-')[2]);
+                } 
+                else if (c.time && c.time !== "-") {
+                    try {
+                       const parts = c.time.split('. ');
+                       if (parts.length >= 3) {
+                           const y = parseInt(parts[0]);
+                           const m = parseInt(parts[1]);
+                           if (y === year && m === (month + 1)) {
+                               d = parseInt(parts[2]);
+                           }
+                       }
+                    } catch(e) {}
+                }
+
+                if (d && !isNaN(d)) {
+                    attendanceData[c.user][d] = c.reason;
+                }
             }
+        });
 
-            db.ref('checkins').once('value', checkinSnap => {
-                db.ref('users').once('value', userSnap => {
-                    const users = [];
-                    userSnap.forEach(u => users.push(u.key));
-                    users.sort(); 
+        // 💡 1. 상단 안내 문구 수정 (체험학습 -> 지각)
+        let tableHtml = `<div style="margin-bottom:10px; font-size:0.9rem; color:#666;">O: 정상등교 / 결: 결석 / 지: 지각</div><div style="overflow-x:auto; max-height:400px;"><table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;"><thead><tr style="background:#f1f3f5;"><th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>`;
+        weekdays.forEach(d => { tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`; });
+        tableHtml += `</tr></thead><tbody>`;
 
-                    let attendanceData = {}; 
-                    users.forEach(u => attendanceData[u] = {});
-                    
-                    checkinSnap.forEach(child => {
-                        const c = child.val();
-                        if(c.time && users.includes(c.user)) {
-                            const d = new Date(c.time.replace(/\. /g, '-').replace('.', '')).getDate() || parseInt(c.time.split('.')[2]); 
-                            if(d && !isNaN(d)) attendanceData[c.user][d] = c.reason;
-                        }
-                    });
-
-                    let tableHtml = `<div style="margin-bottom:10px; font-size:0.9rem; color:#666;">O: 정상등교 / 결: 결석 / 체: 체험학습</div><div style="overflow-x:auto; max-height:400px;"><table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;"><thead><tr style="background:#f1f3f5;"><th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>`;
-                    weekdays.forEach(d => { tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`; });
-                    tableHtml += `</tr></thead><tbody>`;
-
-                    users.forEach(u => {
-                        tableHtml += `<tr><td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
-                        weekdays.forEach(d => {
-                            let status = attendanceData[u][d];
-                            let mark = '', color = 'transparent';
-                            if(status) {
-                                if(status.includes('정상') || status === '등교') { mark = 'O'; color = '#e8f5e9'; }
-                                else if(status.includes('결석')) { mark = '결'; color = '#ffebee'; }
-                                else if(status.includes('체험')) { mark = '체'; color = '#fff3e0'; }
-                                else { mark = status.substring(0,1); color = '#f3e5f5'; } 
-                            }
-                            tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
-                        });
-                        tableHtml += `</tr>`;
-                    });
-                    tableHtml += `</tbody></table></div>`;
-                    openPopup(`${month + 1}월 학급 출석부`, tableHtml);
-                });
+        users.forEach(u => {
+            tableHtml += `<tr><td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
+            weekdays.forEach(d => {
+                let status = attendanceData[u][d];
+                let mark = '', color = 'transparent';
+                
+                // 💡 2. 상태 판별 로직 수정 (지각 조건 추가)
+                if(status) {
+                    if(status.includes('정상') || status === '등교') { 
+                        mark = 'O'; color = '#e8f5e9'; // 연한 초록색
+                    }
+                    else if(status.includes('결석')) { 
+                        mark = '결'; color = '#ffebee'; // 연한 빨간색
+                    }
+                    else if(status.includes('지각')) { 
+                        mark = '지'; color = '#fff3e0'; // 연한 주황색 (체험학습 대신 지각으로 매칭!)
+                    }
+                    else { 
+                        // 기타 다른 사유가 있을 경우 첫 글자만 따서 표시
+                        mark = status.substring(0,1); color = '#f3e5f5'; 
+                    } 
+                }
+                tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
             });
-        };
-
+            tableHtml += `</tr>`;
+        });
+        tableHtml += `</tbody></table></div>`;
+        
+        openPopup(`${month + 1}월 학급 출석부`, tableHtml);
+    });
+};
         // 💡 원클릭(등교) / 더블클릭(사유입력) 마법 함수
         window.attendanceClickTimer = null;
         window.handleCheckinClick = function(user) {
