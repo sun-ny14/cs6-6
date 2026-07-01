@@ -1042,30 +1042,44 @@
     currentUsers.forEach(u => { 
         if(u.name === "총사령관") return; 
         
-        // 💡 기존 데이터 호환: 역할(role)이 비어있으면, 예전 도우미(isHelper)였던 애는 '상점'으로, 아니면 '일반'으로 둡니다.
         let currentRole = u.role || (u.isHelper ? '상점' : '일반');
-
-        // 역할별 색상 지정
         let roleColor = '#95a5a6'; // 일반 (회색)
         if(currentRole === '상점') roleColor = '#3498db'; // 상점 (파란색)
         else if(currentRole === '청소') roleColor = '#27ae60'; // 청소 (초록색)
 
-        h += `<div class="list-item" style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:15px;">
-                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:100px; height:60px; text-align:center; font-size:1.8rem; border:3px solid var(--primary); border-radius:10px; font-weight:bold;">
-                <strong style="font-size:1.6rem; flex:1;">${u.name}</strong>
+        // 💡 디자인 개선: 세로 높이 통일, 드롭다운 가로 축소, 이름 줄바꿈 방지 적용!
+        h += `<div class="list-item" style="padding:10px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; flex-wrap:nowrap;">
                 
-                <select onchange="updateUserRole('${u.name}', this.value)" style="padding:10px; font-size:1.2rem; border-radius:8px; border:2px solid ${roleColor}; background:${roleColor}; color:white; font-weight:bold; cursor:pointer;">
+                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:60px; height:50px; text-align:center; font-size:1.4rem; border:2px solid var(--primary); border-radius:8px; font-weight:bold; flex-shrink:0;">
+                
+                <strong style="font-size:1.5rem; flex:1; min-width:50px; white-space:nowrap; text-align:left;">${u.name}</strong>
+                
+                <select onchange="updateUserRole('${u.name}', this.value)" style="width:105px; height:50px; padding:0 5px; font-size:1.1rem; border-radius:8px; border:2px solid ${roleColor}; background:${roleColor}; color:white; font-weight:bold; cursor:pointer; flex-shrink:0;">
                     <option value="일반" ${currentRole === '일반' ? 'selected' : ''}>👤 일반</option>
-                    <option value="상점" ${currentRole === '상점' ? 'selected' : ''}>🛍️ 상점 관리자</option>
-                    <option value="청소" ${currentRole === '청소' ? 'selected' : ''}>🧹 청소 관리자</option>
+                    <option value="상점" ${currentRole === '상점' ? 'selected' : ''}>🛍️ 상점</option>
+                    <option value="청소" ${currentRole === '청소' ? 'selected' : ''}>🧹 청소</option>
                 </select>
 
-                <button onclick="if(confirm('제명?')) db.ref('users/${u.name}').remove()" style="width:auto; padding:12px 20px; background:var(--red); color:white; border-radius:12px;">제거</button>
+                <button onclick="if(confirm('제명?')) db.ref('users/${u.name}').remove()" style="width:60px; height:50px; background:var(--red); color:white; border-radius:8px; font-weight:bold; border:none; cursor:pointer; flex-shrink:0;">제거</button>
               </div>`; 
     }); 
     document.getElementById('student-admin-list').innerHTML = h || "용사가 없습니다."; 
 };
-
+// ✅ 학생 역할(Role) 업데이트 함수
+window.updateUserRole = function(userName, newRole) {
+    db.ref(`users/${userName}`).update({
+        role: newRole,
+        isHelper: newRole === '상점' // 기존 기능 오류 방지용 (상점일 때만 true)
+    }).then(() => {
+        // 색상이 즉시 바뀌어 보이도록 명단 다시 그리기
+        renderAdminList(); 
+        
+        // 팝업 알림
+        const roleIcon = newRole === '상점' ? '🛍️' : (newRole === '청소' ? '🧹' : '👤');
+        alert(`${userName} 학생의 역할이 [ ${roleIcon} ${newRole} ](으)로 변경되었습니다!`);
+    });
+};
+        
         function initSeatMap() {
             const rows = parseInt(document.getElementById('seat-rows').value);
             const cols = parseInt(document.getElementById('seat-cols').value);
