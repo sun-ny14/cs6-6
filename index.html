@@ -77,16 +77,19 @@
 
     <div id="main-app">
         <nav class="tab-menu">
-            <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
-            <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
-            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-            <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
-            <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
-            <button id="btn-grades" onclick="showTab('grades'); renderGradesMain();" style="display:none; background:var(--gold); color:var(--dark);">📝 성적관리</button>
-            <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
-            <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
-            <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
-        </nav>
+    <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
+    <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
+    <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+    <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
+    <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
+    <button id="btn-grades" onclick="showTab('grades'); renderGradesMain();" style="display:none; background:var(--gold); color:var(--dark);">📝 성적관리</button>
+    <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
+    <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
+    
+    <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning')">🧹 청소확인</button>
+    
+    <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
+</nav>
 
         <section id="tab-main" class="tab-content active"><div id="hero-grid" class="hero-grid"></div></section>
         
@@ -224,7 +227,15 @@
         <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
         <button id="floating-multi-btn" class="floating-btn" onclick="openMultiPopup()">📋</button>
     </div>
-
+<div id="tab-cleaning" class="tab-content" style="display:none; padding: 20px;">
+    <h2 style="margin-bottom: 15px;">🧹 청소 구역 확인</h2>
+    <div style="margin-bottom: 15px; color: #555;">
+        <p>청소 관리자 권한입니다. 깨끗하게 청소된 자리를 클릭하여 확인해 주세요!</p>
+    </div>
+    
+    <div id="cleaning-map-container" style="display: grid; gap: 10px; width: 100%; max-width: 800px; margin: 0 auto;"></div>
+</div>
+    
     <script>
         const firebaseConfig = { apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", authDomain: "cs6-6class.firebaseapp.com", databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", projectId: "cs6-6class", storageBucket: "cs6-6class.firebasestorage.app", messagingSenderId: "644235499537", appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" };
         const adminEmail = "ksosuny@cberi.go.kr"; 
@@ -1026,10 +1037,34 @@
 
         function triggerLevelUpRoulette(n, l) { if(!giftList.length) return; const pick=giftList[Math.floor(Math.random()*giftList.length)]; db.ref('orders').push({user:n, item:`[레벨업] ${pick}`, status:'대기', time:new Date().toLocaleString()}); if(n===myName) openPopup("LEVEL UP!", `LV.${l} 달성! 보상: ${pick}`); }
 
-        function renderAdminList() {
-            let h = ""; currentUsers.forEach(u => { if(u.name === "총사령관") return; const helperColor = u.isHelper ? 'var(--primary)' : '#95a5a6'; h += `<div class="list-item" style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:15px;"><input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:100px; height:60px; text-align:center; font-size:1.8rem; border:3px solid var(--primary); border-radius:10px; font-weight:bold;"><strong style="font-size:1.6rem; flex:1;">${u.name}</strong><button onclick="toggleHelperRole('${u.name}', ${u.isHelper || false})" style="width:auto; padding:12px 20px; background:${helperColor}; color:white; border-radius:12px; font-weight:bold;">${u.isHelper ? '🛡️ 도우미' : '👤 일반'}</button><button onclick="if(confirm('제명?')) db.ref('users/${u.name}').remove()" style="width:auto; padding:12px 20px; background:var(--red); color:white; border-radius:12px;">제거</button></div>`; }); 
-            document.getElementById('student-admin-list').innerHTML = h || "용사가 없습니다."; 
-        }
+        window.renderAdminList = function() {
+    let h = ""; 
+    currentUsers.forEach(u => { 
+        if(u.name === "총사령관") return; 
+        
+        // 💡 기존 데이터 호환: 역할(role)이 비어있으면, 예전 도우미(isHelper)였던 애는 '상점'으로, 아니면 '일반'으로 둡니다.
+        let currentRole = u.role || (u.isHelper ? '상점' : '일반');
+
+        // 역할별 색상 지정
+        let roleColor = '#95a5a6'; // 일반 (회색)
+        if(currentRole === '상점') roleColor = '#3498db'; // 상점 (파란색)
+        else if(currentRole === '청소') roleColor = '#27ae60'; // 청소 (초록색)
+
+        h += `<div class="list-item" style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:15px;">
+                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:100px; height:60px; text-align:center; font-size:1.8rem; border:3px solid var(--primary); border-radius:10px; font-weight:bold;">
+                <strong style="font-size:1.6rem; flex:1;">${u.name}</strong>
+                
+                <select onchange="updateUserRole('${u.name}', this.value)" style="padding:10px; font-size:1.2rem; border-radius:8px; border:2px solid ${roleColor}; background:${roleColor}; color:white; font-weight:bold; cursor:pointer;">
+                    <option value="일반" ${currentRole === '일반' ? 'selected' : ''}>👤 일반</option>
+                    <option value="상점" ${currentRole === '상점' ? 'selected' : ''}>🛍️ 상점 관리자</option>
+                    <option value="청소" ${currentRole === '청소' ? 'selected' : ''}>🧹 청소 관리자</option>
+                </select>
+
+                <button onclick="if(confirm('제명?')) db.ref('users/${u.name}').remove()" style="width:auto; padding:12px 20px; background:var(--red); color:white; border-radius:12px;">제거</button>
+              </div>`; 
+    }); 
+    document.getElementById('student-admin-list').innerHTML = h || "용사가 없습니다."; 
+};
 
         function initSeatMap() {
             const rows = parseInt(document.getElementById('seat-rows').value);
@@ -2920,25 +2955,18 @@ window.openMonthlyCalendar = function() {
             });
         };
                   
-                    // 💡 원클릭 '정상 등교' 쾌속 저장 함수 (선생님 DB 맞춤형)
-        window.saveFastCheckin = function(name, targetDate) {
-            db.ref('checkinLogs').once('value', snap => {
-                let keyToUpdate = null;
-                snap.forEach(child => {
-                    const val = child.val();
-                    if (val.name === name && val.date === targetDate) keyToUpdate = child.key;
-                });
-
-                const timeStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-                const data = { name: name, date: targetDate, result: '정상 등교', time: timeStr };
-
-                if (keyToUpdate) {
-                    db.ref('checkinLogs/' + keyToUpdate).update(data).then(() => generateNewLayout());
-                } else {
-                    db.ref('checkinLogs').push(data).then(() => generateNewLayout());
-                }
-            });
-        };
+                  // ✅ 진짜 원클릭 (빠른 체크인) 전용 함수
+window.saveFastCheckin = function(name, targetDate) {
+    db.ref('checkinLogs').push({
+        name: name,
+        date: targetDate,
+        result: '정상등교',
+        time: "-" // 💡 이제 무조건 하이픈(-)을 넣어서 시간이 절대 안 뜨게 만듭니다!
+    }).then(() => {
+        // 저장 후 자리배치도를 다시 그려서 화면을 바로 갱신합니다.
+        if (typeof renderSeatMap === 'function') renderSeatMap(currentRows, currentCols);
+    });
+};
     </script>
 </body>
 </html>
