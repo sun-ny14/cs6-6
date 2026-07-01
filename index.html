@@ -2275,84 +2275,152 @@ window.approveSingleItem = async function(key, user, item) {
                 });
             });
         };
-       /// 📊 월간 출석부 (선생님 전용 맞춤형 - currentLayout & checkinLogs 연동)
-        window.openMonthlyCalendar = function() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth(); 
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
+      // ✅ 크기 확대 및 인쇄 기능이 추가된 월간 출석부 함수
+window.openMonthlyCalendar = function() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); 
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    let weekdays = [];
+    for(let d = 1; d <= daysInMonth; d++) {
+        const dayOfWeek = new Date(year, month, d).getDay();
+        if(dayOfWeek !== 0 && dayOfWeek !== 6) weekdays.push(d);
+    }
+
+    // 💡 우리 반 전체 학생 명단 불러오기
+    const users = [];
+    if (typeof currentUsers !== 'undefined') {
+        currentUsers.forEach(u => {
+            if (u.name !== "총사령관") users.push(u.name);
+        });
+    }
+
+    db.ref('checkins').once('value', checkinSnap => {
+        let attendanceData = {}; 
+        users.forEach(u => attendanceData[u] = {});
+        
+        const targetMonthStr = year + "-" + String(month + 1).padStart(2, '0');
+
+        checkinSnap.forEach(child => {
+            const c = child.val();
+            if(c.user && users.includes(c.user)) {
+                let d = null;
+                if (c.date && c.date.startsWith(targetMonthStr)) {
+                    d = parseInt(c.date.split('-')[2]);
+                } 
+                else if (c.time && c.time !== "-") {
+                    try {
+                       const parts = c.time.split('. ');
+                       if (parts.length >= 3) {
+                           const y = parseInt(parts[0]);
+                           const m = parseInt(parts[1]);
+                           if (y === year && m === (month + 1)) {
+                               d = parseInt(parts[2]);
+                           }
+                       }
+                    } catch(e) {}
+                }
+
+                if (d && !isNaN(d)) {
+                    attendanceData[c.user][d] = c.reason;
+                }
+            }
+        });
+
+        // 💡 1. 인쇄를 위한 전용 스타일 및 상단 컨트롤 영역 구성
+        let tableHtml = `
+            <style>
+                /* 화면에서 볼 때 팝업창을 큼직하게 만드는 스타일 */
+                #popup-modal-content { max-width: 95% !important; width: 1200px !important; }
+                
+                /* 인쇄 시 버튼이나 불필요한 배경은 숨기고 표만 깔끔하게 나오게 하는 인쇄 전용 CSS */
+                @media print {
+                    body * { visibility: hidden; }
+                    #print-area, #print-area * { visibility: visible; }
+                    #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+                    .no-print { display: none !important; }
+                    table { page-break-inside: auto; }
+                    tr { page-break-inside: avoid; page-break-after: auto; }
+                }
+            </style>
             
-            let weekdays = [];
-            for(let d = 1; d <= daysInMonth; d++) {
-                const dayOfWeek = new Date(year, month, d).getDay();
-                if(dayOfWeek !== 0 && dayOfWeek !== 6) weekdays.push(d);
-            }
-
-            // 💡 1. 자리 배치도(currentLayout)에서 우리 반 명단 정확히 뽑아오기!
-            let users = [];
-            if (typeof currentLayout !== 'undefined' && currentLayout) {
-                Object.values(currentLayout).forEach(name => {
-                    if (name && !users.includes(name)) users.push(name);
-                });
-            }
-
-            if (users.length === 0) {
-                alert("자리 배치도에 저장된 아이들 명단이 없습니다!");
-                return;
-            }
-
-            // 💡 2. 선생님의 진짜 출결 DB인 'checkinLogs'에서 데이터 가져오기!
-            db.ref('checkinLogs').once('value', snap => {
-                let attendanceData = {}; 
-                users.forEach(u => attendanceData[u] = {});
+            <div id="print-area" style="padding: 10px;">
+                <h2 class="print-title" style="text-align:center; margin-bottom:20px; font-size:1.8rem; display:none;">${month + 1}월 학급 출석부 (${year}년)</h2>
                 
-                snap.forEach(child => {
-                    const c = child.val();
-                    if(!c.date || !c.name || !users.includes(c.name)) return;
-                    
-                    const dateObj = new Date(c.date);
-                    if (dateObj.getFullYear() === year && dateObj.getMonth() === month) {
-                        const d = dateObj.getDate();
-                        if(d && !isNaN(d)) {
-                            attendanceData[c.name][d] = c.result || '등교';
-                        }
-                    }
-                });
-
-                let tableHtml = `
-                    <div style="margin-bottom:10px; font-size:0.9rem; color:#666;">
-                        O: 정상등교 / 결: 결석 / 체: 체험학습
+                <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="font-size:1rem; color:#495057; font-weight: 500;">
+                        📌 범례: <span style="color:#2b8a3e; font-weight:bold;">O</span> (정상등교) / 
+                        <span style="color:#e03131; font-weight:bold;">결</span> (결석) / 
+                        <span style="color:#f59f00; font-weight:bold;">지</span> (지각)
                     </div>
-                    <div style="overflow-x:auto; max-height:400px;">
-                    <table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;">
-                    <thead>
-                        <tr style="background:#f1f3f5;">
-                            <th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>
-                `;
+                    <button onclick="window.printAttendanceBook()" style="background:#228be6; color:white; border:none; padding:10px 18px; font-size:1rem; font-weight:bold; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        🖨️ 출석부 인쇄하기
+                    </button>
+                </div>
+
+                <div style="overflow-x:auto; background: #fff; border-radius: 8px; border: 1px solid #dee2e6;">
+                    <table style="width:100%; border-collapse:collapse; text-align:center; min-width:1000px; font-size:1.05rem; font-family: sans-serif;">
+                        <thead>
+                            <tr style="background:#f8f9fa;">
+                                <th style="border:1px solid #ced4da; padding:12px 8px; font-weight:bold; background:#f8f9fa; width:90px; position:sticky; left:0; z-index:2;">이름</th>
+                        `;
+                        
+        weekdays.forEach(d => { 
+            tableHtml += `<th style="border:1px solid #ced4da; padding:12px 4px; font-weight:bold; min-width:35px;">${d}</th>`; 
+        });
+        
+        tableHtml += `      </tr>
+                        </thead>
+                        <tbody>`;
+
+        users.forEach(u => {
+            tableHtml += `<tr>
+                <td style="border:1px solid #ced4da; padding:12px 8px; font-weight:bold; position:sticky; left:0; background:#ffffff; z-index:1; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);">${u}</td>`;
+            
+            weekdays.forEach(d => {
+                let status = attendanceData[u][d];
+                let mark = '', color = 'transparent';
                 
-                weekdays.forEach(d => { tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`; });
-                tableHtml += `</tr></thead><tbody>`;
-
-                users.forEach(u => {
-                    tableHtml += `<tr><td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
-                    weekdays.forEach(d => {
-                        let status = attendanceData[u][d];
-                        let mark = '', color = 'transparent';
-                        if(status) {
-                            if(status.includes('정상')) { mark = 'O'; color = '#e8f5e9'; }
-                            else if(status.includes('결석')) { mark = '결'; color = '#ffebee'; }
-                            else if(status.includes('체험학습') || status.includes('체험')) { mark = '체'; color = '#fff3e0'; }
-                            else { mark = status.substring(0,1); color = '#f3e5f5'; } 
-                        }
-                        tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
-                    });
-                    tableHtml += `</tr>`;
-                });
-
-                tableHtml += `</tbody></table></div>`;
-                openPopup(`${month + 1}월 학급 출석부`, tableHtml);
+                if(status) {
+                    if(status.includes('정상') || status === '등교') { 
+                        mark = 'O'; color = '#ebfbee'; // 연한 초록
+                    }
+                    else if(status.includes('결석')) { 
+                        mark = '결'; color = '#fff5f5'; // 연한 빨강
+                    }
+                    else if(status.includes('지각')) { 
+                        mark = '지'; color = '#fff9db'; // 연한 노랑/주황
+                    }
+                    else { 
+                        mark = status.substring(0,1); color = '#f3e5f5'; 
+                    } 
+                }
+                tableHtml += `<td style="border:1px solid #ced4da; padding:12px 4px; background:${color}; font-weight: 500;">${mark}</td>`;
             });
-        };
+            tableHtml += `</tr>`;
+        });
+        
+        tableHtml += `  </tbody>
+                    </table>
+                </div>
+            </div>`;
+        
+        openPopup(`${month + 1}월 학급 출석부`, tableHtml);
+    });
+};
+
+// ✅ 인쇄 동작을 제어하는 헬퍼 함수 추가
+window.printAttendanceBook = function() {
+    // 인쇄 모드 진입 시 타이틀 일시적으로 노출
+    const title = document.querySelector('.print-title');
+    if(title) title.style.display = 'block';
+    
+    window.print();
+    
+    // 인쇄 취소/종료 후 타이틀 다시 숨김
+    if(title) title.style.display = 'none';
+};
         
         // 💡 원클릭/더블클릭 마법 함수 (유령 클릭 방어 적용)
         window.attendanceClickTimer = null;
@@ -2386,19 +2454,21 @@ window.submitCheckin = function(user, reason) {
     // 오늘 날짜 가져오기 (달력 기록용으로 필수!)
     const todayStr = getTodayKST(); 
     
-    // 💡 핵심: '정상 등교'일 때는 시간을 "-"로 만들고, 아닐 때는 현재 시간 기록!
-    const timeStr = (reason === '정상 등교') ? "-" : new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    // 💡 핵심: '정상'이라는 단어가 포함되어 있으면 띄어쓰기 상관없이 무조건 시간을 아예 비워버립니다("")!
+    const timeStr = reason.includes('정상') ? "" : new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 
     db.ref('checkins').push({
         user: user, 
         reason: reason, 
-        date: todayStr,  // <-- 달력에서 날짜를 찾기 위해 새로 추가된 부분!
+        date: todayStr,
         time: timeStr, 
         docSubmitted: false
     }).then(() => {
         alert(`[${user}] ${reason} 처리 완료! ✨`);
-        closePopup();
-        appendExtraLogsUI(); // 로그 새로고침
+        
+        if (typeof closePopup === 'function') closePopup();
+        if (typeof appendExtraLogsUI === 'function') appendExtraLogsUI();
+        if (typeof renderSeatMap === 'function') renderSeatMap(); // 자리배치도 갱신 방어 코드 추가
     });
 };
         // ==========================================
