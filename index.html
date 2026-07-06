@@ -2971,14 +2971,27 @@ window.openMonthlyCalendar = function() {
                   
                   // ✅ 진짜 원클릭 (빠른 체크인) 전용 함수
 window.saveFastCheckin = function(name, targetDate) {
+    // 💡 1. 화면(UI) 즉시 업데이트! (새로고침이나 데이터 로딩 대기 없이 바로 초록색으로 변함)
+    const cells = document.querySelectorAll('#seat-map-container div');
+    cells.forEach(cell => {
+        // 클릭한 학생의 이름이 있는 칸을 찾아 강제로 디자인을 바꿉니다.
+        if (cell.innerHTML.includes(`>${name}<`) || cell.innerText.includes(name)) {
+            cell.style.background = "#ccffcc"; // 초록색 배경
+            cell.innerHTML = `
+                <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px;">${name}</div>
+                <div style="font-weight:bold; font-size:1.2rem;">정상등교</div>
+                <div style="font-size:1.1rem; margin-top:3px;"></div> `;
+        }
+    });
+
+    // 💡 2. 데이터베이스(Firebase)에는 백그라운드에서 조용히 저장합니다.
     db.ref('checkinLogs').push({
         name: name,
         date: targetDate,
         result: '정상등교',
-        time: "-" // 💡 이제 무조건 하이픈(-)을 넣어서 시간이 절대 안 뜨게 만듭니다!
-    }).then(() => {
-        // 저장 후 자리배치도를 다시 그려서 화면을 바로 갱신합니다.
-        if (typeof renderSeatMap === 'function') renderSeatMap(currentRows, currentCols);
+        time: "-" 
+    }).catch(err => {
+        console.error("원클릭 저장 중 에러 발생:", err);
     });
 };
     </script>
