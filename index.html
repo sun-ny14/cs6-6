@@ -85,8 +85,7 @@
     <button id="btn-grades" onclick="showTab('grades'); renderGradesMain();" style="display:none;">📝 성적관리</button>
     <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
     <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
-    
-    <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning')">🧹 청소확인</button>
+<button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap();">🧹 청소확인</button>
     
     <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
 </nav>
@@ -3045,101 +3044,113 @@ window.saveCleaningTimeSettings = function() {
     });
 };
 
-// ✅ [교체] 시간 제한 및 선생님 권한이 융합된 청소 자리 배치도 그리기
 window.renderCleaningMap = function() {
-    const container = document.getElementById('cleaning-map-container');
-    if(!container) return;
-    
-    // 💡 1. 선생님("총사령관")일 때만 숨겨진 시간 설정 UI를 보여줍니다.
-    const adminSetter = document.getElementById('admin-cleaning-time-setter');
-    if (adminSetter) {
-        adminSetter.style.display = (myName === "총사령관") ? "flex" : "none";
-    }
-
-    const rows = typeof currentRows !== 'undefined' ? currentRows : 6;
-    const cols = typeof currentCols !== 'undefined' ? currentCols : 6;
-    container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    container.innerHTML = "";
-    
-    const todayStr = getTodayKST();
-
-    // DB에서 [청소 로그]와 [설정된 점검 시간]을 동시에 가져옵니다.
-    Promise.all([
-        db.ref(`cleaningLogs/${todayStr}`).once('value'),
-        db.ref('settings/cleaningTime').once('value')
-    ]).then(snaps => {
-        const logs = snaps[0].val() || {};
-        const timeConfig = snaps[1].val() || { start: "00:00", end: "23:59" }; // 설정 없으면 전체 허용
-
-        // 상단 안내 문구 최신화
-        document.getElementById('cleaning-time-notice').innerText = `⏰ 오늘의 청소 점검 시간: ${timeConfig.start} ~ ${timeConfig.end}`;
+    try {
+        const container = document.getElementById('cleaning-map-container');
+        if(!container) return; // 컨테이너가 없으면 함수를 종료합니다.
         
-        // 선생님창 입력란에도 기존 설정값 세팅해두기
-        if(myName === "총사령관") {
-            document.getElementById('cleaning-start-time').value = timeConfig.start;
-            document.getElementById('cleaning-end-time').value = timeConfig.end;
+        // 💡 1. 선생님("총사령관")일 때만 숨겨진 시간 설정 UI를 보여줍니다.
+        const adminSetter = document.getElementById('admin-cleaning-time-setter');
+        if (adminSetter) {
+            // myName 변수가 없을 때를 대비한 안전 장치 추가
+            adminSetter.style.display = (typeof myName !== 'undefined' && myName === "총사령관") ? "flex" : "none";
         }
 
-        // 현재 시각 구하기 (비교용 형식: HH:MM)
-        const now = new Date();
-        const currentHHMM = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+        const rows = typeof currentRows !== 'undefined' ? currentRows : 6;
+        const cols = typeof currentCols !== 'undefined' ? currentCols : 6;
+        container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        container.innerHTML = ""; // 기존에 그려진 내용을 깨끗하게 초기화합니다.
+        
+        const todayStr = getTodayKST();
 
-        // 💡 현재 시간이 설정된 범위 내에 있는지 판별 (선생님은 언제나 프리패스)
-        const isTimeValid = (currentHHMM >= timeConfig.start && currentHHMM <= timeConfig.end) || (myName === "총사령관");
+        // 💡 2. 데이터베이스 통신 시작 (Promise.all을 사용해 동시에 가져옴)
+        Promise.all([
+            db.ref(`cleaningLogs/${todayStr}`).once('value'),
+            db.ref('settings/cleaningTime').once('value')
+        ]).then(snaps => {
+            const logs = snaps[0].val() || {};
+            const timeConfig = snaps[1].val() || { start: "00:00", end: "23:59" }; // 기본값 설정
 
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const posId = `${r}-${c}`;
-                const name = typeof currentLayout !== 'undefined' ? (currentLayout[posId] || "") : "";
-                const cell = document.createElement('div');
-                
-                let bgColor = "#eee"; 
-                let statusText = "";
-
-                if (name) {
-                    if (logs[name]) {
-                        bgColor = "#ccffcc"; // 완료
-                        statusText = "✨ 완료";
-                    } else {
-                        bgColor = "#fff9db"; // 대기
-                        statusText = "🧹 대기";
-                    }
-                }
-
-                cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:100px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; user-select:none; box-shadow: 0 2px 4px rgba(0,0,0,0.05);`;
-
-                if (name) {
-                    cell.innerHTML = `
-                        <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px; color:#333;">${name}</div>
-                        <div style="font-weight:bold; font-size:1.2rem; color:#555;">${statusText}</div>
-                    `;
-                    
-                    cell.onclick = () => {
-                        // 💡 시간 외 접근 차단 로직 발동!
-                        if (!isTimeValid) {
-                            alert(`🚫 지금은 청소 점검 시간이 아닙니다!\n(점검 가능 시간: ${timeConfig.start} ~ ${timeConfig.end})`);
-                            return;
-                        }
-
-                        if (logs[name]) {
-                            if(confirm(`[${name}] 자리는 이미 청소 완료되었습니다.\n혹시 완료 처리를 취소할까요?`)) {
-                                db.ref(`cleaningLogs/${todayStr}/${name}`).remove().then(() => renderCleaningMap());
-                            }
-                        } else {
-                            if(confirm(`[${name}] 자리의 청소가 깨끗하게 되어있나요?`)) {
-                                db.ref(`cleaningLogs/${todayStr}/${name}`).set({
-                                    status: '청소 완료',
-                                    time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-                                    checker: myName
-                                }).then(() => renderCleaningMap());
-                            }
-                        }
-                    };
-                }
-                container.appendChild(cell);
+            // 상단 안내 문구 최신화
+            const noticeElem = document.getElementById('cleaning-time-notice');
+            if(noticeElem) {
+                noticeElem.innerText = `⏰ 오늘의 청소 점검 시간: ${timeConfig.start} ~ ${timeConfig.end}`;
             }
-        }
-    });
+            
+            // 선생님창 입력란에도 데이터베이스에서 가져온 설정값 세팅
+            if(typeof myName !== 'undefined' && myName === "총사령관") {
+                const startInput = document.getElementById('cleaning-start-time');
+                const endInput = document.getElementById('cleaning-end-time');
+                if(startInput) startInput.value = timeConfig.start;
+                if(endInput) endInput.value = timeConfig.end;
+            }
+
+            // 현재 시각 구하기
+            const now = new Date();
+            const currentHHMM = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+            
+            // 권한 및 시간 유효성 검사
+            const isTimeValid = (currentHHMM >= timeConfig.start && currentHHMM <= timeConfig.end) || (typeof myName !== 'undefined' && myName === "총사령관");
+
+            // 💡 3. 자리 배치도 그리기 루프
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const posId = `${r}-${c}`;
+                    const name = typeof currentLayout !== 'undefined' ? (currentLayout[posId] || "") : "";
+                    const cell = document.createElement('div');
+                    
+                    let bgColor = "#eee"; 
+                    let statusText = "";
+
+                    if (name) {
+                        if (logs[name]) {
+                            bgColor = "#ccffcc"; // 청소 완료
+                            statusText = "✨ 완료";
+                        } else {
+                            bgColor = "#fff9db"; // 대기 상태
+                            statusText = "🧹 대기";
+                        }
+                    }
+
+                    cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:100px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; user-select:none; box-shadow: 0 2px 4px rgba(0,0,0,0.05);`;
+
+                    if (name) {
+                        cell.innerHTML = `
+                            <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px; color:#333;">${name}</div>
+                            <div style="font-weight:bold; font-size:1.2rem; color:#555;">${statusText}</div>
+                        `;
+                        
+                        // 클릭 이벤트 연동
+                        cell.onclick = () => {
+                            if (!isTimeValid) {
+                                alert(`🚫 지금은 청소 점검 시간이 아닙니다!\n(점검 가능 시간: ${timeConfig.start} ~ ${timeConfig.end})`);
+                                return;
+                            }
+
+                            if (logs[name]) {
+                                if(confirm(`[${name}] 자리는 이미 청소 완료되었습니다.\n혹시 완료 처리를 취소할까요?`)) {
+                                    db.ref(`cleaningLogs/${todayStr}/${name}`).remove().then(() => renderCleaningMap());
+                                }
+                            } else {
+                                if(confirm(`[${name}] 자리의 청소가 깨끗하게 되어있나요?`)) {
+                                    db.ref(`cleaningLogs/${todayStr}/${name}`).set({
+                                        status: '청소 완료',
+                                        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+                                        checker: typeof myName !== 'undefined' ? myName : '관리자'
+                                    }).then(() => renderCleaningMap());
+                                }
+                            }
+                        };
+                    }
+                    container.appendChild(cell);
+                }
+            }
+        }).catch(err => {
+            console.error("데이터베이스를 불러오는 중 에러 발생:", err);
+        });
+    } catch(e) {
+        console.error("renderCleaningMap 실행 중 구조적 에러 발생:", e);
+    }
 };
     </script>
 </body>
