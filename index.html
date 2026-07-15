@@ -85,8 +85,8 @@
     <button id="btn-grades" onclick="showTab('grades'); renderGradesMain();" style="display:none;">📝 성적관리</button>
     <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
     <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
-<!-- 실제 학급 자리 배열 데이터를 넣어서 함수를 실행하도록 수정! -->
-<button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap(currentRows, currentCols);">🧹 청소확인</button>
+<!-- ✅ 수정 후: 괄호 안을 비워서 안전하게 함수만 부릅니다 -->
+<button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap();">🧹 청소확인</button>
     <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
 </nav>
 
@@ -3026,21 +3026,25 @@ window.saveFastCheckin = function(name, targetDate) {
     });
 };
        // ✅ 등교 로그의 자리 배치를 100% 똑같이 가져오는 청소 배치도
-window.renderCleaningMap = function(rows = currentRows, cols = currentCols) {
+window.renderCleaningMap = function() {
     try {
         const container = document.getElementById('cleaning-map-container');
         if(!container) return; 
+        
+        // 💡 함수 내부에서 전역 변수를 안전하게 확인해서 가져옵니다.
+        const rows = typeof currentRows !== 'undefined' ? currentRows : 6;
+        const cols = typeof currentCols !== 'undefined' ? currentCols : 6;
         
         const adminSetter = document.getElementById('admin-cleaning-time-setter');
         if (adminSetter) {
             adminSetter.style.display = (typeof myName !== 'undefined' && myName === "총사령관") ? "flex" : "none";
         }
 
-        // 💡 억지로 6x6으로 맞추던 코드를 삭제하고, 실제 저장된 rows와 cols를 그대로 사용합니다!
         container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
         container.innerHTML = ""; 
         
-        const todayStr = getTodayKST();
+        // 날짜 함수가 아직 로드되지 않았을 경우를 대비한 안전 장치
+        const todayStr = typeof getTodayKST === 'function' ? getTodayKST() : new Date().toISOString().split('T')[0];
 
         Promise.all([
             db.ref(`cleaningLogs/${todayStr}`).once('value'),
@@ -3050,7 +3054,11 @@ window.renderCleaningMap = function(rows = currentRows, cols = currentCols) {
             const timeConfig = snaps[1].val() || { start: "00:00", end: "23:59" };
 
             const noticeElem = document.getElementById('cleaning-time-notice');
-            if(noticeElem) noticeElem.innerText = `⏰ 오늘의 청소 점검 시간: ${timeConfig.start} ~ ${timeConfig.end}`;
+            if(noticeElem) {
+                // 💡 안내 문구 글자 크기도 1.5rem으로 키웠습니다.
+                noticeElem.style.fontSize = "1.5rem"; 
+                noticeElem.innerText = `⏰ 오늘의 청소 점검 시간: ${timeConfig.start} ~ ${timeConfig.end}`;
+            }
             
             if(typeof myName !== 'undefined' && myName === "총사령관") {
                 const startInput = document.getElementById('cleaning-start-time');
@@ -3063,11 +3071,10 @@ window.renderCleaningMap = function(rows = currentRows, cols = currentCols) {
             const currentHHMM = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
             const isTimeValid = (currentHHMM >= timeConfig.start && currentHHMM <= timeConfig.end) || (typeof myName !== 'undefined' && myName === "총사령관");
 
-            // 💡 실제 자리 배열 그리기
+            // 실제 자리 배열 그리기
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     const posId = `${r}-${c}`;
-                    // 등교 탭에서 쓰는 currentLayout(실제 자리 데이터)을 그대로 가져옵니다.
                     const name = typeof currentLayout !== 'undefined' ? (currentLayout[posId] || "") : "";
                     const cell = document.createElement('div');
                     
@@ -3084,12 +3091,14 @@ window.renderCleaningMap = function(rows = currentRows, cols = currentCols) {
                         }
                     }
 
-                    cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:100px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; user-select:none; box-shadow: 0 2px 4px rgba(0,0,0,0.05);`;
+                    // 💡 칸의 최소 높이를 120px로 늘려 넉넉하게 만들었습니다.
+                    cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; user-select:none; box-shadow: 0 2px 4px rgba(0,0,0,0.05);`;
 
                     if (name) {
+                        // 💡 이름 글자 크기(2.0rem)와 상태 글자 크기(1.5rem)를 큼직하게 키웠습니다.
                         cell.innerHTML = `
-                            <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px; color:#333;">${name}</div>
-                            <div style="font-weight:bold; font-size:1.2rem; color:#555;">${statusText}</div>
+                            <div style="font-weight:900; font-size:2.0rem; margin-bottom:5px; color:#333;">${name}</div>
+                            <div style="font-weight:bold; font-size:1.5rem; color:#555;">${statusText}</div>
                         `;
                         
                         cell.onclick = () => {
@@ -3100,7 +3109,7 @@ window.renderCleaningMap = function(rows = currentRows, cols = currentCols) {
 
                             if (logs[name]) {
                                 if(confirm(`[${name}] 자리는 이미 청소 완료되었습니다.\n혹시 완료 처리를 취소할까요?`)) {
-                                    db.ref(`cleaningLogs/${todayStr}/${name}`).remove().then(() => renderCleaningMap(rows, cols));
+                                    db.ref(`cleaningLogs/${todayStr}/${name}`).remove().then(() => renderCleaningMap());
                                 }
                             } else {
                                 if(confirm(`[${name}] 자리의 청소가 깨끗하게 되어있나요?`)) {
@@ -3108,7 +3117,7 @@ window.renderCleaningMap = function(rows = currentRows, cols = currentCols) {
                                         status: '청소 완료',
                                         time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
                                         checker: typeof myName !== 'undefined' ? myName : '관리자'
-                                    }).then(() => renderCleaningMap(rows, cols));
+                                    }).then(() => renderCleaningMap());
                                 }
                             }
                         };
@@ -3118,9 +3127,12 @@ window.renderCleaningMap = function(rows = currentRows, cols = currentCols) {
             }
         }).catch(err => {
             console.error("데이터 불러오기 에러:", err);
+            // 에러가 났을 때 화면이 멈추지 않고 에러 문구를 띄워주도록 추가했습니다.
+            const noticeElem = document.getElementById('cleaning-time-notice');
+            if(noticeElem) noticeElem.innerText = "❌ 오류가 발생했습니다. 다시 시도해주세요.";
         });
     } catch(e) {
-        console.error("renderCleaningMap 에러:", e);
+        console.error("renderCleaningMap 구조적 에러:", e);
     }
 };
     </script>
