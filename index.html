@@ -2625,7 +2625,7 @@ window.submitCheckin = function(user, reason) {
             db.ref(`checkins/${key}`).update({ docSubmitted: true }).then(() => { appendExtraLogsUI(); });
         };
 
-       // ✅ 월간 달력 함수 (지각/결석 표기 완벽 반영 버전)
+    // ✅ 전체 학생 표시, 조퇴 추가, 비고란 괄호 표시가 완벽하게 적용된 월간 출석부 함수
 window.openMonthlyCalendar = function() {
     const now = new Date();
     const year = now.getFullYear();
@@ -2638,15 +2638,28 @@ window.openMonthlyCalendar = function() {
         if(dayOfWeek !== 0 && dayOfWeek !== 6) weekdays.push(d);
     }
 
-    // 💡 우리 반 전체 학생 명단 불러오기
-    const users = [];
-    if (typeof currentUsers !== 'undefined') {
-        currentUsers.forEach(u => {
-            if (u.name !== "총사령관") users.push(u.name);
-        });
-    }
-
     db.ref('checkins').once('value', checkinSnap => {
+        // 💡 1. 한 사람만 뜨는 문제 해결: DB 기록을 뒤져서 전체 학생 명단을 자동 수집합니다.
+        let usersSet = new Set();
+        
+        // 기존 currentUsers 배열에 있는 명단 수집
+        if (typeof currentUsers !== 'undefined') {
+            currentUsers.forEach(u => {
+                if (u.name !== "총사령관") usersSet.add(u.name);
+            });
+        }
+
+        // checkins DB에 기록된 모든 학생 이름 수집 (누락 방지)
+        checkinSnap.forEach(child => {
+            const c = child.val();
+            if (c.user && c.user !== "총사령관") {
+                usersSet.add(c.user);
+            }
+        });
+
+        // 수집된 명단을 배열로 만들고 가나다순으로 정렬
+        const users = Array.from(usersSet).sort();
+
         let attendanceData = {}; 
         users.forEach(u => attendanceData[u] = {});
         
@@ -2673,43 +2686,111 @@ window.openMonthlyCalendar = function() {
                 }
 
                 if (d && !isNaN(d)) {
-                    attendanceData[c.user][d] = c.reason;
+                    // 💡 3. 비고란 데이터(remark)를 상태(status)와 함께 묶어서 저장합니다.
+                    // 만약 DB에 저장되는 비고란 변수명이 'remark'가 아니라면 그에 맞게 수정해주세요 (예: c.note)
+                    attendanceData[c.user][d] = {
+                        status: c.reason,
+                        remark: c.remark || c.note || "" 
+                    };
                 }
             }
         });
 
-        // 💡 1. 상단 안내 문구 수정 (체험학습 -> 지각)
-        let tableHtml = `<div style="margin-bottom:10px; font-size:0.9rem; color:#666;">O: 정상등교 / 결: 결석 / 지: 지각</div><div style="overflow-x:auto; max-height:400px;"><table style="width:100%; border-collapse:collapse; text-align:center; min-width:800px; font-size:0.9rem;"><thead><tr style="background:#f1f3f5;"><th style="border:1px solid #ccc; padding:8px; position:sticky; left:0; background:#f1f3f5; z-index:2;">이름</th>`;
-        weekdays.forEach(d => { tableHtml += `<th style="border:1px solid #ccc; padding:8px;">${d}일</th>`; });
-        tableHtml += `</tr></thead><tbody>`;
+        // 인쇄를 위한 전용 스타일 및 상단 컨트롤 영역 구성
+        let tableHtml = `
+            <style>
+                /* 화면에서 볼 때 팝업창을 큼직하게 만드는 스타일 */
+                #popup-modal-content { max-width: 95% !important; width: 1200px !important; }
+                
+                /* 인쇄 시 버튼이나 불필요한 배경은 숨기고 표만 깔끔하게 나오게 하는 인쇄 전용 CSS */
+                @media print {
+                    body * { visibility: hidden; }
+                    #print-area, #print-area * { visibility: visible; }
+                    #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+                    .no-print { display: none !important; }
+                    table { page-break-inside: auto; }
+                    tr { page-break-inside: avoid; page-break-after: auto; }
+                }
+            </style>
+            
+            <div id="print-area" style="padding: 10px;">
+                <h2 class="print-title" style="text-align:center; margin-bottom:20px; font-size:1.8rem; display:none;">${month + 1}월 학급 출석부 (${year}년)</h2>
+                
+                <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="font-size:1rem; color:#495057; font-weight: 500;">
+                        <!-- 💡 2. 범례에 '조퇴' 추가 -->
+                        📌 범례: <span style="color:#2b8a3e; font-weight:bold;">O</span> (정상등교) / 
+                        <span style="color:#e03131; font-weight:bold;">결</span> (결석) / 
+                        <span style="color:#f59f00; font-weight:bold;">지</span> (지각) / 
+                        <span style="color:#1c7ed6; font-weight:bold;">조</span> (조퇴)
+                    </div>
+                    <button onclick="window.printAttendanceBook()" style="background:#228be6; color:white; border:none; padding:10px 18px; font-size:1rem; font-weight:bold; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        🖨️ 출석부 인쇄하기
+                    </button>
+                </div>
+
+                <div style="overflow-x:auto; background: #fff; border-radius: 8px; border: 1px solid #dee2e6;">
+                    <table style="width:100%; border-collapse:collapse; text-align:center; min-width:1000px; font-size:1.05rem; font-family: sans-serif;">
+                        <thead>
+                            <tr style="background:#f8f9fa;">
+                                <th style="border:1px solid #ced4da; padding:12px 8px; font-weight:bold; background:#f8f9fa; width:90px; position:sticky; left:0; z-index:2;">이름</th>
+                        `;
+                        
+        weekdays.forEach(d => { 
+            tableHtml += `<th style="border:1px solid #ced4da; padding:12px 4px; font-weight:bold; min-width:35px;">${d}</th>`; 
+        });
+        
+        tableHtml += `      </tr>
+                        </thead>
+                        <tbody>`;
 
         users.forEach(u => {
-            tableHtml += `<tr><td style="border:1px solid #ccc; padding:8px; font-weight:bold; position:sticky; left:0; background:white; z-index:1;">${u}</td>`;
+            tableHtml += `<tr>
+                <td style="border:1px solid #ced4da; padding:12px 8px; font-weight:bold; position:sticky; left:0; background:#ffffff; z-index:1; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);">${u}</td>`;
+            
             weekdays.forEach(d => {
-                let status = attendanceData[u][d];
-                let mark = '', color = 'transparent';
+                let record = attendanceData[u][d];
+                let mark = '', color = 'transparent', remarkHtml = '';
                 
-                // 💡 2. 상태 판별 로직 수정 (지각 조건 추가)
-                if(status) {
+                if(record) {
+                    let status = record.status;
+                    
+                    // 💡 3. 비고란 내용이 존재하면 괄호로 묶어서 HTML 요소로 만듭니다.
+                    if (record.remark && record.remark.trim() !== '') {
+                        remarkHtml = `<div style="font-size:0.75rem; color:#495057; margin-top:3px; line-height:1;">(${record.remark})</div>`;
+                    }
+
                     if(status.includes('정상') || status === '등교') { 
-                        mark = 'O'; color = '#e8f5e9'; // 연한 초록색
+                        mark = 'O'; color = '#ebfbee'; 
                     }
                     else if(status.includes('결석')) { 
-                        mark = '결'; color = '#ffebee'; // 연한 빨간색
+                        mark = '결'; color = '#fff5f5'; 
                     }
                     else if(status.includes('지각')) { 
-                        mark = '지'; color = '#fff3e0'; // 연한 주황색 (체험학습 대신 지각으로 매칭!)
+                        mark = '지'; color = '#fff9db'; 
+                    }
+                    // 💡 2. '조퇴'에 대한 조건문 및 색상 처리 추가
+                    else if(status.includes('조퇴')) {
+                        mark = '조'; color = '#e7f5ff'; // 연한 파란색 배경
                     }
                     else { 
-                        // 기타 다른 사유가 있을 경우 첫 글자만 따서 표시
                         mark = status.substring(0,1); color = '#f3e5f5'; 
                     } 
                 }
-                tableHtml += `<td style="border:1px solid #ccc; padding:8px; background:${color};">${mark}</td>`;
+                
+                // 표의 각 칸 안에 마크(O, 지, 조 등)와 비고란(있을 경우)을 함께 출력합니다.
+                tableHtml += `<td style="border:1px solid #ced4da; padding:8px 4px; background:${color}; font-weight: 500;">
+                    ${mark}
+                    ${remarkHtml}
+                </td>`;
             });
             tableHtml += `</tr>`;
         });
-        tableHtml += `</tbody></table></div>`;
+        
+        tableHtml += `  </tbody>
+                    </table>
+                </div>
+            </div>`;
         
         openPopup(`${month + 1}월 학급 출석부`, tableHtml);
     });
