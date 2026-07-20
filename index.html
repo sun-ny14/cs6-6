@@ -2483,8 +2483,45 @@ window.openMonthlyCalendar = function() {
                     </table>
                 </div>
             </div>`;
+ // ✅ 새롭게 추가할 코드: 새로운 브라우저 창을 크게 열어서 표시합니다.
+        const printWindow = window.open('', '_blank', 'width=1400,height=800,scrollbars=yes,resizable=yes');
         
-        openPopup(`${month + 1}월 학급 출석부`, tableHtml);
+        // 새 창에 들어갈 HTML 내용을 작성합니다.
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <title>${month + 1}월 학급 출석부</title>
+                <style>
+                    body { margin: 0; padding: 30px; background-color: #f8f9fa; font-family: sans-serif; }
+                    
+                    /* 표를 감싸는 배경 영역 넓게 설정 */
+                    #print-area { background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+                    
+                    /* 제목을 화면에 크고 잘 보이게 표시 */
+                    .print-title { display: block !important; text-align: center; font-size: 28px; margin-bottom: 30px; font-weight: bold; color: #343a40; }
+                    
+                    /* 표가 깨지지 않도록 최소 너비를 아주 넓게 보장 */
+                    table { width: 100%; min-width: 1200px; border-collapse: collapse; }
+                    th, td { border: 1px solid #ced4da; padding: 15px 10px; text-align: center; font-size: 1.1rem; }
+                    
+                    /* 🖨️ 인쇄할 때 불필요한 여백과 그림자 제거 */
+                    @media print {
+                        body { padding: 0; background: white; }
+                        #print-area { box-shadow: none; padding: 0; }
+                        .no-print { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${tableHtml}
+            </body>
+            </html>
+        `);
+        
+        // 문서 로딩을 완료하여 브라우저에 화면을 띄웁니다.
+        printWindow.document.close();
     });
 };
 
