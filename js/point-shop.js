@@ -38,27 +38,31 @@ function buyShopItem(itemKey, price) {
     alert(`아이템 구매 요청이 처리되었습니다. (가격: ${price}P)`);
 }
 
-// 포인트 도감 데이터 불러오기
+// 올바른 포인트 도감 데이터 렌더링 함수
 function loadMyLogs() {
     const guideListEl = document.getElementById('guide-list');
     if (!guideListEl) return;
     
     db.ref('guides').once('value').then((snapshot) => {
-        const guides = snapshot.val();
+        const guides = snapshot.val() || {};
         let html = '';
         
-        if (!guides) {
-            html = `<p style="grid-column: 1 / -1; text-align:center; color:#666;">아직 등록된 포인트 도감이 없습니다.</p>`;
-        } else {
-            for (let key in guides) {
-                let g = guides[key];
-                html += `
-                    <div style="background:white; border:1px solid #eee; border-radius:15px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                        <h4 style="margin-top:0; color:var(--dark);">${g.title}</h4>
-                        <p style="margin-bottom:0; color:#555;">${g.desc}</p>
-                    </div>
-                `;
-            }
+        for (let key in guides) {
+            let g = guides[key];
+            // 데이터 속성 이름이 다를 경우를 대비해 안전하게 처리
+            let title = g.title || g.name || '제목 없음';
+            let desc = g.desc || g.description || g.reason || '';
+            
+            html += `
+                <div style="background:white; border:1px solid #eee; border-radius:15px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                    <h4 style="margin-top:0; color:var(--dark);">${title}</h4>
+                    <p style="margin-bottom:0; color:#555;">${desc}</p>
+                </div>
+            `;
+        }
+        
+        if (!html) {
+            html = `<p style="grid-column: 1 / -1; text-align:center; color:#666;">등록된 포인트 도감이 없습니다.</p>`;
         }
         guideListEl.innerHTML = html;
     });
