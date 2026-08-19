@@ -1,10 +1,7 @@
 // js/blackboard.js
-// 전자칠판 실시간 시계, 웹 UI 기반 시간표 관리 및 교시 자동 매칭
-
 let blackboardTimer = null;
 let cachedSchedule = [];
 
-// 기본 기본 시간표 데이터 (데이터베이스에 없을 때 기본값)
 const defaultSchedule = [
     { start: "09:00", end: "09:40", name: "1교시 (국어)", action: "1. 국어 교과서 34~35쪽 펴기<br>2. 지난 시간 배운 내용 핵심 짚어보기" },
     { start: "09:50", end: "10:30", name: "2교시 (수학)", action: "1. 수학 익힘책 채점하기<br>2. 모둠별 협력 문제 해결 활동 시작" },
@@ -15,42 +12,33 @@ const defaultSchedule = [
     { start: "14:20", end: "15:00", name: "6교시 (창체)", action: "1. 자율 활동 및 학급 회의 준비<br>2. 오늘 하루 정리 및 주변 청소 정돈" }
 ];
 
-// 전자칠판 탭 진입 시 실행
-function initBlackboard() {
+// 전자칠판 전용 화면(새창) 구동 함수
+function initBlackboardForDisplay() {
     updateClockAndPeriod();
     if (blackboardTimer) clearInterval(blackboardTimer);
     blackboardTimer = setInterval(updateClockAndPeriod, 1000);
     
-    loadBlackboardDataFromDB();
+    db.ref('blackboard/schedule').on('value', (snapshot) => {
+        const data = snapshot.val();
+        cachedSchedule = data ? data : defaultSchedule;
+        updateClockAndPeriod();
+    });
 }
 
-// 파이어베이스에서 시간표 데이터 불러오기
-function loadBlackboardDataFromDB() {
+// 본부 앱(관리자 화면) 내에서 관리 탭 열 때 실행
+function initBlackboardAdmin() {
     db.ref('blackboard/schedule').once('value').then((snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            cachedSchedule = data;
-        } else {
-            cachedSchedule = defaultSchedule;
-            // 최초 기본값 데이터베이스에 저장
-            db.ref('blackboard/schedule').set(defaultSchedule);
-        }
-
-        // 관리자 패널 텍스트박스에 보기 좋게 JSON 형태로 채워넣기
+        const data = snapshot.val() || defaultSchedule;
         const textarea = document.getElementById('bb-schedule-input');
         if (textarea) {
-            textarea.value = JSON.stringify(cachedSchedule, null, 4);
+            textarea.value = JSON.stringify(data, null, 4);
         }
     });
-
-    // 관리자(선생님)인 경우에만 수정 패널 노출
+    
     const adminPanel = document.getElementById('admin-blackboard-panel');
-    if (adminPanel && isAdmin) {
-        adminPanel.style.display = 'block';
-    }
+    if (adminPanel) adminPanel.style.display = 'block';
 }
 
-// 실시간 시계 업데이트 및 시간에 따른 교시/행동 매칭
 function updateClockAndPeriod() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -61,20 +49,15 @@ function updateClockAndPeriod() {
     if (timeEl) timeEl.innerText = `${hours}:${minutes}:${seconds}`;
 
     const currentMinutes = parseInt(hours) * 60 + parseInt(minutes);
-    
     let currentPeriodName = "쉬는 시간 / 방과 후";
-    let currentActionDesc = "다음 수업을 차분히 준비하거나 휴식을 취하세요. 교실 환기 필수!";
+    let currentActionDesc = "다음 수업을 차분히 준비하거나 휴식을 취하세요.";
 
-    // 저장된 시간표를 순회하며 현재 시간과 비교
     const scheduleToUse = cachedSchedule.length > 0 ? cachedSchedule : defaultSchedule;
     
     for (let slot of scheduleToUse) {
         const [sHour, sMin] = slot.start.split(':').map(Number);
         const [eHour, eMin] = slot.end.split(':').map(Number);
-        const startMin = sHour * 60 + sMin;
-        const endMin = eHour * 60 + eMin;
-
-        if (currentMinutes >= startMin && currentMinutes < endMin) {
+        if (currentMinutes >= (sHour * 60 + sMin) && currentMinutes < (eHour * 60 + eMin)) {
             currentPeriodName = slot.name;
             currentActionDesc = slot.action;
             break;
@@ -88,19 +71,14 @@ function updateClockAndPeriod() {
     if (actionEl) actionEl.innerHTML = currentActionDesc;
 }
 
-// 선생님이 웹 화면에서 시간표 수정 후 저장하기
 function saveBlackboardSchedule() {
     const textareaVal = document.getElementById('bb-schedule-input').value;
-    
     try {
         const parsedData = JSON.parse(textareaVal);
         db.ref('blackboard/schedule').set(parsedData).then(() => {
-            cachedSchedule = parsedData;
-            alert("💾 전자칠판 시간표가 웹 화면에 성공적으로 반영되었습니다!");
-            updateClockAndPeriod();
+            alert("💾 시간표가 저장되었습니다! 교실 앞 전자칠판에 실시간 반영됩니다.");
         });
     } catch (error) {
-        alert("❌ 입력한 형식에 오류가 있습니다. JSON 형식을 확인해 주세요. (따옴표나 괄호 누락 확인)");
-        console.error(error);
+        alert("❌ JSON 형식 오류입니다. 괄호와 따옴표를 확인해 주세요.");
     }
 }
