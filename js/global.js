@@ -50,3 +50,67 @@ function closePopup() {
 function getAvatar(lv, selectedAnimal) {
     return "";
 }
+// 등교 탭 내부 서브 메뉴 전환 (등교하기 <-> 등교로그 및 좌석)
+function switchCheckinSub(subId) {
+    document.getElementById('sub-checkin-main').style.display = (subId === 'checkin-main') ? 'block' : 'none';
+    document.getElementById('sub-checkin-logs').style.display = (subId === 'checkin-logs') ? 'block' : 'none';
+    
+    document.getElementById('sub-btn-checkin-main').style.background = (subId === 'checkin-main') ? 'var(--dark)' : '#ddd';
+    document.getElementById('sub-btn-checkin-main').style.color = (subId === 'checkin-main') ? 'white' : '#333';
+    
+    document.getElementById('sub-btn-checkin-logs').style.background = (subId === 'checkin-logs') ? 'var(--dark)' : '#ddd';
+    document.getElementById('sub-btn-checkin-logs').style.color = (subId === 'checkin-logs') ? 'white' : '#333';
+    
+    if (subId === 'checkin-logs') {
+        generateNewLayout();
+    }
+}
+
+// 학급관리 탭 내부 서브 메뉴 전환 (성적 관리 <-> 학급 운영비)
+function renderManagementSub(type) {
+    const container = document.getElementById('management-sub-container');
+    const btnGrades = document.getElementById('sub-btn-grades');
+    const btnBudget = document.getElementById('sub-btn-budget');
+    
+    if (type === 'grades') {
+        btnGrades.style.background = 'var(--primary)'; btnGrades.style.color = 'white';
+        btnBudget.style.background = '#ddd'; btnBudget.style.color = '#333';
+        
+        container.innerHTML = `
+            <div class="card">
+                <h2>📝 성적 및 평가 관리</h2>
+                <p>학생들의 성적과 수행평가 기록을 관리하는 공간입니다.</p>
+                <div style="background:#f8f9fa; padding:15px; border-radius:12px; margin-top:15px;">
+                    <p style="margin:0; color:#666;">등록된 성적 데이터를 불러오는 중...</p>
+                </div>
+            </div>
+        `;
+    } else if (type === 'budget') {
+        btnBudget.style.background = 'var(--primary)'; btnBudget.style.color = 'white';
+        btnGrades.style.background = '#ddd'; btnGrades.style.color = '#333';
+        
+        container.innerHTML = `
+            <div style="background:white; padding:20px; border-radius:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="margin-top:0;">💵 학급운영비 현황</h2>
+                <div id="budget-summary" style="font-size:1.2rem; margin-bottom:20px; padding:15px; background:var(--gold); border-radius:12px; font-weight:bold;">
+                    잔액 계산 중...
+                </div>
+                <button onclick="openAddBudgetPopup()" style="width:100%; background:var(--primary); color:white; margin-bottom:15px; padding:15px; font-size:1.1rem; font-weight:bold; border-radius:10px; border:none;">+ 내역 추가하기</button>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; min-width:500px; text-align:center;">
+                        <thead>
+                            <tr style="border-bottom:2px solid #eee; background:#f8f9fa;">
+                                <th style="padding:15px 10px;">날짜</th>
+                                <th style="padding:15px 10px;">쇼핑몰/처</th>
+                                <th style="padding:15px 10px;">용도</th>
+                                <th style="padding:15px 10px;">금액</th>
+                                <th style="padding:15px 10px;">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="budget-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+}
