@@ -43,21 +43,26 @@
         </div>
     </div>
 
-    <div id="main-app">
-        <!-- 개편된 상단 탭 메뉴 -->
-        <nav class="tab-menu">
-            <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
-            <button id="btn-shop" onclick="showTab('shop'); renderShop();">🛍️ 상점</button>
-            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-            <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
-            <button onclick="window.open('blackboard.html', '_blank')">🏫 전자칠판 새창</button>
-            <button id="btn-blackboard-admin" style="display:none;" onclick="showTab('blackboard-admin'); initBlackboardAdmin();">🛠️ 전자칠판 관리</button>
-            <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
-            <button id="btn-management" style="display:none;" onclick="showTab('management'); renderManagementSub('grades');">🛡️ 학급관리</button>
-            <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap();">🧹 청소확인</button>
-            <button id="btn-admin" style="display:none;" onclick="showTab('admin')">⚙️ 설정</button>
-        </nav>
+<!-- main-app 내부, 탭 메뉴 바로 위에 추가 -->
+<div id="main-app">
+    <!-- 모바일용 메뉴 토글 버튼 -->
+    <button onclick="toggleTabMenu()" style="width: 100%; background: var(--dark); color: white; padding: 12px; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 1.1rem;">
+        ☰ 메뉴 열기 / 닫기
+    </button>
 
+    <!-- 기존 탭 메뉴에 id 추가 (초기에는 보이도록 설정) -->
+    <nav id="tab-menu-box" class="tab-menu" style="display: flex; flex-wrap: wrap; gap: 5px;">
+        <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
+        <button id="btn-shop" onclick="showTab('shop'); renderShop();">🛍️ 상점</button>
+        <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+        <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
+        <button onclick="window.open('blackboard.html', '_blank')">🏫 전자칠판 새창</button>
+        <button id="btn-blackboard-admin" style="display:none;" onclick="showTab('blackboard-admin'); initBlackboardAdmin();">🛠️ 전자칠판 관리</button>
+        <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
+        <button id="btn-management" style="display:none;" onclick="showTab('management'); renderManagementSub('grades');">🛡️ 학급관리</button>
+        <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap();">🧹 청소확인</button>
+        <button id="btn-admin" style="display:none;" onclick="showTab('admin')">⚙️ 설정</button>
+    </nav>
         <!-- 1. 용사들 탭 -->
         <section id="tab-main" class="tab-content active">
             <div id="hero-grid" class="hero-grid"></div>
