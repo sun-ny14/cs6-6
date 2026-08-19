@@ -224,6 +224,17 @@
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
     </div>
+    <!-- 관리자 및 도우미 전용 떠다니는 플로팅 버튼 영역 -->
+<div id="floating-admin-buttons" style="position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 999;">
+    <!-- 일괄 포인트 배부 버튼 -->
+    <button id="floating-multi-btn" onclick="openMultiPopup()" style="display: none; width: 60px; height: 60px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; align-items: center; justify-content: center;" title="일괄 포인트 배부">
+        📋
+    </button>
+    <!-- 포인트 전령(개별 포인트) 버튼 -->
+    <button id="floating-point-btn" onclick="openPointBulkPopup()" style="display: none; width: 60px; height: 60px; border-radius: 50%; background: var(--gold); color: var(--dark); border: none; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; align-items: center; justify-content: center; font-weight: bold;" title="포인트 전령">
+        ⚖️
+    </button>
+</div>
 
     <!-- 스크립트 파일 연결 목록 (순서 중요) -->
     <script src="js/firebase-config.js"></script>
