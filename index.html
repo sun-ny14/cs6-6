@@ -50,7 +50,9 @@
            <button id="btn-shop" onclick="showTab('shop'); renderShop();">🛍️ 상점</button>
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
             <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
-            <button id="btn-blackboard" onclick="showTab('blackboard'); initBlackboard();">🏫 전자칠판</button>
+          <!-- 상단 메뉴에 새창으로 띄우기 버튼 추가 -->
+<button onclick="window.open('blackboard.html', '_blank')">🏫 전자칠판 새창</button>
+<button id="btn-blackboard-admin" style="display:none;" onclick="showTab('blackboard-admin'); initBlackboardAdmin();">🛠️ 전자칠판 관리</button>
             <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
             <button id="btn-management" style="display:none;" onclick="showTab('management'); renderManagementSub('grades');">🛡️ 학급관리</button>
             <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap();">🧹 청소확인</button>
