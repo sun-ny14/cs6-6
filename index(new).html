@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6-6 용사 본부</title>
+    
+    <!-- 외부 라이브러리 불러오기 -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- CSS 스타일시트 연결 -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="loading-screen">🏰 용사 본부 접속 중...</div>
+    
+    <div id="common-overlay" class="overlay">
+        <div class="popup-box">
+            <h2 id="pop-title" style="margin:0; text-align:center;">알림</h2>
+            <div id="pop-content"></div>
+            <button onclick="closePopup()" id="pop-close-btn">확인(닫기)</button>
+        </div>
+    </div>
+    
+    <div id="point-popup" class="overlay">
+        <div class="popup-box">
+            <h2 id="point-pop-title" style="margin-top:0; text-align:center;">⚖️ 포인트 전령</h2>
+            <div id="point-pop-body" style="overflow-y:auto; flex:1;"></div>
+            <div style="display:flex; gap:15px; margin-top:20px;">
+                <button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px;">닫기</button>
+                <button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px;">반영하기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="multi-popup" class="overlay">
+        <div class="popup-box">
+            <h2 style="text-align:center; margin-top:0;">📋 일괄 지급</h2>
+            <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px;">
+                <input type="text" id="multi-reason" placeholder="사유">
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="multi-p" placeholder="P">
+                    <input type="number" id="multi-e" placeholder="E">
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                    <button onclick="checkAllMulti(true)" style="width:48%; background:var(--dark); color:white; padding:10px;">전체 선택</button>
+                    <button onclick="checkAllMulti(false)" style="width:48%; background:#95a5a6; color:white; padding:10px;">해제</button>
+                </div>
+            </div>
+            <div id="multi-list" style="flex:1; overflow-y:auto; border:1px solid #ddd; border-radius:10px; padding:5px;"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="closeMultiPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:18px;">취소</button>
+                <button onclick="applyMultiScores()" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:18px;">지급 완료</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h1>🏰 6-6 본부</h1>
+            <button onclick="handleLogin()" style="background:#4285F4; color:white; border:none; border-radius:15px; padding:20px;">Google 로그인</button>
+        </div>
+    </div>
+
+    <div id="main-app">
+        <nav class="tab-menu">
+            <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
+            <button id="btn-shop" onclick="showTab('shop')">🛍️ 상점</button>
+            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+            <button id="btn-logs" style="display:none;" onclick="showTab('logs')">📅 등교로그</button>
+            <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
+            <button id="btn-grades" onclick="showTab('grades'); renderGradesMain();" style="display:none;">📝 성적관리</button>
+            <button id="btn-budget" style="display:none;" onclick="showTab('budget')">💰 운영비</button>
+            <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
+            <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap();">🧹 청소확인</button>
+            <button id="btn-admin" style="display:none;" onclick="showTab('admin')">🛡️ 관리</button>
+        </nav>
+
+        <section id="tab-main" class="tab-content active">
+            <div id="hero-grid" class="hero-grid"></div>
+        </section>
+        
+        <section id="tab-shop" class="tab-content">
+            <div class="card">
+                <h2>🛍️ 용사 보급소</h2>
+                <div id="shop-list"></div>
+            </div>
+            <div id="admin-order-mgr" class="card" style="display:none; border:2px solid var(--red);">
+                <h3>📜 사용 요청 승인</h3>
+                <div id="order-list"></div>
+            </div>
+        </section>
+
+        <section id="tab-checkin" class="tab-content">
+            <div class="card">
+                <h2>⚔️ 등교 확인</h2>
+                <div id="checkin-guide" style="font-weight:bold; margin-bottom:15px; color:var(--dark);"></div>
+                <input type="number" id="checkin-pass" placeholder="오늘의 등교 암호 4자리 입력" style="text-align:center;">
+                <button id="checkin-btn" onclick="submitCheckIn()" style="background:var(--primary); color:white; border:none; border-radius:15px; padding:20px;">본부 소환!</button>
+            </div>
+        </section>
+        
+        <section id="tab-logs" class="tab-content">
+            <div class="card">
+                <div style="background: #eef2f7; padding: 20px; border-radius: 15px; margin-bottom: 20px; text-align: center; border: 2px solid var(--primary);">
+                    <label for="checkin-date-filter" style="display: block; font-weight: bold; font-size: 1.4rem; margin-bottom: 10px; color: var(--dark);">📅 등교 조회 날짜</label>
+                    <input type="date" id="checkin-date-filter" onchange="generateNewLayout()" style="width: 100%; max-width: 300px; font-size: 1.8rem; padding: 10px; border-radius: 10px; border: 1px solid #ccc; text-align: center;">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button onclick="openExclusionPopup()" style="flex: 1; background: var(--purple); color: white; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">🚫 고정 등교제외 설정</button>
+                    <button onclick="toggleSeatEditMode()" id="edit-mode-btn" style="flex: 1; background: var(--dark); color: white; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; border: none;">🪑 좌석 배치 수정</button>
+                    <button onclick="downloadMonthlyExcel()" style="width: 70px; background: var(--green); color: white; border-radius: 12px; border: none; font-size: 1rem; font-weight: bold;">📊 엑셀</button>
+                </div>
+
+                <div id="seat-edit-panel" style="display:none; background:#fff3cd; padding:15px; border-radius:15px; margin-bottom:15px; border: 2px dashed #ffc107;">
+                    <div style="display:flex; gap:10px; align-items:center; justify-content: center;">
+                        가로 <input type="number" id="seat-cols" value="5" style="width:70px; font-size: 1.2rem;"> x 
+                        세로 <input type="number" id="seat-rows" value="6" style="width:70px; font-size: 1.2rem;">
+                        <button onclick="saveSeatLayout()" style="background:var(--primary); color:white; padding: 10px 20px; font-weight: bold; border-radius: 8px;">배치 저장</button>
+                    </div>
+                </div>
+
+                <div id="seat-map-container" style="display:grid; gap:12px; width:100%; background:#f1f1f1; padding:15px; border-radius:15px; border: 1px solid #ddd;"></div>
+            </div>
+        </section> 
+
+        <section id="tab-grades" class="tab-content"></section>
+
+        <section id="tab-budget" class="tab-content">
+            <div style="background:white; padding:20px; border-radius:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="margin-top:0;">💵 학급운영비 현황</h2>
+                <div id="budget-summary" style="font-size:1.2rem; margin-bottom:20px; padding:15px; background:var(--gold); border-radius:12px; font-weight:bold;">
+                    잔액 계산 중...
+                </div>
+                
+                <button onclick="openAddBudgetPopup()" style="width:100%; background:var(--primary); color:white; margin-bottom:15px; padding:15px; font-size:1.1rem; font-weight:bold; border-radius:10px; border:none;">+ 내역 추가하기</button>
+                
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; min-width:500px; text-align:center;">
+                        <thead>
+                            <tr style="border-bottom:2px solid #eee; background:#f8f9fa;">
+                                <th style="padding:15px 10px;">날짜</th>
+                                <th style="padding:15px 10px;">쇼핑몰/처</th>
+                                <th style="padding:15px 10px;">용도</th>
+                                <th style="padding:15px 10px;">금액</th>
+                                <th style="padding:15px 10px;">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="budget-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-points" class="tab-content">
+            <div class="card">
+                <h2>📜 포인트 도감 <small style="font-size:1rem; color:#666;">(클릭 시 일괄 지급)</small></h2>
+                <div id="guide-list" class="hero-grid"></div>
+            </div>
+            
+            <div id="my-inventory" class="card">
+                <h3>🎁 나의 인벤토리</h3>
+                <div id="inv-unused" class="inv-section"><h4>📦 미사용 보관함</h4><div class="list"></div></div>
+                <div id="inv-waiting" class="inv-section"><h4>⏳ 사용 대기중</h4><div class="list"></div></div>
+            </div>
+            
+            <div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div>
+        </section>
+
+        <section id="tab-admin" class="tab-content">
+            <div class="card"><h3>👥 명단 관리 (번호/도우미)</h3><div id="student-admin-list"></div></div>
+            <div class="card"><h3>⚙️ 시스템 설정</h3>
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                    암호:<input type="text" id="conf-pass" style="flex:1;">
+                    <button onclick="generateRandomPassword()" style="background:#ff9800; color:white; width:auto; padding:15px; font-weight:bold; border-radius:12px; border:none;">🎲 난수 비번 자동 생성</button>
+                </div>
+                지각:<input type="time" id="conf-late"> 마감:<input type="time" id="conf-close"> 
+                루틴:<textarea id="conf-routine" rows="4"></textarea><button onclick="saveSettings()">시스템 저장</button>
+            </div>
+            <div class="card"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4"></textarea><button onclick="saveGifts()">보상 저장</button></div>
+            <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
+        </section>
+        
+        <section id="tab-housing" class="tab-content">
+            <div class="card" style="max-width: 800px; margin: 0 auto;">
+                <div id="admin-housing-control" style="display:none; border: 3px solid #3498db; padding: 20px; border-radius: 15px; margin-bottom: 20px; background-color: #f8f9fa;">
+                    <h3 style="margin-top: 0; color: #2c3e50;">👑 용사의 방 관리자 시스템</h3>
+                    <h4 style="margin: 10px 0;">현재 상태: <span id="housing-current-status" style="font-weight:bold;">확인 중...</span></h4>
+                    <button id="housing-toggle-btn" onclick="toggleHousing()" style="background-color: #e74c3c; color: white; width: 100%; padding: 15px; border-radius: 10px; font-weight:bold;">상태 변경</button>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2 style="margin:0;">🏰 용사의 방</h2>
+                    <button onclick="openHousingShopPopup()" style="background:var(--gold); color:var(--dark); padding:10px 20px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">🛒 하우징 상점 열기</button>
+                </div>
+                
+                <div id="my-room-container" style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 6px solid #5d4037; border-radius: 15px; background-size: 100% 100%; background-repeat: no-repeat; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden; margin: 0 auto;">
+                    <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <button onclick="saveMyRoom()" style="padding: 15px 40px; background-color: #2ecc71; color: white; border: none; border-radius: 10px; font-size: 1.5rem; font-weight: bold; cursor: pointer;">💾 방 저장하기</button>
+                </div>
+
+                <div style="width: 100%; background: #f8f9fa; padding: 15px; border-radius: 15px; border: 2px solid #ddd; margin-top: 20px; box-sizing: border-box;">
+                    <h3 style="margin-top:0;">🎒 내 하우징 보관함 (구매한 아이템)</h3>
+                    <div id="housing-inventory-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; min-height: 100px;"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-cleaning" class="tab-content" style="display:none; padding: 20px;">
+            <h2 style="margin-bottom: 15px;">🧹 청소 구역 확인</h2>
+            
+            <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #dee2e6;">
+                <div id="cleaning-time-notice" style="font-weight: bold; font-size: 1.2rem; color: #2b8a3e; margin-bottom: 10px;">
+                    ⏰ 청소 점검 시간 불러오는 중...
+                </div>
+
+                <div id="admin-cleaning-time-setter" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <strong style="color: var(--primary);">🛠️ [선생님 전용] 점검 시간 지정:</strong>
+                    <input type="time" id="cleaning-start-time" style="padding: 5px; font-size: 1rem; border-radius: 5px; border: 1px solid #ccc;">
+                    <span>부터</span>
+                    <input type="time" id="cleaning-end-time" style="padding: 5px; font-size: 1rem; border-radius: 5px; border: 1px solid #ccc;">
+                    <span>까지</span>
+                    <button onclick="saveCleaningTimeSettings()" style="background: var(--primary); color: white; border: none; padding: 6px 12px; font-size: 1rem; font-weight: bold; border-radius: 6px; cursor: pointer;">설정 저장</button>
+                </div>
+            </div>
+            
+            <div id="cleaning-map-container" style="display: grid; gap: 10px; width: 100%; max-width: 800px; margin: 0 auto;"></div>
+        </section>
+
+        <button id="floating-point-btn" class="floating-btn" onclick="openPointBulkPopup()">⚖️</button>
+        <button id="floating-multi-btn" class="floating-btn" onclick="openMultiPopup()">📋</button>
+    </div>
+
+    <!-- 분리된 자바스크립트 파일들 연결 (※ 순서가 아주 중요합니다!) -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/global.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/point-shop.js"></script>
+    <script src="js/checkin-seat.js"></script>
+    <script src="js/housing.js"></script>
+    <script src="js/admin-grades.js"></script>
+</body>
+</html>
