@@ -47,12 +47,11 @@
         <!-- 개편된 상단 탭 메뉴 -->
         <nav class="tab-menu">
             <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
-           <button id="btn-shop" onclick="showTab('shop'); renderShop();">🛍️ 상점</button>
+            <button id="btn-shop" onclick="showTab('shop'); renderShop();">🛍️ 상점</button>
             <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
             <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
-          <!-- 상단 메뉴에 새창으로 띄우기 버튼 추가 -->
-<button onclick="window.open('blackboard.html', '_blank')">🏫 전자칠판 새창</button>
-<button id="btn-blackboard-admin" style="display:none;" onclick="showTab('blackboard-admin'); initBlackboardAdmin();">🛠️ 전자칠판 관리</button>
+            <button onclick="window.open('blackboard.html', '_blank')">🏫 전자칠판 새창</button>
+            <button id="btn-blackboard-admin" style="display:none;" onclick="showTab('blackboard-admin'); initBlackboardAdmin();">🛠️ 전자칠판 관리</button>
             <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
             <button id="btn-management" style="display:none;" onclick="showTab('management'); renderManagementSub('grades');">🛡️ 학급관리</button>
             <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap();">🧹 청소확인</button>
@@ -76,7 +75,7 @@
             </div>
         </section>
 
-        <!-- 3. 등교 탭 (등교하기 + 등교로그 및 좌석 통합) -->
+        <!-- 3. 등교 탭 -->
         <section id="tab-checkin" class="tab-content">
             <div style="display:flex; gap:10px; margin-bottom:20px;">
                 <button onclick="switchCheckinSub('checkin-main')" id="sub-btn-checkin-main" style="background:var(--dark); color:white; padding:12px; border-radius:10px; border:none; flex:1; font-weight:bold;">⚔️ 등교하기</button>
@@ -129,34 +128,41 @@
             <div class="card"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div>
         </section>
 
-        <!-- 5. 전자칠판 탭 (신규 추가) -->
+        <!-- 5. 전자칠판 탭 -->
         <section id="tab-blackboard" class="tab-content">
-    <div class="card" style="text-align: center; background: linear-gradient(135deg, #2c3e50, #34495e); color: white;">
-        <h2 style="margin:0 0 10px 0; color:#bdc3c7;">🏫 6-6반 스마트 전자칠판</h2>
-        <h1 id="bb-current-time" style="font-size: 3.5rem; margin: 10px 0; color: var(--gold); font-family: monospace;">00:00:00</h1>
-        <h2 id="bb-current-period" style="font-size: 2rem; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; margin-top: 15px;">현재 교시 확인 중...</h2>
-    </div>
-    
-    <div class="card" style="background: #fff; border-left: 8px solid var(--primary);">
-        <h2 style="margin-top:0;">📌 이번 시간 해야 할 행동 및 안내</h2>
-        <div id="bb-current-action" style="font-size: 1.6rem; padding: 25px; background: #f8f9fa; border-radius: 12px; color: #333; min-height: 120px; display: flex; align-items: center; justify-content: center; font-weight: bold; text-align: center; line-height: 1.5;">
-            시간표 데이터를 불러오는 중입니다...
-        </div>
-    </div>
+            <div class="card" style="text-align: center; background: linear-gradient(135deg, #2c3e50, #34495e); color: white;">
+                <h2 style="margin:0 0 10px 0; color:#bdc3c7;">🏫 6-6반 스마트 전자칠판</h2>
+                <h1 id="bb-current-time" style="font-size: 3.5rem; margin: 10px 0; color: var(--gold); font-family: monospace;">00:00:00</h1>
+                <h2 id="bb-current-period" style="font-size: 2rem; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; margin-top: 15px;">현재 교시 확인 중...</h2>
+            </div>
+            
+            <div class="card" style="background: #fff; border-left: 8px solid var(--primary);">
+                <h2 style="margin-top:0;">📌 이번 시간 해야 할 행동 및 안내</h2>
+                <div id="bb-current-action" style="font-size: 1.6rem; padding: 25px; background: #f8f9fa; border-radius: 12px; color: #333; min-height: 120px; display: flex; align-items: center; justify-content: center; font-weight: bold; text-align: center; line-height: 1.5;">
+                    시간표 데이터를 불러오는 중입니다...
+                </div>
+            </div>
 
-    <!-- 교사 전용 수정 탭 (관리자 계정만 노출) -->
-    <div id="admin-blackboard-panel" class="card" style="display:none; border: 2px dashed var(--gold); background: #fffdf4;">
-        <h3 style="margin-top:0;">🛠️ [선생님 전용] 전자칠판 시간표 및 행동 지침 관리</h3>
-        <p style="font-size: 1.1rem; color: #666;">웹 화면에서 바로 교시별 시간, 과목명, 행동 지침을 입력하고 저장하세요. (코드 수정 불필요!)</p>
-        
-        <div style="margin-bottom: 15px;">
-            <label style="display:block; font-weight:bold; margin-bottom:5px;">📅 오늘 전체 시간표 및 행동 지침 (JSON 또는 텍스트 형식으로 관리)</label>
-            <textarea id="bb-schedule-input" rows="10" placeholder="시간표 데이터를 불러오는 중..." style="font-size: 1.1rem; font-family: monospace;"></textarea>
-        </div>
-        
-        <button onclick="saveBlackboardSchedule()" style="background: var(--primary); color: white; padding: 15px; border-radius: 10px; border: none; font-weight: bold; font-size: 1.2rem; width: 100%;">💾 시간표 웹 화면에 즉시 반영하기</button>
-    </div>
-</section>
+            <!-- 교사 전용 수정 패널 -->
+            <div id="admin-blackboard-panel" class="card" style="display:none; border: 2px dashed var(--gold); background: #fffdf4;">
+                <h3 style="margin-top:0;">🛠️ [선생님 전용] 전자칠판 시간표 및 행동 지침 관리</h3>
+                <p style="font-size: 1.1rem; color: #666;">웹 화면에서 바로 교시별 시간, 과목명, 행동 지침을 입력하고 저장하세요.</p>
+                <div style="margin-bottom: 15px;">
+                    <label style="display:block; font-weight:bold; margin-bottom:5px;">📅 오늘 전체 시간표 및 행동 지침</label>
+                    <textarea id="bb-schedule-input" rows="10" placeholder="시간표 데이터를 불러오는 중..." style="font-size: 1.1rem; font-family: monospace; width:100%;"></textarea>
+                </div>
+                <button onclick="saveBlackboardSchedule()" style="background: var(--primary); color: white; padding: 15px; border-radius: 10px; border: none; font-weight: bold; font-size: 1.2rem; width: 100%;">💾 시간표 웹 화면에 즉시 반영하기</button>
+            </div>
+        </section>
+
+        <!-- 5-1. 전자칠판 관리 탭 (독립 탭 구조 반영) -->
+        <section id="tab-blackboard-admin" class="tab-content" style="display:none;">
+            <div class="card">
+                <button onclick="window.open('blackboard.html', '_blank', 'fullscreen=yes')" style="background: var(--dark); color: white; padding: 15px; border-radius: 10px; border: none; font-weight: bold; width: 100%; margin-bottom: 15px;">📺 전자칠판 새창 띄우기</button>
+                <h3>🛠️ 전자칠판 관리</h3>
+                <p style="color: #666; margin-bottom: 15px;">새창으로 띄우거나 아래에서 시간표를 점검할 수 있습니다.</p>
+            </div>
+        </section>
 
         <!-- 6. 하우징 탭 -->
         <section id="tab-housing" class="tab-content">
@@ -183,7 +189,7 @@
             </div>
         </section>
 
-        <!-- 7. 학급관리 탭 (성적관리 + 학급운영비 통합) -->
+        <!-- 7. 학급관리 탭 -->
         <section id="tab-management" class="tab-content" style="display:none;">
             <div style="display:flex; gap:10px; margin-bottom:20px;">
                 <button onclick="renderManagementSub('grades')" id="sub-btn-grades" style="background:var(--primary); color:white; padding:12px; border-radius:10px; border:none; flex:1; font-weight:bold;">📝 성적 관리</button>
@@ -224,24 +230,16 @@
             <div class="card"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일"></textarea><button onclick="bulkReg()">주입</button></div>
         </section>
     </div>
-    <!-- 관리자 및 도우미 전용 떠다니는 플로팅 버튼 영역 -->
-<div id="floating-admin-buttons" style="position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 999;">
-    <!-- 일괄 포인트 배부 버튼 -->
-    <button id="floating-multi-btn" onclick="openMultiPopup()" style="display: none; width: 60px; height: 60px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; align-items: center; justify-content: center;" title="일괄 포인트 배부">
-        📋
-    </button>
-    <!-- 포인트 전령(개별 포인트) 버튼 -->
-    <button id="floating-point-btn" onclick="openPointBulkPopup()" style="display: none; width: 60px; height: 60px; border-radius: 50%; background: var(--gold); color: var(--dark); border: none; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; align-items: center; justify-content: center; font-weight: bold;" title="포인트 전령">
-        ⚖️
-    </button>
-</div>
-    <!-- 관리 탭 내부 -->
-<div id="tab-blackboard-admin" class="tab-content">
-    <button onclick="window.open('blackboard.html', '_blank', 'fullscreen=yes')">📺 전자칠판 새창 띄우기</button>
-    <h3>시간표 관리</h3>
-    <textarea id="bb-schedule-input" rows="10" style="width:100%"></textarea>
-    <button onclick="saveBlackboardSchedule()">저장하기</button>
-</div>
+
+    <!-- 관리자 및 도우미 전용 플로팅 버튼 영역 -->
+    <div id="floating-admin-buttons" style="position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 999;">
+        <button id="floating-multi-btn" onclick="openMultiPopup()" style="display: none; width: 60px; height: 60px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; align-items: center; justify-content: center;" title="일괄 포인트 배부">
+            📋
+        </button>
+        <button id="floating-point-btn" onclick="openPointBulkPopup()" style="display: none; width: 60px; height: 60px; border-radius: 50%; background: var(--gold); color: var(--dark); border: none; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; align-items: center; justify-content: center; font-weight: bold;" title="포인트 전령">
+            ⚖️
+        </button>
+    </div>
 
     <!-- 스크립트 파일 연결 목록 (순서 중요) -->
     <script src="js/firebase-config.js"></script>
@@ -253,6 +251,6 @@
     <script src="js/housing.js"></script>
     <script src="js/admin-grades.js"></script>
     <script src="js/blackboard.js"></script>
-<script src="js/blackboard-admin.js"></script>
+    <script src="js/blackboard-admin.js"></script>
 </body>
 </html>
