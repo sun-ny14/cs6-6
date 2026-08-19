@@ -10,7 +10,8 @@ function initApp() {
     }
 }
 
-// 파이어베이스에 저장된 기존 용사(학생) 데이터를 불러와 카드 그리드로 렌더링
+// js/hero-mgr.js 내부의 renderHeroes 함수 중 카드 HTML 생성 부분을 아래처럼 수정해 주세요.
+
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -19,7 +20,6 @@ function renderHeroes() {
         const usersData = snapshot.val() || {};
         let html = '';
         
-        // 파이어베이스에 저장된 데이터를 반복문으로 돌며 기존 용사 정보 불러오기
         for (let key in usersData) {
             let user = usersData[key];
             if (user.email === adminEmail) continue;
@@ -30,10 +30,18 @@ function renderHeroes() {
             let lv = user.level || 1;
             let isHelper = user.isHelper || false;
             
+            // 캐릭터 아바타 이미지 주소 (저장된 이미지가 없으면 기본 픽셀 아바타나 빈 공간 처리)
+            let avatarImg = user.avatar || 'https://i.imgur.com/7Y6u8LN.png'; // 예시 기본 픽셀 캐릭터 주소
+            
             html += `
                 <div class="card" style="text-align:center; cursor:pointer; position:relative; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${name}')">
+                    <!-- 캐릭터 아바타 이미지 추가 -->
+                    <div style="width: 70px; height: 70px; margin: 0 auto 10px auto; background: #f1f1f1; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                        <img src="${avatarImg}" alt="캐릭터" style="width: 100%; height: 100%; image-rendering: pixelated;">
+                    </div>
+                    
                     <h3 style="margin-top:0; color:var(--dark);">${name}</h3>
-                    <p style="font-weight:bold; color:var(--primary);">Lv. ${lv} | P: ${p} | E: ${e}</p>
+                    <p style="font-weight:bold; color:var(--primary); margin: 5px 0;">Lv. ${lv} | P: ${p} | E: ${e}</p>
                     <p style="font-size:0.9rem; color:#666; margin-bottom:0;">${isHelper ? '⭐ 도우미' : '용사'}</p>
                 </div>
             `;
