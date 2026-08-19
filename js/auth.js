@@ -63,3 +63,14 @@ auth.onAuthStateChanged((user) => {
         forceScreenDisplay('login');
     }
 });
+// 메뉴 열고 닫기 토글 함수
+function toggleTabMenu() {
+    const menuBox = document.getElementById('tab-menu-box');
+    if (menuBox) {
+        if (menuBox.style.display === 'none') {
+            menuBox.style.display = 'flex';
+        } else {
+            menuBox.style.display = 'none';
+        }
+    }
+}
