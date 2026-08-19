@@ -177,3 +177,15 @@ function deleteStudent(userKey, studentName) {
         });
     }
 }
+// 일괄 지급 팝업 열기
+function openMultiPopup() {
+    const popup = document.getElementById('multi-popup');
+    if (popup) popup.style.display = 'flex';
+    else alert("일괄 포인트 배부 창을 준비 중입니다.");
+}
+
+// 포인트 전령(개별 포인트) 팝업 열기
+function openPointBulkPopup() {
+    const popup = document.getElementById('point-popup');
+    if (popup) popup.style.display = 'flex';
+}
