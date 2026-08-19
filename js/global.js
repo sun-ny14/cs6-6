@@ -114,3 +114,78 @@ function renderManagementSub(type) {
         `;
     }
 }
+function startApp() {
+    // 1. 관리자/도우미 UI 제어
+    if (isAdmin || isHelper || myName === "총사령관") { 
+        const orderMgr = document.getElementById('admin-order-mgr'); 
+        if (orderMgr) orderMgr.style.display = 'block'; 
+        
+        // 전자칠판 관리 탭 버튼 표시
+        const bbAdminBtn = document.getElementById('btn-blackboard-admin');
+        if (bbAdminBtn) bbAdminBtn.style.display = 'inline-block';
+    }
+
+    // 💡 2. 역할별 탭 제어
+    if (myName === "총사령관") {
+        const checkinTabBtn = document.getElementById('btn-checkin');
+        if (checkinTabBtn) checkinTabBtn.style.display = 'none';
+        
+        const cleaningTabBtn = document.getElementById('btn-cleaning');
+        if (cleaningTabBtn) cleaningTabBtn.style.display = 'inline-block';
+    } else {
+        if (typeof currentUser !== 'undefined' && currentUser.role === '청소') {
+            const cleaningTabBtn = document.getElementById('btn-cleaning');
+            if (cleaningTabBtn) cleaningTabBtn.style.display = 'inline-block';
+        }
+    }
+
+    window.isHousingEnabled = true;
+
+    // 3. 시스템 설정 불러오기
+    db.ref('settings').on('value', snap => {
+        const s = snap.val() || {}; 
+        giftList = s.giftList || []; 
+        routineItems = s.routineText?.split('\n').filter(t => t.trim()) || [];
+        
+        if (isAdmin) { 
+            document.getElementById('conf-pass').value = s.password || ""; 
+            document.getElementById('conf-late').value = s.lateTime || "08:40"; 
+            document.getElementById('conf-close').value = s.closeTime || "09:00"; 
+            document.getElementById('conf-routine').value = s.routineText || ""; 
+            document.getElementById('conf-gifts').value = s.giftList?.join('\n') || ""; 
+        }
+        const guide = document.getElementById('checkin-guide');
+        if(guide) guide.innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
+        
+        window.currentDefaultBg = s.defaultBg || "";
+    });
+
+    generateNewLayout();
+
+    // 4. 유저 목록 불러오기 및 카드 렌더링
+    db.ref('users').on('value', snap => {
+        let users = []; 
+        snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
+        currentUsers = users.sort((a, b) => (a.name === myName ? -1 : b.name === myName ? 1 : (a.no || 99) - (b.no || 99)));
+        
+        let h = ""; 
+        currentUsers.forEach(u => { 
+            if(u.name === "총사령관") return; 
+            const isMe = (u.name === myName);
+            const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
+            
+            h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
+                    <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
+                    <b style="font-size:1.3rem; display:block; margin-top:12px; color:var(--dark);">
+                        ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
+                    </b>
+                    ${(isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : ''}
+                </div>`; 
+        }); 
+        const heroGrid = document.getElementById('hero-grid');
+        if(heroGrid) heroGrid.innerHTML = h;
+        
+        if (isAdmin) renderAdminList(); // 기존에 구현하셨던 관리자 리스트 함수
+        generateNewLayout();   
+    });
+}
