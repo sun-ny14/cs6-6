@@ -235,6 +235,13 @@
         ⚖️
     </button>
 </div>
+    <!-- 관리 탭 내부 -->
+<div id="tab-blackboard-admin" class="tab-content">
+    <button onclick="window.open('blackboard.html', '_blank', 'fullscreen=yes')">📺 전자칠판 새창 띄우기</button>
+    <h3>시간표 관리</h3>
+    <textarea id="bb-schedule-input" rows="10" style="width:100%"></textarea>
+    <button onclick="saveBlackboardSchedule()">저장하기</button>
+</div>
 
     <!-- 스크립트 파일 연결 목록 (순서 중요) -->
     <script src="js/firebase-config.js"></script>
