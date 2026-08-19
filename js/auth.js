@@ -39,6 +39,7 @@ auth.onAuthStateChanged((user) => {
             if (isAdmin || isHelper) {
                 const adminMenuIds = [
                     'btn-management', 'btn-cleaning', 'btn-admin', 
+                    'btn-blackboard-admin', 'admin-blackboard-panel', // 전자칠판 관리 관련 추가
                     'admin-order-mgr', 'admin-housing-control', 
                     'floating-point-btn', 'floating-multi-btn'
                 ];
