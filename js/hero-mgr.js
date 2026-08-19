@@ -9,7 +9,9 @@ function initApp() {
     }
 }
 
-// 1. 메인 화면에 용사(학생) 카드 그리드 렌더링
+// js/hero-mgr.js
+// 용사(학생) 목록 렌더링 및 육육이 아바타 파일 연동 수정
+
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -28,18 +30,17 @@ function renderHeroes() {
             let lv = user.level || user.lv || 1;
             let isHelper = user.isHelper || false;
             
-            // [육육이 및 기존 아바타 연동 규칙]
-            // 데이터베이스에 저장된 값이 없거나 '육육이' 관련 파일 연결이 필요할 때의 안전 장치 포함
+            // [육육이 이미지 파일 연동 규칙]
+            // 데이터베이스에 별도의 아바타 URL이 없거나 기본 상태라면 GitHub에 업로드한 '육육이.png'를 기본으로 지정합니다.
             let avatarImg = user.avatar || user.profileImg || user.img;
-            if (!avatarImg || avatarImg.trim() === '') {
-                // 기본 아바타 혹은 육육이 연동 경로 지정
-                avatarImg = 'https://i.imgur.com/7Y6u8LN.png'; 
+            if (!avatarImg || avatarImg.trim() === '' || avatarImg.includes('7Y6u8LN')) {
+                avatarImg = '육육이.png'; 
             }
             
             html += `
                 <div class="card" style="text-align:center; cursor:pointer; position:relative; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${name}')">
                     <div style="width: 70px; height: 70px; margin: 0 auto 10px auto; background: #fff; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                        <img src="${avatarImg}" alt="캐릭터" style="width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated;" onerror="this.src='https://i.imgur.com/7Y6u8LN.png';">
+                        <img src="${avatarImg}" alt="육육이 캐릭터" style="width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated;" onerror="this.src='https://i.imgur.com/7Y6u8LN.png';">
                     </div>
                     
                     <h3 style="margin-top:0; color:var(--dark);">${name}</h3>
