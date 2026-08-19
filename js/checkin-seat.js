@@ -7,6 +7,13 @@ function renderCheckinBoard() {
     if (guideEl) {
         guideEl.innerText = `오늘(${getTodayKST()})의 등교 본부를 확인하고 암호를 입력하세요.`;
     }
+    
+    // 기본 날짜 필터 값이 비어있다면 오늘 날짜로 초기화
+    const dateFilter = document.getElementById('checkin-date-filter');
+    if (dateFilter && !dateFilter.value) {
+        dateFilter.value = getTodayKST();
+    }
+    
     generateNewLayout();
 }
 
@@ -33,6 +40,7 @@ function submitCheckIn() {
             }).then(() => {
                 alert("🎉 성공적으로 등교(본부 소환)되었습니다!");
                 passInput.value = "";
+                generateNewLayout(); // 등교 즉시 좌석 배치판 갱신
             });
         } else {
             alert("❌ 등교 암호가 틀렸습니다. 다시 확인해 주세요.");
@@ -40,13 +48,23 @@ function submitCheckIn() {
     });
 }
 
-// 좌석 배치도 생성 및 렌더링
+// 좌석 배치도 생성 및 렌더링 (선택된 날짜의 등교 기록 연동)
 function generateNewLayout() {
     const mapContainer = document.getElementById('seat-map-container');
     if (!mapContainer) return;
     
-    db.ref('seatLayout').once('value').then((snapshot) => {
-        currentLayout = snapshot.val() || { cols: 5, rows: 6 };
+    // 선택된 조회 날짜 가져오기 (없으면 오늘 날짜 사용)
+    const dateInput = document.getElementById('checkin-date-filter');
+    const selectedDate = dateInput && dateInput.value ? dateInput.value : getTodayKST();
+
+    // 좌석 배치 정보와 해당 날짜의 등교 출석 기록을 동시에 불러옴
+    Promise.all([
+        db.ref('seatLayout').once('value'),
+        db.ref(`checkins/${selectedDate}`).once('value')
+    ]).then(([layoutSnapshot, checkinSnapshot]) => {
+        currentLayout = layoutSnapshot.val() || { cols: 5, rows: 6 };
+        const checkins = checkinSnapshot.val() || {};
+        
         let cols = currentLayout.cols || 5;
         let rows = currentLayout.rows || 6;
         
@@ -58,9 +76,15 @@ function generateNewLayout() {
                 let seatKey = `${r}_${c}`;
                 let studentName = currentLayout.seats && currentLayout.seats[seatKey] ? currentLayout.seats[seatKey] : "";
                 
+                // 해당 학생이 선택한 날짜에 등교 완료했는지 확인
+                let isCheckedIn = studentName && checkins[studentName];
+                let bgColor = isCheckedIn ? '#d4edda' : '#ffffff'; // 출석 완료 시 연한 초록색 배경
+                let statusBadge = isCheckedIn ? '<span style="font-size:0.7rem; color:#28a745; margin-top:2px;">출석완료</span>' : '';
+
                 html += `
-                    <div class="room-tile" style="aspect-ratio: 1; display:flex; justify-content:center; align-items:center; border-radius:10px; font-weight:bold; font-size:1rem;" onclick="handleSeatClick('${seatKey}')">
-                        ${studentName || `${r+1}-${c+1}`}
+                    <div class="room-tile" style="aspect-ratio: 1; display:flex; flex-direction:column; justify-content:center; align-items:center; border-radius:10px; font-weight:bold; font-size:1rem; background:${bgColor}; border:1px solid #ddd; cursor:pointer;" onclick="handleSeatClick('${seatKey}')">
+                        <span>${studentName || `${r+1}-${c+1}`}</span>
+                        ${studentName ? statusBadge : ''}
                     </div>
                 `;
             }
@@ -72,7 +96,11 @@ function generateNewLayout() {
 // 좌석 클릭 이벤트 처리 (배치 수정 모드 연동)
 function handleSeatClick(seatKey) {
     if (!isEditMode) {
-        alert(`선택한 좌석 위치: ${seatKey}`);
+        if (currentLayout.seats && currentLayout.seats[seatKey]) {
+            alert(`선택한 좌석 학생: ${currentLayout.seats[seatKey]}`);
+        } else {
+            alert(`선택한 빈 좌석 위치: ${seatKey}`);
+        }
         return;
     }
     
