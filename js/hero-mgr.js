@@ -1,5 +1,5 @@
 // js/hero-mgr.js
-// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 관리자 명단 관리 기능 (이미지 및 데이터 연동 강화)
+// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 관리자 명단 관리 기능 (육육이 아바타 연동 복원)
 
 function initApp() {
     showTab(currentTab);
@@ -28,9 +28,11 @@ function renderHeroes() {
             let lv = user.level || user.lv || 1;
             let isHelper = user.isHelper || false;
             
-            // 아바타 이미지 경로 유연하게 처리 (GitHub 경로나 커스텀 URL이 깨지지 않도록 보호)
+            // [육육이 및 기존 아바타 연동 규칙]
+            // 데이터베이스에 저장된 값이 없거나 '육육이' 관련 파일 연결이 필요할 때의 안전 장치 포함
             let avatarImg = user.avatar || user.profileImg || user.img;
             if (!avatarImg || avatarImg.trim() === '') {
+                // 기본 아바타 혹은 육육이 연동 경로 지정
                 avatarImg = 'https://i.imgur.com/7Y6u8LN.png'; 
             }
             
