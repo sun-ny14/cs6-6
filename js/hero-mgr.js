@@ -1,5 +1,5 @@
 // js/hero-mgr.js
-// 용사(학생) 목록 렌더링, 포인트 부여 팝업 및 관리자 학생 명단 관리 기능
+// 파이어베이스에서 기존 용사(학생) 데이터를 불러와 렌더링하고 관리하는 기능
 
 // 앱 초기 구동 시 실행되는 메인 함수
 function initApp() {
@@ -10,35 +10,39 @@ function initApp() {
     }
 }
 
-// 메인 화면에 용사(학생) 카드 그리드 렌더링
+// 파이어베이스에 저장된 기존 용사(학생) 데이터를 불러와 카드 그리드로 렌더링
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
 
     db.ref('users').once('value').then((snapshot) => {
         const usersData = snapshot.val() || {};
-        currentUsers = Object.values(usersData);
-        
         let html = '';
-        currentUsers.forEach(user => {
-            if (user.email === adminEmail) return;
+        
+        // 파이어베이스에 저장된 데이터를 반복문으로 돌며 기존 용사 정보 불러오기
+        for (let key in usersData) {
+            let user = usersData[key];
+            if (user.email === adminEmail) continue;
 
+            let name = user.name || '용사';
             let p = user.points || 0;
             let e = user.exp || 0;
             let lv = user.level || 1;
+            let isHelper = user.isHelper || false;
             
             html += `
-                <div class="card" style="text-align:center; cursor:pointer; position:relative; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${user.name}')">
-                    <h3 style="margin-top:0; color:var(--dark);">${user.name}</h3>
+                <div class="card" style="text-align:center; cursor:pointer; position:relative; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${name}')">
+                    <h3 style="margin-top:0; color:var(--dark);">${name}</h3>
                     <p style="font-weight:bold; color:var(--primary);">Lv. ${lv} | P: ${p} | E: ${e}</p>
-                    <p style="font-size:0.9rem; color:#666; margin-bottom:0;">${user.isHelper ? '⭐ 도우미' : '용사'}</p>
+                    <p style="font-size:0.9rem; color:#666; margin-bottom:0;">${isHelper ? '⭐ 도우미' : '용사'}</p>
                 </div>
             `;
-        });
+        }
 
         if (!html) {
-            html = `<p style="text-align:center; grid-column: 1 / -1; color:#666;">등록된 용사(학생)가 없습니다. 관리자 탭에서 학생을 등록해 주세요!</p>`;
+            html = `<p style="text-align:center; grid-column: 1 / -1; color:#666;">등록된 용사(학생)가 없습니다.</p>`;
         }
+        
         heroGrid.innerHTML = html;
     });
 }
@@ -57,7 +61,7 @@ function renderStudentAdminList() {
                         <th style="padding:10px;">이름</th>
                         <th style="padding:10px;">이메일</th>
                         <th style="padding:10px;">도우미 여부</th>
-                        <th style="padding:10px;">관한 관리</th>
+                        <th style="padding:10px;">권한 관리</th>
                     </tr>
                 </thead>
                 <tbody>
