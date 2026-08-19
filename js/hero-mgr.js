@@ -1,5 +1,5 @@
 // js/hero-mgr.js
-// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 관리자 명단 관리 기능
+// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 관리자 명단 관리 기능 (이미지 및 데이터 연동 강화)
 
 function initApp() {
     showTab(currentTab);
@@ -20,18 +20,17 @@ function renderHeroes() {
         
         for (let key in usersData) {
             let user = usersData[key];
-            if (user.email === adminEmail) continue;
+            if (!user || user.email === adminEmail) continue;
 
             let name = user.name || '용사';
             let p = user.points || 0;
             let e = user.exp || 0;
-            // level 또는 lv 속성을 모두 체크하여 레벨 누락 방지
             let lv = user.level || user.lv || 1;
             let isHelper = user.isHelper || false;
             
-            // 아바타 데이터 검증 (잘못된 텍스트나 데이터 URL이면 기본 이미지로 대체)
-            let avatarImg = user.avatar;
-            if (!avatarImg || avatarImg.startsWith('data:') || avatarImg.length > 300) {
+            // 아바타 이미지 경로 유연하게 처리 (GitHub 경로나 커스텀 URL이 깨지지 않도록 보호)
+            let avatarImg = user.avatar || user.profileImg || user.img;
+            if (!avatarImg || avatarImg.trim() === '') {
                 avatarImg = 'https://i.imgur.com/7Y6u8LN.png'; 
             }
             
@@ -63,7 +62,7 @@ function openPointPopupForUser(userName) {
         let targetUser = null;
 
         for (let key in usersData) {
-            if (usersData[key].name === userName) {
+            if (usersData[key] && usersData[key].name === userName) {
                 targetUser = usersData[key];
                 break;
             }
@@ -79,8 +78,8 @@ function openPointPopupForUser(userName) {
         let lv = targetUser.level || targetUser.lv || 1;
         let helperStatus = targetUser.isHelper ? '⭐ 도우미' : '일반 용사';
         
-        let avatarImg = targetUser.avatar;
-        if (!avatarImg || avatarImg.startsWith('data:') || avatarImg.length > 300) {
+        let avatarImg = targetUser.avatar || targetUser.profileImg || targetUser.img;
+        if (!avatarImg || avatarImg.trim() === '') {
             avatarImg = 'https://i.imgur.com/7Y6u8LN.png';
         }
 
@@ -138,9 +137,13 @@ function openPointPopupForUser(userName) {
 
 // 3. 점수 반영 및 레벨 동기화 처리 함수
 function applyUserScore(userName, currentLv) {
-    const reason = document.getElementById('pop-reason').value.trim();
-    const addP = parseInt(document.getElementById('pop-p').value) || 0;
-    const addE = parseInt(document.getElementById('pop-e').value) || 0;
+    const reasonInput = document.getElementById('pop-reason');
+    const addPInput = document.getElementById('pop-p');
+    const addEInput = document.getElementById('pop-e');
+
+    const reason = reasonInput ? reasonInput.value.trim() : '';
+    const addP = addPInput ? parseInt(addPInput.value) || 0 : 0;
+    const addE = addEInput ? parseInt(addEInput.value) || 0 : 0;
 
     if (!reason) {
         alert("포인트 변동 사유를 입력해 주세요!");
@@ -153,7 +156,7 @@ function applyUserScore(userName, currentLv) {
         let userData = null;
 
         for (let key in usersData) {
-            if (usersData[key].name === userName) {
+            if (usersData[key] && usersData[key].name === userName) {
                 targetKey = key;
                 userData = usersData[key];
                 break;
@@ -210,15 +213,15 @@ function renderStudentAdminList() {
 
         for (let key in usersData) {
             let u = usersData[key];
-            if (u.email === adminEmail) continue;
+            if (!u || u.email === adminEmail) continue;
             html += `
                 <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px; font-weight:bold;">${u.name}</td>
-                    <td style="padding:10px; color:#666;">${u.email}</td>
+                    <td style="padding:10px; font-weight:bold;">${u.name || '이름 없음'}</td>
+                    <td style="padding:10px; color:#666;">${u.email || '-'}</td>
                     <td style="padding:10px;">${u.isHelper ? '⭐ 도우미' : '-'}</td>
                     <td style="padding:10px; display:flex; gap:5px; justify-content:center;">
                         <button onclick="toggleHelperStatus('${key}', ${!u.isHelper})" style="padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:6px; width:auto; cursor:pointer;">${u.isHelper ? '도우미 해제' : '도우미 임명'}</button>
-                        <button onclick="deleteStudent('${key}', '${u.name}')" style="padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:6px; width:auto; cursor:pointer;">삭제</button>
+                        <button onclick="deleteStudent('${key}', '${u.name || '학생'}')" style="padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:6px; width:auto; cursor:pointer;">삭제</button>
                     </td>
                 </tr>
             `;
