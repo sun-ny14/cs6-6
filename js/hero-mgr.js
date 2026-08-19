@@ -1,5 +1,5 @@
 // js/hero-mgr.js
-// 용사(학생) 목록 렌더링, 포인트 부여 팝업 및 관리자 학생 명단 관리 기능
+// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 관리자 명단 관리 기능
 
 function initApp() {
     showTab(currentTab);
@@ -9,7 +9,7 @@ function initApp() {
     }
 }
 
-// 메인 화면에 용사(학생) 카드 그리드 렌더링
+// 1. 메인 화면에 용사(학생) 카드 그리드 렌더링
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -25,16 +25,20 @@ function renderHeroes() {
             let name = user.name || '용사';
             let p = user.points || 0;
             let e = user.exp || 0;
-            let lv = user.level || 1;
+            // level 또는 lv 속성을 모두 체크하여 레벨 누락 방지
+            let lv = user.level || user.lv || 1;
             let isHelper = user.isHelper || false;
             
-            // 캐릭터 아바타 이미지 주소
-            let avatarImg = user.avatar || 'https://i.imgur.com/7Y6u8LN.png';
+            // 아바타 데이터 검증 (잘못된 텍스트나 데이터 URL이면 기본 이미지로 대체)
+            let avatarImg = user.avatar;
+            if (!avatarImg || avatarImg.startsWith('data:') || avatarImg.length > 300) {
+                avatarImg = 'https://i.imgur.com/7Y6u8LN.png'; 
+            }
             
             html += `
                 <div class="card" style="text-align:center; cursor:pointer; position:relative; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${name}')">
-                    <div style="width: 70px; height: 70px; margin: 0 auto 10px auto; background: #f1f1f1; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                        <img src="${avatarImg}" alt="캐릭터" style="width: 100%; height: 100%; image-rendering: pixelated;">
+                    <div style="width: 70px; height: 70px; margin: 0 auto 10px auto; background: #fff; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <img src="${avatarImg}" alt="캐릭터" style="width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated;" onerror="this.src='https://i.imgur.com/7Y6u8LN.png';">
                     </div>
                     
                     <h3 style="margin-top:0; color:var(--dark);">${name}</h3>
@@ -52,9 +56,8 @@ function renderHeroes() {
     });
 }
 
-// 용사 카드 클릭 시 포인트가 아니라 '학생 세부정보' 팝업이 뜨도록 수정된 함수
+// 2. 학생 카드 클릭 시 세부정보 팝업 열기
 function openPointPopupForUser(userName) {
-    // 1. 먼저 데이터베이스에서 클릭한 학생의 상세 정보를 불러옴
     db.ref('users').once('value').then((snapshot) => {
         const usersData = snapshot.val() || {};
         let targetUser = null;
@@ -73,11 +76,14 @@ function openPointPopupForUser(userName) {
 
         let p = targetUser.points || 0;
         let e = targetUser.exp || 0;
-        let lv = targetUser.level || 1;
+        let lv = targetUser.level || targetUser.lv || 1;
         let helperStatus = targetUser.isHelper ? '⭐ 도우미' : '일반 용사';
-        let avatarImg = targetUser.avatar || 'https://i.imgur.com/7Y6u8LN.png';
+        
+        let avatarImg = targetUser.avatar;
+        if (!avatarImg || avatarImg.startsWith('data:') || avatarImg.length > 300) {
+            avatarImg = 'https://i.imgur.com/7Y6u8LN.png';
+        }
 
-        // 2. 세부정보 팝업창 구성 (학생 정보 표시 + 선생님 전용 포인트 수정 칸)
         const popup = document.getElementById('point-popup');
         const titleEl = document.getElementById('point-pop-title');
         const bodyEl = document.getElementById('point-pop-body');
@@ -88,8 +94,8 @@ function openPointPopupForUser(userName) {
         if (bodyEl) {
             bodyEl.innerHTML = `
                 <div style="text-align: center; margin-bottom: 15px;">
-                    <div style="width: 80px; height: 80px; margin: 0 auto 10px auto; background: #f1f1f1; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid var(--primary);">
-                        <img src="${avatarImg}" alt="캐릭터" style="width: 100%; height: 100%; image-rendering: pixelated;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 10px auto; background: #fff; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <img src="${avatarImg}" alt="캐릭터" style="width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated;" onerror="this.src='https://i.imgur.com/7Y6u8LN.png';">
                     </div>
                     <h3 style="margin: 0; color: var(--dark);">${userName}</h3>
                     <p style="margin: 5px 0; color: #666; font-size: 0.95rem;">신분: ${helperStatus}</p>
@@ -114,24 +120,24 @@ function openPointPopupForUser(userName) {
             `;
         }
 
-        // 3. 권한에 따른 반영 버튼 제어
         if (applyBtn) {
             if (isAdmin || isHelper) {
                 applyBtn.style.display = 'block';
                 applyBtn.innerText = '점수 반영하기';
                 applyBtn.onclick = function() {
-                    applyUserScore(userName);
+                    applyUserScore(userName, lv);
                 };
             } else {
-                applyBtn.style.display = 'none'; // 학생은 수정 버튼 숨김
+                applyBtn.style.display = 'none';
             }
         }
 
         if (popup) popup.style.display = 'flex';
     });
 }
-// 점수 반영 실제 로직 (파이어베이스 연동)
-function applyUserScore(userName) {
+
+// 3. 점수 반영 및 레벨 동기화 처리 함수
+function applyUserScore(userName, currentLv) {
     const reason = document.getElementById('pop-reason').value.trim();
     const addP = parseInt(document.getElementById('pop-p').value) || 0;
     const addE = parseInt(document.getElementById('pop-e').value) || 0;
@@ -141,7 +147,6 @@ function applyUserScore(userName) {
         return;
     }
 
-    // 데이터베이스에서 해당 이름의 학생을 찾아 점수 업데이트
     db.ref('users').once('value').then((snapshot) => {
         const usersData = snapshot.val() || {};
         let targetKey = null;
@@ -162,7 +167,6 @@ function applyUserScore(userName) {
 
         let currentP = userData.points || 0;
         let currentE = userData.exp || 0;
-        let currentLv = userData.level || 1;
 
         let newP = currentP + addP;
         let newE = currentE + addE;
@@ -174,18 +178,17 @@ function applyUserScore(userName) {
         }).then(() => {
             alert(`[${userName}] 용사에게 점수가 성공적으로 반영되었습니다!`);
             closePointPopup();
-            renderHeroes(); // 화면 갱신
+            renderHeroes();
         });
     });
 }
 
-// 팝업 닫기 함수
 function closePointPopup() {
     const popup = document.getElementById('point-popup');
     if (popup) popup.style.display = 'none';
 }
 
-// 관리자 탭의 학생 명단 관리 리스트 렌더링
+// 4. 관리자 탭 학생 명단 관리
 function renderStudentAdminList() {
     const adminListEl = document.getElementById('student-admin-list');
     if (!adminListEl) return;
