@@ -124,3 +124,56 @@ function applyUserScore(userName) {
     alert(`${userName} 용사에게 점수 반영 로직이 실행되었습니다.`);
     closePopup();
 }
+
+// 관리자 탭의 학생 명단 관리 리스트 렌더링 (삭제 기능 포함)
+function renderStudentAdminList() {
+    const adminListEl = document.getElementById('student-admin-list');
+    if (!adminListEl) return;
+
+    db.ref('users').once('value').then((snapshot) => {
+        const usersData = snapshot.val() || {};
+        let html = `
+            <table style="width:100%; border-collapse:collapse; text-align:center;">
+                <thead>
+                    <tr style="background:#f8f9fa; border-bottom:2px solid #ddd;">
+                        <th style="padding:10px;">이름</th>
+                        <th style="padding:10px;">이메일</th>
+                        <th style="padding:10px;">도우미 여부</th>
+                        <th style="padding:10px;">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        for (let key in usersData) {
+            let u = usersData[key];
+            if (u.email === adminEmail) continue;
+            html += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:10px; font-weight:bold;">${u.name}</td>
+                    <td style="padding:10px; color:#666;">${u.email}</td>
+                    <td style="padding:10px;">${u.isHelper ? '⭐ 도우미' : '-'}</td>
+                    <td style="padding:10px; display:flex; gap:5px; justify-content:center;">
+                        <button onclick="toggleHelperStatus('${key}', ${!u.isHelper})" style="padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:6px; width:auto; cursor:pointer;">${u.isHelper ? '도우미 해제' : '도우미 임명'}</button>
+                        <button onclick="deleteStudent('${key}', '${u.name}')" style="padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:6px; width:auto; cursor:pointer;">삭제</button>
+                    </td>
+                </tr>
+            `;
+        }
+        html += `</tbody></table>`;
+        adminListEl.innerHTML = html;
+    });
+}
+
+// 학생 데이터베이스에서 완전히 삭제하는 함수
+function deleteStudent(userKey, studentName) {
+    if (confirm(`정말로 [${studentName}] 학생의 데이터를 본부에서 영구 삭제하시겠습니까?`)) {
+        db.ref(`users/${userKey}`).remove().then(() => {
+            alert(`[${studentName}] 학생의 데이터가 성공적으로 삭제되었습니다.`);
+            renderStudentAdminList();
+            renderHeroes(); // 메인 화면 용사 목록도 즉시 갱신
+        }).catch((error) => {
+            alert("삭제 중 오류가 발생했습니다: " + error.message);
+        });
+    }
+}
