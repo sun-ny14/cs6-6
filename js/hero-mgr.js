@@ -250,3 +250,58 @@ function deleteStudent(userKey, studentName) {
         });
     }
 }
+// 스프라이트 시트 기반 육육이 아바타 렌더링 및 선택 팝업 함수
+function getAvatar(lv, selectedAnimal) {
+    const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true"; 
+    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
+    
+    const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
+    const index = animals.indexOf(name) === -1 ? 0 : animals.indexOf(name);
+    
+    const col = index % 5;
+    const row = Math.floor(index / 5);
+    
+    const posX = col * 25; 
+    const posY = row * 33.33; 
+
+    return `
+    <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; display: flex; align-items: center; justify-content: center; position: relative;">
+        <div style="
+            width: 100%; 
+            height: 100%; 
+            background-image: url('${githubImageUrl}'); 
+            background-size: 500% 400%; 
+            background-position: ${posX}% ${posY}%; 
+            background-repeat: no-repeat;
+            image-rendering: pixelated;
+            transform: scale(1.15);
+            transform-origin: center;
+        "></div>
+    </div>`;
+}
+
+function openAvatarPicker() {
+    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
+    db.ref('users/' + myName).once('value', snap => {
+        const userData = snap.val() || {};
+        const lv = userData.lv || userData.level || 1;
+        const availableCount = Math.min(lv, 20);
+        let h = `<p style="text-align:center; font-weight:bold; color:var(--primary); margin-bottom:15px;">✨ 레벨이 오를수록 새로운 칭호가 해금됩니다!</p>`;
+        h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; padding:10px;">`;
+        
+        for(let i=0; i < 20; i++) {
+            if(i < availableCount) {
+                h += `<div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:2px solid var(--gold); border-radius:15px; padding:10px; background:#fffdf2; box-shadow:0 3px 6px rgba(0,0,0,0.1);">
+                        ${getAvatar(i + 1, animals[i])}
+                        <div style="font-size:0.8rem; font-weight:bold; margin-top:8px; color:var(--dark);">${animals[i]}</div>
+                      </div>`;
+            } else {
+                h += `<div style="text-align:center; border:1px solid #eee; border-radius:15px; padding:10px; background:#f5f5f5; opacity: 0.6;">
+                        <div style="width: 85px; height: 85px; display:flex; align-items:center; justify-content:center; margin: 0 auto; font-size:1.8rem; background:#ddd; border-radius:15px;">🔒</div>
+                        <div style="font-size:0.7rem; color:#888; margin-top:8px;">LV.${i+1} 해금<br>(${animals[i]})</div>
+                      </div>`;
+            }
+        }
+        openPopup("🎭 육육이 전직 본부", h + `</div>`);
+    });
+}
