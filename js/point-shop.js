@@ -76,3 +76,52 @@ function applyMultiScores() {
     
     alert(`사유: [${reason}] 포인트(${pVal}P), 경험치(${eVal}E) 일괄 지급 로직실행`);
 }
+// --- 아래 코드들을 js/point-shop.js 맨 끝에 추가해 주세요 ---
+
+// 포인트 도감 데이터 불러오기 강화 (데이터가 없을 때 안내문 추가)
+function loadMyLogs() {
+    const guideListEl = document.getElementById('guide-list');
+    if (!guideListEl) return;
+    
+    db.ref('guides').once('value').then((snapshot) => {
+        const guides = snapshot.val();
+        let html = '';
+        
+        if (!guides) {
+            html = `<p style="grid-column: 1 / -1; text-align:center; color:#666;">아직 등록된 포인트 도감이 없습니다.</p>`;
+        } else {
+            for (let key in guides) {
+                let g = guides[key];
+                html += `
+                    <div style="background:white; border:1px solid #eee; border-radius:15px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                        <h4 style="margin-top:0; color:var(--dark);">${g.title}</h4>
+                        <p style="margin-bottom:0; color:#555;">${g.desc}</p>
+                    </div>
+                `;
+            }
+        }
+        guideListEl.innerHTML = html;
+    });
+}
+
+// 일괄 지급(📋) 팝업 열기/닫기
+function openMultiPopup() {
+    const popup = document.getElementById('multi-popup');
+    if (popup) popup.style.display = 'flex';
+}
+
+function closeMultiPopup() {
+    const popup = document.getElementById('multi-popup');
+    if (popup) popup.style.display = 'none';
+}
+
+// 포인트 전령(⚖️) 팝업 열기/닫기
+function openPointBulkPopup() {
+    const popup = document.getElementById('point-popup');
+    if (popup) popup.style.display = 'flex';
+}
+
+function closePointPopup() {
+    const popup = document.getElementById('point-popup');
+    if (popup) popup.style.display = 'none';
+}
