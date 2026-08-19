@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6-6반 스마트 전자칠판</title>
+    
+    <!-- 파이어베이스 SDK 불러오기 -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body { background: #1a252f; color: white; padding: 30px; font-family: 'Malgun Gothic', sans-serif; margin: 0; }
+        .bb-container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .bb-card { background: #2c3e50; border-radius: 20px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="bb-container">
+        <div class="bb-card" style="background: linear-gradient(135deg, #2c3e50, #34495e);">
+            <h2 style="margin:0 0 10px 0; color:#bdc3c7; font-size: 2rem;">🏫 6-6반 스마트 전자칠판</h2>
+            <h1 id="bb-current-time" style="font-size: 5rem; margin: 15px 0; color: var(--gold); font-family: monospace;">00:00:00</h1>
+            <h2 id="bb-current-period" style="font-size: 2.5rem; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; margin-top: 20px;">현재 교시 확인 중...</h2>
+        </div>
+        
+        <div class="bb-card" style="background: #ffffff; color: #333; border-left: 12px solid var(--primary); text-align: left;">
+            <h2 style="margin-top:0; font-size: 2rem; color: #2c3e50;">📌 이번 시간 해야 할 행동 및 안내</h2>
+            <div id="bb-current-action" style="font-size: 2.2rem; padding: 40px; background: #f8f9fa; border-radius: 15px; color: #333; min-height: 180px; display: flex; align-items: center; justify-content: center; font-weight: bold; text-align: center; line-height: 1.6;">
+                시간표 데이터를 불러오는 중입니다...
+            </div>
+        </div>
+    </div>
+
+    <!-- 전자칠판 전용 스크립트 연결 -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/blackboard.js"></script>
+    <script>
+        // 페이지 열리자마자 전자칠판 구동 시작
+        window.onload = function() {
+            initBlackboardForDisplay();
+        };
+    </script>
+</body>
+</html>
