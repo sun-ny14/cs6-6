@@ -189,3 +189,9 @@ function startApp() {
         generateNewLayout();   
     });
 }
+// js/global.js 에 추가 또는 수정
+if (typeof window.loadMyLogs === 'undefined') {
+    window.loadMyLogs = function() {
+        // 기록 로드 관련 함수 (에러 방지용 빈 함수)
+    };
+}
