@@ -1,5 +1,5 @@
 // js/hero-mgr.js
-// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 스프라이트 아바타 연동 관리
+// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 번호 순서 정렬 반영
 
 function initApp() {
     showTab(currentTab);
@@ -39,27 +39,40 @@ function getAvatar(lv, selectedAnimal) {
     </div>`;
 }
 
-// 1. 메인 화면에 용사(학생) 카드 그리드 렌더링 (스프라이트 아바타 적용)
+// 1. 메인 화면에 용사(학생) 카드 그리드 렌더링 (번호 순서 정렬 적용)
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
 
     db.ref('users').once('value').then((snapshot) => {
         const usersData = snapshot.val() || {};
-        let html = '';
+        let usersArray = [];
         
+        // 객체 데이터를 배열로 변환
         for (let key in usersData) {
             let user = usersData[key];
             if (!user || user.email === adminEmail) continue;
+            usersArray.push(user);
+        }
 
+        // 📌 학생 번호(number 또는 no)를 기준으로 오름차순 정렬
+        usersArray.sort((a, b) => {
+            let numA = parseInt(a.number || a.no || 999);
+            let numB = parseInt(b.number || b.no || 999);
+            return numA - numB;
+        });
+
+        let html = '';
+        
+        usersArray.forEach(user => {
             let name = user.name || '용사';
             let p = user.points || 0;
             let e = user.exp || 0;
             let lv = user.level || user.lv || 1;
             let isHelper = user.isHelper || false;
             let selectedAnimal = user.animal || null;
+            let number = user.number || user.no || ''; // 부여된 번호
             
-            // 스프라이트 아바타 렌더링 함수 호출
             let avatarHtml = getAvatar(lv, selectedAnimal);
             
             html += `
@@ -68,12 +81,12 @@ function renderHeroes() {
                         ${avatarHtml}
                     </div>
                     
-                    <h3 style="margin-top:0; color:var(--dark);">${name}</h3>
+                    <h3 style="margin-top:0; color:var(--dark);">${number ? number + '. ' : ''}${name}</h3>
                     <p style="font-weight:bold; color:var(--primary); margin: 5px 0;">Lv. ${lv} | P: ${p} | E: ${e}</p>
                     <p style="font-size:0.9rem; color:#666; margin-bottom:0;">${isHelper ? '⭐ 도우미' : '용사'}</p>
                 </div>
             `;
-        }
+        });
 
         if (!html) {
             html = `<p style="text-align:center; grid-column: 1 / -1; color:#666;">등록된 용사(학생)가 없습니다.</p>`;
@@ -106,8 +119,8 @@ function openPointPopupForUser(userName) {
         let lv = targetUser.level || targetUser.lv || 1;
         let helperStatus = targetUser.isHelper ? '⭐ 도우미' : '일반 용사';
         let selectedAnimal = targetUser.animal || null;
+        let number = targetUser.number || targetUser.no || '';
         
-        // 팝업창용 아바타 (조금 더 크게 표시하거나 동일하게 스프라이트 적용)
         let avatarHtml = getAvatar(lv, selectedAnimal);
 
         const popup = document.getElementById('point-popup');
@@ -115,7 +128,7 @@ function openPointPopupForUser(userName) {
         const bodyEl = document.getElementById('point-pop-body');
         const applyBtn = document.getElementById('point-apply-btn');
 
-        if (titleEl) titleEl.innerHTML = `🛡️ ${userName} 용사 세부정보`;
+        if (titleEl) titleEl.innerHTML = `🛡️ ${number ? number + '. ' : ''}${userName} 용사 세부정보`;
         
         if (bodyEl) {
             bodyEl.innerHTML = `
@@ -123,7 +136,7 @@ function openPointPopupForUser(userName) {
                     <div style="margin: 0 auto 10px auto;">
                         ${avatarHtml}
                     </div>
-                    <h3 style="margin: 0; color: var(--dark);">${userName}</h3>
+                    <h3 style="margin: 0; color: var(--dark);">${number ? number + '. ' : ''}${userName}</h3>
                     <p style="margin: 5px 0; color: #666; font-size: 0.95rem;">신분: ${helperStatus}</p>
                 </div>
 
@@ -243,7 +256,7 @@ function renderStudentAdminList() {
             if (!u || u.email === adminEmail) continue;
             html += `
                 <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px; font-weight:bold;">${u.name || '이름 없음'}</td>
+                    <td style="padding:10px; font-weight:bold;">${u.number ? u.number + '. ' : ''}${u.name || '이름 없음'}</td>
                     <td style="padding:10px; color:#666;">${u.email || '-'}</td>
                     <td style="padding:10px;">${u.isHelper ? '⭐ 도우미' : '-'}</td>
                     <td style="padding:10px; display:flex; gap:5px; justify-content:center;">
