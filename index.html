@@ -156,20 +156,19 @@
         <!-- 사이드바 열고 닫기 화살표 토글 버튼 -->
         <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="메뉴 열기/닫기">◀</button>
 
-        <!-- 좌측 사이드바 메뉴 -->
-        <nav id="sidebar-menu" class="sidebar-menu">
-            <h2 style="text-align: center; margin: 0 0 15px 0; color: #2c3e50;">🏰 6-6 본부</h2>
-            <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
-            <button id="btn-shop" onclick="showTab('shop'); renderShop();">🛍️ 상점</button>
-            <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
-            <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
-            <button onclick="window.open('blackboard.html', '_blank')">🏫 전자칠판 새창</button>
-            <button id="btn-blackboard-admin" style="display:none;" onclick="showTab('blackboard-admin'); initBlackboardAdmin();">🛠️ 전자칠판 관리</button>
-            <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
-            <button id="btn-management" style="display:none;" onclick="showTab('management'); renderManagementSub('grades');">🛡️ 학급관리</button>
-            <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap();">🧹 청소확인</button>
-            <button id="btn-admin" style="display:none;" onclick="showTab('admin')">⚙️ 설정</button>
-        </nav>
+        <!-- 좌측 사이드바 메뉴 중 전자칠판 관련 버튼들을 하나로 통합 -->
+<nav id="sidebar-menu" class="sidebar-menu">
+    <h2 style="text-align: center; margin: 0 0 15px 0; color: #2c3e50;">🏰 6-6 본부</h2>
+    <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
+    <button id="btn-shop" onclick="showTab('shop'); renderShop();">🛍️ 상점</button>
+    <button id="btn-checkin" onclick="showTab('checkin')">⚔️ 등교</button>
+    <button id="btn-points" onclick="showTab('points')">💰 포인트·도감</button>
+    <button id="btn-blackboard" onclick="showTab('blackboard'); initBlackboardTab();">🏫 전자칠판</button>
+    <button id="btn-housing" onclick="showTab('housing'); openHousingTab();">🏰 방</button>
+    <button id="btn-management" style="display:none;" onclick="showTab('management'); renderManagementSub('grades');">🛡️ 학급관리</button>
+    <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning'); renderCleaningMap();">🧹 청소확인</button>
+    <button id="btn-admin" style="display:none;" onclick="showTab('admin')">⚙️ 설정</button>
+</nav>
 
         <!-- 우측 콘텐츠 표시 영역 -->
         <div class="main-content-area">
@@ -243,41 +242,33 @@
                 <div class="card" style="background:white; padding:25px; border-radius:15px;"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div>
             </section>
 
-            <!-- 5. 전자칠판 탭 -->
-            <section id="tab-blackboard" class="tab-content">
-                <div class="card" style="text-align: center; background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding:25px; border-radius:15px; margin-bottom:20px;">
-                    <h2 style="margin:0 0 10px 0; color:#bdc3c7;">🏫 6-6반 스마트 전자칠판</h2>
-                    <h1 id="bb-current-time" style="font-size: 3.5rem; margin: 10px 0; color: #f1c40f; font-family: monospace;">00:00:00</h1>
-                    <h2 id="bb-current-period" style="font-size: 2rem; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; margin-top: 15px;">현재 교시 확인 중...</h2>
-                </div>
-                
-                <div class="card" style="background: #fff; border-left: 8px solid #3498db; padding:25px; border-radius:15px; margin-bottom:20px;">
-                    <h2 style="margin-top:0;">📌 이번 시간 해야 할 행동 및 안내</h2>
-                    <div id="bb-current-action" style="font-size: 1.6rem; padding: 25px; background: #f8f9fa; border-radius: 12px; color: #333; min-height: 120px; display: flex; align-items: center; justify-content: center; font-weight: bold; text-align: center; line-height: 1.5;">
-                        시간표 데이터를 불러오는 중입니다...
-                    </div>
-                </div>
+           <!-- 통합된 5. 전자칠판 탭 -->
+<section id="tab-blackboard" class="tab-content">
+    <div class="card" style="text-align: center; background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding:25px; border-radius:15px; margin-bottom:20px;">
+        <h2 style="margin:0 0 10px 0; color:#bdc3c7;">🏫 6-6반 스마트 전자칠판</h2>
+        <h1 id="bb-current-time" style="font-size: 3.5rem; margin: 10px 0; color: #f1c40f; font-family: monospace;">00:00:00</h1>
+        <h2 id="bb-current-period" style="font-size: 2rem; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; margin-top: 15px;">현재 교시 확인 중...</h2>
+    </div>
+    
+    <div class="card" style="background: #fff; border-left: 8px solid #3498db; padding:25px; border-radius:15px; margin-bottom:20px;">
+        <h2 style="margin-top:0;">📌 이번 시간 해야 할 행동 및 안내</h2>
+        <div id="bb-current-action" style="font-size: 1.6rem; padding: 25px; background: #f8f9fa; border-radius: 12px; color: #333; min-height: 120px; display: flex; align-items: center; justify-content: center; font-weight: bold; text-align: center; line-height: 1.5;">
+            시간표 데이터를 불러오는 중입니다...
+        </div>
+    </div>
 
-                <div id="admin-blackboard-panel" class="card" style="display:none; border: 2px dashed #f1c40f; background: #fffdf4; padding:25px; border-radius:15px;">
-                    <h3 style="margin-top:0;">🛠️ [선생님 전용] 전자칠판 시간표 및 행동 지침 관리</h3>
-                    <p style="font-size: 1.1rem; color: #666;">웹 화면에서 바로 교시별 시간, 과목명, 행동 지침을 입력하고 저장하세요.</p>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display:block; font-weight:bold; margin-bottom:5px;">📅 오늘 전체 시간표 및 행동 지침</label>
-                        <textarea id="bb-schedule-input" rows="10" placeholder="시간표 데이터를 불러오는 중..." style="font-size: 1.1rem; font-family: monospace; width:100%; box-sizing:border-box;"></textarea>
-                    </div>
-                    <button onclick="saveBlackboardSchedule()" style="background: #3498db; color: white; padding: 15px; border-radius: 10px; border: none; font-weight: bold; font-size: 1.2rem; width: 100%; cursor:pointer;">💾 시간표 웹 화면에 즉시 반영하기</button>
-                </div>
-            </section>
-
-            <!-- 5-1. 전자칠판 관리 탭 -->
-            <section id="tab-blackboard-admin" class="tab-content" style="display:none;">
-                <div class="card" style="max-width: 800px; margin: 0 auto; background:white; padding:25px; border-radius:15px;">
-                    <button onclick="window.open('blackboard.html', '_blank', 'fullscreen=yes')" style="background: #2c3e50; color: white; padding: 15px; border-radius: 10px; border: none; font-weight: bold; width: 100%; margin-bottom: 20px; cursor: pointer; font-size:1.1rem;">📺 전자칠판 새창 띄우기</button>
-                    <h3 style="margin-top:0; color: #3498db;">🛠️ 전자칠판 시간표 및 행동 지침 관리</h3>
-                    <div id="bb-schedule-form-container" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;"></div>
-                    <button onclick="saveBlackboardScheduleFromForm()" style="background: #3498db; color: white; padding: 15px; border-radius: 10px; border: none; font-weight: bold; font-size: 1.2rem; width: 100%; cursor: pointer;">💾 시간표 저장하기</button>
-                </div>
-            </section>
+    <!-- [관리자/도우미 전용] 새창 띄우기 및 시간표 수정 패널 -->
+    <div id="admin-blackboard-panel" class="card" style="display:none; border: 2px dashed #f1c40f; background: #fffdf4; padding:25px; border-radius:15px;">
+        <h3 style="margin-top:0; color: #2c3e50;">🛠️ [선생님/도우미 전용] 전자칠판 제어 패널</h3>
+        <button onclick="window.open('blackboard.html', '_blank', 'fullscreen=yes')" style="background: #2c3e50; color: white; padding: 15px; border-radius: 10px; border: none; font-weight: bold; width: 100%; margin-bottom: 20px; cursor: pointer; font-size:1.1rem;">📺 전자칠판 새창 띄우기</button>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display:block; font-weight:bold; margin-bottom:5px;">📅 오늘 전체 시간표 및 행동 지침 설정</label>
+            <div id="bb-schedule-form-container" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;"></div>
+        </div>
+        <button onclick="saveBlackboardScheduleFromForm()" style="background: #3498db; color: white; padding: 15px; border-radius: 10px; border: none; font-weight: bold; font-size: 1.2rem; width: 100%; cursor: pointer;">💾 시간표 저장하기</button>
+    </div>
+</section>
 
             <!-- 6. 하우징 탭 -->
             <section id="tab-housing" class="tab-content">
