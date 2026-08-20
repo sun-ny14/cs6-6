@@ -1,5 +1,5 @@
 // js/point-shop.js
-// 상점 물품 관리, 구매 로직, 한도 리셋, 인벤토리 및 사용 요청 승인 관리 통합 전체 코드
+// 상점 물품 관리, 구매 로직, 한도 리셋, 인벤토리, 사용 요청 승인, 그리고 포인트 연대기 통합 전체 코드
 
 if (typeof window.currentShopCat === 'undefined') window.currentShopCat = "전체";
 if (typeof window.shopData === 'undefined') window.shopData = [];
@@ -88,9 +88,21 @@ window.resetUserItemLimit = async function(userName) {
     else { alert("기록 없음."); }
 };
 
-// 실시간 주문/승인 관리
+// 실시간 주문, 인벤토리, 승인 및 포인트 연대기 리스너
 function initShopDataListeners() {
     db.ref('shop').on('value', (s) => { window.shopData = []; s.forEach(c => window.shopData.push(c)); window.renderShop(); });
+    
+    // 포인트 연대기 데이터 연동 (history 경로)
+    db.ref('history').on('value', snap => {
+        let historyHtml = "";
+        snap.forEach(c => {
+            const h = c.val();
+            historyHtml = `<div style="padding:10px; border-bottom:1px solid #eee; font-size:1.1rem;">📅 [${h.date || '최근'}] <b>${h.user || '용사'}</b>: ${h.reason || '활동'} (${h.p > 0 ? '+' + h.p : h.p}P)</div>` + historyHtml;
+        });
+        const historyEl = document.getElementById('point-history-list');
+        if (historyEl) historyEl.innerHTML = historyHtml || "<p style='color:#666;'>포인트 연대기 기록이 없습니다.</p>";
+    });
+
     db.ref('orders').on('value', snap => {
         let uH = "", wH = "", adminH = ""; 
         let myUnused = {}, myWaiting = {}, adminWaiting = {}; 
