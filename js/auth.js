@@ -1,5 +1,4 @@
-// js/auth.js
-// 로그인, 로그아웃 및 사용자 권한 인증 관리 (에러 방지 안전장치 적용)
+// js/auth.js - 이메일 매칭 안전성 강화 버전
 
 function handleLogin() {
     auth.signInWithPopup(provider).then((result) => {
@@ -12,15 +11,25 @@ function handleLogin() {
 
 auth.onAuthStateChanged((user) => {
     if (user) {
-        const email = user.email;
+        const email = user.email ? user.email.trim().toLowerCase() : "";
         
         db.ref('users').once('value').then((snapshot) => {
             const usersData = snapshot.val() || {};
-            currentUsers = Object.values(usersData);
+            let matchedUser = null;
+
+            // 데이터베이스 구조가 객체(Key-Value) 형태일 때 안전하게 탐색
+            Object.keys(usersData).forEach(key => {
+                const u = usersData[key];
+                if (u && u.email) {
+                    const dbEmail = u.email.trim().toLowerCase();
+                    if (dbEmail === email) {
+                        matchedUser = u;
+                    }
+                }
+            });
             
-            isAdmin = (email === adminEmail);
-            const matchedUser = currentUsers.find(u => u.email === email);
-            
+            isAdmin = (email === adminEmail.trim().toLowerCase());
+
             if (matchedUser) {
                 myName = matchedUser.name;
                 isHelper = matchedUser.isHelper || false;
@@ -28,18 +37,17 @@ auth.onAuthStateChanged((user) => {
                 myName = "선생님";
                 isHelper = true;
             } else {
-                alert("등록되지 않은 사용자 이메일입니다. 선생님께 문의하세요.");
+                alert(`등록되지 않은 사용자 이메일(${email})입니다. 선생님께 문의하세요.`);
                 auth.signOut();
                 return;
             }
 
             forceScreenDisplay('app');
             
-            // 관리자 및 도우미 권한: 요소가 존재하는지 확인(안전장치) 후 표시
             if (isAdmin || isHelper) {
                 const adminMenuIds = [
                     'btn-management', 'btn-cleaning', 'btn-admin', 
-                    'btn-blackboard-admin', 'admin-blackboard-panel', // 전자칠판 관리 관련 추가
+                    'btn-blackboard-admin', 'admin-blackboard-panel',
                     'admin-order-mgr', 'admin-housing-control', 
                     'floating-point-btn', 'floating-multi-btn'
                 ];
@@ -52,7 +60,6 @@ auth.onAuthStateChanged((user) => {
                 });
             }
 
-            // 스크립트 충돌 없이 안전하게 앱 초기화 실행
             if (typeof initApp === 'function') {
                 initApp();
             } else {
@@ -63,14 +70,3 @@ auth.onAuthStateChanged((user) => {
         forceScreenDisplay('login');
     }
 });
-// 메뉴 열고 닫기 토글 함수
-function toggleTabMenu() {
-    const menuBox = document.getElementById('tab-menu-box');
-    if (menuBox) {
-        if (menuBox.style.display === 'none') {
-            menuBox.style.display = 'flex';
-        } else {
-            menuBox.style.display = 'none';
-        }
-    }
-}
