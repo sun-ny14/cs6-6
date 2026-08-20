@@ -231,41 +231,61 @@ function closePointPopup() {
     if (popup) popup.style.display = 'none';
 }
 
-// 4. 관리자 탭 학생 명단 관리
+// 관리자 탭 학생 명단 관리 및 번호 표시 복원 함수
 function renderStudentAdminList() {
     const adminListEl = document.getElementById('student-admin-list');
     if (!adminListEl) return;
 
     db.ref('users').once('value').then((snapshot) => {
         const usersData = snapshot.val() || {};
+        let usersArray = [];
+
+        for (let key in usersData) {
+            let u = usersData[key];
+            if (!u || u.email === adminEmail) continue;
+            usersArray.push({ key: key, data: u });
+        }
+
+        // 학생 번호(number 또는 no) 기준 오름차순 정렬
+        usersArray.sort((a, b) => {
+            let numA = parseInt(a.data.number || a.data.no || 999);
+            let numB = parseInt(b.data.number || b.data.no || 999);
+            return numA - numB;
+        });
+
         let html = `
-            <table style="width:100%; border-collapse:collapse; text-align:center;">
+            <table style="width:100%; border-collapse:collapse; text-align:center; font-size:1.1rem;">
                 <thead>
                     <tr style="background:#f8f9fa; border-bottom:2px solid #ddd;">
-                        <th style="padding:10px;">이름</th>
-                        <th style="padding:10px;">이메일</th>
-                        <th style="padding:10px;">도우미 여부</th>
-                        <th style="padding:10px;">관리</th>
+                        <th style="padding:12px;">번호</th>
+                        <th style="padding:12px;">이름</th>
+                        <th style="padding:12px;">이메일</th>
+                        <th style="padding:12px;">도우미 여부</th>
+                        <th style="padding:12px;">관리</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
 
-        for (let key in usersData) {
-            let u = usersData[key];
-            if (!u || u.email === adminEmail) continue;
+        usersArray.forEach(item => {
+            let key = item.key;
+            let u = item.data;
+            let studentNum = u.number || u.no || '-';
+
             html += `
                 <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px; font-weight:bold;">${u.number ? u.number + '. ' : ''}${u.name || '이름 없음'}</td>
-                    <td style="padding:10px; color:#666;">${u.email || '-'}</td>
-                    <td style="padding:10px;">${u.isHelper ? '⭐ 도우미' : '-'}</td>
-                    <td style="padding:10px; display:flex; gap:5px; justify-content:center;">
-                        <button onclick="toggleHelperStatus('${key}', ${!u.isHelper})" style="padding:5px 10px; font-size:0.9rem; background:var(--primary); color:white; border:none; border-radius:6px; width:auto; cursor:pointer;">${u.isHelper ? '도우미 해제' : '도우미 임명'}</button>
-                        <button onclick="deleteStudent('${key}', '${u.name || '학생'}')" style="padding:5px 10px; font-size:0.9rem; background:var(--red); color:white; border:none; border-radius:6px; width:auto; cursor:pointer;">삭제</button>
+                    <td style="padding:12px; font-weight:bold; color:var(--primary);">${studentNum}</td>
+                    <td style="padding:12px; font-weight:bold;">${u.name || '이름 없음'}</td>
+                    <td style="padding:12px; color:#666;">${u.email || '-'}</td>
+                    <td style="padding:12px;">${u.isHelper ? '⭐ 도우미' : '-'}</td>
+                    <td style="padding:12px; display:flex; gap:8px; justify-content:center;">
+                        <button onclick="toggleHelperStatus('${key}', ${!u.isHelper})" style="padding:8px 12px; font-size:1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">${u.isHelper ? '도우미 해제' : '도우미 임명'}</button>
+                        <button onclick="deleteStudent('${key}', '${u.name || '학생'}')" style="padding:8px 12px; font-size:1rem; background:var(--red); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">삭제</button>
                     </td>
                 </tr>
             `;
-        }
+        });
+
         html += `</tbody></table>`;
         adminListEl.innerHTML = html;
     });
