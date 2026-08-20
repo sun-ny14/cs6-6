@@ -1,9 +1,9 @@
 // js/point-shop.js
-// 6-6반 상점 및 포인트 도감 관리 전체 기능 (중복 선언 제거 및 안정화)
+// 6-6반 상점 및 포인트 도감 관리 전체 기능 (중복 선언 완전 방지)
 
-// 전역 변수 초기화 (중복 선언 방지)
-if (typeof currentShopCat === 'undefined') {
-    var currentShopCat = "전체";
+// 전역 변수 안전하게 초기화
+if (typeof window.currentShopCat === 'undefined') {
+    window.currentShopCat = "전체";
 }
 if (typeof window.shopData === 'undefined') {
     window.shopData = [];
@@ -11,7 +11,7 @@ if (typeof window.shopData === 'undefined') {
 
 // 1. 카테고리 변경 함수
 window.changeShopCat = function(cat) {
-    currentShopCat = cat;
+    window.currentShopCat = cat;
     window.renderShop();
 };
 
@@ -31,7 +31,7 @@ window.renderShop = function() {
     const categories = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
     html += `<div style="display: flex; gap: 12px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px;">`;
     categories.forEach(c => {
-        const isActive = (currentShopCat === c);
+        const isActive = (window.currentShopCat === c);
         html += `<button onclick="changeShopCat('${c}')" style="padding: 14px 20px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; white-space: nowrap; font-size: 1.2rem; background: ${isActive ? 'var(--primary)' : '#eee'}; color: ${isActive ? 'white' : '#333'}; box-shadow: ${isActive ? '0 2px 4px rgba(0,0,0,0.2)' : 'none'};">${c}</button>`;
     });
     html += `</div>`;
@@ -43,7 +43,7 @@ window.renderShop = function() {
             const k = child.key;          
             const item = child.val();   
             
-            if (currentShopCat !== "전체" && item.cat !== currentShopCat) return;
+            if (window.currentShopCat !== "전체" && item.cat !== window.currentShopCat) return;
             hasItems = true; 
             
             const isSoldOut = item.isSoldOut === true || (item.stock !== null && item.stock <= 0);
