@@ -1,5 +1,5 @@
 // js/hero-mgr.js
-// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 관리자 명단 관리 기능 (육육이 아바타 연동 복원)
+// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 스프라이트 아바타 연동 관리
 
 function initApp() {
     showTab(currentTab);
@@ -9,9 +9,37 @@ function initApp() {
     }
 }
 
-// js/hero-mgr.js
-// 용사(학생) 목록 렌더링 및 육육이 아바타 파일 연동 수정
+// 스프라이트 시트 기반 육육이 아바타 렌더링 함수
+function getAvatar(lv, selectedAnimal) {
+    const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true"; 
+    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
+    
+    const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
+    const index = animals.indexOf(name) === -1 ? 0 : animals.indexOf(name);
+    
+    const col = index % 5;
+    const row = Math.floor(index / 5);
+    
+    const posX = col * 25; 
+    const posY = row * 33.33; 
 
+    return `
+    <div style="width: 70px; height: 70px; overflow: hidden; border-radius: 50%; background: white; margin: 0 auto; display: flex; align-items: center; justify-content: center; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <div style="
+            width: 100%; 
+            height: 100%; 
+            background-image: url('${githubImageUrl}'); 
+            background-size: 500% 400%; 
+            background-position: ${posX}% ${posY}%; 
+            background-repeat: no-repeat;
+            image-rendering: pixelated;
+            transform: scale(1.15);
+            transform-origin: center;
+        "></div>
+    </div>`;
+}
+
+// 1. 메인 화면에 용사(학생) 카드 그리드 렌더링 (스프라이트 아바타 적용)
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -29,18 +57,15 @@ function renderHeroes() {
             let e = user.exp || 0;
             let lv = user.level || user.lv || 1;
             let isHelper = user.isHelper || false;
+            let selectedAnimal = user.animal || null;
             
-            // [육육이 이미지 파일 연동 규칙]
-            // 데이터베이스에 별도의 아바타 URL이 없거나 기본 상태라면 GitHub에 업로드한 '육육이.png'를 기본으로 지정합니다.
-            let avatarImg = user.avatar || user.profileImg || user.img;
-            if (!avatarImg || avatarImg.trim() === '' || avatarImg.includes('7Y6u8LN')) {
-                avatarImg = '육육이.png'; 
-            }
+            // 스프라이트 아바타 렌더링 함수 호출
+            let avatarHtml = getAvatar(lv, selectedAnimal);
             
             html += `
                 <div class="card" style="text-align:center; cursor:pointer; position:relative; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${name}')">
-                    <div style="width: 70px; height: 70px; margin: 0 auto 10px auto; background: #fff; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                        <img src="${avatarImg}" alt="육육이 캐릭터" style="width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated;" onerror="this.src='https://i.imgur.com/7Y6u8LN.png';">
+                    <div style="margin-bottom: 10px;">
+                        ${avatarHtml}
                     </div>
                     
                     <h3 style="margin-top:0; color:var(--dark);">${name}</h3>
@@ -80,11 +105,10 @@ function openPointPopupForUser(userName) {
         let e = targetUser.exp || 0;
         let lv = targetUser.level || targetUser.lv || 1;
         let helperStatus = targetUser.isHelper ? '⭐ 도우미' : '일반 용사';
+        let selectedAnimal = targetUser.animal || null;
         
-        let avatarImg = targetUser.avatar || targetUser.profileImg || targetUser.img;
-        if (!avatarImg || avatarImg.trim() === '') {
-            avatarImg = 'https://i.imgur.com/7Y6u8LN.png';
-        }
+        // 팝업창용 아바타 (조금 더 크게 표시하거나 동일하게 스프라이트 적용)
+        let avatarHtml = getAvatar(lv, selectedAnimal);
 
         const popup = document.getElementById('point-popup');
         const titleEl = document.getElementById('point-pop-title');
@@ -96,8 +120,8 @@ function openPointPopupForUser(userName) {
         if (bodyEl) {
             bodyEl.innerHTML = `
                 <div style="text-align: center; margin-bottom: 15px;">
-                    <div style="width: 80px; height: 80px; margin: 0 auto 10px auto; background: #fff; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                        <img src="${avatarImg}" alt="캐릭터" style="width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated;" onerror="this.src='https://i.imgur.com/7Y6u8LN.png';">
+                    <div style="margin: 0 auto 10px auto;">
+                        ${avatarHtml}
                     </div>
                     <h3 style="margin: 0; color: var(--dark);">${userName}</h3>
                     <p style="margin: 5px 0; color: #666; font-size: 0.95rem;">신분: ${helperStatus}</p>
@@ -249,59 +273,4 @@ function deleteStudent(userKey, studentName) {
             renderHeroes();
         });
     }
-}
-// 스프라이트 시트 기반 육육이 아바타 렌더링 및 선택 팝업 함수
-function getAvatar(lv, selectedAnimal) {
-    const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true"; 
-    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
-    
-    const name = selectedAnimal || animals[Math.min(lv - 1, 19)];
-    const index = animals.indexOf(name) === -1 ? 0 : animals.indexOf(name);
-    
-    const col = index % 5;
-    const row = Math.floor(index / 5);
-    
-    const posX = col * 25; 
-    const posY = row * 33.33; 
-
-    return `
-    <div style="width: 85px; height: 85px; overflow: hidden; border: 2px solid #eee; border-radius: 20px; background: white; margin: 0 auto; display: flex; align-items: center; justify-content: center; position: relative;">
-        <div style="
-            width: 100%; 
-            height: 100%; 
-            background-image: url('${githubImageUrl}'); 
-            background-size: 500% 400%; 
-            background-position: ${posX}% ${posY}%; 
-            background-repeat: no-repeat;
-            image-rendering: pixelated;
-            transform: scale(1.15);
-            transform-origin: center;
-        "></div>
-    </div>`;
-}
-
-function openAvatarPicker() {
-    const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
-    db.ref('users/' + myName).once('value', snap => {
-        const userData = snap.val() || {};
-        const lv = userData.lv || userData.level || 1;
-        const availableCount = Math.min(lv, 20);
-        let h = `<p style="text-align:center; font-weight:bold; color:var(--primary); margin-bottom:15px;">✨ 레벨이 오를수록 새로운 칭호가 해금됩니다!</p>`;
-        h += `<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; padding:10px;">`;
-        
-        for(let i=0; i < 20; i++) {
-            if(i < availableCount) {
-                h += `<div onclick="selectAnimal('${animals[i]}')" style="cursor:pointer; text-align:center; border:2px solid var(--gold); border-radius:15px; padding:10px; background:#fffdf2; box-shadow:0 3px 6px rgba(0,0,0,0.1);">
-                        ${getAvatar(i + 1, animals[i])}
-                        <div style="font-size:0.8rem; font-weight:bold; margin-top:8px; color:var(--dark);">${animals[i]}</div>
-                      </div>`;
-            } else {
-                h += `<div style="text-align:center; border:1px solid #eee; border-radius:15px; padding:10px; background:#f5f5f5; opacity: 0.6;">
-                        <div style="width: 85px; height: 85px; display:flex; align-items:center; justify-content:center; margin: 0 auto; font-size:1.8rem; background:#ddd; border-radius:15px;">🔒</div>
-                        <div style="font-size:0.7rem; color:#888; margin-top:8px;">LV.${i+1} 해금<br>(${animals[i]})</div>
-                      </div>`;
-            }
-        }
-        openPopup("🎭 육육이 전직 본부", h + `</div>`);
-    });
 }
