@@ -1,10 +1,10 @@
 // js/hero-mgr.js
-// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여 및 번호 순서 정렬 반영
+// 용사(학생) 목록 렌더링, 세부정보 팝업, 포인트 부여, 번호 수정 및 플로팅 버튼 통합 기능
 
 function initApp() {
-    showTab(currentTab);
+    if (typeof showTab === 'function') showTab(currentTab);
     renderHeroes();
-    if (isAdmin || isHelper) {
+    if (typeof isAdmin !== 'undefined' && isAdmin || typeof isHelper !== 'undefined' && isHelper) {
         renderStudentAdminList();
     }
 }
@@ -39,7 +39,7 @@ function getAvatar(lv, selectedAnimal) {
     </div>`;
 }
 
-// 1. 메인 화면에 용사(학생) 카드 그리드 렌더링 (번호 순서 정렬 적용)
+// 1. 메인 화면에 용사(학생) 카드 그리드 및 플로팅 버튼 렌더링
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -48,14 +48,13 @@ function renderHeroes() {
         const usersData = snapshot.val() || {};
         let usersArray = [];
         
-        // 객체 데이터를 배열로 변환
         for (let key in usersData) {
             let user = usersData[key];
             if (!user || user.email === adminEmail) continue;
             usersArray.push(user);
         }
 
-        // 📌 학생 번호(number 또는 no)를 기준으로 오름차순 정렬
+        // 학생 번호 기준 오름차순 정렬
         usersArray.sort((a, b) => {
             let numA = parseInt(a.number || a.no || 999);
             let numB = parseInt(b.number || b.no || 999);
@@ -69,9 +68,9 @@ function renderHeroes() {
             let p = user.points || 0;
             let e = user.exp || 0;
             let lv = user.level || user.lv || 1;
-            let isHelper = user.isHelper || false;
+            let isHelperUser = user.isHelper || false;
             let selectedAnimal = user.animal || null;
-            let number = user.number || user.no || ''; // 부여된 번호
+            let number = user.number || user.no || '';
             
             let avatarHtml = getAvatar(lv, selectedAnimal);
             
@@ -80,10 +79,9 @@ function renderHeroes() {
                     <div style="margin-bottom: 10px;">
                         ${avatarHtml}
                     </div>
-                    
                     <h3 style="margin-top:0; color:var(--dark);">${number ? number + '. ' : ''}${name}</h3>
                     <p style="font-weight:bold; color:var(--primary); margin: 5px 0;">Lv. ${lv} | P: ${p} | E: ${e}</p>
-                    <p style="font-size:0.9rem; color:#666; margin-bottom:0;">${isHelper ? '⭐ 도우미' : '용사'}</p>
+                    <p style="font-size:0.9rem; color:#666; margin-bottom:0;">${isHelperUser ? '⭐ 도우미' : '용사'}</p>
                 </div>
             `;
         });
@@ -93,6 +91,23 @@ function renderHeroes() {
         }
         
         heroGrid.innerHTML = html;
+
+        // 📌 선생님(관리자) 또는 도우미를 위한 일괄 포인트 지급 플로팅 버튼 추가
+        let existingFloating = document.getElementById('floating-point-btn-box');
+        if (existingFloating) existingFloating.remove();
+
+        if ((typeof isAdmin !== 'undefined' && isAdmin) || (typeof isHelper !== 'undefined' && isHelper)) {
+            let floatingBox = document.createElement('div');
+            floatingBox.id = 'floating-point-btn-box';
+            floatingBox.style.cssText = "position: fixed; bottom: 35px; right: 35px; z-index: 9999; display: flex; flex-direction: column; gap: 12px;";
+            
+            floatingBox.innerHTML = `
+                <button onclick="openMultiPopup('일괄 포인트 지급', 0, 0)" style="background: #f1c40f; color: #2c3e50; border: none; padding: 18px 24px; border-radius: 35px; font-weight: bold; font-size: 1.2rem; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 8px;">
+                    ✨ 일괄 포인트 지급
+                </button>
+            `;
+            document.body.appendChild(floatingBox);
+        }
     });
 }
 
@@ -146,7 +161,7 @@ function openPointPopupForUser(userName) {
                     <span style="font-weight: bold; color: #e67e22;">경험치: ${e} E</span>
                 </div>
 
-                ${(isAdmin || isHelper) ? `
+                ${(typeof isAdmin !== 'undefined' && isAdmin || typeof isHelper !== 'undefined' && isHelper) ? `
                     <div style="border-top: 2px dashed #ddd; padding-top: 15px;">
                         <p style="font-weight: bold; margin-bottom: 10px; color: var(--dark);">⚖️ 선생님/도우미 포인트 관리</p>
                         <input type="text" id="pop-reason" placeholder="변동 사유 입력 (예: 칭찬 포인트)" style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;">
@@ -160,7 +175,7 @@ function openPointPopupForUser(userName) {
         }
 
         if (applyBtn) {
-            if (isAdmin || isHelper) {
+            if ((typeof isAdmin !== 'undefined' && isAdmin) || (typeof isHelper !== 'undefined' && isHelper)) {
                 applyBtn.style.display = 'block';
                 applyBtn.innerText = '점수 반영하기';
                 applyBtn.onclick = function() {
@@ -231,7 +246,7 @@ function closePointPopup() {
     if (popup) popup.style.display = 'none';
 }
 
-// 관리자 탭 학생 명단 관리 및 번호 표시 복원 함수
+// 4. 관리자 탭 학생 명단 관리 및 번호 직접 수정 기능
 function renderStudentAdminList() {
     const adminListEl = document.getElementById('student-admin-list');
     if (!adminListEl) return;
@@ -246,7 +261,7 @@ function renderStudentAdminList() {
             usersArray.push({ key: key, data: u });
         }
 
-        // 학생 번호(number 또는 no) 기준 오름차순 정렬
+        // 학생 번호 기준 오름차순 정렬
         usersArray.sort((a, b) => {
             let numA = parseInt(a.data.number || a.data.no || 999);
             let numB = parseInt(b.data.number || b.data.no || 999);
@@ -257,11 +272,10 @@ function renderStudentAdminList() {
             <table style="width:100%; border-collapse:collapse; text-align:center; font-size:1.1rem;">
                 <thead>
                     <tr style="background:#f8f9fa; border-bottom:2px solid #ddd;">
-                        <th style="padding:12px;">번호</th>
+                        <th style="padding:12px; width:100px;">번호</th>
                         <th style="padding:12px;">이름</th>
-                        <th style="padding:12px;">이메일</th>
-                        <th style="padding:12px;">도우미 여부</th>
-                        <th style="padding:12px;">관리</th>
+                        <th style="padding:12px; width:150px;">도우미 여부</th>
+                        <th style="padding:12px; width:220px;">관리</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -270,16 +284,18 @@ function renderStudentAdminList() {
         usersArray.forEach(item => {
             let key = item.key;
             let u = item.data;
-            let studentNum = u.number || u.no || '-';
+            let studentNum = u.number || u.no || '';
 
             html += `
                 <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:12px; font-weight:bold; color:var(--primary);">${studentNum}</td>
-                    <td style="padding:12px; font-weight:bold;">${u.name || '이름 없음'}</td>
-                    <td style="padding:12px; color:#666;">${u.email || '-'}</td>
-                    <td style="padding:12px;">${u.isHelper ? '⭐ 도우미' : '-'}</td>
-                    <td style="padding:12px; display:flex; gap:8px; justify-content:center;">
-                        <button onclick="toggleHelperStatus('${key}', ${!u.isHelper})" style="padding:8px 12px; font-size:1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">${u.isHelper ? '도우미 해제' : '도우미 임명'}</button>
+                    <td style="padding:12px;">
+                        <input type="number" id="num-input-${key}" value="${studentNum}" style="width:70px; text-align:center; padding:6px; font-size:1.1rem; border:1px solid #ccc; border-radius:6px;" onchange="updateStudentNumber('${key}')">
+                    </td>
+                    <td style="padding:12px; font-weight:bold; font-size:1.2rem;">${u.name || '이름 없음'}</td>
+                    <td style="padding:12px; font-size:1.1rem;">${u.isHelper ? '⭐ 도우미' : '-'}</td>
+                    <td style="padding:12px; display:flex; gap:8px; justify-content:center; align-items:center;">
+                        <button onclick="updateStudentNumber('${key}')" style="padding:8px 12px; font-size:1rem; background:#2ecc71; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">번호저장</button>
+                        <button onclick="toggleHelperStatus('${key}', ${!u.isHelper})" style="padding:8px 12px; font-size:1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">${u.isHelper ? '해제' : '임명'}</button>
                         <button onclick="deleteStudent('${key}', '${u.name || '학생'}')" style="padding:8px 12px; font-size:1rem; background:var(--red); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">삭제</button>
                     </td>
                 </tr>
@@ -288,6 +304,24 @@ function renderStudentAdminList() {
 
         html += `</tbody></table>`;
         adminListEl.innerHTML = html;
+    });
+}
+
+// 5. 학생 번호 실시간 변경 저장 함수
+function updateStudentNumber(userKey) {
+    const inputEl = document.getElementById(`num-input-${userKey}`);
+    if (!inputEl) return;
+
+    const newNumber = parseInt(inputEl.value) || 0;
+
+    db.ref(`users/${userKey}`).update({
+        number: newNumber
+    }).then(() => {
+        alert("학생 번호가 성공적으로 수정되었습니다!");
+        renderHeroes();
+        renderStudentAdminList();
+    }).catch((error) => {
+        alert("번호 수정 중 오류가 발생했습니다: " + error.message);
     });
 }
 
