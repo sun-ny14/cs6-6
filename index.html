@@ -14,14 +14,14 @@
     <!-- CSS 스타일시트 연결 -->
     <link rel="stylesheet" href="css/style.css">
 
-    <!-- 가독성 향상 및 가로형 배치 통합 스타일 -->
+    <!-- 전역 글씨 크기 대폭 확대 및 가로형 정렬 스타일 -->
     <style>
         body {
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
-            font-size: 18px; /* 전체 기본 글씨 크기 대폭 확대 */
+            font-size: 19px !important; /* 전체 기본 글씨 크기 큼직하게 확대 */
         }
         #main-app {
             display: flex !important;
@@ -31,14 +31,14 @@
             position: relative !important;
         }
         .sidebar-menu {
-            width: 280px !important;
-            min-width: 280px !important;
+            width: 300px !important;
+            min-width: 300px !important;
             background: #ffffff !important;
             border-right: 1px solid #e0e0e0 !important;
             display: flex !important;
             flex-direction: column !important;
-            padding: 25px 15px !important;
-            gap: 12px !important;
+            padding: 30px 18px !important;
+            gap: 14px !important;
             box-sizing: border-box !important;
             z-index: 100;
         }
@@ -46,16 +46,16 @@
             display: none !important;
         }
         .sidebar-menu h2 {
-            font-size: 1.6rem !important;
+            font-size: 1.8rem !important;
         }
         .sidebar-menu button {
             width: 100% !important;
             text-align: left !important;
-            padding: 16px 20px !important;
+            padding: 18px 22px !important;
             border: none !important;
             background: transparent !important;
             border-radius: 12px !important;
-            font-size: 1.25rem !important; /* 메뉴 글씨 크기 확대 */
+            font-size: 1.3rem !important; /* 메뉴 글씨 크기 확대 */
             font-weight: bold !important;
             color: #333 !important;
             cursor: pointer !important;
@@ -65,22 +65,22 @@
         }
         .main-content-area {
             flex: 1 !important;
-            padding: 35px !important;
+            padding: 40px !important;
             box-sizing: border-box !important;
             overflow-y: auto !important;
         }
         #sidebar-toggle-btn {
             position: fixed !important;
-            top: 25px !important;
-            left: 280px !important;
+            top: 30px !important;
+            left: 300px !important;
             z-index: 9999 !important;
             background: #2c3e50 !important;
             color: white !important;
             border: none !important;
-            border-radius: 0 10px 10px 0 !important;
-            width: 40px !important;
-            height: 60px !important;
-            font-size: 1.4rem !important;
+            border-radius: 0 12px 12px 0 !important;
+            width: 42px !important;
+            height: 65px !important;
+            font-size: 1.5rem !important;
             cursor: pointer !important;
             display: flex !important;
             align-items: center !important;
@@ -97,10 +97,11 @@
         .tab-content.active {
             display: block;
         }
-        /* 카드 및 본문 가독성 글씨 크기 대폭 확대 및 가로형 정렬 보장 */
-        h2 { font-size: 2rem; }
-        h3 { font-size: 1.5rem; }
-        p, span, label, input, button { font-size: 1.15rem; }
+        /* 모든 제목, 본문, 입력창, 버튼 폰트 크기 확실하게 키우기 */
+        h1 { font-size: 2.5rem !important; }
+        h2 { font-size: 2.2rem !important; }
+        h3 { font-size: 1.7rem !important; }
+        p, span, label, input, button, table th, table td { font-size: 1.25rem !important; }
         
         .horizontal-box {
             display: flex;
@@ -131,7 +132,7 @@
     </script>
 </head>
 <body>
-    <div id="loading-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; display:flex; justify-content:center; align-items:center; z-index:99999; font-size:2rem; font-weight:bold;">🏰 용사 본부 접속 중...</div>
+    <div id="loading-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; display:flex; justify-content:center; align-items:center; z-index:99999; font-size:2.2rem; font-weight:bold;">🏰 용사 본부 접속 중...</div>
     
     <div id="common-overlay" class="overlay" style="display:none;">
         <div class="popup-box">
@@ -146,16 +147,16 @@
             <h2 id="point-pop-title" style="margin-top:0; text-align:center;">⚖️ 포인트 전령</h2>
             <div id="point-pop-body" style="overflow-y:auto; flex:1;"></div>
             <div style="display:flex; gap:15px; margin-top:20px;">
-                <button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:15px; font-size:1.2rem;">닫기</button>
-                <button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:15px; font-size:1.2rem;">반영하기</button>
+                <button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:18px; font-size:1.3rem;">닫기</button>
+                <button id="point-apply-btn" style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:18px; font-size:1.3rem;">반영하기</button>
             </div>
         </div>
     </div>
 
     <div id="login-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#f4f7f6; justify-content:center; align-items:center; z-index:9998;">
-        <div class="login-box" style="background:white; padding:50px; border-radius:20px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
-            <h1 style="font-size: 2.5rem;">🏰 6-6 본부</h1>
-            <button onclick="handleLogin()" style="background:#4285F4; color:white; border:none; border-radius:15px; padding:20px 40px; font-size:1.3rem; cursor:pointer;">Google 로그인</button>
+        <div class="login-box" style="background:white; padding:60px; border-radius:20px; text-align:center; box-shadow:0 4px 25px rgba(0,0,0,0.15);">
+            <h1 style="font-size: 3rem !important;">🏰 6-6 본부</h1>
+            <button onclick="handleLogin()" style="background:#4285F4; color:white; border:none; border-radius:15px; padding:22px 45px; font-size:1.4rem; cursor:pointer;">Google 로그인</button>
         </div>
     </div>
 
@@ -163,7 +164,7 @@
         <!-- 사이드바 열고 닫기 화살표 토글 버튼 -->
         <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="메뉴 열기/닫기">◀</button>
 
-        <!-- 좌측 사이드바 메뉴 (전자칠판은 관리자/도우미 전용으로 숨김 처리 가능하도록 ID 부여) -->
+        <!-- 좌측 사이드바 메뉴 -->
         <nav id="sidebar-menu" class="sidebar-menu">
             <h2 style="text-align: center; margin: 0 0 15px 0; color: #2c3e50;">🏰 6-6 본부</h2>
             <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
@@ -181,16 +182,16 @@
         <div class="main-content-area">
             <!-- 1. 용사들 탭 -->
             <section id="tab-main" class="tab-content active">
-                <div id="hero-grid" class="hero-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px;"></div>
+                <div id="hero-grid" class="hero-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 22px;"></div>
             </section>
             
             <!-- 2. 상점 탭 -->
             <section id="tab-shop" class="tab-content">
-                <div class="card" style="background:white; padding:30px; border-radius:15px; margin-bottom:20px;">
+                <div class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;">
                     <h2>🛍️ 용사 보급소</h2>
                     <div id="shop-list"></div>
                 </div>
-                <div id="admin-order-mgr" class="card" style="display:none; border:2px solid #e74c3c; background:white; padding:30px; border-radius:15px;">
+                <div id="admin-order-mgr" class="card" style="display:none; border:2px solid #e74c3c; background:white; padding:35px; border-radius:15px;">
                     <h3>📜 사용 요청 승인</h3>
                     <div id="order-list"></div>
                 </div>
@@ -199,35 +200,35 @@
             <!-- 3. 등교 탭 -->
             <section id="tab-checkin" class="tab-content">
                 <div style="display:flex; gap:15px; margin-bottom:25px;">
-                    <button onclick="switchCheckinSub('checkin-main')" id="sub-btn-checkin-main" style="background:#2c3e50; color:white; padding:16px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.2rem; cursor:pointer;">⚔️ 등교하기</button>
-                    <button onclick="switchCheckinSub('checkin-logs')" id="sub-btn-checkin-logs" style="background:#ddd; color:#333; padding:16px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.2rem; cursor:pointer;">📅 등교로그 및 좌석</button>
+                    <button onclick="switchCheckinSub('checkin-main')" id="sub-btn-checkin-main" style="background:#2c3e50; color:white; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer;">⚔️ 등교하기</button>
+                    <button onclick="switchCheckinSub('checkin-logs')" id="sub-btn-checkin-logs" style="background:#ddd; color:#333; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer;">📅 등교로그 및 좌석</button>
                 </div>
 
                 <div id="sub-checkin-main" class="sub-checkin-content">
-                    <div class="card" style="background:white; padding:30px; border-radius:15px;">
+                    <div class="card" style="background:white; padding:35px; border-radius:15px;">
                         <h2>⚔️ 등교 확인</h2>
-                        <div id="checkin-guide" style="font-weight:bold; margin-bottom:20px; color:#2c3e50; font-size:1.3rem;"></div>
-                        <input type="number" id="checkin-pass" placeholder="오늘의 등교 암호 4자리 입력" style="text-align:center; padding:16px; width:100%; box-sizing:border-box; margin-bottom:20px; font-size:1.3rem;">
-                        <button id="checkin-btn" onclick="submitCheckIn()" style="background:#3498db; color:white; border:none; border-radius:15px; padding:20px; width:100%; font-weight:bold; font-size:1.3rem; cursor:pointer;">본부 소환!</button>
+                        <div id="checkin-guide" style="font-weight:bold; margin-bottom:20px; color:#2c3e50; font-size:1.4rem;"></div>
+                        <input type="number" id="checkin-pass" placeholder="오늘의 등교 암호 4자리 입력" style="text-align:center; padding:18px; width:100%; box-sizing:border-box; margin-bottom:20px; font-size:1.4rem;">
+                        <button id="checkin-btn" onclick="submitCheckIn()" style="background:#3498db; color:white; border:none; border-radius:15px; padding:22px; width:100%; font-weight:bold; font-size:1.4rem; cursor:pointer;">본부 소환!</button>
                     </div>
                 </div>
 
                 <div id="sub-checkin-logs" class="sub-checkin-content" style="display:none;">
-                    <div class="card" style="background:white; padding:30px; border-radius:15px;">
-                        <div style="background: #eef2f7; padding: 25px; border-radius: 15px; margin-bottom: 25px; text-align: center; border: 2px solid #3498db;">
-                            <label for="checkin-date-filter" style="display: block; font-weight: bold; font-size: 1.5rem; margin-bottom: 12px; color: #2c3e50;">📅 등교 조회 날짜</label>
-                            <input type="date" id="checkin-date-filter" onchange="generateNewLayout()" style="width: 100%; max-width: 320px; font-size: 1.8rem; padding: 12px; border-radius: 10px; border: 1px solid #ccc; text-align: center;">
+                    <div class="card" style="background:white; padding:35px; border-radius:15px;">
+                        <div style="background: #eef2f7; padding: 30px; border-radius: 15px; margin-bottom: 25px; text-align: center; border: 2px solid #3498db;">
+                            <label for="checkin-date-filter" style="display: block; font-weight: bold; font-size: 1.6rem; margin-bottom: 12px; color: #2c3e50;">📅 등교 조회 날짜</label>
+                            <input type="date" id="checkin-date-filter" onchange="generateNewLayout()" style="width: 100%; max-width: 350px; font-size: 1.9rem; padding: 14px; border-radius: 10px; border: 1px solid #ccc; text-align: center;">
                         </div>
-                        <div style="display: flex; gap: 12px; margin-bottom: 25px; flex-wrap: wrap;">
-                            <button onclick="openExclusionPopup()" style="flex: 1; background: #9b59b6; color: white; padding: 16px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; border: none; cursor: pointer;">🚫 고정 등교제외 설정</button>
-                            <button onclick="toggleSeatEditMode()" id="edit-mode-btn" style="flex: 1; background: #2c3e50; color: white; padding: 16px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; border: none; cursor: pointer;">🪑 좌석 배치 수정</button>
-                            <button onclick="downloadMonthlyExcel()" style="width: 90px; background: #2ecc71; color: white; border-radius: 12px; border: none; font-size: 1.2rem; font-weight: bold; cursor: pointer;">📊 엑셀</button>
+                        <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+                            <button onclick="openExclusionPopup()" style="flex: 1; background: #9b59b6; color: white; padding: 18px; border-radius: 12px; font-weight: bold; font-size: 1.3rem; border: none; cursor: pointer;">🚫 고정 등교제외 설정</button>
+                            <button onclick="toggleSeatEditMode()" id="edit-mode-btn" style="flex: 1; background: #2c3e50; color: white; padding: 18px; border-radius: 12px; font-weight: bold; font-size: 1.3rem; border: none; cursor: pointer;">🪑 좌석 배치 수정</button>
+                            <button onclick="downloadMonthlyExcel()" style="width: 100px; background: #2ecc71; color: white; border-radius: 12px; border: none; font-size: 1.3rem; font-weight: bold; cursor: pointer;">📊 엑셀</button>
                         </div>
-                        <div id="seat-edit-panel" style="display:none; background:#fff3cd; padding:20px; border-radius:15px; margin-bottom:20px; border: 2px dashed #ffc107;">
+                        <div id="seat-edit-panel" style="display:none; background:#fff3cd; padding:22px; border-radius:15px; margin-bottom:20px; border: 2px dashed #ffc107;">
                             <div class="horizontal-box" style="justify-content: center;">
-                                가로 <input type="number" id="seat-cols" value="5" style="width:80px; font-size: 1.3rem; padding: 8px;"> x 
-                                세로 <input type="number" id="seat-rows" value="6" style="width:80px; font-size: 1.3rem; padding: 8px;">
-                                <button onclick="saveSeatLayout()" style="background:#3498db; color:white; padding: 12px 25px; font-weight: bold; border-radius: 8px; cursor:pointer; font-size: 1.1rem;">배치 저장</button>
+                                가로 <input type="number" id="seat-cols" value="5" style="width:90px; font-size: 1.3rem; padding: 10px;"> x 
+                                세로 <input type="number" id="seat-rows" value="6" style="width:90px; font-size: 1.3rem; padding: 10px;">
+                                <button onclick="saveSeatLayout()" style="background:#3498db; color:white; padding: 14px 28px; font-weight: bold; border-radius: 8px; cursor:pointer; font-size: 1.2rem;">배치 저장</button>
                             </div>
                         </div>
                         <div id="seat-map-container" style="display:grid; gap:15px; width:100%; background:#f1f1f1; padding:20px; border-radius:15px; border: 1px solid #ddd;"></div>
@@ -237,49 +238,49 @@
 
             <!-- 4. 포인트·도감 탭 -->
             <section id="tab-points" class="tab-content">
-                <div class="card" style="background:white; padding:30px; border-radius:15px; margin-bottom:20px;">
+                <div class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;">
                     <h2>📜 포인트 도감</h2>
                     <div id="guide-list" class="hero-grid"></div>
                 </div>
-                <div id="my-inventory" class="card" style="background:white; padding:30px; border-radius:15px; margin-bottom:20px;">
+                <div id="my-inventory" class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;">
                     <h3>🎁 나의 인벤토리</h3>
                     <div id="inv-unused" class="inv-section"><h4>📦 미사용 보관함</h4><div class="list"></div></div>
                     <div id="inv-waiting" class="inv-section"><h4>⏳ 사용 대기중</h4><div class="list"></div></div>
                 </div>
-                <div class="card" style="background:white; padding:30px; border-radius:15px;"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div>
+                <div class="card" style="background:white; padding:35px; border-radius:15px;"><h3>📜 포인트 연대기</h3><div id="point-history-list"></div></div>
             </section>
 
-            <!-- 5. 관리자 전용 전자칠판 관리 탭 (학생들에게는 숨겨짐) -->
+            <!-- 5. 관리자 전용 전자칠판 관리 탭 -->
             <section id="tab-blackboard-admin" class="tab-content" style="display:none;">
-                <div class="card" style="max-width: 900px; margin: 0 auto; background:white; padding:30px; border-radius:15px;">
-                    <button onclick="window.open('blackboard.html', '_blank', 'fullscreen=yes')" style="background: #2c3e50; color: white; padding: 18px; border-radius: 12px; border: none; font-weight: bold; width: 100%; margin-bottom: 25px; cursor: pointer; font-size: 1.2rem;">📺 전자칠판 새창 띄우기</button>
+                <div class="card" style="max-width: 950px; margin: 0 auto; background:white; padding:35px; border-radius:15px;">
+                    <button onclick="window.open('blackboard.html', '_blank', 'fullscreen=yes')" style="background: #2c3e50; color: white; padding: 20px; border-radius: 12px; border: none; font-weight: bold; width: 100%; margin-bottom: 25px; cursor: pointer; font-size: 1.3rem;">📺 전자칠판 새창 띄우기</button>
                     <h3 style="margin-top:0; color: #3498db;">🛠️ 전자칠판 시간표 및 행동 지침 관리</h3>
                     <div id="bb-schedule-form-container" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;"></div>
-                    <button onclick="saveBlackboardScheduleFromForm()" style="background: #3498db; color: white; padding: 18px; border-radius: 12px; border: none; font-weight: bold; font-size: 1.3rem; width: 100%; cursor: pointer;">💾 시간표 저장하기</button>
+                    <button onclick="saveBlackboardScheduleFromForm()" style="background: #3498db; color: white; padding: 20px; border-radius: 12px; border: none; font-weight: bold; font-size: 1.4rem; width: 100%; cursor: pointer;">💾 시간표 저장하기</button>
                 </div>
             </section>
 
             <!-- 6. 하우징 탭 -->
             <section id="tab-housing" class="tab-content">
-                <div class="card" style="max-width: 900px; margin: 0 auto; background:white; padding:30px; border-radius:15px;">
+                <div class="card" style="max-width: 950px; margin: 0 auto; background:white; padding:35px; border-radius:15px;">
                     <div id="admin-housing-control" style="display:none; border: 3px solid #3498db; padding: 25px; border-radius: 15px; margin-bottom: 25px; background-color: #f8f9fa;">
                         <h3 style="margin-top: 0; color: #2c3e50;">👑 용사의 방 관리자 시스템</h3>
                         <h4 style="margin: 10px 0;">현재 상태: <span id="housing-current-status" style="font-weight:bold;">확인 중...</span></h4>
-                        <button id="housing-toggle-btn" onclick="toggleHousing()" style="background-color: #e74c3c; color: white; width: 100%; padding: 16px; border-radius: 10px; font-weight:bold; cursor:pointer; font-size: 1.1rem;">상태 변경</button>
+                        <button id="housing-toggle-btn" onclick="toggleHousing()" style="background-color: #e74c3c; color: white; width: 100%; padding: 18px; border-radius: 10px; font-weight:bold; cursor:pointer; font-size: 1.2rem;">상태 변경</button>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                         <h2 style="margin:0;">🏰 용사의 방</h2>
-                        <button onclick="openHousingShopPopup()" style="background:#f1c40f; color:#2c3e50; padding:14px 25px; border-radius:10px; border:none; font-weight:bold; cursor:pointer; font-size: 1.2rem;">🛒 하우징 상점 열기</button>
+                        <button onclick="openHousingShopPopup()" style="background:#f1c40f; color:#2c3e50; padding:16px 28px; border-radius:10px; border:none; font-weight:bold; cursor:pointer; font-size: 1.3rem;">🛒 하우징 상점 열기</button>
                     </div>
                     <div id="my-room-container" style="position: relative; width: 100%; max-width: 640px; height: 480px; border: 6px solid #5d4037; border-radius: 15px; background-size: 100% 100%; background-repeat: no-repeat; box-shadow: 0 10px 20px rgba(0,0,0,0.2); overflow: hidden; margin: 0 auto;">
                         <div id="my-room-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
                     </div>
                     <div style="margin-top: 25px; text-align: center;">
-                        <button onclick="saveMyRoom()" style="padding: 18px 45px; background-color: #2ecc71; color: white; border: none; border-radius: 12px; font-size: 1.4rem; font-weight: bold; cursor: pointer;">💾 방 저장하기</button>
+                        <button onclick="saveMyRoom()" style="padding: 20px 50px; background-color: #2ecc71; color: white; border: none; border-radius: 12px; font-size: 1.5rem; font-weight: bold; cursor: pointer;">💾 방 저장하기</button>
                     </div>
                     <div style="width: 100%; background: #f8f9fa; padding: 25px; border-radius: 15px; border: 2px solid #ddd; margin-top: 25px; box-sizing: border-box;">
                         <h3 style="margin-top:0;">🎒 내 하우징 보관함 (구매한 아이템)</h3>
-                        <div id="housing-inventory-list" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; min-height: 110px;"></div>
+                        <div id="housing-inventory-list" style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; min-height: 120px;"></div>
                     </div>
                 </div>
             </section>
@@ -287,46 +288,46 @@
             <!-- 7. 학급관리 탭 -->
             <section id="tab-management" class="tab-content" style="display:none;">
                 <div style="display:flex; gap:15px; margin-bottom:25px;">
-                    <button onclick="renderManagementSub('grades')" id="sub-btn-grades" style="background:#3498db; color:white; padding:16px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.2rem; cursor:pointer;">📝 성적 관리</button>
-                    <button onclick="renderManagementSub('budget')" id="sub-btn-budget" style="background:#ddd; color:#333; padding:16px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.2rem; cursor:pointer;">💵 학급 운영비</button>
+                    <button onclick="renderManagementSub('grades')" id="sub-btn-grades" style="background:#3498db; color:white; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer;">📝 성적 관리</button>
+                    <button onclick="renderManagementSub('budget')" id="sub-btn-budget" style="background:#ddd; color:#333; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer;">💵 학급 운영비</button>
                 </div>
                 <div id="management-sub-container"></div>
             </section>
 
             <!-- 8. 청소확인 탭 -->
-            <section id="tab-cleaning" class="tab-content" style="display:none; padding: 30px; background:white; border-radius:15px;">
+            <section id="tab-cleaning" class="tab-content" style="display:none; padding: 35px; background:white; border-radius:15px;">
                 <h2 style="margin-bottom: 20px;">🧹 청소 구역 확인</h2>
-                <div style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px solid #dee2e6;">
-                    <div id="cleaning-time-notice" style="font-weight: bold; font-size: 1.3rem; color: #2b8a3e; margin-bottom: 12px;">⏰ 청소 점검 시간 불러오는 중...</div>
-                    <div id="admin-cleaning-time-setter" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div style="margin-bottom: 25px; padding: 25px; background: #f8f9fa; border-radius: 12px; border: 1px solid #dee2e6;">
+                    <div id="cleaning-time-notice" style="font-weight: bold; font-size: 1.4rem; color: #2b8a3e; margin-bottom: 12px;">⏰ 청소 점검 시간 불러오는 중...</div>
+                    <div id="admin-cleaning-time-setter" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; align-items: center; gap: 15px; flex-wrap: wrap;">
                         <strong style="color: #3498db;">🛠️ [선생님 전용] 점검 시간 지정:</strong>
-                        <input type="time" id="cleaning-start-time" style="padding: 10px; font-size: 1.2rem; border-radius: 6px; border: 1px solid #ccc;">
+                        <input type="time" id="cleaning-start-time" style="padding: 12px; font-size: 1.3rem; border-radius: 6px; border: 1px solid #ccc;">
                         <span>부터</span>
-                        <input type="time" id="cleaning-end-time" style="padding: 10px; font-size: 1.2rem; border-radius: 6px; border: 1px solid #ccc;">
+                        <input type="time" id="cleaning-end-time" style="padding: 12px; font-size: 1.3rem; border-radius: 6px; border: 1px solid #ccc;">
                         <span>까지</span>
-                        <button onclick="saveCleaningTimeSettings()" style="background: #3498db; color: white; border: none; padding: 10px 20px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; cursor: pointer;">설정 저장</button>
+                        <button onclick="saveCleaningTimeSettings()" style="background: #3498db; color: white; border: none; padding: 12px 25px; font-size: 1.3rem; font-weight: bold; border-radius: 8px; cursor: pointer;">설정 저장</button>
                     </div>
                 </div>
-                <div id="cleaning-map-container" style="display: grid; gap: 12px; width: 100%; max-width: 900px; margin: 0 auto;"></div>
+                <div id="cleaning-map-container" style="display: grid; gap: 15px; width: 100%; max-width: 950px; margin: 0 auto;"></div>
             </section>
 
             <!-- 9. 설정 탭 -->
             <section id="tab-admin" class="tab-content">
-                <div class="card" style="background:white; padding:30px; border-radius:15px; margin-bottom:20px;"><h3>👥 명단 관리 (번호/도우미)</h3><div id="student-admin-list"></div></div>
-                <div class="card" style="background:white; padding:30px; border-radius:15px; margin-bottom:20px;"><h3>⚙️ 시스템 설정</h3>
-                    <div class="horizontal-box" style="margin-bottom: 15px;">
-                        암호: <input type="text" id="conf-pass" style="flex:1; padding:10px; font-size:1.2rem;">
-                        <button onclick="generateRandomPassword()" style="background:#ff9800; color:white; width:auto; padding:12px 20px; font-weight:bold; border-radius:10px; border:none; cursor:pointer; font-size:1.1rem;">🎲 난수 비번 자동 생성</button>
+                <div class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;"><h3>👥 명단 관리 (번호/도우미)</h3><div id="student-admin-list"></div></div>
+                <div class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;"><h3>⚙️ 시스템 설정</h3>
+                    <div class="horizontal-box" style="margin-bottom: 18px;">
+                        암호: <input type="text" id="conf-pass" style="flex:1; padding:12px; font-size:1.3rem;">
+                        <button onclick="generateRandomPassword()" style="background:#ff9800; color:white; width:auto; padding:14px 22px; font-weight:bold; border-radius:10px; border:none; cursor:pointer; font-size:1.2rem;">🎲 난수 비번 자동 생성</button>
                     </div>
-                    <div class="horizontal-box" style="margin-bottom: 15px;">
-                        지각: <input type="time" id="conf-late" style="padding:10px; font-size:1.2rem;"> 
-                        마감: <input type="time" id="conf-close" style="padding:10px; font-size:1.2rem;">
+                    <div class="horizontal-box" style="margin-bottom: 18px;">
+                        지각: <input type="time" id="conf-late" style="padding:12px; font-size:1.3rem;"> 
+                        마감: <input type="time" id="conf-close" style="padding:12px; font-size:1.3rem;">
                     </div>
-                    루틴:<textarea id="conf-routine" rows="4" style="width:100%; box-sizing:border-box; margin-bottom:15px; font-size:1.2rem;"></textarea>
-                    <button onclick="saveSettings()" style="background:#3498db; color:white; border:none; padding:14px 25px; border-radius:10px; cursor:pointer; font-size:1.2rem; font-weight:bold;">시스템 저장</button>
+                    루틴:<textarea id="conf-routine" rows="4" style="width:100%; box-sizing:border-box; margin-bottom:18px; font-size:1.3rem;"></textarea>
+                    <button onclick="saveSettings()" style="background:#3498db; color:white; border:none; padding:16px 30px; border-radius:10px; cursor:pointer; font-size:1.3rem; font-weight:bold;">시스템 저장</button>
                 </div>
-                <div class="card" style="background:white; padding:30px; border-radius:15px; margin-bottom:20px;"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4" style="width:100%; box-sizing:border-box; margin-bottom:15px; font-size:1.2rem;"></textarea><button onclick="saveGifts()" style="background:#3498db; color:white; border:none; padding:14px 25px; border-radius:10px; cursor:pointer; font-size:1.2rem; font-weight:bold;">보상 저장</button></div>
-                <div class="card" style="background:white; padding:30px; border-radius:15px;"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일" style="width:100%; box-sizing:border-box; margin-bottom:15px; font-size:1.2rem;"></textarea><button onclick="bulkReg()" style="background:#3498db; color:white; border:none; padding:14px 25px; border-radius:10px; cursor:pointer; font-size:1.2rem; font-weight:bold;">주입</button></div>
+                <div class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;"><h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4" style="width:100%; box-sizing:border-box; margin-bottom:18px; font-size:1.3rem;"></textarea><button onclick="saveGifts()" style="background:#3498db; color:white; border:none; padding:16px 30px; border-radius:10px; cursor:pointer; font-size:1.3rem; font-weight:bold;">보상 저장</button></div>
+                <div class="card" style="background:white; padding:35px; border-radius:15px;"><h3>🆕 학생 일괄 등록</h3><textarea id="bulk-in" rows="3" placeholder="이름,이메일" style="width:100%; box-sizing:border-box; margin-bottom:18px; font-size:1.3rem;"></textarea><button onclick="bulkReg()" style="background:#3498db; color:white; border:none; padding:16px 30px; border-radius:10px; cursor:pointer; font-size:1.3rem; font-weight:bold;">주입</button></div>
             </section>
         </div>
     </div>
