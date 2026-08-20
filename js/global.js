@@ -195,3 +195,7 @@ if (typeof window.loadMyLogs === 'undefined') {
         // 기록 로드 관련 함수 (에러 방지용 빈 함수)
     };
 }
+window.openMultiPopup = function(title, p, e) {
+    console.log("일괄 지급 팝업이 아직 구현되지 않았습니다.");
+    alert("준비 중인 기능입니다!");
+};
