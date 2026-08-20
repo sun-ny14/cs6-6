@@ -1,4 +1,11 @@
-// js/settings.js - 설정 탭 통합 관리 (최종 안정화 버전)
+// js/settings.js - 설정 탭 및 명단 관리 최종 안정화 버전
+
+// 페이지가 로드되면 자동으로 설정 초기화 및 명단 불러오기 실행
+window.addEventListener('DOMContentLoaded', () => {
+    if (typeof initSettings === 'function') {
+        initSettings();
+    }
+});
 
 window.initSettings = function() {
     renderStudentAdminList();
@@ -7,7 +14,10 @@ window.initSettings = function() {
 // 1. 학생 명단 및 역할/번호 관리 렌더링
 window.renderStudentAdminList = function() {
     const el = document.getElementById('student-admin-list');
-    if (!el) return;
+    if (!el) {
+        console.warn("student-admin-list 요소를 찾을 수 없습니다.");
+        return;
+    }
     
     db.ref('users').once('value').then(snap => {
         let users = []; 
@@ -44,6 +54,8 @@ window.renderStudentAdminList = function() {
                 </div>`;
         });
         el.innerHTML = h || "등록된 학생이 없습니다.";
+    }).catch(err => {
+        console.error("명단 로드 실패:", err);
     });
 };
 
@@ -80,7 +92,7 @@ window.generateSeatInputs = function() {
     const container = document.getElementById('seat-input-container');
     
     if (!colsInput || !rowsInput || !container) {
-        alert("좌석 입력 요소를 찾을 수 없습니다. HTML 구조를 확인해 주세요.");
+        alert("좌석 입력 요소를 찾을 수 없습니다.");
         return;
     }
 
@@ -129,14 +141,18 @@ window.saveSeatingLayout = function() {
     });
 };
 
-// 4. 기존 시스템 설정 저장
+// 4. 시스템 설정 저장 (에러 방지용 옵셔널 체이닝 적용)
 window.saveSettings = function() {
     db.ref('settings').update({
         password: document.getElementById('conf-pass')?.value || "",
         lateTime: document.getElementById('conf-late')?.value || "08:40",
         closeTime: document.getElementById('conf-close')?.value || "09:00",
         routineText: document.getElementById('conf-routine')?.value || ""
-    }).then(() => alert("✅ 시스템 설정 저장 완료!"));
+    }).then(() => {
+        alert("✅ 시스템 설정이 저장되었습니다!");
+    }).catch(err => {
+        alert("저장 실패: " + err.message);
+    });
 };
 
 window.saveGifts = function() {
