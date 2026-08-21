@@ -83,7 +83,7 @@ window.deleteStudent = function(name) {
     });
 };
 
-// 2. 좌석 표 만들기 기능
+// 2. 좌석 표 만들기 기능 (수정됨: rows 값을 정확히 반영하도록 개선)
 window.generateSeatInputs = function() {
     const colsInput = document.getElementById('seat-cols');
     const rowsInput = document.getElementById('seat-rows');
@@ -94,14 +94,25 @@ window.generateSeatInputs = function() {
         return;
     }
 
-    const cols = parseInt(colsInput.value) || 5;
-    const rows = parseInt(rowsInput.value) || 6;
+    // 입력받은 값을 정수로 정확히 가져옵니다.
+    const cols = parseInt(colsInput.value);
+    const rows = parseInt(rowsInput.value);
+    
+    // 표 초기화
+    container.innerHTML = ""; 
     
     let html = `<table style="width:100%; border-collapse:collapse; margin-top:10px;">`;
+    
+    // 이제 rows 변수를 기준으로 정확히 반복합니다.
     for(let r = 0; r < rows; r++) {
         html += `<tr>`;
         for(let c = 0; c < cols; c++) {
-            html += `<td style="padding:5px;"><input type="text" class="seat-name" data-r="${r}" data-c="${c}" placeholder="${r+1}-${c+1}" style="width:100%; padding:10px; font-size:1.1rem; box-sizing:border-box; border:1px solid #ccc; border-radius:6px; text-align:center;"></td>`;
+            // 행(r)과 열(c)에 기반하여 1-1, 1-2와 같이 표시
+            html += `<td style="padding:5px;">
+                <input type="text" class="seat-name" data-r="${r}" data-c="${c}" 
+                       placeholder="${r+1}-${c+1}" 
+                       style="width:100%; padding:10px; font-size:1.1rem; box-sizing:border-box; border:1px solid #ccc; border-radius:6px; text-align:center;">
+            </td>`;
         }
         html += `</tr>`;
     }
