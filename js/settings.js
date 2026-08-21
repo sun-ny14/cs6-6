@@ -1,14 +1,23 @@
-// js/settings.js - 설정 탭 및 관리 기능 통합 최종 버전
+// js/settings.js - 설정 탭 및 관리 기능 통합 최종 수정본
 
-// 1. 설정 탭 초기화 함수
+// 페이지가 로드되거나 스크립트가 읽힐 때 자동으로 초기화 실행
+window.addEventListener('DOMContentLoaded', () => {
+    if (typeof initSettings === 'function') {
+        initSettings();
+    }
+});
+
 window.initSettings = function() {
     renderStudentAdminList();
 };
 
-// 2. 학생 명단 및 역할/번호/이메일 관리 렌더링
+// 1. 학생 명단 및 역할/번호/이메일 관리 렌더링
 window.renderStudentAdminList = function() {
     const el = document.getElementById('student-admin-list');
-    if (!el) return;
+    if (!el) {
+        console.warn("student-admin-list 요소를 찾을 수 없습니다.");
+        return;
+    }
     
     db.ref('users').once('value').then(snap => {
         let users = []; 
@@ -58,7 +67,7 @@ window.renderStudentAdminList = function() {
     });
 };
 
-// 3. 학생 정보 수정 및 삭제 함수들
+// 2. 학생 정보 수정 및 삭제 함수들
 window.updateUserRole = function(name, role) {
     db.ref('users').orderByChild('name').equalTo(name).once('value').then(snapshot => {
         snapshot.forEach(childSnap => {
@@ -85,7 +94,7 @@ window.deleteStudent = function(name) {
     });
 };
 
-// 4. 좌석 표 만들기 기능 (입력한 행/열 크기에 정확히 맞춤)
+// 3. 좌석 표 만들기 기능
 window.generateSeatInputs = function() {
     const colsInput = document.getElementById('seat-cols');
     const rowsInput = document.getElementById('seat-rows');
@@ -115,7 +124,7 @@ window.generateSeatInputs = function() {
     container.innerHTML = html;
 };
 
-// 5. 좌석 배치 저장 기능
+// 4. 좌석 배치 저장 기능
 window.saveSeatingLayout = function() {
     const inputs = document.querySelectorAll('.seat-name');
     if (inputs.length === 0) {
@@ -145,7 +154,7 @@ window.saveSeatingLayout = function() {
     });
 };
 
-// 6. 시스템 설정 및 기타 관리 함수들
+// 5. 시스템 설정 및 기타 관리 함수들
 window.saveSettings = function() {
     db.ref('settings').update({
         password: document.getElementById('conf-pass')?.value || "",
