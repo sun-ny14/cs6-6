@@ -9,7 +9,12 @@ function handleLogin() {
 }
 
 auth.onAuthStateChanged((user) => {
+    const loginScreen = document.getElementById('login-screen');
+    const loadingScreen = document.getElementById('loading-screen');
+    const mainApp = document.getElementById('main-app');
+
     if (user) {
+        // 오타 제거 완료된 정상적인 이메일 추출 로직
         const email = user.email ? user.email.trim().toLowerCase() : "";
         console.log("👉 [현재 로그인된 구글 계정 이메일]:", email);
         
@@ -46,8 +51,10 @@ auth.onAuthStateChanged((user) => {
                 return;
             }
 
-            // 앱 화면 표시
-            forceScreenDisplay('app');
+            // 화면 전환 처리
+            if (loginScreen) loginScreen.style.display = 'none';
+            if (loadingScreen) loadingScreen.style.display = 'none';
+            if (mainApp) mainApp.style.display = 'flex';
             
             // 관리자 및 도우미 메뉴 강제 표시
             const adminMenuIds = [
@@ -67,15 +74,17 @@ auth.onAuthStateChanged((user) => {
             // 앱 초기화 실행
             if (typeof initApp === 'function') {
                 initApp();
-            } else {
-                showTab(currentTab);
+            } else if (typeof showTab === 'function') {
+                showTab('main');
             }
         }).catch(err => {
             console.error("Firebase 데이터 조회 오류:", err);
             alert("사용자 정보를 불러오는 중 오류가 발생했습니다.");
         });
     } else {
-        forceScreenDisplay('login');
+        if (loginScreen) loginScreen.style.display = 'flex';
+        if (loadingScreen) loadingScreen.style.display = 'none';
+        if (mainApp) mainApp.style.display = 'none';
     }
 });
 
