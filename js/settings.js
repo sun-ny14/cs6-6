@@ -11,62 +11,38 @@ window.initSettings = function() {
     renderStudentAdminList();
 };
 
-// 1. 학생 명단 및 역할/번호/이메일 관리 렌더링
 window.renderStudentAdminList = function() {
     const el = document.getElementById('student-admin-list');
-    if (!el) {
-        console.warn("student-admin-list 요소를 찾을 수 없습니다.");
-        return;
-    }
+    if (!el) return;
     
+    // 1. 전체 데이터베이스의 'users'를 그대로 가져옵니다.
     db.ref('users').once('value').then(snap => {
-        let users = []; 
+        let h = "";
+        
+        // 데이터가 어떤 구조로 들어있는지 콘솔에 강제로 출력
+        console.log("=== Firebase 전체 사용자 데이터 확인 ===");
         snap.forEach(c => {
             let u = c.val();
-            if(u) users.push(u);
-        });
-        
-        users.sort((a, b) => (a.number || a.no || 999) - (b.number || b.no || 999));
-        
-        let h = "";
-        users.forEach(u => {
-            if (u.name === "총사령관" || (typeof adminEmail !== 'undefined' && u.email === adminEmail)) return;
+            let key = c.key;
+            console.log("학생 이름:", u.name, "/ 전체 필드(키):", Object.keys(u));
             
-            let currentRole = u.role || (u.isHelper ? '상점' : '일반');
-            let roleColor = (currentRole === '상점') ? '#3498db' : (currentRole === '청소' ? '#27ae60' : '#95a5a6');
-            let userEmail = u.email || u.mail || u.userEmail || '이메일 없음';
-
+            // 2. 여기서 실제 저장된 이메일 키 이름을 찾을 겁니다.
+            // 아래는 선생님의 데이터를 눈으로 직접 확인하기 위한 임시 코드입니다.
+            let emailValue = u.email || u.mail || u.userEmail || u.eMail || '이메일 정보 없음';
+            
             h += `
-                <div style="display:flex; align-items:center; gap:12px; padding:12px 15px; background:white; border-bottom:1px solid #eee; border-radius:10px; margin-bottom:8px;">
-                    <!-- 번호 입력 -->
-                    <input type="number" value="${u.number || u.no || ''}" onchange="updateNo('${u.name}', this.value)" 
-                           style="width:80px; height:55px; text-align:center; font-size:1.5rem; border:2px solid #3498db; border-radius:8px; font-weight:bold; box-sizing:border-box;">
-                    
-                    <!-- 이름 및 이메일 -->
-                    <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
-                        <strong style="font-size:1.5rem; color:#333;">${u.name}</strong>
-                        <span style="font-size:1rem; color:#666; margin-top:2px;">📧 ${userEmail}</span>
-                    </div>
-                    
-                    <!-- 역할 선택 -->
-                    <select onchange="updateUserRole('${u.name}', this.value)" 
-                            style="width:130px; height:55px; padding:0 10px; font-size:1.3rem; background:${roleColor}; color:white; border-radius:8px; font-weight:bold; border:none; cursor:pointer; box-sizing:border-box;">
-                        <option value="일반" ${currentRole === '일반' ? 'selected' : ''} style="color:black; background:white;">일반</option>
-                        <option value="상점" ${currentRole === '상점' ? 'selected' : ''} style="color:black; background:white;">상점</option>
-                        <option value="청소" ${currentRole === '청소' ? 'selected' : ''} style="color:black; background:white;">청소</option>
-                    </select>
-                    
-                    <!-- 삭제 버튼 -->
-                    <button onclick="deleteStudent('${u.name}')" 
-                            style="width:45px; height:55px; background:#e74c3c; color:white; border:none; border-radius:8px; font-size:1.2rem; font-weight:bold; cursor:pointer;">×</button>
+                <div style="padding:10px; border:1px solid #ccc; margin-bottom:5px;">
+                    <strong>${u.name}</strong><br>
+                    <small style="color:red;">(콘솔에서 키 이름을 확인하세요)</small><br>
+                    <span>📧 ${emailValue}</span>
                 </div>`;
         });
-        el.innerHTML = h || "등록된 학생이 없습니다.";
+        
+        el.innerHTML = h;
     }).catch(err => {
         console.error("명단 로드 실패:", err);
     });
 };
-
 // 2. 학생 정보 수정 및 삭제 함수들
 window.updateUserRole = function(name, role) {
     db.ref('users').orderByChild('name').equalTo(name).once('value').then(snapshot => {
