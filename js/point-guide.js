@@ -11,7 +11,6 @@ function formatDateTime(timestamp) {
     const min = String(d.getMinutes()).padStart(2, '0');
     return `${y}-${m}-${day} ${h}:${min}`;
 }
-
 // ----------------------------------------------------
 // 1. 인벤토리 및 승인, 연대기 실시간 감지 (매우 중요)
 // ----------------------------------------------------
@@ -121,16 +120,36 @@ window.refundItem = function(key, user, item) {
 // 3. 포인트 도감 및 플로팅 팝업 일괄 지급 로직
 // ----------------------------------------------------
 window.renderPointGuide = function() {
-    db.ref('settings/pointGuides').on('value', snap => {
+    db.ref('settings/pointGuides').on('value', async (snap) => {
         const guideListEl = document.getElementById('guide-list');
         if (!guideListEl) return;
+
+        // 💡 [핵심 수정] 데이터베이스가 비어있을 경우 기존 항목 자동 복구
+        if (!snap.exists()) {
+            console.log("포인트 도감이 비어있어 기본 항목을 자동 생성합니다.");
+            const defaultGuides = [
+                { title: "칭찬 받기", points: 100, desc: "선생님이나 친구에게 칭찬을 받았을 때" },
+                { title: "숙제 완료", points: 200, desc: "오늘의 숙제를 완벽하게 해왔을 때" },
+                { title: "청소 도우미", points: 150, desc: "맡은 청소 구역을 깨끗하게 정리했을 때" },
+                { title: "바른 태도", points: 50, desc: "수업에 집중하고 바른 자세로 참여했을 때" }
+            ];
+            
+            // Firebase에 기본 항목들을 주입합니다.
+            for (let g of defaultGuides) {
+                await db.ref('settings/pointGuides').push(g);
+            }
+            // 데이터가 들어가면 on('value')가 자동으로 다시 실행되므로 여기서 멈춥니다.
+            return;
+        }
 
         let guides = [];
         snap.forEach(c => { guides.push({ key: c.key, ...c.val() }); });
 
         let html = "";
+        
+        // 관리자 전용: 새 항목 추가 버튼
         if (isAdmin) {
-            html += `<button onclick="addPointGuideItem()" style="width:100%; padding:15px; background:var(--gold, #f1c40f); color:#2c3e50; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem; cursor:pointer; margin-bottom:15px;">+ 새 포인트 항목 추가</button>`;
+            html += `<button onclick="addPointGuideItem()" style="width:100%; padding:15px; background:var(--gold, #f1c40f); border:none; border-radius:10px; font-weight:bold; font-size:1.2rem; cursor:pointer; margin-bottom:15px;">+ 새 포인트 항목 추가</button>`;
         }
 
         html += `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:15px;">`;
@@ -142,6 +161,7 @@ window.renderPointGuide = function() {
                     <button onclick="deletePointGuideItem('${g.key}', '${g.title}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">삭제</button>
                 </div>` : "";
 
+            // 관리자면 클릭 시 일괄 지급 팝업 오픈
             const onClickAction = isAdmin ? `onclick="openBulkPointPopup('${g.title}', ${g.points})"` : "";
             const hoverStyle = isAdmin ? `cursor:pointer; transition:transform 0.2s;` : ``;
 
@@ -157,7 +177,6 @@ window.renderPointGuide = function() {
         guideListEl.innerHTML = html;
     });
 };
-
 window.addPointGuideItem = function() {
     const title = prompt("추가할 포인트 항목 이름 (예: 숙제 완료):");
     if (!title) return;
