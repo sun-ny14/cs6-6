@@ -4,7 +4,6 @@
 function initApp() {
     if (typeof showTab === 'function') showTab(currentTab);
     renderHeroes();
-    // 이제 학생 명단 관리(renderStudentAdminList)는 settings.js에서 담당합니다.
 }
 
 // 스프라이트 시트 기반 육육이 아바타 렌더링
@@ -46,17 +45,24 @@ function renderHeroes() {
         let html = '';
         usersArray.forEach(user => {
             let name = user.name || '용사';
-            let p = user.points || 0;
-            let e = user.exp || 0;
             let lv = user.level || user.lv || 1;
             let role = user.role || (user.isHelper ? '상점' : '일반');
             let number = user.number || user.no || '';
             
+            // 정보 제한 로직: 관리자/도우미이거나 본인인 경우에만 상세 정보 표시
+            const canSeeAll = (typeof isAdmin !== 'undefined' && isAdmin) || 
+                              (typeof isHelper !== 'undefined' && isHelper) || 
+                              (typeof myName !== 'undefined' && user.name === myName);
+            
+            let displayInfo = canSeeAll 
+                ? `Lv. ${lv} | P: ${user.points || 0} | E: ${user.exp || 0}` 
+                : `Lv. ${lv}`;
+
             html += `
                 <div class="card" style="text-align:center; cursor:pointer; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${name}')">
                     <div>${getAvatar(lv, user.animal)}</div>
                     <h3 style="margin-top:10px; color:var(--dark);">${number ? number + '. ' : ''}${name}</h3>
-                    <p style="font-weight:bold; color:var(--primary); margin: 5px 0;">Lv. ${lv} | P: ${p} | E: ${e}</p>
+                    <p style="font-weight:bold; color:var(--primary); margin: 5px 0;">${displayInfo}</p>
                     <p style="font-size:0.9rem; color:#666;">역할: ${role}</p>
                 </div>
             `;
@@ -107,17 +113,6 @@ function openPointPopupForUser(userName) {
         }
         popup.style.display = 'flex';
     });
-}
-
-function applyUserScore(userName, lv) {
-    const reason = document.getElementById('pop-reason').value;
-    const addP = parseInt(document.getElementById('pop-p').value) || 0;
-    const addE = parseInt(document.getElementById('pop-e').value) || 0;
-    
-    if(!reason) return alert("사유 입력 필수!");
-    
-    // 이후 데이터 업데이트 로직은 이전과 동일...
-    // alert, closePopup, renderHeroes 호출
 }
 
 function closePointPopup() { document.getElementById('point-popup').style.display = 'none'; }
