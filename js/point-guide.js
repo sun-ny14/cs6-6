@@ -1,6 +1,6 @@
 // js/point-guide.js - 포인트 도감, 인벤토리, 승인/환불, 포인트 연대기 및 일괄 지급 통합 로직
 
-// 시간 포맷팅 헬퍼 함수 (YYYY-MM-DD HH:MM 초 제외)
+// 시간 포맷팅 헬퍼 함수
 function formatDateTime(timestamp) {
     if (!timestamp) return "";
     const d = new Date(timestamp);
@@ -12,12 +12,19 @@ function formatDateTime(timestamp) {
     return `${y}-${m}-${day} ${h}:${min}`;
 }
 
+// 💡 [최적화 1] 리스너(추적기)가 여러 번 실행되는 것을 막는 잠금장치 변수
+window.isPointsListenerAttached = false;
+window.isPointGuideListenerAttached = false;
+
 // ----------------------------------------------------
-// 1. 인벤토리 및 승인, 연대기 실시간 감지 (매우 중요)
+// 1. 인벤토리 및 승인, 연대기 실시간 감지
 // ----------------------------------------------------
 window.initPointsTabListeners = function() {
+    // 💡 잠금장치 확인: 이미 실행되었다면 여기서 멈춤 (다운로드 중복 방지)
+    if (window.isPointsListenerAttached) return; 
+    window.isPointsListenerAttached = true;
     
-    // [인벤토리 & 승인 대기열 리스너] - orders 테이블 추적
+    // [인벤토리 & 승인 대기열 리스너] - 처리되지 않은 대기열만 가볍게 가져오도록 향후 최적화 가능
     db.ref('orders').on('value', snap => {
         let uHtml = "", wHtml = "", adminOrderHtml = "";
         
@@ -25,7 +32,6 @@ window.initPointsTabListeners = function() {
             const o = c.val(), key = c.key;
             const isMyItem = (typeof myName !== 'undefined' && o.user === myName);
             
-            // 👤 학생 뷰: 미사용 보관함 (대기 상태이거나 선생님이 환불한 상태)
             if (isMyItem && (o.status === '대기' || o.status === '요청' || o.status === '환불')) {
                 const refundTag = o.status === '환불' ? '<span style="color:#e74c3c; font-size:0.9rem; font-weight:bold;">(환불/반려됨)</span>' : '';
                 uHtml += `
@@ -34,7 +40,6 @@ window.initPointsTabListeners = function() {
                         <button onclick="requestUseItem('${key}', '${o.item}')" style="background:#3498db; color:white; padding:8px 15px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">사용하기</button>
                     </div>`;
             }
-            // 👤 학생 뷰: 선생님의 승인을 기다리는 사용 대기중
             else if (isMyItem && o.status === '사용요청') {
                 wHtml += `
                     <div style="padding:12px; border-bottom:1px solid #eee; color:#7f8c8d; font-size:1.1rem;">
@@ -42,7 +47,6 @@ window.initPointsTabListeners = function() {
                     </div>`;
             }
 
-            // 👑 선생님 뷰: 학생들이 사용 요청한 아이템 승인/환불 (상점 탭 하단에 표시)
             if (typeof isAdmin !== 'undefined' && isAdmin && o.status === '사용요청') {
                 adminOrderHtml += `
                     <div style="background:#f8f9fa; border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
@@ -55,7 +59,6 @@ window.initPointsTabListeners = function() {
             }
         });
 
-        // HTML 요소에 결과 주입
         const uEl = document.getElementById('inv-unused');
         if (uEl && uEl.querySelector('.list')) uEl.querySelector('.list').innerHTML = uHtml || "<p style='color:#999; padding:10px;'>보관함이 비어있습니다.</p>";
         
@@ -66,8 +69,8 @@ window.initPointsTabListeners = function() {
         if (adminOrderEl) adminOrderEl.innerHTML = adminOrderHtml || "<p style='color:#999;'>대기 중인 사용 요청이 없습니다.</p>";
     });
 
-    // [포인트 연대기 리스너 - 기존 데이터 구조(eAmt, pAmt) 완벽 호환]
-    db.ref('history').on('value', snap => {
+    // 💡 [최적화 2] limitToLast(50)을 사용하여 최근 50개의 데이터만 다운로드하도록 제한!
+    db.ref('history').limitToLast(50).on('value', snap => {
         let historyArr = [];
         snap.forEach(c => { 
             const val = c.val();
@@ -79,11 +82,10 @@ window.initPointsTabListeners = function() {
                 timeStr: val.time || formatDateTime(val.timestamp)
             });
         });
-        historyArr.reverse(); // 최신순으로 뒤집기
+        historyArr.reverse(); // 최신순 정렬
 
         let historyHtml = "";
         historyArr.forEach(h => {
-            // 권한 체크: 선생님은 전체 조회, 학생은 자기 이름이 들어간 내역만 조회
             if ((typeof isAdmin === 'undefined' || !isAdmin) && typeof myName !== 'undefined' && h.user !== myName) return;
 
             const pColor = h.p >= 0 ? '#e74c3c' : '#3498db';
@@ -106,7 +108,7 @@ window.initPointsTabListeners = function() {
 };
 
 // ----------------------------------------------------
-// 2. 인벤토리 액션 함수들 (학생 및 선생님)
+// 2. 인벤토리 액션 함수들
 // ----------------------------------------------------
 window.requestUseItem = function(key, itemName) {
     if (confirm(`[${itemName}] 물품을 사용하시겠습니까?\n선생님께 사용 승인 요청이 전송됩니다.`)) {
@@ -130,20 +132,21 @@ window.refundItem = function(key, user, item) {
 // 3. 포인트 도감 및 플로팅 팝업 일괄 지급 로직
 // ----------------------------------------------------
 window.renderPointGuide = function() {
+    // 💡 잠금장치 확인
+    if (window.isPointGuideListenerAttached) return; 
+    window.isPointGuideListenerAttached = true;
+
     db.ref('settings/pointGuides').on('value', async (snap) => {
         const guideListEl = document.getElementById('guide-list');
         if (!guideListEl) return;
 
-        // 데이터베이스가 비어있을 경우 기본 항목 자동 복구
         if (!snap.exists()) {
-            console.log("포인트 도감이 비어있어 기본 항목을 자동 생성합니다.");
             const defaultGuides = [
                 { title: "칭찬 받기", points: 100, desc: "선생님이나 친구에게 칭찬을 받았을 때" },
                 { title: "숙제 완료", points: 200, desc: "오늘의 숙제를 완벽하게 해왔을 때" },
                 { title: "청소 도우미", points: 150, desc: "맡은 청소 구역을 깨끗하게 정리했을 때" },
                 { title: "바른 태도", points: 50, desc: "수업에 집중하고 바른 자세로 참여했을 때" }
             ];
-            
             for (let g of defaultGuides) {
                 await db.ref('settings/pointGuides').push(g);
             }
@@ -154,8 +157,6 @@ window.renderPointGuide = function() {
         snap.forEach(c => { guides.push({ key: c.key, ...c.val() }); });
 
         let html = "";
-        
-        // 관리자 전용: 새 항목 추가 버튼
         if (typeof isAdmin !== 'undefined' && isAdmin) {
             html += `<button onclick="addPointGuideItem()" style="width:100%; padding:15px; background:var(--gold, #f1c40f); border:none; border-radius:10px; font-weight:bold; font-size:1.2rem; cursor:pointer; margin-bottom:15px;">+ 새 포인트 항목 추가</button>`;
         }
@@ -169,7 +170,6 @@ window.renderPointGuide = function() {
                     <button onclick="deletePointGuideItem('${g.key}', '${g.title}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">삭제</button>
                 </div>` : "";
 
-            // 관리자면 클릭 시 일괄 지급 팝업 오픈 (도감 타이틀과 포인트를 인자로 전달)
             const onClickAction = (typeof isAdmin !== 'undefined' && isAdmin) ? `onclick="openBulkPointPopup('${g.title}', ${g.points})"` : "";
             const hoverStyle = (typeof isAdmin !== 'undefined' && isAdmin) ? `cursor:pointer; transition:transform 0.2s;` : ``;
 
@@ -212,7 +212,7 @@ window.deletePointGuideItem = function(key, title) {
 };
 
 // ----------------------------------------------------
-// 4. 플로팅 팝업 일괄 지급 로직 (도감 연동)
+// 4. 플로팅 팝업 일괄 지급 로직
 // ----------------------------------------------------
 window.openBulkPointPopup = async function(reason, points) {
     if (typeof isAdmin === 'undefined' || !isAdmin) return;
@@ -253,7 +253,6 @@ window.openBulkPointPopup = async function(reason, points) {
     bodyHtml += `</div>`;
     bodyEl.innerHTML = bodyHtml;
 
-    // 기존 이벤트 초기화 후 버튼 연결
     if (applyBtn) {
         const newApplyBtn = applyBtn.cloneNode(true);
         applyBtn.parentNode.replaceChild(newApplyBtn, applyBtn);
@@ -264,7 +263,7 @@ window.openBulkPointPopup = async function(reason, points) {
             if (!confirm(`${checkboxes.length}명의 학생에게 [${reason}] 사유로 ${points}P를 부여하시겠습니까?`)) return;
 
             const updates = {};
-            const timestamp = new Date().getTime(); // 연대기 정렬을 위한 타임스탬프
+            const timestamp = new Date().getTime(); 
 
             for (let cb of checkboxes) {
                 const sKey = cb.value;
@@ -274,7 +273,6 @@ window.openBulkPointPopup = async function(reason, points) {
                     const currentPoints = uSnap.val().points || 0;
                     updates[`users/${sKey}/points`] = currentPoints + points;
                     
-                    // 포인트 연대기에 시간 기록과 함께 저장
                     const hRef = db.ref('history').push();
                     updates[`history/${hRef.key}`] = { user: sName, p: points, reason: reason, timestamp: timestamp };
                 }
@@ -295,13 +293,3 @@ window.closePointPopup = function() {
     const popup = document.getElementById('point-popup');
     if (popup) popup.style.display = 'none';
 };
-
-// ----------------------------------------------------
-// 5. 페이지 로드 초기화 리스너
-// ----------------------------------------------------
-document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(() => {
-        if (typeof renderPointGuide === 'function') renderPointGuide();
-        if (typeof initPointsTabListeners === 'function') initPointsTabListeners();
-    }, 500); 
-});
