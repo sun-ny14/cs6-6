@@ -16,7 +16,6 @@
 
     <!-- 전역 스타일 및 어두운 테마 로딩 화면 스타일 -->
     <style>
-        /* 어두운 테마 큼직한 로딩 화면 */
         #loading-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #2c3e50;
@@ -97,7 +96,7 @@
     </script>
 </head>
 <body>
-    <!-- 어두운 테마 큼직한 로딩 화면 -->
+    <!-- 로딩 화면 -->
     <div id="loading-screen">
         <div style="font-size: 8rem;">🏰</div>
         <div style="display: flex; gap: 15px;">
@@ -135,10 +134,10 @@
     </div>
 
     <div id="main-app">
-        <!-- 사이드바 열고 닫기 화살표 토글 버튼 -->
+        <!-- 사이드바 열고 닫기 토글 버튼 -->
         <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="메뉴 열기/닫기">◀</button>
 
-        <!-- 좌측 사이드바 메뉴 (설정 버튼 노출 보장) -->
+        <!-- 좌측 사이드바 메뉴 -->
         <nav id="sidebar-menu" class="sidebar-menu">
             <h2 style="text-align: center; margin: 0 0 15px 0; color: #2c3e50;">🏰 6-6 본부</h2>
             <button id="btn-main" onclick="showTab('main')">🤺 용사들</button>
@@ -259,7 +258,7 @@
                 </div>
             </section>
 
-            <!-- 7. 학급관리 탭 -->
+            <!-- 7. 학급관리 탭 (성적 / 운영비 통합) -->
             <section id="tab-management" class="tab-content" style="display:none;">
                 <div style="display:flex; gap:15px; margin-bottom:25px;">
                     <button onclick="renderManagementSub('grades')" id="sub-btn-grades" style="background:#3498db; color:white; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer;">📝 성적 관리</button>
@@ -268,31 +267,13 @@
                 <div id="management-sub-container"></div>
             </section>
 
-            <!-- 8. 1인 1역 및 모둠별 청소 탭 -->
+            <!-- 8. 1인 1역 및 청소 탭 -->
             <section id="tab-cleaning" class="tab-content" style="display:none; padding: 35px; background:white; border-radius:15px;">
-                <h2 style="margin-bottom: 20px;">🧹 1인 1역 및 모둠별 청소 관리</h2>
-                <div id="admin-role-cleaning-setter" style="display: none; margin-bottom: 25px; padding: 25px; background: #f8f9fa; border-radius: 12px; border: 2px solid #3498db;">
-                    <h3 style="margin-top:0; color: #3498db;">🛠️ [관리자 전용] 1인 1역 및 모둠 청소 편성</h3>
-                    <div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
-                        <button onclick="openRoleSettingPopup()" style="flex:1; background: #2ecc71; color: white; border: none; padding: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1.2rem;">📝 1인 1역 역할 배정</button>
-                        <button onclick="openGroupCleaningPopup()" style="flex:1; background: #e67e22; color: white; border: none; padding: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1.2rem;">🧹 모둠별 청소 구역 지정</button>
-                    </div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
-                    <div style="background: #fdfefe; padding: 20px; border-radius: 12px; border: 1px solid #ddd;">
-                        <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">👤 1인 1역 현황</h3>
-                        <div id="role-status-container">불러오는 중...</div>
-                    </div>
-                    <div style="background: #fdfefe; padding: 20px; border-radius: 12px; border: 1px solid #ddd;">
-                        <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">🧼 모둠별 청소 현황</h3>
-                        <div id="group-cleaning-container">불러오는 중...</div>
-                    </div>
-                </div>
+                <div id="tab-cleaning-container">불러오는 중...</div>
             </section>
 
             <!-- 9. 설정 탭 -->
             <section id="tab-admin" class="tab-content">
-                <!-- 좌석 배치 설정 영역 -->
                 <div class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;">
                     <h3>🪑 좌석 배치 설정</h3>
                     <div class="horizontal-box" style="margin-bottom: 15px;">
@@ -304,13 +285,11 @@
                     <button onclick="saveSeatingLayout()" style="width:100%; margin-top:20px; padding:18px; background:#2ecc71; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.3rem; cursor:pointer;">배치 저장</button>
                 </div>
 
-                <!-- 학생 명단 관리 영역 -->
                 <div class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;">
                     <h3>👥 명단 관리 (번호/역할)</h3>
                     <div id="student-admin-list"></div>
                 </div>
 
-                <!-- 시스템 설정 영역 -->
                 <div class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;">
                     <h3>⚙️ 시스템 설정</h3>
                     <div class="horizontal-box" style="margin-bottom: 18px;">
@@ -325,7 +304,6 @@
                     <button onclick="saveSettings()" style="background:#3498db; color:white; border:none; padding:16px 30px; border-radius:10px; cursor:pointer; font-size:1.3rem; font-weight:bold;">시스템 저장</button>
                 </div>
 
-                <!-- 레벨업 보상 및 일괄 등록 -->
                 <div class="card" style="background:white; padding:35px; border-radius:15px; margin-bottom:20px;">
                     <h3>🎁 레벨업 보상</h3>보상목록:<textarea id="conf-gifts" rows="4" style="width:100%; box-sizing:border-box; margin-bottom:18px; font-size:1.3rem;"></textarea><button onclick="saveGifts()" style="background:#3498db; color:white; border:none; padding:16px 30px; border-radius:10px; cursor:pointer; font-size:1.3rem; font-weight:bold;">보상 저장</button>
                 </div>

@@ -1,6 +1,5 @@
-// js/settings.js - 설정 탭 및 관리자 시스템 전체 코드
+// js/settings.js - 설정 탭 및 관리자 시스템 전체 통합 코드
 
-// 1. 설정 탭 초기화 및 데이터 불러오기
 window.initSettings = function() {
     loadSystemSettings();
     loadStudentAdminList();
@@ -8,133 +7,199 @@ window.initSettings = function() {
     loadSeatSettings();
 };
 
+// js/settings.js - 좌석 배치 설정, 시스템 설정 및 학생 명단 관리 통합 모듈
+
 // --- [A] 좌석 배치 설정 ---
 window.generateSeatInputs = function() {
-    const cols = parseInt(document.getElementById('seat-cols').value) || 5;
-    const rows = parseInt(document.getElementById('seat-rows').value) || 6;
+    const colsEl = document.getElementById('seat-cols');
+    const rowsEl = document.getElementById('seat-rows');
+    
+    if (!colsEl || !rowsEl) return;
+
+    const cols = parseInt(colsEl.value);
+    const rows = parseInt(rowsEl.value);
+
+    if (!cols || !rows || cols <= 0 || rows <= 0) {
+        alert("올바른 가로, 세로 칸 수를 입력해주세요!");
+        return;
+    }
+
     const container = document.getElementById('seat-input-container');
     if (!container) return;
 
-    let html = `<div style="display:grid; grid-template-columns:repeat(${cols}, 1fr); gap:10px; margin-top:15px;">`;
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            const seatKey = `${r}_${c}`;
-            html += `<input type="text" id="seat-input-${seatKey}" placeholder="${r+1행, c+1열}" style="padding:10px; text-align:center; font-size:1.1rem; border:1px solid #ccc; border-radius:6px;">`;
+    db.ref('seatLayoutData/layout').once('value', snap => {
+        const currentLayout = snap.val() || {};
+
+        let html = `<div style="display:grid; grid-template-columns:repeat(${cols}, 1fr); gap:10px; margin-top:15px;">`;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const seatKey = `${r}_${c}`;
+                const posId = `${r}-${c}`;
+                const savedName = currentLayout[posId] || currentLayout[seatKey] || "";
+                
+                html += `
+                    <div style="background:#f8f9fa; border:1px solid #ccc; padding:8px; border-radius:8px; text-align:center;">
+                        <small style="color:#666; display:block; margin-bottom:4px;">${r+1}행 ${c+1}열</small>
+                        <input type="text" id="seat-input-${seatKey}" value="${savedName}" placeholder="이름 입력" style="width:100%; padding:8px; text-align:center; font-size:1.1rem; border:1px solid #ccc; border-radius:6px; box-sizing:border-box;">
+                    </div>
+                `;
+            }
         }
-    }
-    html += `</div>`;
-    container.innerHTML = html;
+        html += `</div>`;
+        container.innerHTML = html;
+    });
 };
 
-window.saveSeatingLayout = async function() {
-    const cols = parseInt(document.getElementById('seat-cols').value) || 5;
-    const rows = parseInt(document.getElementById('seat-rows').value) || 6;
-    let layoutData = { cols: cols, rows: rows, seats: {} };
+window.saveSeatSettings = async function() {
+    const colsEl = document.getElementById('seat-cols');
+    const rowsEl = document.getElementById('seat-rows');
+    
+    if (!colsEl || !rowsEl) return;
 
+    const cols = parseInt(colsEl.value);
+    const rows = parseInt(rowsEl.value);
+
+    if (!cols || !rows) {
+        alert("가로와 세로 칸 수를 올바르게 입력해주세요!");
+        return;
+    }
+
+    let newLayout = {};
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const seatKey = `${r}_${c}`;
-            const inputEl = document.getElementById(`seat-input-${seatKey}`);
-            if (inputEl && inputEl.value.trim() !== "") {
-                layoutData.seats[seatKey] = inputEl.value.trim();
+            const posId = `${r}-${c}`;
+            const input = document.getElementById(`seat-input-${seatKey}`);
+            if (input && input.value.trim()) {
+                newLayout[posId] = input.value.trim();
             }
         }
     }
 
-    try {
-        await db.ref('settings/seatLayout').set(layoutData);
-        alert("✅ 좌석 배치가 성공적으로 저장되었습니다!\n등교 로그 및 청소 탭과 연동됩니다.");
-    } catch (err) {
-        console.error("좌석 저장 오류:", err);
-        alert("좌석 저장 중 오류가 발생했습니다.");
-    }
+    await db.ref('seatLayoutData').set({
+        config: { cols: cols, rows: rows },
+        layout: newLayout
+    });
+
+    alert("🪑 좌석 배치 설정과 이름들이 영구 저장되었습니다! ✨");
+    if (typeof generateNewLayout === 'function') generateNewLayout();
 };
 
 window.loadSeatSettings = async function() {
-    const snap = await db.ref('settings/seatLayout').once('value');
-    if (!snap.exists()) return;
-    const data = snap.val();
-    if (document.getElementById('seat-cols')) document.getElementById('seat-cols').value = data.cols || 5;
-    if (document.getElementById('seat-rows')) document.getElementById('seat-rows').value = data.rows || 6;
-    
-    // 입력 필드 먼저 생성 후 데이터 채우기
-    window.generateSeatInputs();
-    if (data.seats) {
-        for (let key in data.seats) {
-            const inputEl = document.getElementById(`seat-input-${key}`);
-            if (inputEl) inputEl.value = data.seats[key];
+    const snap = await db.ref('seatLayoutData').once('value');
+    const colsEl = document.getElementById('seat-cols');
+    const rowsEl = document.getElementById('seat-rows');
+    const container = document.getElementById('seat-input-container');
+
+    if (snap.exists()) {
+        const data = snap.val();
+        const config = data.config || {};
+        if (colsEl) colsEl.value = config.cols || '';
+        if (rowsEl) rowsEl.value = config.rows || '';
+        if (config.cols && config.rows) generateSeatInputs();
+    } else {
+        if (colsEl) colsEl.value = '5';
+        if (rowsEl) rowsEl.value = '6';
+        if (container) {
+            container.innerHTML = `<div style="padding: 20px; text-align: center; color: #888; font-size: 1.2rem; background: #f8f9fa; border-radius: 8px; margin-top: 15px;">설정된 좌석 배치가 없습니다. 크기 입력 후 '표 만들기'를 눌러주세요.</div>`;
         }
     }
 };
 
-// --- [B] 학생 명단 관리 (번호, 역할, 더블체크 삭제) ---
+// --- [B] 학생(용사들) 명단 및 역할 관리 ---
 window.loadStudentAdminList = function() {
     db.ref('users').on('value', snap => {
         const listEl = document.getElementById('student-admin-list');
         if (!listEl) return;
 
-        let html = `<table style="width:100%; border-collapse:collapse; margin-top:10px;">
-            <tr style="background:#f8f9fa; border-bottom:2px solid #ddd;">
-                <th style="padding:12px; text-align:center;">번호</th>
-                <th style="padding:12px; text-align:left;">이름</th>
-                <th style="padding:12px; text-align:left;">이메일</th>
-                <th style="padding:12px; text-align:center;">역할</th>
-                <th style="padding:12px; text-align:center;">관리</th>
-            </tr>`;
+        if (!snap.exists()) {
+            listEl.innerHTML = `<div style="text-align:center; padding:30px; color:#888; font-size:1.2rem;">등록된 용사가 없습니다.</div>`;
+            return;
+        }
 
         let usersArr = [];
-        snap.forEach(c => { usersArr.push({ key: c.key, ...c.val() }); });
-        // 번호순 정렬
-        usersArr.sort((a, b) => (a.number || 0) - (b.number || 0));
+        snap.forEach(c => { usersArr.push({ name: c.key, ...c.val() }); });
+        
+        usersArr.sort((a, b) => parseInt(a.no || 0) - parseInt(b.no || 0));
+        
+        // 전역 배열 동기화 (다른 함수에서 currentUsers를 참조할 때를 대비)
+        if (typeof currentUsers !== 'undefined') {
+            currentUsers = usersArr;
+        }
 
-        usersArr.forEach((u, idx) => {
-            html += `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:12px; text-align:center;">${u.number || (idx + 1)}</td>
-                <td style="padding:12px; font-weight:bold;">${u.name}</td>
-                <td style="padding:12px; color:#666; font-size:1.1rem;">${u.email || ''}</td>
-                <td style="padding:12px; text-align:center;">
-                    <select onchange="updateUserRole('${u.key}', this.value)" style="padding:6px; font-size:1rem; border-radius:6px;">
-                        <option value="학생" ${!u.role || u.role === '학생' ? 'selected' : ''}>학생</option>
-                        <option value="총관리자1" ${u.role === '총관리자1' ? 'selected' : ''}>총관리자 1</option>
-                        <option value="총관리자2" ${u.role === '총관리자2' ? 'selected' : ''}>총관리자 2</option>
-                    </select>
-                </td>
-                <td style="padding:12px; text-align:center;">
-                    <button onclick="confirmDeleteStudent('${u.key}', '${u.name}')" style="background:#e74c3c; color:white; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:1rem;">삭제</button>
-                </td>
-            </tr>`;
-        });
-        html += `</table>`;
-        listEl.innerHTML = html;
+        window.renderAdminList();
     });
 };
 
-window.updateUserRole = async function(userId, newRole) {
-    await db.ref(`users/${userId}`).update({ role: newRole });
-    alert(`✅ [${newRole}] (으)로 역할이 변경되었습니다.`);
+// 관리자용 학생 명단 렌더링 함수
+window.renderAdminList = function() {
+    const listEl = document.getElementById('student-admin-list');
+    if (!listEl) return;
+
+    let h = ""; 
+    const targetArr = (typeof currentUsers !== 'undefined' && currentUsers.length > 0) ? currentUsers : [];
+    
+    targetArr.forEach(u => { 
+        if (u.name === "총사령관") return; 
+        
+        let currentRole = u.role || (u.isHelper ? '상점' : '일반');
+        let roleColor = '#95a5a6'; // 일반 (회색)
+        if (currentRole === '상점') roleColor = '#3498db'; // 상점 (파란색)
+        else if (currentRole === '청소') roleColor = '#27ae60'; // 청소 (초록색)
+
+        h += `<div class="list-item" style="padding:10px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; flex-wrap:nowrap;">
+                <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:80px; height:55px; text-align:center; font-size:1.8rem; padding:0; border:2px solid var(--primary, #3498db); border-radius:8px; font-weight:bold; flex-shrink:0;">
+                
+                <strong style="font-size:1.6rem; flex:1; min-width:50px; white-space:nowrap; text-align:left;">${u.name}</strong>
+                
+                <select onchange="updateUserRole('${u.name}', this.value)" style="width:105px; height:55px; padding:0 5px; font-size:1.1rem; border-radius:8px; border:2px solid ${roleColor}; background:${roleColor}; color:white; font-weight:bold; cursor:pointer; flex-shrink:0;">
+                    <option value="일반" ${currentRole === '일반' ? 'selected' : ''}>👤 일반</option>
+                    <option value="상점" ${currentRole === '상점' ? 'selected' : ''}>🛍️ 상점</option>
+                    <option value="청소" ${currentRole === '청소' ? 'selected' : ''}>🧹 청소</option>
+                </select>
+
+                <button onclick="confirmDeleteStudent('${u.name}')" style="width:60px; height:55px; background:var(--red, #e74c3c); color:white; border-radius:8px; font-weight:bold; border:none; cursor:pointer; flex-shrink:0;">제거</button>
+              </div>`; 
+    }); 
+    
+    listEl.innerHTML = h || "<div style='text-align:center; padding:20px;'>용사가 없습니다.</div>"; 
 };
 
-window.confirmDeleteStudent = function(userId, userName) {
-    // 더블 체크 창 구현
-    const firstCheck = confirm(`⚠️ 경고: [${userName}] 학생을 정말 삭제하시겠습니까?`);
+// 학생 번호 수정
+window.updateNo = function(n, v) { 
+    db.ref('users/' + n).update({ no: parseInt(v) || 0 }); 
+};
+
+// 학생 역할(Role) 업데이트 함수
+window.updateUserRole = function(userName, newRole) {
+    db.ref(`users/${userName}`).update({
+        role: newRole,
+        isHelper: newRole === '상점' // 상점 역할일 때만 helper 활성화
+    }).then(() => {
+        const roleIcon = newRole === '상점' ? '🛍️' : (newRole === '청소' ? '🧹' : '👤');
+        alert(`${userName} 학생의 역할이 [ ${roleIcon} ${newRole} ](으)로 변경되었습니다!`);
+    });
+};
+
+window.confirmDeleteStudent = function(userName) {
+    const firstCheck = confirm(`⚠️ 경고: [${userName}] 용사를 정말 제명하시겠습니까?`);
     if (!firstCheck) return;
     
-    const secondCheck = confirm(`🚨 최종 확인: 삭제된 데이터는 복구할 수 없습니다. 정말로 [${userName}] 학생을 삭제 처리하시겠습니까?`);
+    const secondCheck = confirm(`🚨 최종 확인: 삭제된 데이터는 복구할 수 없습니다. 정말로 [${userName}] 용사를 삭제하시겠습니까?`);
     if (secondCheck) {
-        db.ref(`users/${userId}`).remove().then(() => {
-            alert(`🗑️ [${userName}] 학생이 삭제되었습니다.`);
+        db.ref(`users/${userName}`).remove().then(() => {
+            alert(`🗑️ [${userName}] 용사가 제명되었습니다.`);
         });
     }
 };
 
-// --- [C] 시스템 설정 (비밀번호, 지각/마감 시간 - 영구 유지) ---
+// --- [C] 시스템 설정 ---
 window.saveSettings = async function() {
     const password = document.getElementById('conf-pass').value;
     const lateTime = document.getElementById('conf-late').value;
     const closeTime = document.getElementById('conf-close').value;
 
-    const settingsData = { password, lateTime, closeTime };
-    await db.ref('settings/system').set(settingsData);
+    await db.ref('settings/system').set({ password, lateTime, closeTime });
     alert("💾 시스템 설정이 영구 저장되었습니다!");
 };
 
@@ -157,7 +222,7 @@ window.generateRandomPassword = function() {
     }
 };
 
-// --- [D] 레벨업 보상 설정 (영구 유지) ---
+// --- [D] 레벨업 보상 설정 ---
 window.saveGifts = async function() {
     const giftsText = document.getElementById('conf-gifts').value;
     await db.ref('settings/gifts').set({ listText: giftsText });
@@ -172,32 +237,43 @@ window.loadGiftsSetting = async function() {
     }
 };
 
-// --- [E] 학생 일괄 등록 (학기 초 전용, 가장 하단) ---
-window.bulkReg = async function() {
-    const textInput = document.getElementById('bulk-in');
-    if (!textInput || !textInput.value.trim()) return alert("등록할 학생 정보(이름,이메일)를 입력해주세요.");
+// 학생 일괄 등록 (이름과 이메일을 함께 저장)
+window.bulkReg = function() {
+    const rawText = document.getElementById('bulk-in').value.trim();
+    if (!rawText) {
+        alert("⚠️ 등록할 학생 명단을 입력해주세요.");
+        return;
+    }
 
-    const lines = textInput.value.split('\n');
+    const lines = rawText.split('\n');
+    let updates = {};
     let count = 0;
 
-    for (let line of lines) {
+    lines.forEach(line => {
         const parts = line.split(',');
-        if (parts.length >= 2) {
-            const name = parts[0].trim();
-            const email = parts[1].trim().toLowerCase();
-            if (name && email) {
-                const newRef = db.ref('users').push();
-                await newRef.set({
-                    name: name,
-                    email: email,
-                    number: count + 1,
-                    points: 0,
-                    role: '학생'
-                });
-                count++;
-            }
+        const name = parts[0] ? parts[0].trim() : "";
+        const email = parts[1] ? parts[1].trim() : "";
+
+        if (name) {
+            updates[name] = {
+                name: name,
+                email: email || "미등록",
+                points: 0,
+                exp: 0,
+                lv: 1,
+                no: count + 1
+            };
+            count++;
         }
+    });
+
+    if (count > 0) {
+        db.ref('users').update(updates).then(() => {
+            alert(`✅ 총 ${count명의 학생 명단(이메일 포함)이 성공적으로 주입되었습니다!`);
+            document.getElementById('bulk-in').value = "";
+            if (typeof renderAdminList === 'function') renderAdminList();
+        });
+    } else {
+        alert("⚠️ 올바른 형식(이름,이메일)으로 입력해주세요.");
     }
-    alert(`🎉 총 ${count명의 학생이 성공적으로 일괄 등록되었습니다!`);
-    textInput.value = "";
 };

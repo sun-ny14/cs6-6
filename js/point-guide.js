@@ -1,4 +1,4 @@
-// js/point-guide.js - 포인트 도감, 인벤토리, 승인/환불, 포인트 연대기 통합 로직
+// js/point-guide.js - 포인트 도감, 인벤토리, 승인/환불, 포인트 연대기 및 일괄 지급 통합 로직
 
 // 시간 포맷팅 헬퍼 함수 (YYYY-MM-DD HH:MM 초 제외)
 function formatDateTime(timestamp) {
@@ -11,6 +11,7 @@ function formatDateTime(timestamp) {
     const min = String(d.getMinutes()).padStart(2, '0');
     return `${y}-${m}-${day} ${h}:${min}`;
 }
+
 // ----------------------------------------------------
 // 1. 인벤토리 및 승인, 연대기 실시간 감지 (매우 중요)
 // ----------------------------------------------------
@@ -42,7 +43,7 @@ window.initPointsTabListeners = function() {
             }
 
             // 👑 선생님 뷰: 학생들이 사용 요청한 아이템 승인/환불 (상점 탭 하단에 표시)
-            if (isAdmin && o.status === '사용요청') {
+            if (typeof isAdmin !== 'undefined' && isAdmin && o.status === '사용요청') {
                 adminOrderHtml += `
                     <div style="background:#f8f9fa; border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:1.1rem;">🧑‍🎓 <b>${o.user}</b> 용사 - <b>${o.item}</b> 사용 요청</span>
@@ -74,7 +75,7 @@ window.initPointsTabListeners = function() {
         let historyHtml = "";
         historyArr.forEach(h => {
             // 권한 체크: 선생님은 전체 조회, 학생은 자기 이름이 들어간 내역만 조회
-            if (!isAdmin && h.user !== myName) return;
+            if ((typeof isAdmin === 'undefined' || !isAdmin) && typeof myName !== 'undefined' && h.user !== myName) return;
 
             const timeStr = formatDateTime(h.timestamp);
             const pColor = h.p >= 0 ? '#e74c3c' : '#3498db';
@@ -124,7 +125,7 @@ window.renderPointGuide = function() {
         const guideListEl = document.getElementById('guide-list');
         if (!guideListEl) return;
 
-        // 💡 [핵심 수정] 데이터베이스가 비어있을 경우 기존 항목 자동 복구
+        // 데이터베이스가 비어있을 경우 기본 항목 자동 복구
         if (!snap.exists()) {
             console.log("포인트 도감이 비어있어 기본 항목을 자동 생성합니다.");
             const defaultGuides = [
@@ -134,11 +135,9 @@ window.renderPointGuide = function() {
                 { title: "바른 태도", points: 50, desc: "수업에 집중하고 바른 자세로 참여했을 때" }
             ];
             
-            // Firebase에 기본 항목들을 주입합니다.
             for (let g of defaultGuides) {
                 await db.ref('settings/pointGuides').push(g);
             }
-            // 데이터가 들어가면 on('value')가 자동으로 다시 실행되므로 여기서 멈춥니다.
             return;
         }
 
@@ -148,22 +147,22 @@ window.renderPointGuide = function() {
         let html = "";
         
         // 관리자 전용: 새 항목 추가 버튼
-        if (isAdmin) {
+        if (typeof isAdmin !== 'undefined' && isAdmin) {
             html += `<button onclick="addPointGuideItem()" style="width:100%; padding:15px; background:var(--gold, #f1c40f); border:none; border-radius:10px; font-weight:bold; font-size:1.2rem; cursor:pointer; margin-bottom:15px;">+ 새 포인트 항목 추가</button>`;
         }
 
         html += `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:15px;">`;
         
         guides.forEach(g => {
-            const adminControls = isAdmin ? `
+            const adminControls = (typeof isAdmin !== 'undefined' && isAdmin) ? `
                 <div style="margin-top:10px; display:flex; gap:10px;" onclick="event.stopPropagation();">
                     <button onclick="editPointGuideItem('${g.key}', '${g.title}', ${g.points}, '${g.desc}')" style="flex:1; background:#f39c12; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">수정</button>
                     <button onclick="deletePointGuideItem('${g.key}', '${g.title}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">삭제</button>
                 </div>` : "";
 
-            // 관리자면 클릭 시 일괄 지급 팝업 오픈
-            const onClickAction = isAdmin ? `onclick="openBulkPointPopup('${g.title}', ${g.points})"` : "";
-            const hoverStyle = isAdmin ? `cursor:pointer; transition:transform 0.2s;` : ``;
+            // 관리자면 클릭 시 일괄 지급 팝업 오픈 (도감 타이틀과 포인트를 인자로 전달)
+            const onClickAction = (typeof isAdmin !== 'undefined' && isAdmin) ? `onclick="openBulkPointPopup('${g.title}', ${g.points})"` : "";
+            const hoverStyle = (typeof isAdmin !== 'undefined' && isAdmin) ? `cursor:pointer; transition:transform 0.2s;` : ``;
 
             html += `
                 <div ${onClickAction} style="background:white; border:2px solid #3498db; padding:20px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); ${hoverStyle}" ${isAdmin ? `onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'"` : ""}>
@@ -177,6 +176,7 @@ window.renderPointGuide = function() {
         guideListEl.innerHTML = html;
     });
 };
+
 window.addPointGuideItem = function() {
     const title = prompt("추가할 포인트 항목 이름 (예: 숙제 완료):");
     if (!title) return;
@@ -202,9 +202,11 @@ window.deletePointGuideItem = function(key, title) {
     }
 };
 
-// 플로팅 팝업 열기 (일괄 지급)
+// ----------------------------------------------------
+// 4. 플로팅 팝업 일괄 지급 로직 (도감 연동)
+// ----------------------------------------------------
 window.openBulkPointPopup = async function(reason, points) {
-    if (!isAdmin) return;
+    if (typeof isAdmin === 'undefined' || !isAdmin) return;
     const popup = document.getElementById('point-popup');
     const titleEl = document.getElementById('point-pop-title');
     const bodyEl = document.getElementById('point-pop-body');
@@ -212,62 +214,67 @@ window.openBulkPointPopup = async function(reason, points) {
 
     if (!popup || !bodyEl) return;
 
-    titleEl.innerText = `⚖️ 포인트 일괄 전령 (${reason} : ${points >= 0 ? '+' : ''}${points}P)`;
+    if (titleEl) {
+        titleEl.innerText = `⚖️ 포인트 일괄 전령 (${reason} : ${points >= 0 ? '+' : ''}${points}P)`;
+    }
 
     const userSnap = await db.ref('users').once('value');
     let usersArr = [];
     userSnap.forEach(c => { 
-        if(c.val().role !== '총관리자1' && c.val().role !== '총관리자2' && c.val().name !== '선생님') {
-            usersArr.push({ key: c.key, ...c.val() }); 
+        const val = c.val();
+        if(val.role !== '총관리자1' && val.role !== '총관리자2' && val.name !== '선생님') {
+            usersArr.push({ key: c.key, ...val }); 
         }
     });
-    usersArr.sort((a, b) => (a.number || 0) - (b.number || 0));
+    usersArr.sort((a, b) => (parseInt(a.no) || 0) - (parseInt(b.no) || 0));
 
     let bodyHtml = `
         <div style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
-            <label style="font-weight:bold; cursor:pointer;"><input type="checkbox" onclick="toggleSelectAllStudents(this)" style="transform:scale(1.3); margin-right:8px;"> 전체 선택</label>
+            <label style="font-weight:bold; cursor:pointer;"><input type="checkbox" onclick="toggleSelectAllStudents(this)" style="transform:scale(1.3); margin-right:8px;" checked> 전체 선택</label>
         </div>
         <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; max-height:350px; overflow-y:auto; padding:5px;">`;
 
     usersArr.forEach(u => {
         bodyHtml += `
             <label style="display:flex; align-items:center; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #ddd; cursor:pointer;">
-                <input type="checkbox" class="student-checkbox" value="${u.key}" data-name="${u.name}" style="transform:scale(1.2); margin-right:10px;">
-                <span style="font-size:1.1rem; font-weight:bold;">${u.number ? u.number + '. ' : ''}${u.name}</span>
+                <input type="checkbox" class="student-checkbox" value="${u.key}" data-name="${u.name}" style="transform:scale(1.2); margin-right:10px;" checked>
+                <span style="font-size:1.1rem; font-weight:bold;">${u.no ? u.no + '. ' : ''}${u.name}</span>
             </label>`;
     });
     bodyHtml += `</div>`;
     bodyEl.innerHTML = bodyHtml;
 
     // 기존 이벤트 초기화 후 버튼 연결
-    const newApplyBtn = applyBtn.cloneNode(true);
-    applyBtn.parentNode.replaceChild(newApplyBtn, applyBtn);
+    if (applyBtn) {
+        const newApplyBtn = applyBtn.cloneNode(true);
+        applyBtn.parentNode.replaceChild(newApplyBtn, applyBtn);
 
-    newApplyBtn.onclick = async function() {
-        const checkboxes = document.querySelectorAll('.student-checkbox:checked');
-        if (checkboxes.length === 0) return alert("학생을 한 명 이상 선택해주세요!");
-        if (!confirm(`${checkboxes.length}명의 학생에게 [${reason}] 사유로 ${points}P를 부여하시겠습니까?`)) return;
+        newApplyBtn.onclick = async function() {
+            const checkboxes = document.querySelectorAll('.student-checkbox:checked');
+            if (checkboxes.length === 0) return alert("학생을 한 명 이상 선택해주세요!");
+            if (!confirm(`${checkboxes.length}명의 학생에게 [${reason}] 사유로 ${points}P를 부여하시겠습니까?`)) return;
 
-        const updates = {};
-        const timestamp = new Date().getTime(); // 연대기 정렬을 위한 타임스탬프 저장
+            const updates = {};
+            const timestamp = new Date().getTime(); // 연대기 정렬을 위한 타임스탬프
 
-        for (let cb of checkboxes) {
-            const sKey = cb.value;
-            const sName = cb.getAttribute('data-name');
-            const uSnap = await db.ref(`users/${sKey}`).once('value');
-            if (uSnap.exists()) {
-                const currentPoints = uSnap.val().points || 0;
-                updates[`users/${sKey}/points`] = currentPoints + points;
-                
-                // 포인트 연대기에 시간 기록과 함께 저장
-                const hRef = db.ref('history').push();
-                updates[`history/${hRef.key}`] = { user: sName, p: points, reason: reason, timestamp: timestamp };
+            for (let cb of checkboxes) {
+                const sKey = cb.value;
+                const sName = cb.getAttribute('data-name');
+                const uSnap = await db.ref(`users/${sKey}`).once('value');
+                if (uSnap.exists()) {
+                    const currentPoints = uSnap.val().points || 0;
+                    updates[`users/${sKey}/points`] = currentPoints + points;
+                    
+                    // 포인트 연대기에 시간 기록과 함께 저장
+                    const hRef = db.ref('history').push();
+                    updates[`history/${hRef.key}`] = { user: sName, p: points, reason: reason, timestamp: timestamp };
+                }
             }
-        }
-        await db.ref().update(updates);
-        alert("✨ 일괄 지급 완료!");
-        closePointPopup();
-    };
+            await db.ref().update(updates);
+            alert("✨ 일괄 지급 완료!");
+            closePointPopup();
+        };
+    }
     popup.style.display = 'flex';
 };
 
@@ -280,10 +287,12 @@ window.closePointPopup = function() {
     if (popup) popup.style.display = 'none';
 };
 
-// 페이지가 켜지면 리스너들 자동 실행
+// ----------------------------------------------------
+// 5. 페이지 로드 초기화 리스너
+// ----------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
         if (typeof renderPointGuide === 'function') renderPointGuide();
         if (typeof initPointsTabListeners === 'function') initPointsTabListeners();
-    }, 500); // 권한 정보가 세팅된 후 호출되도록 0.5초 대기
+    }, 500); 
 });
