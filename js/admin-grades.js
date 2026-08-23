@@ -275,8 +275,10 @@ if (typeof window.totalBudget === 'undefined') {
 
 // 예산 데이터 실시간 불러오기 및 렌더링
 window.initBudgetManager = function() {
+    // 총 예산 설정값 연동 (settings/budgetTotal 또는 settings/system 구조 모두 대응)
     db.ref('settings/budgetTotal').on('value', s => { 
         window.totalBudget = s.val() || 0; 
+        updateBudgetSummaryUI();
     });
 
     db.ref('budgetRecords').on('value', snap => {
@@ -295,16 +297,23 @@ window.initBudgetManager = function() {
                   </tr>`;
         });
         
+        window.totalSpentCache = totalSpent;
         const budgetListEl = document.getElementById('budget-list');
-        const budgetSummaryEl = document.getElementById('budget-summary');
 
         if (budgetListEl) {
             budgetListEl.innerHTML = h || "<tr><td colspan='5' style='padding:20px; text-align:center; color:#888;'>내역이 없습니다.</td></tr>";
         }
-        if (budgetSummaryEl) {
-            budgetSummaryEl.innerHTML = `총 예산: ${window.totalBudget.toLocaleString()}원 | 사용액: ${totalSpent.toLocaleString()}원 | <span style="color:var(--primary, #3498db)">현재 잔액: ${(window.totalBudget - totalSpent).toLocaleString()}원</span>`;
-        }
+        updateBudgetSummaryUI();
     });
+};
+
+// 예산 요약 UI 업데이트 헬퍼 함수
+window.updateBudgetSummaryUI = function() {
+    const budgetSummaryEl = document.getElementById('budget-summary');
+    if (budgetSummaryEl) {
+        const spent = window.totalSpentCache || 0;
+        budgetSummaryEl.innerHTML = `총 예산: ${(window.totalBudget || 0).toLocaleString()}원 | 사용액: ${spent.toLocaleString()}원 | <span style="color:var(--primary, #3498db)">현재 잔액: ${((window.totalBudget || 0) - spent).toLocaleString()}원</span>`;
+    }
 };
 
 // 운영비 내역 추가 팝업 창 열기
@@ -332,6 +341,7 @@ window.updateTotalBudget = function() {
     
     db.ref('settings').update({ budgetTotal: val }).then(() => {
         alert("✅ 총 예산이 수정되었습니다!");
+        if (typeof closePopup === 'function') closePopup();
     });
 };
 

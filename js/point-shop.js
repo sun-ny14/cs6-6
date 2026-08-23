@@ -415,3 +415,39 @@ db.ref('shop').on('value', (s) => {
     s.forEach(c => window.shopData.push(c)); 
     window.renderShop(); 
 });
+// 12. 관리자: 상점 주문 및 포인트 연대기(orders) 데이터 실시간 렌더링 함수
+window.loadOrderRecords = function() {
+    db.ref('orders').on('value', snap => {
+        const orderListEl = document.getElementById('admin-order-list'); // 👈 HTML 상의 주문 목록 테이블 tbody ID
+        if (!orderListEl) return;
+
+        if (!snap.exists()) {
+            orderListEl.innerHTML = "<tr><td colspan='5' style='text-align:center; padding:20px; color:#888;'>주문 및 사용 내역이 없습니다.</td></tr>";
+            return;
+        }
+
+        let html = "";
+        snap.forEach(child => {
+            const key = child.key;
+            const item = child.val();
+            
+            let statusColor = item.status === '완료' ? '#27ae60' : '#e65100';
+            let timeFormatted = item.time ? new Date(item.time).toLocaleString('ko-KR') : (item.timeStr || '-');
+
+            html += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:10px; font-weight:bold;">${item.user || ''}</td>
+                    <td style="padding:10px;">${item.item || ''}</td>
+                    <td style="padding:10px; font-weight:bold; color:${statusColor};">${item.status || '대기중'}</td>
+                    <td style="padding:10px; color:#666; font-size:0.9rem;">${timeFormatted}</td>
+                    <td style="padding:10px;">
+                        <button onclick="approveSingleItem('${key}', '${item.user}', '${item.item}')" style="padding:5px 10px; background:var(--primary, #3498db); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">승인</button>
+                        <button onclick="rejectSingleItem('${key}', '${item.user}', '${item.item}')" style="padding:5px 10px; background:var(--red, #e74c3c); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">거절</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        orderListEl.innerHTML = html;
+    });
+};

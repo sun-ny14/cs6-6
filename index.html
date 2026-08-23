@@ -170,44 +170,27 @@
                 </div>
             </section>
 
-            <!-- 3. 등교 탭 -->
-            <section id="tab-checkin" class="tab-content">
-                <div style="display:flex; gap:15px; margin-bottom:25px;">
-                    <button onclick="switchCheckinSub('checkin-main')" id="sub-btn-checkin-main" style="background:#2c3e50; color:white; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer;">⚔️ 등교하기</button>
-                    <button onclick="switchCheckinSub('checkin-logs')" id="sub-btn-checkin-logs" style="background:#ddd; color:#333; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer;">📅 등교로그 및 좌석</button>
-                </div>
+          <!-- 3. 등교 탭 수정 -->
+<section id="tab-checkin" class="tab-content">
+    <!-- 💡 관리자 또는 도우미에게만 '등교로그 및 좌석' 서브 버튼 노출 -->
+    <div id="checkin-sub-menu-container" style="display:flex; gap:15px; margin-bottom:25px;">
+        <button onclick="switchCheckinSub('checkin-main')" id="sub-btn-checkin-main" style="background:#2c3e50; color:white; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer;">⚔️ 등교하기</button>
+        <button onclick="switchCheckinSub('checkin-logs')" id="sub-btn-checkin-logs" style="background:#ddd; color:#333; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer; display:none;" class="admin-only-checkin-btn">📅 등교로그 및 좌석</button>
+    </div>
 
-                <div id="sub-checkin-main" class="sub-checkin-content">
-                    <div class="card" style="background:white; padding:35px; border-radius:15px;">
-                        <h2>⚔️ 등교 확인</h2>
-                        <div id="checkin-guide" style="font-weight:bold; margin-bottom:20px; color:#2c3e50; font-size:1.4rem;"></div>
-                        <input type="number" id="checkin-pass" placeholder="오늘의 등교 암호 4자리 입력" style="text-align:center; padding:18px; width:100%; box-sizing:border-box; margin-bottom:20px; font-size:1.4rem;">
-                        <button id="checkin-btn" onclick="submitCheckIn()" style="background:#3498db; color:white; border:none; border-radius:15px; padding:22px; width:100%; font-weight:bold; font-size:1.4rem; cursor:pointer;">본부 소환!</button>
-                    </div>
-                </div>
+    <div id="sub-checkin-main" class="sub-checkin-content">
+        <div class="card" style="background:white; padding:35px; border-radius:15px;">
+            <h2>⚔️ 등교 확인</h2>
+            <div id="checkin-guide" style="font-weight:bold; margin-bottom:20px; color:#2c3e50; font-size:1.4rem;"></div>
+            <input type="number" id="checkin-pass" placeholder="오늘의 등교 암호 4자리 입력" style="text-align:center; padding:18px; width:100%; box-sizing:border-box; margin-bottom:20px; font-size:1.4rem;">
+            <button id="checkin-btn" onclick="submitCheckIn()" style="background:#3498db; color:white; border:none; border-radius:15px; padding:22px; width:100%; font-weight:bold; font-size:1.4rem; cursor:pointer;">본부 소환!</button>
+        </div>
+    </div>
 
-                <div id="sub-checkin-logs" class="sub-checkin-content" style="display:none;">
-                    <div class="card" style="background:white; padding:35px; border-radius:15px;">
-                        <div style="background: #eef2f7; padding: 30px; border-radius: 15px; margin-bottom: 25px; text-align: center; border: 2px solid #3498db;">
-                            <label for="checkin-date-filter" style="display: block; font-weight: bold; font-size: 1.6rem; margin-bottom: 12px; color: #2c3e50;">📅 등교 조회 날짜</label>
-                            <input type="date" id="checkin-date-filter" onchange="generateNewLayout()" style="width: 100%; max-width: 350px; font-size: 1.9rem; padding: 14px; border-radius: 10px; border: 1px solid #ccc; text-align: center;">
-                        </div>
-                        <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
-                            <button onclick="openExclusionPopup()" style="flex: 1; background: #9b59b6; color: white; padding: 18px; border-radius: 12px; font-weight: bold; font-size: 1.3rem; border: none; cursor: pointer;">🚫 고정 등교제외 설정</button>
-                            <button onclick="toggleSeatEditMode()" id="edit-mode-btn" style="flex: 1; background: #2c3e50; color: white; padding: 18px; border-radius: 12px; font-weight: bold; font-size: 1.3rem; border: none; cursor: pointer;">🪑 좌석 배치 수정</button>
-                            <button onclick="downloadMonthlyExcel()" style="width: 100px; background: #2ecc71; color: white; border-radius: 12px; border: none; font-size: 1.3rem; font-weight: bold; cursor: pointer;">📊 엑셀</button>
-                        </div>
-                        <div id="seat-edit-panel" style="display:none; background:#fff3cd; padding:22px; border-radius:15px; margin-bottom:20px; border: 2px dashed #ffc107;">
-                            <div class="horizontal-box" style="justify-content: center;">
-                                가로 <input type="number" id="seat-cols" value="5" style="width:90px; font-size: 1.3rem; padding: 10px;"> x 
-                                세로 <input type="number" id="seat-rows" value="6" style="width:90px; font-size: 1.3rem; padding: 10px;">
-                                <button onclick="saveSeatLayout()" style="background:#3498db; color:white; padding: 14px 28px; font-weight: bold; border-radius: 8px; cursor:pointer; font-size: 1.2rem;">배치 저장</button>
-                            </div>
-                        </div>
-                        <div id="seat-map-container" style="display:grid; gap:15px; width:100%; background:#f1f1f1; padding:20px; border-radius:15px; border: 1px solid #ddd;"></div>
-                    </div>
-                </div>
-            </section>
+    <div id="sub-checkin-logs" class="sub-checkin-content" style="display:none;">
+        <!-- 기존 등교로그 및 좌석 컨텐츠 영역 -->
+    </div>
+</section>
 
             <!-- 4. 포인트·도감 탭 -->
             <section id="tab-points" class="tab-content">

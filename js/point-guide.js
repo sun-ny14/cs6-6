@@ -66,10 +66,19 @@ window.initPointsTabListeners = function() {
         if (adminOrderEl) adminOrderEl.innerHTML = adminOrderHtml || "<p style='color:#999;'>대기 중인 사용 요청이 없습니다.</p>";
     });
 
-    // [포인트 연대기 리스너]
-    db.ref('history').orderByChild('timestamp').on('value', snap => {
+    // [포인트 연대기 리스너 - 기존 데이터 구조(eAmt, pAmt) 완벽 호환]
+    db.ref('history').on('value', snap => {
         let historyArr = [];
-        snap.forEach(c => { historyArr.push(c.val()); });
+        snap.forEach(c => { 
+            const val = c.val();
+            historyArr.push({
+                user: val.user || val.name || "알 수 없음",
+                p: val.p !== undefined ? val.p : (val.pAmt || 0),
+                e: val.e !== undefined ? val.e : (val.eAmt || 0),
+                reason: val.reason || "지급/차감",
+                timeStr: val.time || formatDateTime(val.timestamp)
+            });
+        });
         historyArr.reverse(); // 최신순으로 뒤집기
 
         let historyHtml = "";
@@ -77,16 +86,16 @@ window.initPointsTabListeners = function() {
             // 권한 체크: 선생님은 전체 조회, 학생은 자기 이름이 들어간 내역만 조회
             if ((typeof isAdmin === 'undefined' || !isAdmin) && typeof myName !== 'undefined' && h.user !== myName) return;
 
-            const timeStr = formatDateTime(h.timestamp);
             const pColor = h.p >= 0 ? '#e74c3c' : '#3498db';
             const sign = h.p >= 0 ? '+' : '';
 
             historyHtml += `
                 <div style="padding:12px; border-bottom:1px solid #eee; display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:0.9rem; color:#7f8c8d;">🕒 ${timeStr}</span>
+                    <span style="font-size:0.9rem; color:#7f8c8d;">🕒 ${h.timeStr}</span>
                     <span style="font-size:1.1rem; color:#2c3e50;">
                         <b>${h.user}</b>: ${h.reason} 
                         <b style="color:${pColor}; margin-left:8px;">(${sign}${h.p}P)</b>
+                        ${h.e ? `<b style="color:#27ae60; margin-left:4px;">(+${h.e}EXP)</b>` : ''}
                     </span>
                 </div>`;
         });

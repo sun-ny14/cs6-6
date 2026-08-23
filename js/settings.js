@@ -7,8 +7,6 @@ window.initSettings = function() {
     loadSeatSettings();
 };
 
-// js/settings.js - 좌석 배치 설정, 시스템 설정 및 학생 명단 관리 통합 모듈
-
 // --- [A] 좌석 배치 설정 ---
 window.generateSeatInputs = function() {
     const colsEl = document.getElementById('seat-cols');
@@ -122,7 +120,6 @@ window.loadStudentAdminList = function() {
         
         usersArr.sort((a, b) => parseInt(a.no || 0) - parseInt(b.no || 0));
         
-        // 전역 배열 동기화 (다른 함수에서 currentUsers를 참조할 때를 대비)
         if (typeof currentUsers !== 'undefined') {
             currentUsers = usersArr;
         }
@@ -131,7 +128,6 @@ window.loadStudentAdminList = function() {
     });
 };
 
-// 관리자용 학생 명단 렌더링 함수
 window.renderAdminList = function() {
     const listEl = document.getElementById('student-admin-list');
     if (!listEl) return;
@@ -143,9 +139,9 @@ window.renderAdminList = function() {
         if (u.name === "총사령관") return; 
         
         let currentRole = u.role || (u.isHelper ? '상점' : '일반');
-        let roleColor = '#95a5a6'; // 일반 (회색)
-        if (currentRole === '상점') roleColor = '#3498db'; // 상점 (파란색)
-        else if (currentRole === '청소') roleColor = '#27ae60'; // 청소 (초록색)
+        let roleColor = '#95a5a6'; 
+        if (currentRole === '상점') roleColor = '#3498db'; 
+        else if (currentRole === '청소') roleColor = '#27ae60'; 
 
         h += `<div class="list-item" style="padding:10px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; flex-wrap:nowrap;">
                 <input type="number" value="${u.no || ''}" onchange="updateNo('${u.name}', this.value)" style="width:80px; height:55px; text-align:center; font-size:1.8rem; padding:0; border:2px solid var(--primary, #3498db); border-radius:8px; font-weight:bold; flex-shrink:0;">
@@ -165,16 +161,14 @@ window.renderAdminList = function() {
     listEl.innerHTML = h || "<div style='text-align:center; padding:20px;'>용사가 없습니다.</div>"; 
 };
 
-// 학생 번호 수정
 window.updateNo = function(n, v) { 
     db.ref('users/' + n).update({ no: parseInt(v) || 0 }); 
 };
 
-// 학생 역할(Role) 업데이트 함수
 window.updateUserRole = function(userName, newRole) {
     db.ref(`users/${userName}`).update({
         role: newRole,
-        isHelper: newRole === '상점' // 상점 역할일 때만 helper 활성화
+        isHelper: newRole === '상점'
     }).then(() => {
         const roleIcon = newRole === '상점' ? '🛍️' : (newRole === '청소' ? '🧹' : '👤');
         alert(`${userName} 학생의 역할이 [ ${roleIcon} ${newRole} ](으)로 변경되었습니다!`);
@@ -269,7 +263,7 @@ window.bulkReg = function() {
 
     if (count > 0) {
         db.ref('users').update(updates).then(() => {
-            alert(`✅ 총 ${count명의 학생 명단(이메일 포함)이 성공적으로 주입되었습니다!`);
+            alert(`✅ 총 ${count}명의 학생 명단(이메일 포함)이 성공적으로 주입되었습니다!`);
             document.getElementById('bulk-in').value = "";
             if (typeof renderAdminList === 'function') renderAdminList();
         });
