@@ -82,7 +82,6 @@ window.saveSeatSettings = async function() {
 
     alert("🪑 좌석 배치 설정과 이름들이 영구 저장되었습니다! ✨");
     
-    // 저장 직후 설정 화면의 현재 좌석 배치도 실시간 갱신
     if (typeof renderCurrentSeatingView === 'function') {
         renderCurrentSeatingView();
     }
@@ -110,7 +109,6 @@ window.loadSeatSettings = async function() {
     }
 };
 
-// 좌석 배치 표 만들기 설정 영역 토글 함수
 function toggleSeatBuilder() {
     const section = document.getElementById('seat-builder-section');
     if (section) {
@@ -264,23 +262,25 @@ window.confirmDeleteStudent = function(userName) {
     }
 };
 
-// --- [C] 시스템 설정 ---
+// --- [C] 시스템 설정 (db.ref('settings') 루트에 직접 저장하도록 수정) ---
 window.saveSettings = async function() {
     const password = document.getElementById('conf-pass').value;
     const lateTime = document.getElementById('conf-late').value;
     const closeTime = document.getElementById('conf-close').value;
+    const routineText = document.getElementById('conf-routine') ? document.getElementById('conf-routine').value : "";
 
-    await db.ref('settings/system').set({ password, lateTime, closeTime });
+    await db.ref('settings').update({ password, lateTime, closeTime, routineText });
     alert("💾 시스템 설정이 영구 저장되었습니다!");
 };
 
 window.loadSystemSettings = async function() {
-    const snap = await db.ref('settings/system').once('value');
+    const snap = await db.ref('settings').once('value');
     if (snap.exists()) {
         const data = snap.val();
         if (document.getElementById('conf-pass')) document.getElementById('conf-pass').value = data.password || '';
         if (document.getElementById('conf-late')) document.getElementById('conf-late').value = data.lateTime || '';
         if (document.getElementById('conf-close')) document.getElementById('conf-close').value = data.closeTime || '';
+        if (document.getElementById('conf-routine')) document.getElementById('conf-routine').value = data.routineText || '';
     }
 };
 
@@ -296,15 +296,17 @@ window.generateRandomPassword = function() {
 // --- [D] 레벨업 보상 설정 ---
 window.saveGifts = async function() {
     const giftsText = document.getElementById('conf-gifts').value;
-    await db.ref('settings/gifts').set({ listText: giftsText });
+    const listArr = giftsText.split('\n').map(item => item.trim()).filter(item => item);
+    await db.ref('settings').update({ giftList: listArr, 'gifts/listText': giftsText });
     alert("🎁 레벨업 보상 목록이 저장되었습니다!");
 };
 
 window.loadGiftsSetting = async function() {
-    const snap = await db.ref('settings/gifts').once('value');
+    const snap = await db.ref('settings').once('value');
     if (snap.exists()) {
         const data = snap.val();
-        if (document.getElementById('conf-gifts')) document.getElementById('conf-gifts').value = data.listText || '';
+        const textVal = data.gifts?.listText || (data.giftList ? data.giftList.join('\n') : '');
+        if (document.getElementById('conf-gifts')) document.getElementById('conf-gifts').value = textVal;
     }
 };
 
