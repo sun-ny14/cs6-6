@@ -44,22 +44,21 @@ auth.onAuthStateChanged(user => {
                     }
 
                     if (isAdmin) {
-                        ['btn-logs', 'btn-admin', 'btn-budget', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
+                        // 💡 [수정] 학급관리 버튼('btn-management') 및 관리자 전용 메뉴들이 확실히 뜨도록 추가!
+                        ['btn-logs', 'btn-admin', 'btn-budget', 'btn-management', 'btn-blackboard-admin', 'btn-cleaning', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
                             const el = document.getElementById(id);
                             if (el) el.style.display = 'block';
                         });
 
                         const myInv = document.getElementById('my-inventory');
                         if (myInv) myInv.style.display = 'none';
-
-                        if (!sessionStorage.getItem('activeTab') && typeof currentTab !== 'undefined') {
-                            currentTab = 'logs';
-                        }
                     }
                     
                     if (typeof startApp === 'function') startApp(); 
-                    if (typeof showTab === 'function' && typeof currentTab !== 'undefined') {
-                        showTab(currentTab);
+                    
+                    // 💡 [수정] 로그인 직후 무조건 '용사들' 탭('main')이 뜨도록 강제 설정하여 흰 바탕 문제 원천 차단
+                    if (typeof showTab === 'function') {
+                        showTab('main');
                     }
                 });
             } else { 
@@ -87,7 +86,6 @@ window.openUserHistory = function(un) {
         const pts = u.points || 0; 
         const isMeOrAdmin = (isAdmin || un === myName);
         
-        // 관리자 전용 특정 상품 구매한도 리셋 버튼
         const adminResetBtn = isAdmin ? `<button onclick="resetUserItemLimit('${un}')" style="margin-top:10px; padding:8px 12px; background:var(--purple, #9b59b6); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🔄 특정 상품 구매한도 리셋</button>` : '';
         const visitRoomBtn = `<button onclick="visitRoom('${un}')" style="margin-top:10px; padding:10px; background:var(--primary, #3498db); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🏠 방명록 방문하기</button>`;
 

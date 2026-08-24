@@ -23,7 +23,7 @@ function showTab(t) {
         s.style.display = ''; 
     }); 
     
-    document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); 
+    document.querySelectorAll('.sidebar-menu button').forEach(b => b.classList.remove('active')); 
     
     const targetTab = document.getElementById('tab-'+t);
     if (targetTab) targetTab.classList.add('active');
@@ -31,6 +31,10 @@ function showTab(t) {
     const targetBtn = document.getElementById('btn-'+t);
     if(targetBtn) targetBtn.classList.add('active'); 
     
+    // 💡 [핵심 추가] 등교 탭(checkin) 클릭 시 처리 분기 추가
+    if (t === 'checkin') {
+        if (typeof switchCheckinSub === 'function') switchCheckinSub('checkin-main');
+    }
     if (t === 'shop') {
         if (typeof renderShop === 'function') renderShop();
         if (typeof loadOrderRecords === 'function') loadOrderRecords();
@@ -65,14 +69,23 @@ function getAvatar(lv, selectedAnimal) {
 }
 
 function switchCheckinSub(subId) {
-    document.getElementById('sub-checkin-main').style.display = (subId === 'checkin-main') ? 'block' : 'none';
-    document.getElementById('sub-checkin-logs').style.display = (subId === 'checkin-logs') ? 'block' : 'none';
+    const subMain = document.getElementById('sub-checkin-main');
+    const subLogs = document.getElementById('sub-checkin-logs');
+    const btnMain = document.getElementById('sub-btn-checkin-main');
+    const btnLogs = document.getElementById('sub-btn-checkin-logs');
+
+    if (subMain) subMain.style.display = (subId === 'checkin-main') ? 'block' : 'none';
+    if (subLogs) subLogs.style.display = (subId === 'checkin-logs') ? 'block' : 'none';
     
-    document.getElementById('sub-btn-checkin-main').style.background = (subId === 'checkin-main') ? 'var(--dark)' : '#ddd';
-    document.getElementById('sub-btn-checkin-main').style.color = (subId === 'checkin-main') ? 'white' : '#333';
+    if (btnMain) {
+        btnMain.style.background = (subId === 'checkin-main') ? 'var(--dark, #2c3e50)' : '#ddd';
+        btnMain.style.color = (subId === 'checkin-main') ? 'white' : '#333';
+    }
     
-    document.getElementById('sub-btn-checkin-logs').style.background = (subId === 'checkin-logs') ? 'var(--dark)' : '#ddd';
-    document.getElementById('sub-btn-checkin-logs').style.color = (subId === 'checkin-logs') ? 'white' : '#333';
+    if (btnLogs) {
+        btnLogs.style.background = (subId === 'checkin-logs') ? 'var(--dark, #2c3e50)' : '#ddd';
+        btnLogs.style.color = (subId === 'checkin-logs') ? 'white' : '#333';
+    }
     
     if (subId === 'checkin-logs') {
         if (typeof generateNewLayout === 'function') generateNewLayout();
@@ -85,12 +98,12 @@ function renderManagementSub(type) {
     const btnBudget = document.getElementById('sub-btn-budget');
     
     if (type === 'grades') {
-        btnGrades.style.background = 'var(--primary)'; btnGrades.style.color = 'white';
-        btnBudget.style.background = '#ddd'; btnBudget.style.color = '#333';
+        if(btnGrades) { btnGrades.style.background = 'var(--primary)'; btnGrades.style.color = 'white'; }
+        if(btnBudget) { btnBudget.style.background = '#ddd'; btnBudget.style.color = '#333'; }
         
         if (typeof renderGradesMain === 'function') {
             renderGradesMain();
-        } else {
+        } else if (container) {
             container.innerHTML = `
                 <div class="card">
                     <h2>📝 성적 및 평가 관리</h2>
@@ -99,8 +112,8 @@ function renderManagementSub(type) {
             `;
         }
     } else if (type === 'budget') {
-        btnBudget.style.background = 'var(--primary)'; btnBudget.style.color = 'white';
-        btnGrades.style.background = '#ddd'; btnGrades.style.color = '#333';
+        if(btnBudget) { btnBudget.style.background = 'var(--primary)'; btnBudget.style.color = 'white'; }
+        if(btnGrades) { btnGrades.style.background = '#ddd'; btnGrades.style.color = '#333'; }
         
         if (typeof initBudgetManager === 'function') {
             initBudgetManager();

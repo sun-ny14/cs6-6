@@ -1,61 +1,82 @@
 // js/admin-grades.js - 성적 관리, 평가 시스템, 학급 운영비 및 예산 관리 통합 파일
 
+// 학급관리 메인 탭 라우터 (서브 탭 전환 제어)
+window.renderManagementSub = function(subType) {
+    const gradesSection = document.getElementById('tab-grades');
+    if (!gradesSection) return;
+
+    // 상단 버튼 영역 유지 및 하단 컨텐츠 영역 분리
+    gradesSection.innerHTML = `
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <button onclick="renderManagementSub('grades')" style="flex:1; padding:12px; font-size:1.1rem; font-weight:bold; border:none; border-radius:8px; cursor:pointer; background:${subType === 'grades' ? 'var(--primary, #3498db)' : '#e0e0e0'}; color:${subType === 'grades' ? 'white' : '#333'};">📝 성적 관리</button>
+            <button onclick="renderManagementSub('budget')" style="flex:1; padding:12px; font-size:1.1rem; font-weight:bold; border:none; border-radius:8px; cursor:pointer; background:${subType === 'budget' ? 'var(--primary, #3498db)' : '#e0e0e0'}; color:${subType === 'budget' ? 'white' : '#333'};">💰 학급 운영비</button>
+        </div>
+        <div id="management-sub-content"></div>
+    `;
+
+    const subContentEl = document.getElementById('management-sub-content');
+    if (!subContentEl) return;
+
+    if (subType === 'grades') {
+        subContentEl.innerHTML = `
+            <div class="card" style="margin-bottom: 20px;">
+                <h2>📝 성적 및 평가 관리</h2>
+                <p>학생들의 성적과 수행평가 기록을 관리하는 공간입니다.</p>
+                <div style="text-align:center; margin:15px 0;">
+                    <div id="grades-subject-buttons" style="display:flex; flex-wrap:nowrap; overflow-x:auto; justify-content:center; gap:5px; padding: 6px; background: #f1f3f5; border-radius: 8px;">
+                    </div>
+                </div>
+                <div id="grades-content-area" style="margin-top:15px;"></div>
+            </div>
+        `;
+        if (typeof loadSubjectGrades === 'function') {
+            loadSubjectGrades(typeof currentGradeSubject !== 'undefined' ? currentGradeSubject : '국어');
+        }
+    } else {
+        subContentEl.innerHTML = `
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2 style="margin:0;">💰 학급 운영비 및 예산 관리</h2>
+                    <button onclick="openAddBudgetPopup()" style="background:var(--primary, #3498db); color:white; padding:8px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">+ 내역 추가 / 예산 설정</button>
+                </div>
+                <div id="budget-summary" style="font-size:1.1rem; font-weight:bold; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:8px; border:1px solid #dee2e6;">
+                    예산 정보 불러오는 중...
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; text-align:left;">
+                        <thead>
+                            <tr style="background:#f1f3f5; border-bottom:2px solid #ccc;">
+                                <th style="padding:10px;">날짜</th>
+                                <th style="padding:10px;">쇼핑몰</th>
+                                <th style="padding:10px;">용도</th>
+                                <th style="padding:10px;">금액</th>
+                                <th style="padding:10px;">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="budget-list">
+                            <tr><td colspan='5' style='padding:20px; text-align:center; color:#888;'>내역을 불러오는 중입니다...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        if (typeof initBudgetManager === 'function') {
+            initBudgetManager();
+        }
+    }
+};
+
+window.renderGradesMain = function() {
+    renderManagementSub('grades');
+};
+
+
 // ==========================================
 // 1. 성적 및 평가 관리 시스템
 // ==========================================
 
 const SUBJECTS = ['국어', '수학', '사회', '과학', '미술', '도덕', '음악', '체육', '실과'];
 let currentGradeSubject = '국어';
-
-// 성적 탭 메인 화면 렌더링
-window.renderGradesMain = function() {
-    const gradesSection = document.getElementById('tab-grades');
-    if (!gradesSection) return;
-    
-    gradesSection.innerHTML = `
-        <div class="card" style="margin-bottom: 20px;">
-            <h2>📝 성적 및 평가 관리</h2>
-            <p>학생들의 성적과 수행평가 기록을 관리하는 공간입니다.</p>
-            <div style="text-align:center; margin:15px 0;">
-                <div id="grades-subject-buttons" style="display:flex; flex-wrap:nowrap; overflow-x:auto; justify-content:center; gap:5px; padding: 6px; background: #f1f3f5; border-radius: 8px;">
-                </div>
-            </div>
-            <div id="grades-content-area" style="margin-top:15px;"></div>
-        </div>
-        
-        <!-- 학급 운영비 및 예산 관리 카드 영역 연동 -->
-        <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <h2 style="margin:0;">💰 학급 운영비 및 예산 관리</h2>
-                <button onclick="openAddBudgetPopup()" style="background:var(--primary, #3498db); color:white; padding:8px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">+ 내역 추가 / 예산 설정</button>
-            </div>
-            <div id="budget-summary" style="font-size:1.1rem; font-weight:bold; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:8px; border:1px solid #dee2e6;">
-                예산 정보 불러오는 중...
-            </div>
-            <div style="overflow-x:auto;">
-                <table style="width:100%; border-collapse:collapse; text-align:left;">
-                    <thead>
-                        <tr style="background:#f1f3f5; border-bottom:2px solid #ccc;">
-                            <th style="padding:10px;">날짜</th>
-                            <th style="padding:10px;">쇼핑몰</th>
-                            <th style="padding:10px;">용도</th>
-                            <th style="padding:10px;">금액</th>
-                            <th style="padding:10px;">관리</th>
-                        </tr>
-                    </thead>
-                    <tbody id="budget-list">
-                        <tr><td colspan='5' style='padding:20px; text-align:center; color:#888;'>내역을 불러오는 중입니다...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-    
-    loadSubjectGrades(currentGradeSubject);
-    if (typeof initBudgetManager === 'function') {
-        initBudgetManager();
-    }
-};
 
 // 선택한 과목의 '평가 목록' 불러오기
 window.loadSubjectGrades = function(subject) {
@@ -275,7 +296,6 @@ if (typeof window.totalBudget === 'undefined') {
 
 // 예산 데이터 실시간 불러오기 및 렌더링
 window.initBudgetManager = function() {
-    // 총 예산 설정값 연동 (settings/budgetTotal 또는 settings/system 구조 모두 대응)
     db.ref('settings/budgetTotal').on('value', s => { 
         window.totalBudget = s.val() || 0; 
         updateBudgetSummaryUI();
@@ -307,7 +327,6 @@ window.initBudgetManager = function() {
     });
 };
 
-// 예산 요약 UI 업데이트 헬퍼 함수
 window.updateBudgetSummaryUI = function() {
     const budgetSummaryEl = document.getElementById('budget-summary');
     if (budgetSummaryEl) {
@@ -316,7 +335,6 @@ window.updateBudgetSummaryUI = function() {
     }
 };
 
-// 운영비 내역 추가 팝업 창 열기
 window.openAddBudgetPopup = function() {
     let h = `<h3>🧾 운영비 내역 추가</h3>
             날짜: <input type="date" id="bg-date" value="${new Date().toISOString().split('T')[0]}" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
@@ -334,7 +352,6 @@ window.openAddBudgetPopup = function() {
     }
 };
 
-// 총 예산 수정 함수
 window.updateTotalBudget = function() {
     const val = parseInt(document.getElementById('bg-total-setting').value);
     if (isNaN(val)) return alert("올바른 숫자를 입력해주세요!");
@@ -345,7 +362,6 @@ window.updateTotalBudget = function() {
     });
 };
 
-// 운영비 지출 내역 저장
 window.saveBudget = function() {
     const date = document.getElementById('bg-date').value;
     const mall = document.getElementById('bg-mall').value;
@@ -367,8 +383,7 @@ window.saveBudget = function() {
     }
 };
 
-// 운영비 내역 삭제
-window.deleteBudget = function(key) {
+window.deleteBudget = function(key, title) {
     if (confirm("정말로 이 내역을 삭제하시겠습니까?")) {
         db.ref('budgetRecords/' + key).remove().then(() => {
             alert("🗑️ 삭제되었습니다.");

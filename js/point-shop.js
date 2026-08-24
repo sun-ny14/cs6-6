@@ -162,33 +162,50 @@ window.saveNewItem = function() {
     }
 };
 
-// 4. 관리자: 물품 수정 및 삭제 팝업창 연동
+// 4. 관리자: 물품 수정 및 삭제 팝업창 연동 (스크롤 및 버튼 고정형 UI 적용)
 window.openEditShopPopup = function(k) {
     db.ref('shop/' + k).once('value', snap => {
         const i = snap.val(); 
         if(!i) return;
         const stockVal = (i.stock !== undefined && i.stock !== null) ? i.stock : "";
 
-        let h = `<h3>🛍️ 물품 수정</h3>
-                상품명: <input type="text" id="edit-shop-name" value="${i.name}" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
-                가격: <input type="number" id="edit-shop-price" value="${i.price}" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
-                제한(1인당): <input type="number" id="edit-shop-limit" value="${i.limit || 0}" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
-                남은 재고: <input type="number" id="edit-shop-stock" value="${stockVal}" placeholder="빈칸이면 무제한" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
-                상태: <label style="display:block; margin:10px 0; padding:10px; background:#fff5f5; border:1px solid #ffcccc; border-radius:8px; cursor:pointer;">
+        // 💡 [개선] 내부 입력폼은 스크롤이 되도록 하고, 버튼은 하단에 고정하여 밖으로 튀어나가지 않도록 수정
+        let h = `
+            <div style="display:flex; flex-direction:column; max-height:65vh;">
+                <div style="overflow-y:auto; padding-right:5px; flex:1; text-align:left;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">상품명:</label>
+                    <input type="text" id="edit-shop-name" value="${i.name}" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
+                    
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">가격:</label>
+                    <input type="number" id="edit-shop-price" value="${i.price}" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #3498db; border-radius:8px; box-sizing:border-box;">
+                    
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">제한(1인당):</label>
+                    <input type="number" id="edit-shop-limit" value="${i.limit || 0}" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
+                    
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">남은 재고:</label>
+                    <input type="number" id="edit-shop-stock" value="${stockVal}" placeholder="빈칸이면 무제한" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
+                    
+                    <label style="display:block; margin:10px 0; padding:12px; background:#fff5f5; border:1px solid #ffcccc; border-radius:8px; cursor:pointer;">
                         <input type="checkbox" id="edit-shop-soldout" ${i.isSoldOut ? 'checked' : ''} style="transform:scale(1.3); margin-right:10px;">
                         <b>🚫 수동 품절 처리 (체크 시 즉시 품절)</b>
-                      </label>
-                카테고리: <select id="edit-shop-cat" style="width:100%; padding:8px; margin:5px 0 15px 0;">
-                    <option value="🍕 먹거리" ${i.cat==='🍕 먹거리'?'selected':''}>🍕 먹거리</option>
-                    <option value="🎫 쿠폰" ${i.cat==='🎫 쿠폰'?'selected':''}>🎫 쿠폰</option>
-                    <option value="🎲 뽑기" ${i.cat==='🎲 뽑기'?'selected':''}>🎲 뽑기</option>
-                    <option value="✏️ 학용품" ${i.cat==='✏️ 학용품'?'selected':''}>✏️ 학용품</option>
-                    <option value="✨ 기타" ${i.cat==='✨ 기타'?'selected':''}>✨ 기타</option>
-                </select>
-                <div style="display:flex; gap:10px; margin-top:15px;">
-                    <button onclick="saveEditShop('${k}')" style="flex:1; background:var(--primary, #3498db); color:white; padding:10px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">저장</button>
-                    <button onclick="deleteShopItem('${k}')" style="flex:1; background:var(--red, #e74c3c); color:white; padding:10px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">삭제</button>
-                </div>`;
+                    </label>
+                    
+                    <label style="font-weight:bold; display:block; margin-bottom:5px; margin-top:10px;">카테고리:</label>
+                    <select id="edit-shop-cat" style="width:100%; padding:10px; margin-bottom:10px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
+                        <option value="🍕 먹거리" ${i.cat==='🍕 먹거리'?'selected':''}>🍕 먹거리</option>
+                        <option value="🎫 쿠폰" ${i.cat==='🎫 쿠폰'?'selected':''}>🎫 쿠폰</option>
+                        <option value="🎲 뽑기" ${i.cat==='🎲 뽑기'?'selected':''}>🎲 뽑기</option>
+                        <option value="✏️ 학용품" ${i.cat==='✏️ 학용품'?'selected':''}>✏️ 학용품</option>
+                        <option value="✨ 기타" ${i.cat==='✨ 기타'?'selected':''}>✨ 기타</option>
+                    </select>
+                </div>
+                
+                <div style="display:flex; gap:10px; margin-top:20px; padding-top:10px; border-top:1px solid #eee; flex-shrink:0;">
+                    <button onclick="saveEditShop('${k}')" style="flex:1; background:var(--primary, #3498db); color:white; padding:14px; border:none; border-radius:8px; font-weight:bold; font-size:1.2rem; cursor:pointer;">저장</button>
+                    <button onclick="deleteShopItem('${k}')" style="flex:1; background:var(--red, #e74c3c); color:white; padding:14px; border:none; border-radius:8px; font-weight:bold; font-size:1.2rem; cursor:pointer;">삭제</button>
+                </div>
+            </div>`;
+            
         if (typeof openPopup === 'function') openPopup("보급품 관리", h);
     });
 };

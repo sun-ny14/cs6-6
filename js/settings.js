@@ -5,6 +5,7 @@ window.initSettings = function() {
     loadStudentAdminList();
     loadGiftsSetting();
     loadSeatSettings();
+    renderCurrentSeatingView(); // 💡 초기화 시 현재 좌석 배치도 함께 렌더링
 };
 
 // --- [A] 좌석 배치 설정 ---
@@ -80,6 +81,11 @@ window.saveSeatSettings = async function() {
     });
 
     alert("🪑 좌석 배치 설정과 이름들이 영구 저장되었습니다! ✨");
+    
+    // 저장 직후 설정 화면의 현재 좌석 배치도 실시간 갱신
+    if (typeof renderCurrentSeatingView === 'function') {
+        renderCurrentSeatingView();
+    }
     if (typeof generateNewLayout === 'function') generateNewLayout();
 };
 
@@ -102,6 +108,77 @@ window.loadSeatSettings = async function() {
             container.innerHTML = `<div style="padding: 20px; text-align: center; color: #888; font-size: 1.2rem; background: #f8f9fa; border-radius: 8px; margin-top: 15px;">설정된 좌석 배치가 없습니다. 크기 입력 후 '표 만들기'를 눌러주세요.</div>`;
         }
     }
+};
+
+// 좌석 배치 표 만들기 설정 영역 토글 함수
+function toggleSeatBuilder() {
+    const section = document.getElementById('seat-builder-section');
+    if (section) {
+        if (section.style.display === 'none' || section.style.display === '') {
+            section.style.display = 'block';
+        } else {
+            section.style.display = 'none';
+        }
+    }
+}
+
+// --- [E] 현재 좌석 배치 화면 실시간 렌더링 로직 ---
+window.renderCurrentSeatingView = async function() {
+    const viewContainer = document.getElementById('current-seating-view');
+    if (!viewContainer) return;
+
+    const seatSnap = await db.ref('seatLayoutData').once('value');
+    const userSnap = await db.ref('users').once('value');
+
+    if (!seatSnap.exists()) {
+        viewContainer.innerHTML = `<p style='color: #888; text-align: center; padding: 20px; font-size: 1.2rem;'>설정된 좌석 배치가 없습니다. 아래 '표 만들기'를 통해 설정해 주세요.</p>`;
+        return;
+    }
+
+    const seatData = seatSnap.val();
+    const config = seatData.config || { cols: 5, rows: 6 };
+    const layout = seatData.layout || {};
+
+    let usersMap = {};
+    if (userSnap.exists()) {
+        userSnap.forEach(c => {
+            usersMap[c.key] = c.val();
+        });
+    }
+
+    let html = `<div style="display: grid; grid-template-columns: repeat(${config.cols}, 1fr); gap: 12px; margin-top: 10px;">`;
+
+    for (let r = 0; r < config.rows; r++) {
+        for (let c = 0; c < config.cols; c++) {
+            const posId = `${r}-${c}`;
+            const seatKey = `${r}_${c}`;
+            const studentName = layout[posId] || layout[seatKey] || "";
+
+            let studentDisplay = `<span style="color: #bbb; font-size: 1rem;">(빈 자리)</span>`;
+            let boxBg = "#f8f9fa";
+            let borderColor = "#cbd5e1";
+
+            if (studentName) {
+                const sInfo = usersMap[studentName] || {};
+                const animalEmoji = sInfo.selectedAnimal || "🐹";
+                studentDisplay = `
+                    <div style="font-size: 1.5rem; margin-bottom: 4px;">${animalEmoji}</div>
+                    <div style="font-weight: bold; color: #2c3e50; font-size: 1.1rem;">${studentName}</div>
+                `;
+                boxBg = "#ffffff";
+                borderColor = "#3498db";
+            }
+
+            html += `
+                <div style="background: ${boxBg}; border: 2px solid ${borderColor}; border-radius: 10px; padding: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
+                    <small style="color: #888; display: block; margin-bottom: 6px; font-size: 0.85rem;">${r+1}행 ${c+1}열</small>
+                    ${studentDisplay}
+                </div>`;
+        }
+    }
+    html += `</div>`;
+
+    viewContainer.innerHTML = html;
 };
 
 // --- [B] 학생(용사들) 명단 및 역할 관리 ---
