@@ -127,12 +127,21 @@ function renderManagementSub(type) {
 }
 
 function startApp() {
+    // 1. 관리자, 도우미, 총사령관인 경우에만 관리자 메뉴 및 설정 버튼 노출
     if (isAdmin || isHelper || myName === "총사령관") { 
         const orderMgr = document.getElementById('admin-order-mgr'); 
         if (orderMgr) orderMgr.style.display = 'block'; 
         
         const bbAdminBtn = document.getElementById('btn-blackboard-admin');
         if (bbAdminBtn) bbAdminBtn.style.display = 'inline-block';
+
+        // 👉 관리자 권한일 때만 설정(Admin) 버튼 표시
+        const adminBtn = document.getElementById('btn-admin');
+        if (adminBtn) adminBtn.style.display = 'block';
+    } else {
+        // 👉 일반 학생인 경우 설정 버튼을 무조건 숨김
+        const adminBtn = document.getElementById('btn-admin');
+        if (adminBtn) adminBtn.style.display = 'none';
     }
 
     if (myName === "총사령관") {
@@ -147,6 +156,7 @@ function startApp() {
             if (cleaningTabBtn) cleaningTabBtn.style.display = 'inline-block';
         }
     }
+    // ... (이하 기존 코드 동일)
 
     window.isHousingEnabled = true;
 
