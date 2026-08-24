@@ -27,7 +27,6 @@ function showTab(t) {
     // 사이드바의 모든 버튼에서 active 클래스 제거
     document.querySelectorAll('.sidebar-menu button').forEach(b => {
         b.classList.remove('active');
-        // 기존 인라인 스타일로 박아둔 배경색이 덮어씌워지지 않도록 초기화 방지 처리
     }); 
     
     // 선택된 탭 컨텐츠만 보이게 활성화
@@ -43,7 +42,7 @@ function showTab(t) {
         targetBtn.classList.add('active'); 
     }
     
-    // 💡 탭별 추가 초기화 함수 연결
+    // 탭별 추가 초기화 함수 연결
     if (t === 'checkin') {
         if (typeof switchCheckinSub === 'function') switchCheckinSub('checkin-main');
     }
@@ -135,11 +134,9 @@ function startApp() {
         const bbAdminBtn = document.getElementById('btn-blackboard-admin');
         if (bbAdminBtn) bbAdminBtn.style.display = 'inline-block';
 
-        // 👉 관리자 권한일 때만 설정(Admin) 버튼 표시
         const adminBtn = document.getElementById('btn-admin');
         if (adminBtn) adminBtn.style.display = 'block';
     } else {
-        // 👉 일반 학생인 경우 설정 버튼을 무조건 숨김
         const adminBtn = document.getElementById('btn-admin');
         if (adminBtn) adminBtn.style.display = 'none';
     }
@@ -156,7 +153,6 @@ function startApp() {
             if (cleaningTabBtn) cleaningTabBtn.style.display = 'inline-block';
         }
     }
-    // ... (이하 기존 코드 동일)
 
     window.isHousingEnabled = true;
 
@@ -225,9 +221,3 @@ window.openMultiPopup = function(title, points, reason) {
         alert("일괄 지급 팝업 함수를 찾을 수 없습니다.");
     }
 };
-/* 사이드바 메뉴 버튼 활성화(active) 되었을 때 스타일 */
-.sidebar-menu button.active {
-    background: #2c3e50 !important;
-    color: white !important;
-    border-left: 6px solid #e74c3c !important;
-}
