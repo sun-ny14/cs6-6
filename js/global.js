@@ -8,41 +8,44 @@ function getTodayKST() {
 }
 
 function forceScreenDisplay(status) {
-    const load = document.getElementById('loading-screen'), login = document.getElementById('login-screen'), app = document.getElementById('main-app');
+    const load = document.getElementById('loading-screen');
+    const login = document.getElementById('login-screen');
+    const app = document.getElementById('main-app');
+    
     if(load) load.style.display = 'none';
-    if(status === 'app') { if(login) login.style.display = 'none'; if(app) app.style.display = 'block'; }
-    else { if(login) login.style.display = 'flex'; if(app) app.style.display = 'none'; }
+    if(status === 'app') { 
+        if(login) login.style.display = 'none'; 
+        if(app) app.style.display = 'block'; 
+    } else { 
+        if(login) login.style.display = 'flex'; 
+        if(app) app.style.display = 'none'; 
+    }
 }
 
 function showTab(t) { 
     currentTab = t; 
     sessionStorage.setItem('activeTab', t); 
     
-    // 모든 탭 컨텐츠 숨기기
     document.querySelectorAll('.tab-content').forEach(s => {
         s.classList.remove('active');
         s.style.display = 'none'; 
     }); 
     
-    // 사이드바의 모든 버튼에서 active 클래스 제거
     document.querySelectorAll('.sidebar-menu button').forEach(b => {
         b.classList.remove('active');
     }); 
     
-    // 선택된 탭 컨텐츠만 보이게 활성화
     const targetTab = document.getElementById('tab-' + t);
     if (targetTab) {
         targetTab.classList.add('active');
         targetTab.style.display = 'block';
     }
     
-    // 선택된 사이드바 버튼 활성화 표시
     const targetBtn = document.getElementById('btn-' + t);
     if (targetBtn) {
         targetBtn.classList.add('active'); 
     }
     
-    // 탭별 추가 초기화 함수 연결
     if (t === 'checkin') {
         if (typeof switchCheckinSub === 'function') switchCheckinSub('checkin-main');
     }
@@ -126,7 +129,6 @@ function renderManagementSub(type) {
 }
 
 function startApp() {
-    // 1. 관리자, 도우미, 총사령관인 경우에만 관리자 메뉴 및 설정 버튼 노출
     if (isAdmin || isHelper || myName === "총사령관") { 
         const orderMgr = document.getElementById('admin-order-mgr'); 
         if (orderMgr) orderMgr.style.display = 'block'; 
