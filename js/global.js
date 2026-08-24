@@ -18,20 +18,32 @@ function showTab(t) {
     currentTab = t; 
     sessionStorage.setItem('activeTab', t); 
     
+    // 모든 탭 컨텐츠 숨기기
     document.querySelectorAll('.tab-content').forEach(s => {
         s.classList.remove('active');
-        s.style.display = ''; 
+        s.style.display = 'none'; 
     }); 
     
-    document.querySelectorAll('.sidebar-menu button').forEach(b => b.classList.remove('active')); 
+    // 사이드바의 모든 버튼에서 active 클래스 제거
+    document.querySelectorAll('.sidebar-menu button').forEach(b => {
+        b.classList.remove('active');
+        // 기존 인라인 스타일로 박아둔 배경색이 덮어씌워지지 않도록 초기화 방지 처리
+    }); 
     
-    const targetTab = document.getElementById('tab-'+t);
-    if (targetTab) targetTab.classList.add('active');
+    // 선택된 탭 컨텐츠만 보이게 활성화
+    const targetTab = document.getElementById('tab-' + t);
+    if (targetTab) {
+        targetTab.classList.add('active');
+        targetTab.style.display = 'block';
+    }
     
-    const targetBtn = document.getElementById('btn-'+t);
-    if(targetBtn) targetBtn.classList.add('active'); 
+    // 선택된 사이드바 버튼 활성화 표시
+    const targetBtn = document.getElementById('btn-' + t);
+    if (targetBtn) {
+        targetBtn.classList.add('active'); 
+    }
     
-    // 💡 [핵심 추가] 등교 탭(checkin) 클릭 시 처리 분기 추가
+    // 💡 탭별 추가 초기화 함수 연결
     if (t === 'checkin') {
         if (typeof switchCheckinSub === 'function') switchCheckinSub('checkin-main');
     }
@@ -46,13 +58,6 @@ function showTab(t) {
     if (t === 'management') {
         renderManagementSub('grades');
     }
-}
-
-function openPopup(t,h,r=false) { 
-    document.getElementById('pop-title').innerHTML=t; 
-    document.getElementById('pop-content').innerHTML=h; 
-    document.getElementById('common-overlay').style.display='flex'; 
-    window.routineActive=r; 
 }
 
 function closePopup() { 
