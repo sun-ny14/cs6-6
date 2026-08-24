@@ -215,3 +215,9 @@ window.openMultiPopup = function(title, points, reason) {
         alert("일괄 지급 팝업 함수를 찾을 수 없습니다.");
     }
 };
+/* 사이드바 메뉴 버튼 활성화(active) 되었을 때 스타일 */
+.sidebar-menu button.active {
+    background: #2c3e50 !important;
+    color: white !important;
+    border-left: 6px solid #e74c3c !important;
+}
