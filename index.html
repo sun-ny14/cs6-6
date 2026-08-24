@@ -166,8 +166,9 @@
             <button id="btn-management" style="display:none; background: #eaf2f8 !important; color: #2471a3 !important; border-left: 6px solid #5499c7 !important;" onclick="showTab('management'); renderManagementSub('grades');">🛡️ 학급관리</button>
             <button id="btn-cleaning" style="display:none; background: #e9f7ef !important; color: #27ae60 !important; border-left: 6px solid #2ecc71 !important;" onclick="showTab('cleaning'); renderRoleCleaning();">🧹 1인 1역·청소</button>
             
-            <!-- ⚙️ 설정 버튼 (기본적으로 display:none을 주어 학생들에게 보이지 않게 숨김) -->
-<button id="btn-admin" style="display:none; background: #ebedef !important; color: #5d6d7e !important; border-left: 6px solid #85929e !important;" onclick="showTab('admin'); initSettings();">⚙️ 설정</button>
+            <!-- ⚙️ 설정 버튼 (기본 숨김) -->
+            <button id="btn-admin" style="display:none; background: #ebedef !important; color: #5d6d7e !important; border-left: 6px solid #85929e !important;" onclick="showTab('admin'); initSettings();">⚙️ 설정</button>
+        </nav> <!-- 👉 사이드바 종료 태그 정상 고정 -->
 
         <!-- 우측 콘텐츠 표시 영역 -->
         <main class="main-content-area">
@@ -188,7 +189,7 @@
                 </div>
             </section>
 
-            <!-- 3. 등교 탭 (정상 포함 완료) -->
+            <!-- 3. 등교 탭 -->
             <section id="tab-checkin" class="tab-content">
                 <div id="checkin-sub-menu-container" style="display:flex; gap:15px; margin-bottom:25px;">
                     <button onclick="switchCheckinSub('checkin-main')" id="sub-btn-checkin-main" style="background:#2c3e50; color:white; padding:18px; border-radius:12px; border:none; flex:1; font-weight:bold; font-size:1.3rem; cursor:pointer;">⚔️ 등교하기</button>
