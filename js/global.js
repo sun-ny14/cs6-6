@@ -685,91 +685,56 @@ function startApp() {
             );
 
 
-        let h = "";
+       let h = ""; 
+        currentUsers.forEach(u => { 
+            if(u.name === "총사령관") return; 
+            const isMe = (u.name === myName);
+            const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
+            
+            // RPG 게임 재화창 느낌의 포인트 디자인
+            const pointDisplay = (isMe || isAdmin) ? `<div style="background: rgba(0,0,0,0.6); color: #ffdf00; border-radius: 8px; padding: 4px 10px; display: inline-block; font-size: 0.95rem; font-weight: bold; margin-top: 10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.2);">💰 ${u.points || 0} P</div>` : '';
 
+            // 💡 메이플스토리 스타일: 레벨별 카드 등급 색상 및 배경 결정
+            const level = u.lv || 1;
+            let cardBg = "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)"; // 기본(초보자) - 흰색/회색
+            let borderColor = "#bdc3c7";
 
-        currentUsers.forEach(u => {
-
-            if (u.name === "총사령관") {
-                return;
+            if (level >= 30) {
+                cardBg = "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)"; // 에픽 - 오렌지/골드
+                borderColor = "#e67e22";
+            } else if (level >= 20) {
+                cardBg = "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)"; // 유니크 - 연보라/하늘
+                borderColor = "#9b59b6";
+            } else if (level >= 10) {
+                cardBg = "linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)"; // 레어 - 연두/초록
+                borderColor = "#2ecc71";
             }
 
+            // 내 카드일 경우 황금빛 글로우 이펙트 추가
+            const myHighlight = isMe ? "box-shadow: 0 0 15px rgba(241, 196, 15, 0.8), inset 0 0 10px rgba(255,255,255,0.5);" : "box-shadow: 3px 5px 10px rgba(0,0,0,0.15);";
 
-            const isMe =
-                u.name === myName;
+            h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" 
+                    style="background: ${cardBg}; border: 3px solid ${borderColor}; border-radius: 15px; padding: 25px 10px 15px 10px; text-align: center; cursor: pointer; transition: transform 0.2s; ${myHighlight} position: relative; overflow: hidden;">
+                    
+                    <!-- 모서리 레벨 뱃지 -->
+                    <div style="position: absolute; top: 0; left: 0; background: ${borderColor}; color: white; padding: 4px 12px; border-radius: 0 0 12px 0; font-weight: 900; font-size: 1.1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
+                        Lv.${level}
+                    </div>
 
-
-            const title =
-                u.selectedAnimal
-                    ? `${u.selectedAnimal} `
-                    : "";
-
-
-            const pointDisplay =
-                (
-                    isMe ||
-                    adminStatus
-                )
-                    ? `
-                        <span
-                            style="color:var(--primary); font-weight:bold; font-size:1.1rem;">
-                            ${u.points || 0}P
-                        </span>
-                    `
-                    : '';
-
-
-            h += `
-                <div
-                    class="hero-card"
-                    onclick="openUserHistory('${u.name}')"
-                    style="${
-                        isMe
-                            ? 'border:4px solid var(--gold); background:#fffdf2;'
-                            : ''
-                    }">
-
-                    <span>
-                        ${getAvatar(
-                            u.lv || 1,
-                            u.selectedAnimal
-                        )}
-                    </span>
-
-                    <br>
-
-                    <b
-                        style="
-                            font-size:1.3rem;
-                            display:block;
-                            margin-top:12px;
-                            color:var(--dark);
-                        ">
-
-                        ${isMe ? '⭐ ' : ''}
-                        ${title}
-                        LV.${u.lv || 1}
-                        ${u.name}
-
+                    <div style="font-size: 3.5rem; margin-bottom: 10px; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.2));">
+                        ${getAvatar(level, u.selectedAnimal) || '🐣'}
+                    </div>
+                    
+                    <b style="font-size: 1.25rem; display: block; color: #2c3e50; text-shadow: 1px 1px 2px rgba(255,255,255,0.9); background: rgba(255,255,255,0.55); padding: 6px; border-radius: 8px; margin: 0 10px;">
+                        ${isMe ? '⭐ ' : ''}${title}${u.name}
                     </b>
-
+                    
                     ${pointDisplay}
-
-                </div>
-            `;
-        });
-
-
-        const heroGrid =
-            document.getElementById('hero-grid');
-
-
-        if (heroGrid) {
-
-            heroGrid.innerHTML = h;
-        }
-
-
+                </div>`; 
+        }); 
+        
+        const heroGrid = document.getElementById('hero-grid');
+        if(heroGrid) heroGrid.innerHTML = h;
         if (
             adminStatus &&
             typeof renderAdminList === 'function'
