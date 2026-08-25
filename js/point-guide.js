@@ -153,7 +153,7 @@ window.renderPointGuide = function() {
             return;
         }
 
-        let guides = [];
+       let guides = [];
         snap.forEach(c => { 
             const val = c.val();
             guides.push({ 
@@ -169,7 +169,8 @@ window.renderPointGuide = function() {
             html += `<div style="grid-column: 1 / -1; margin-bottom: 10px;"><button onclick="openPointGuideModal()" style="width:100%; padding:15px; background:var(--gold, #f1c40f); color:#2c3e50; border:none; border-radius:12px; font-weight:bold; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.05); transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">+ 새 포인트 항목 추가</button></div>`;
         }
 
-        html += `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:15px; width:100%;">`;
+        // 💡 수정된 부분: 무조건 3열로 배치되도록 repeat(3, 1fr) 적용!
+        html += `<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; width:100%;">`;
         
         guides.forEach(g => {
             const adminControls = (typeof isAdmin !== 'undefined' && isAdmin) ? `
