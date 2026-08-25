@@ -1,17 +1,5 @@
 // js/hero-mgr.js
-// 용사 목록 / 육육이 아바타 / 친구 방 / 교사용 학생 상세정보 / 차등 지급
-
-function initApp() {
-    if (
-        typeof currentTab !== 'undefined' &&
-        typeof showTab === 'function'
-    ) {
-        showTab(currentTab);
-    }
-
-    renderHeroes();
-}
-
+// 용사 목록 / 육육이 아바타 / 친구방 / 관리자 학생 상세정보
 
 /* =========================================================
    육육이 아바타
@@ -44,38 +32,22 @@ function getAvatar(lv, selectedAnimal) {
         "무지개"
     ];
 
-
-    const level =
-        parseInt(lv) || 1;
+    const level = parseInt(lv) || 1;
 
     const name =
         selectedAnimal ||
-        animals[
-            Math.min(
-                Math.max(level - 1, 0),
-                19
-            )
-        ];
-
+        animals[Math.min(Math.max(level - 1, 0), 19)];
 
     const index =
         animals.indexOf(name) === -1
             ? 0
             : animals.indexOf(name);
 
+    const col = index % 5;
+    const row = Math.floor(index / 5);
 
-    const col =
-        index % 5;
-
-    const row =
-        Math.floor(index / 5);
-
-
-    const posX =
-        col * 25;
-
-    const posY =
-        row * 33.33;
+    const posX = col * 25;
+    const posY = row * 33.33;
 
 
     return `
@@ -109,209 +81,275 @@ function getAvatar(lv, selectedAnimal) {
 
 
 /* =========================================================
+   관리자 여부
+   ========================================================= */
+
+function heroIsAdmin() {
+    return (
+        typeof isAdmin !== "undefined" &&
+        isAdmin === true
+    );
+}
+
+
+/* =========================================================
    용사 목록
    ========================================================= */
 
-window.renderHeroes = async function() {
+window.renderHeroes = function(usersFromListener) {
     const heroGrid =
-        document.getElementById('hero-grid');
+        document.getElementById("hero-grid");
 
-    if (!heroGrid) {
-        console.warn('hero-grid를 찾을 수 없습니다.');
+    if (!heroGrid) return;
+
+
+    /*
+     * users 리스너에서 전달받은 데이터가 있으면 사용.
+     * 없으면 Firebase에서 직접 가져온다.
+     */
+
+    if (usersFromListener && Array.isArray(usersFromListener)) {
+        drawHeroes(usersFromListener);
         return;
     }
 
 
-    try {
-        const snapshot =
-            await db.ref('users').once('value');
+    /*
+     * currentUsers가 이미 있으면 바로 그림
+     */
 
-        const usersData =
-            snapshot.val() || {};
+    if (
+        typeof currentUsers !== "undefined" &&
+        Array.isArray(currentUsers) &&
+        currentUsers.length > 0
+    ) {
+        drawHeroes(currentUsers);
+        return;
+    }
 
-        const usersArray = [];
+
+    /*
+     * 로그인 직후 currentUsers가 아직 없을 경우
+     */
+
+    db.ref("users").once("value").then(snapshot => {
+        const users = [];
+
+        snapshot.forEach(child => {
+            const user = child.val() || {};
+
+            user.name = child.key;
+
+            users.push(user);
+        });
+
+        drawHeroes(users);
+    });
+};
 
 
-        Object.keys(usersData).forEach(key => {
-            const user =
-                usersData[key];
+/* =========================================================
+   실제 카드 생성
+   ========================================================= */
 
-            if (!user) return;
+function drawHeroes(usersArray) {
+    const heroGrid =
+        document.getElementById("hero-grid");
 
+    if (!heroGrid) return;
+
+
+    const isAdminUser = heroIsAdmin();
+
+
+    const filteredUsers =
+        usersArray.filter(user => {
+            if (!user) return false;
 
             const name =
-                user.name || key;
+                user.name || "";
 
-
-            /* 관리자 계정 제외 */
-
-            if (name === '총사령관') {
-                return;
-            }
-
-            if (name.includes('선생님')) {
-                return;
-            }
+            /*
+             * 총사령관 / 선생님 계정은 학생 용사 목록에서 제외
+             */
+            if (name === "총사령관") return false;
+            if (name.includes("선생님")) return false;
 
             if (
-                typeof adminEmail !== 'undefined' &&
-                user.email &&
+                typeof adminEmail !== "undefined" &&
                 user.email === adminEmail
             ) {
-                return;
+                return false;
             }
 
-
-            usersArray.push({
-                key:key,
-                ...user,
-                name:name
-            });
+            return true;
         });
 
 
-        usersArray.sort((a, b) => {
-            const aNo =
-                parseInt(a.number || a.no) || 999;
+    filteredUsers.sort((a, b) => {
+        const aNo =
+            parseInt(a.number || a.no) || 999;
 
-            const bNo =
-                parseInt(b.number || b.no) || 999;
+        const bNo =
+            parseInt(b.number || b.no) || 999;
 
-            return aNo - bNo;
-        });
-
-
-        const isUserAdmin =
-            typeof isAdmin !== 'undefined' &&
-            isAdmin === true;
+        return aNo - bNo;
+    });
 
 
-        heroGrid.innerHTML = '';
+    let html = "";
 
 
-        if (usersArray.length === 0) {
-            heroGrid.innerHTML = `
-                <p style="
-                    text-align:center;
-                    color:#666;
-                    padding:30px;
+    filteredUsers.forEach(user => {
+        const name =
+            user.name || "용사";
+
+        const lv =
+            parseInt(user.level || user.lv) || 1;
+
+        const number =
+            user.number ||
+            user.no ||
+            "";
+
+        const role =
+            user.role ||
+            (user.isHelper ? "상점" : "일반");
+
+
+        const isMySelf =
+            typeof myName !== "undefined" &&
+            user.name === myName;
+
+
+        /*
+         * -------------------------------------------------
+         * 클릭 동작
+         * -------------------------------------------------
+         *
+         * 관리자:
+         *   학생 상세정보
+         *
+         * 학생:
+         *   본인 -> 자기 프로필
+         *   다른 학생 -> 친구 방
+         */
+
+        let clickAction = "";
+
+        if (isAdminUser) {
+            clickAction =
+                `openStudentProfile(${JSON.stringify(name)})`;
+        } else if (isMySelf) {
+            clickAction =
+                `openOwnStudentProfile(${JSON.stringify(name)})`;
+        } else {
+            clickAction =
+                `openFriendRoom(${JSON.stringify(name)})`;
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * 포인트 표시
+         * -------------------------------------------------
+         *
+         * 관리자:
+         *   모든 학생 포인트 표시
+         *
+         * 학생:
+         *   자기 포인트만 표시
+         *   친구 포인트는 절대 표시하지 않음
+         */
+
+        let pointsHtml = "";
+
+
+        if (isAdminUser || isMySelf) {
+            pointsHtml = `
+                <div style="
+                    display:inline-block;
+                    background:#444;
+                    color:#ffd700;
+                    border-radius:8px;
+                    padding:4px 10px;
+                    margin-top:8px;
+                    font-weight:bold;
                 ">
-                    등록된 용사가 없습니다.
-                </p>
+                    🪙 ${user.points || 0} P
+                </div>
+            `;
+        } else {
+            /*
+             * 친구 카드에는 포인트 HTML 자체를 만들지 않는다.
+             */
+            pointsHtml = "";
+        }
+
+
+        /*
+         * 경험치 역시 관리자 또는 본인만 표시
+         */
+
+        let expHtml = "";
+
+        if (isAdminUser || isMySelf) {
+            expHtml = `
+                <div style="
+                    font-size:0.85rem;
+                    color:#666;
+                    margin-top:5px;
+                ">
+                    EXP ${user.exp || 0}
+                </div>
             `;
         }
 
 
-        usersArray.forEach(user => {
-            const name =
-                user.name || '용사';
-
-
-            const lv =
-                parseInt(
-                    user.level ||
-                    user.lv
-                ) || 1;
-
-
-            const number =
-                user.number ||
-                user.no ||
-                '';
-
-
-            const role =
-                user.role ||
-                (
-                    user.isHelper
-                        ? '상점'
-                        : '일반'
-                );
-
-
-            const isMySelf =
-                typeof myName !== 'undefined' &&
-                user.name === myName;
-
-
-            /* =================================================
-               포인트 표시
-               교사 → 모든 학생
-               학생 → 본인만
-               ================================================= */
-
-            let pointsHtml = '';
-
-
-            if (
-                isUserAdmin ||
-                isMySelf
-            ) {
-                pointsHtml = `
-                    <div style="
-                        display:inline-block;
-                        background:#4b4b4b;
-                        color:#ffd700;
-                        border-radius:8px;
-                        padding:5px 10px;
-                        margin-top:8px;
-                        font-size:0.95rem;
-                        font-weight:bold;
-                    ">
-                        🪙 ${user.points || 0} P
-                    </div>
-                `;
-            }
-
-
-            /* =================================================
-               카드 생성
-               ================================================= */
-
-            const card =
-                document.createElement('div');
-
-
-            card.className =
-                'card hero-card-item';
-
-
-            card.style.cssText = `
-                text-align:center;
-                cursor:pointer;
-                background:white;
-                border-radius:20px;
-                padding:20px;
-                box-shadow:0 4px 15px rgba(0,0,0,0.1);
-                transition:transform 0.15s,box-shadow 0.15s;
-            `;
-
-
-            card.innerHTML = `
-                <div>
-                    ${getAvatar(
-                        lv,
-                        user.selectedAnimal ||
-                        user.animal
-                    )}
-                </div>
-
-                <h3 style="
-                    margin-top:10px;
-                    color:var(--dark);
-                ">
-                    ${number ? number + '. ' : ''}${name}
-                </h3>
+        html += `
+            <div
+                class="card hero-card-item"
+                style="
+                    text-align:center;
+                    cursor:pointer;
+                    background:white;
+                    border-radius:20px;
+                    padding:20px;
+                    box-shadow:0 4px 15px rgba(0,0,0,0.1);
+                    position:relative;
+                "
+                onclick="${clickAction}"
+            >
 
                 <div style="
+                    position:absolute;
+                    top:0;
+                    left:0;
+                    background:#bdc3c7;
+                    color:white;
+                    padding:4px 10px;
+                    border-radius:0 0 10px 0;
                     font-weight:bold;
-                    color:#555;
-                    margin:5px 0;
                 ">
                     Lv.${lv}
                 </div>
 
+                ${getAvatar(
+                    lv,
+                    user.animal ||
+                    user.selectedAnimal
+                )}
+
+                <h3 style="
+                    margin-top:10px;
+                    color:var(--dark,#2c3e50);
+                ">
+                    ${number ? number + ". " : ""}${name}
+                </h3>
+
                 ${pointsHtml}
+
+                ${expHtml}
 
                 <p style="
                     font-size:0.9rem;
@@ -320,598 +358,58 @@ window.renderHeroes = async function() {
                 ">
                     역할: ${role}
                 </p>
-            `;
+
+            </div>
+        `;
+    });
 
 
-            card.addEventListener(
-                'mouseenter',
-                () => {
-                    card.style.transform =
-                        'translateY(-3px)';
-
-                    card.style.boxShadow =
-                        '0 7px 20px rgba(0,0,0,0.15)';
-                }
-            );
-
-
-            card.addEventListener(
-                'mouseleave',
-                () => {
-                    card.style.transform =
-                        'translateY(0)';
-
-                    card.style.boxShadow =
-                        '0 4px 15px rgba(0,0,0,0.1)';
-                }
-            );
-
-
-            /* =================================================
-               클릭
-               교사 → 학생 상세
-               학생 → 친구 방
-               ================================================= */
-
-            card.addEventListener(
-                'click',
-                () => {
-
-                    if (isUserAdmin) {
-                        openPointPopupForUser(
-                            user.key,
-                            user
-                        );
-                    } else {
-                        openFriendRoom(name);
-                    }
-
-                }
-            );
-
-
-            heroGrid.appendChild(card);
-        });
-
-
-        /* 관리자 P 버튼 */
-
-        createBatchPointButton();
-
-
-    } catch (error) {
-        console.error(
-            '용사 목록 불러오기 오류:',
-            error
-        );
-
-        heroGrid.innerHTML = `
+    heroGrid.innerHTML =
+        html ||
+        `
             <p style="
                 text-align:center;
-                color:#e74c3c;
+                color:#666;
                 padding:30px;
             ">
-                용사 목록을 불러오는 중 오류가 발생했습니다.
+                등록된 용사가 없습니다.
             </p>
         `;
-    }
-};
-
-
-/* =========================================================
-   교사용 학생 상세 팝업
-   ========================================================= */
-
-window.openPointPopupForUser =
-async function(userKey, userData) {
-
-    if (
-        typeof isAdmin === 'undefined' ||
-        !isAdmin
-    ) {
-        return;
-    }
-
-
-    let targetUser =
-        userData;
-
-
-    if (!targetUser) {
-        const snap =
-            await db.ref(
-                `users/${userKey}`
-            ).once('value');
-
-
-        if (!snap.exists()) {
-            alert(
-                '학생 정보를 찾을 수 없습니다.'
-            );
-
-            return;
-        }
-
-
-        targetUser =
-            snap.val();
-    }
-
-
-    const userName =
-        targetUser.name ||
-        userKey;
-
-
-    const level =
-        parseInt(
-            targetUser.level ||
-            targetUser.lv
-        ) || 1;
-
-
-    const points =
-        parseInt(
-            targetUser.points
-        ) || 0;
-
-
-    const exp =
-        parseInt(
-            targetUser.exp
-        ) || 0;
-
-
-    const popup =
-        document.getElementById(
-            'point-popup'
-        );
-
-
-    const titleEl =
-        document.getElementById(
-            'point-pop-title'
-        );
-
-
-    const bodyEl =
-        document.getElementById(
-            'point-pop-body'
-        );
-
-
-    const applyBtn =
-        document.getElementById(
-            'point-apply-btn'
-        );
-
-
-    if (!popup || !bodyEl) {
-        alert(
-            '학생 상세정보 팝업을 찾을 수 없습니다.'
-        );
-
-        return;
-    }
-
-
-    if (titleEl) {
-        titleEl.innerHTML =
-            `🛡️ ${userName} 용사 정보`;
-    }
-
-
-    bodyEl.innerHTML = `
-        <div style="
-            text-align:center;
-            margin-bottom:15px;
-        ">
-            ${getAvatar(
-                level,
-                targetUser.selectedAnimal ||
-                targetUser.animal
-            )}
-        </div>
-
-        <div style="
-            background:#f8f9fa;
-            border-radius:10px;
-            padding:15px;
-            margin-bottom:15px;
-            text-align:center;
-        ">
-            <div style="
-                font-size:1.2rem;
-                font-weight:bold;
-                margin-bottom:8px;
-            ">
-                ${userName}
-            </div>
-
-            <div>
-                레벨:
-                <b>Lv.${level}</b>
-            </div>
-
-            <div>
-                현재 포인트:
-                <b style="color:#e67e22;">
-                    ${points}P
-                </b>
-            </div>
-
-            <div>
-                현재 경험치:
-                <b style="color:#3498db;">
-                    ${exp}E
-                </b>
-            </div>
-        </div>
-
-        <input
-            type="text"
-            id="pop-reason"
-            placeholder="포인트/경험치 지급 사유"
-            style="
-                width:100%;
-                padding:10px;
-                margin-bottom:10px;
-                box-sizing:border-box;
-                border:1px solid #ccc;
-                border-radius:8px;
-            "
-        >
-
-        <div style="
-            display:flex;
-            gap:10px;
-        ">
-            <input
-                type="number"
-                id="pop-p"
-                placeholder="P 증감"
-                style="
-                    width:50%;
-                    padding:10px;
-                    box-sizing:border-box;
-                    border:1px solid #ccc;
-                    border-radius:8px;
-                "
-            >
-
-            <input
-                type="number"
-                id="pop-e"
-                placeholder="E 증감"
-                style="
-                    width:50%;
-                    padding:10px;
-                    box-sizing:border-box;
-                    border:1px solid #ccc;
-                    border-radius:8px;
-                "
-            >
-        </div>
-    `;
-
-
-    if (applyBtn) {
-        applyBtn.style.display =
-            'block';
-
-
-        applyBtn.onclick =
-        async function() {
-
-            await applyUserScore(
-                userKey,
-                userName
-            );
-
-        };
-    }
-
-
-    popup.style.display =
-        'flex';
-};
-
-
-/* =========================================================
-   교사 학생 점수 반영
-   ========================================================= */
-
-window.applyUserScore =
-async function(userKey, userName) {
-
-    if (
-        typeof isAdmin === 'undefined' ||
-        !isAdmin
-    ) {
-        return;
-    }
-
-
-    const reasonEl =
-        document.getElementById(
-            'pop-reason'
-        );
-
-
-    const pEl =
-        document.getElementById(
-            'pop-p'
-        );
-
-
-    const eEl =
-        document.getElementById(
-            'pop-e'
-        );
-
-
-    const reason =
-        reasonEl
-            ? reasonEl.value.trim()
-            : '관리자 직접 지급';
-
-
-    const pValue =
-        pEl && pEl.value !== ''
-            ? parseInt(pEl.value)
-            : 0;
-
-
-    const eValue =
-        eEl && eEl.value !== ''
-            ? parseInt(eEl.value)
-            : 0;
-
-
-    if (!reason) {
-        alert(
-            '사유를 입력해주세요.'
-        );
-
-        return;
-    }
-
-
-    if (
-        isNaN(pValue) ||
-        isNaN(eValue)
-    ) {
-        alert(
-            '포인트와 경험치는 숫자로 입력해주세요.'
-        );
-
-        return;
-    }
-
-
-    if (
-        pValue === 0 &&
-        eValue === 0
-    ) {
-        alert(
-            '포인트 또는 경험치 중 하나 이상 입력해주세요.'
-        );
-
-        return;
-    }
-
-
-    const userSnap =
-        await db.ref(
-            `users/${userKey}`
-        ).once('value');
-
-
-    if (!userSnap.exists()) {
-        alert(
-            '학생 정보를 찾을 수 없습니다.'
-        );
-
-        return;
-    }
-
-
-    const user =
-        userSnap.val();
-
-
-    const currentPoints =
-        parseInt(user.points) || 0;
-
-
-    const currentExp =
-        parseInt(user.exp) || 0;
-
-
-    const newPoints =
-        currentPoints +
-        pValue;
-
-
-    const newExp =
-        currentExp +
-        eValue;
-
-
-    const updates = {};
-
-
-    updates[
-        `users/${userKey}/points`
-    ] = newPoints;
-
-
-    updates[
-        `users/${userKey}/exp`
-    ] = newExp;
 
 
     /*
-     * 기존 pointLogs 구조와 연결.
-     * 포인트가 실제로 변경된 경우에만 기록.
+     * 관리자에게만 P 버튼
      */
 
-    if (pValue !== 0) {
-        const logRef =
-            db.ref('pointLogs').push();
-
-
-        updates[
-            `pointLogs/${logRef.key}`
-        ] = {
-            name:userName,
-            pAmt:pValue,
-            reason:reason,
-            time:new Date().toLocaleString(
-                'ko-KR'
-            )
-        };
-    }
-
-
-    /*
-     * 기존 차등 지급에서 사용하던
-     * pointHistory도 함께 남김.
-     */
-
-    if (pValue !== 0) {
-        const historyRef =
-            db.ref(
-                `pointHistory/${userKey}`
-            ).push();
-
-
-        updates[
-            `pointHistory/${userKey}/${historyRef.key}`
-        ] = {
-            date:getTodayKST(),
-            time:new Date().toLocaleTimeString(
-                'ko-KR',
-                {
-                    hour:'2-digit',
-                    minute:'2-digit'
-                }
-            ),
-            reason:reason,
-            change:pValue,
-            result:newPoints
-        };
-    }
-
-
-    try {
-        await db.ref().update(
-            updates
-        );
-
-
-        alert(
-            `✅ ${userName} 학생에게 포인트/경험치를 반영했습니다.`
-        );
-
-
-        closePointPopup();
-
-
-        /*
-         * 데이터 갱신 후 카드도 즉시 갱신.
-         */
-
-        if (
-            typeof renderHeroes === 'function'
-        ) {
-            renderHeroes();
-        }
-
-
-    } catch (error) {
-        console.error(
-            '학생 점수 반영 오류:',
-            error
-        );
-
-        alert(
-            '점수 반영 중 오류가 발생했습니다.'
-        );
-    }
-};
+    createFloatingPointButton();
+}
 
 
 /* =========================================================
-   학생 → 친구 방
+   관리자용 P 플로팅 버튼
    ========================================================= */
 
-window.openFriendRoom =
-function(userName) {
-
-    if (!userName) {
-        return;
-    }
-
-
-    if (typeof showTab === 'function') {
-        showTab('housing');
-    }
-
-
-    if (
-        typeof loadSpecificUserRoom === 'function'
-    ) {
-        loadSpecificUserRoom(
-            userName
-        );
-    } else {
-        alert(
-            `${userName} 용사의 방 기능을 찾을 수 없습니다.`
-        );
-    }
-};
-
-
-/* =========================================================
-   관리자 전용 P 플로팅 버튼
-   ========================================================= */
-
-window.createBatchPointButton =
-function() {
-
+function createFloatingPointButton() {
     const old =
-        document.getElementById(
-            'floating-point-btn-box'
-        );
-
+        document.getElementById("floating-point-btn-box");
 
     if (old) {
         old.remove();
     }
 
 
-    const isUserAdmin =
-        typeof isAdmin !== 'undefined' &&
-        isAdmin === true;
-
-
-    if (!isUserAdmin) {
+    if (!heroIsAdmin()) {
         return;
     }
 
 
-    const floatingBox =
-        document.createElement(
-            'div'
-        );
+    const box =
+        document.createElement("div");
 
+    box.id =
+        "floating-point-btn-box";
 
-    floatingBox.id =
-        'floating-point-btn-box';
-
-
-    floatingBox.style.cssText = `
+    box.style.cssText = `
         position:fixed;
         bottom:35px;
         right:35px;
@@ -920,58 +418,523 @@ function() {
 
 
     const button =
-        document.createElement(
-            'button'
-        );
+        document.createElement("button");
 
+    button.type =
+        "button";
 
     button.innerText =
-        'P';
-
+        "P";
 
     button.style.cssText = `
-        background:#8e44ad;
-        color:white;
-        border:none;
         width:75px;
         height:75px;
         border-radius:50%;
+        border:none;
+        background:#8e44ad;
+        color:white;
         font-weight:900;
         font-size:2rem;
         cursor:pointer;
         box-shadow:0 6px 15px rgba(0,0,0,0.35);
-        display:flex;
-        align-items:center;
-        justify-content:center;
     `;
 
 
-    button.onclick =
-    function() {
+    button.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
 
         if (
-            typeof openBatchPointModal ===
-            'function'
+            typeof openBatchPointModal === "function"
         ) {
             openBatchPointModal();
         } else {
             alert(
-                '차등 포인트 지급 기능을 찾을 수 없습니다.'
+                "차등 지급 기능을 불러오지 못했습니다."
             );
         }
-
     };
 
 
-    floatingBox.appendChild(
-        button
-    );
+    box.appendChild(button);
+    document.body.appendChild(box);
+}
 
 
-    document.body.appendChild(
-        floatingBox
-    );
+/* =========================================================
+   관리자 학생 상세정보
+   ========================================================= */
+
+window.openStudentProfile = function(userName) {
+    if (!heroIsAdmin()) {
+        return;
+    }
+
+
+    db.ref("users").once("value").then(snapshot => {
+        let targetUser = null;
+        let targetKey = null;
+
+
+        snapshot.forEach(child => {
+            const data =
+                child.val() || {};
+
+            /*
+             * Firebase key가 이름인 기존 구조
+             */
+            const name =
+                data.name || child.key;
+
+            if (name === userName) {
+                targetUser = data;
+                targetKey = child.key;
+            }
+        });
+
+
+        if (!targetUser) {
+            alert("학생 정보를 찾을 수 없습니다.");
+            return;
+        }
+
+
+        const popup =
+            document.getElementById("point-popup");
+
+        const titleEl =
+            document.getElementById("point-pop-title");
+
+        const bodyEl =
+            document.getElementById("point-pop-body");
+
+        const applyBtn =
+            document.getElementById("point-apply-btn");
+
+
+        if (!popup || !bodyEl) {
+            alert(
+                "학생 상세정보 팝업을 찾을 수 없습니다."
+            );
+            return;
+        }
+
+
+        const level =
+            parseInt(
+                targetUser.level ||
+                targetUser.lv
+            ) || 1;
+
+
+        const animal =
+            targetUser.animal ||
+            targetUser.selectedAnimal;
+
+
+        if (titleEl) {
+            titleEl.innerText =
+                `🛡️ ${userName} 용사 정보`;
+        }
+
+
+        bodyEl.innerHTML = `
+            <div style="
+                text-align:center;
+                margin-bottom:15px;
+            ">
+                ${getAvatar(level, animal)}
+
+                <h2 style="
+                    margin:10px 0 5px;
+                ">
+                    ${userName}
+                </h2>
+
+                <div style="
+                    font-size:1.1rem;
+                    font-weight:bold;
+                ">
+                    Lv.${level}
+                </div>
+            </div>
+
+            <div style="
+                display:grid;
+                grid-template-columns:1fr 1fr;
+                gap:10px;
+                margin-bottom:15px;
+            ">
+
+                <div style="
+                    background:#f8f9fa;
+                    padding:12px;
+                    border-radius:8px;
+                    text-align:center;
+                ">
+                    <div style="
+                        color:#777;
+                        font-size:0.9rem;
+                    ">
+                        포인트
+                    </div>
+                    <b style="
+                        color:#8e44ad;
+                        font-size:1.3rem;
+                    ">
+                        ${targetUser.points || 0} P
+                    </b>
+                </div>
+
+                <div style="
+                    background:#f8f9fa;
+                    padding:12px;
+                    border-radius:8px;
+                    text-align:center;
+                ">
+                    <div style="
+                        color:#777;
+                        font-size:0.9rem;
+                    ">
+                        경험치
+                    </div>
+                    <b style="
+                        color:#3498db;
+                        font-size:1.3rem;
+                    ">
+                        ${targetUser.exp || 0} E
+                    </b>
+                </div>
+
+            </div>
+
+            <input
+                type="text"
+                id="pop-reason"
+                placeholder="포인트/경험치 변경 사유"
+                style="
+                    width:100%;
+                    padding:10px;
+                    margin-bottom:10px;
+                    box-sizing:border-box;
+                    border:1px solid #ccc;
+                    border-radius:8px;
+                "
+            >
+
+            <div style="
+                display:flex;
+                gap:10px;
+            ">
+
+                <input
+                    type="number"
+                    id="pop-p"
+                    placeholder="P 증감"
+                    style="
+                        width:50%;
+                        padding:10px;
+                        box-sizing:border-box;
+                        border:1px solid #ccc;
+                        border-radius:8px;
+                    "
+                >
+
+                <input
+                    type="number"
+                    id="pop-e"
+                    placeholder="EXP 증감"
+                    style="
+                        width:50%;
+                        padding:10px;
+                        box-sizing:border-box;
+                        border:1px solid #ccc;
+                        border-radius:8px;
+                    "
+                >
+
+            </div>
+        `;
+
+
+        if (applyBtn) {
+            applyBtn.style.display =
+                "block";
+
+            applyBtn.onclick =
+                function() {
+                    applyUserScore(
+                        userName,
+                        targetUser,
+                        targetKey
+                    );
+                };
+        }
+
+
+        popup.style.display =
+            "flex";
+    });
 };
+
+
+/* =========================================================
+   관리자 학생 점수 반영
+   ========================================================= */
+
+window.applyUserScore = async function(
+    userName,
+    oldUserData,
+    userKey
+) {
+    if (!heroIsAdmin()) {
+        return;
+    }
+
+
+    const reasonEl =
+        document.getElementById("pop-reason");
+
+    const pEl =
+        document.getElementById("pop-p");
+
+    const eEl =
+        document.getElementById("pop-e");
+
+
+    const reason =
+        reasonEl
+            ? reasonEl.value.trim()
+            : "";
+
+
+    if (!reason) {
+        alert("사유를 입력해주세요.");
+        return;
+    }
+
+
+    const pAmount =
+        pEl && pEl.value !== ""
+            ? parseInt(pEl.value)
+            : 0;
+
+
+    const eAmount =
+        eEl && eEl.value !== ""
+            ? parseInt(eEl.value)
+            : 0;
+
+
+    if (isNaN(pAmount) || isNaN(eAmount)) {
+        alert("포인트와 경험치는 숫자로 입력해주세요.");
+        return;
+    }
+
+
+    if (pAmount === 0 && eAmount === 0) {
+        alert(
+            "포인트 또는 경험치 중 하나는 입력해주세요."
+        );
+        return;
+    }
+
+
+    if (
+        !confirm(
+            `[${userName}] 학생에게\n` +
+            `포인트 ${pAmount >= 0 ? "+" : ""}${pAmount}P\n` +
+            `경험치 ${eAmount >= 0 ? "+" : ""}${eAmount}E\n` +
+            `를 적용하시겠습니까?`
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+        const userRef =
+            db.ref(`users/${userKey}`);
+
+
+        const currentPoints =
+            parseInt(oldUserData.points) || 0;
+
+        const currentExp =
+            parseInt(oldUserData.exp) || 0;
+
+
+        const newPoints =
+            currentPoints + pAmount;
+
+        const newExp =
+            currentExp + eAmount;
+
+
+        const updates = {};
+
+
+        updates[`users/${userKey}/points`] =
+            newPoints;
+
+        updates[`users/${userKey}/exp`] =
+            newExp;
+
+
+        /*
+         * 기존 pointHistory 구조 유지
+         */
+
+        if (pAmount !== 0) {
+            const historyKey =
+                db.ref(
+                    `pointHistory/${userKey}`
+                ).push().key;
+
+            updates[
+                `pointHistory/${userKey}/${historyKey}`
+            ] = {
+                date: getTodayKST(),
+                time: new Date().toLocaleTimeString(
+                    "ko-KR",
+                    {
+                        hour:"2-digit",
+                        minute:"2-digit"
+                    }
+                ),
+                reason: reason,
+                change: pAmount,
+                result: newPoints
+            };
+        }
+
+
+        /*
+         * 기존 pointLogs 구조도 유지
+         * point-guide.js와 연결
+         */
+
+        if (pAmount !== 0) {
+            const logKey =
+                db.ref("pointLogs").push().key;
+
+            updates[
+                `pointLogs/${logKey}`
+            ] = {
+                name: userName,
+                pAmt: pAmount,
+                reason: reason,
+                time: new Date().toLocaleString(
+                    "ko-KR"
+                )
+            };
+        }
+
+
+        await db.ref().update(updates);
+
+
+        alert(
+            "✅ 학생 정보가 성공적으로 반영되었습니다."
+        );
+
+
+        if (
+            typeof closePointPopup === "function"
+        ) {
+            closePointPopup();
+        }
+
+
+        renderHeroes();
+
+    } catch (error) {
+        console.error(
+            "학생 점수 반영 오류:",
+            error
+        );
+
+        alert(
+            "반영 중 오류가 발생했습니다."
+        );
+    }
+};
+
+
+/* =========================================================
+   학생 본인 프로필
+   ========================================================= */
+
+window.openOwnStudentProfile = function(userName) {
+    /*
+     * 학생은 관리자용 포인트 수정 팝업을 열 수 없다.
+     * 기존 학생 프로필 함수가 있으면 우선 사용한다.
+     */
+
+    if (
+        typeof openStudentProfileModal === "function"
+    ) {
+        openStudentProfileModal(userName);
+        return;
+    }
+
+
+    /*
+     * 기존에 학생 프로필 함수가 없다면
+     * 자기 방으로 이동한다.
+     */
+
+    if (
+        typeof showTab === "function"
+    ) {
+        showTab("housing");
+    }
+
+    if (
+        typeof loadSpecificUserRoom === "function"
+    ) {
+        loadSpecificUserRoom(userName);
+    }
+};
+
+
+/* =========================================================
+   친구 방
+   ========================================================= */
+
+window.openFriendRoom = function(userName) {
+    /*
+     * 학생에게 다른 학생의 점수 정보는 전달하지 않는다.
+     * 친구 방 기능만 실행한다.
+     */
+
+    if (
+        typeof showTab === "function"
+    ) {
+        showTab("housing");
+    }
+
+
+    if (
+        typeof loadSpecificUserRoom === "function"
+    ) {
+        loadSpecificUserRoom(userName);
+    } else {
+        alert(
+            `${userName} 용사의 방으로 이동합니다.`
+        );
+    }
+};
+
+
+/* =========================================================
+   이전 코드와의 호환
+   ========================================================= */
+
+window.openPointPopupForUser =
+    function(userName) {
+        openStudentProfile(userName);
+    };
 
 
 /* =========================================================
@@ -979,16 +942,12 @@ function() {
    ========================================================= */
 
 window.closePointPopup =
-function() {
+    function() {
+        const popup =
+            document.getElementById("point-popup");
 
-    const popup =
-        document.getElementById(
-            'point-popup'
-        );
-
-
-    if (popup) {
-        popup.style.display =
-            'none';
-    }
-};
+        if (popup) {
+            popup.style.display =
+                "none";
+        }
+    };
