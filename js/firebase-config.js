@@ -1,34 +1,37 @@
 // js/firebase-config.js
-// Firebase 초기화 및 대역폭/트래픽 최적화 설정
+// Firebase 초기화 및 공통 전역 변수 설정
 
-const firebaseConfig = {
-    apiKey: "AIzaSy...", // 선생님의 기존 API Key (기존에 쓰시던 값 유지)
-    authDomain: "...",
-    databaseURL: "...",
-    projectId: "...",
-    storageBucket: "...",
-    messagingSenderId: "...",
-    appId: "..."
+const firebaseConfig = { 
+    apiKey: "AIzaSyDWdWrw8LJ6tSiyF1X5tENJEvBfY-DzSw0", 
+    authDomain: "cs6-6class.firebaseapp.com", 
+    databaseURL: "https://cs6-6class-default-rtdb.firebaseio.com/", 
+    projectId: "cs6-6class", 
+    storageBucket: "cs6-6class.firebasestorage.app", 
+    messagingSenderId: "644235499537", 
+    appId: "1:644235499537:web:2ede2611f4ec6a3e8179b0" 
 };
 
-// 1. 파이어베이스 앱 초기화 (중복 초기화 방지 안전장치 포함)
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
+const adminEmail = "ksosuny@cberi.go.kr"; 
 
-// 2. 파이어베이스 트래픽 및 대역폭 최적화 설정
-try {
-    // 실시간 데이터베이스의 백그라운드 불필요한 트래픽 낭비 차단
-    const db = firebase.database();
-    
-    // 오프라인 캐시 및 연결 상태 최적화
-    db.goOnline();
-    
-    console.log("🔥 [Firebase] 트래픽 최적화 및 연결이 안정적으로 설정되었습니다.");
-} catch (error) {
-    console.error("🔥 [Firebase] 최적화 설정 중 오류 발생:", error);
-}
+// Firebase 초기화
+firebase.initializeApp(firebaseConfig); 
+const db = firebase.database(); 
+const auth = firebase.auth(); 
+const provider = new firebase.auth.GoogleAuthProvider();
 
-// 전역에서 편리하게 사용할 수 있도록 db 객체 선언 보장
-const db = firebase.database();
-const auth = firebase.auth();
+// 전역(Global) 변수들 선언 (다른 js 파일에서도 함께 사용됨)
+let myName = "";
+let isAdmin = false;
+let isHelper = false;
+let currentUsers = [];
+let routineItems = [];
+let giftList = [];
+let rIdx = 0;
+let currentTab = sessionStorage.getItem('activeTab') || 'main';
+let currentShopCat = "전체";
+let currentLayout = {}; 
+let isEditMode = false;
+let selectedStudentForMove = null;
+let isCheckingIn = false;
+let isHousingEnabled = true;
+let totalBudget = 100000;
