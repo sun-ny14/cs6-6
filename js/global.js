@@ -686,39 +686,59 @@ function startApp() {
 
 
       let h = ""; 
-currentUsers.forEach(u => { 
-    // 💡 1. 관리자(총사령관) 및 선생님 계정은 메인 화면에서 숨김 처리
-    if (u.name === "총사령관" || u.name.includes("선생님")) return; 
-    
-    const isMe = (u.name === myName);
-    const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
-    const level = u.lv || 1;
-    
-    // 💡 2. 클릭 시 프로필로 이동하는 함수(openUserHistory 또는 showStudentProfile 등 선생님 앱에 맞춰 수정) 적용
-    h += `<div class="hero-card" onclick="openStudentProfile('${u.name}')" 
-            style="background: #ffffff; border: 2px solid #e0e0e0; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        currentUsers.forEach(u => { 
+            // 💡 선생님 계정 및 총사령관은 메인 화면에서 제외
+            if(u.name === "총사령관" || u.name.includes("선생님")) return; 
             
-            <div style="position: absolute; top: 0; left: 0; background: #95a5a6; color: white; padding: 4px 10px; border-radius: 10px 0 10px 0; font-weight: bold;">
-                Lv.${level}
-            </div>
+            const isMe = (u.name === myName);
+            const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
+            const level = u.lv || 1;
+            
+            // RPG 재화 느낌의 포인트 UI
+            const pointDisplay = `<div style="background: rgba(0,0,0,0.6); color: #ffdf00; border-radius: 8px; padding: 4px 10px; display: inline-block; font-size: 0.95rem; font-weight: bold; margin-top: 10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.2);">💰 ${u.points || 0} P</div>`;
 
-            <div style="font-size: 3rem; margin: 10px 0;">
-                ${u.selectedAnimal || '🐹'}
-            </div>
-            
-            <!-- 💡 3. 노안 방지! 학생 이름 글자 크기를 1.6rem으로 큼직하게 키우고 진하게 처리 -->
-            <b style="font-size: 1.6rem; font-weight: 900; color: #2c3e50; display: block; margin-bottom: 8px;">
-                ${isMe ? '⭐ ' : ''}${title}${u.name}
-            </b>
-            
-            <div style="background: #f1c40f; color: #8e44ad; border-radius: 20px; padding: 5px 15px; display: inline-block; font-weight: 900; font-size: 1.1rem;">
-                💰 ${u.points || 0} P
-            </div>
-        </div>`; 
-}); 
+            // 레벨별 카드 색상 등급
+            let cardBg = "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)";
+            let borderColor = "#bdc3c7";
+
+            if (level >= 30) {
+                cardBg = "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)";
+                borderColor = "#e67e22";
+            } else if (level >= 20) {
+                cardBg = "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)";
+                borderColor = "#9b59b6";
+            } else if (level >= 10) {
+                cardBg = "linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)";
+                borderColor = "#2ecc71";
+            }
+
+            const myHighlight = isMe ? "box-shadow: 0 0 15px rgba(241, 196, 15, 0.8), inset 0 0 10px rgba(255,255,255,0.5);" : "box-shadow: 3px 5px 10px rgba(0,0,0,0.15);";
+
+            // 💡 기존의 깔끔하고 안정적인 메인 카드 구조로 복원 (이름이 두 번 겹치지 않음)
+            h += `<div class="hero-card" onclick="openStudentProfile('${u.name}')" 
+                    style="background: ${cardBg}; border: 3px solid ${borderColor}; border-radius: 15px; padding: 20px 10px 15px 10px; text-align: center; cursor: pointer; transition: transform 0.2s; ${myHighlight} position: relative; overflow: hidden;">
+                    
+                    <!-- 모서리 레벨 뱃지 -->
+                    <div style="position: absolute; top: 0; left: 0; background: ${borderColor}; color: white; padding: 4px 12px; border-radius: 0 0 12px 0; font-weight: 900; font-size: 1.1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
+                        Lv.${level}
+                    </div>
+
+                    <!-- 캐릭터 아바타 -->
+                    <div style="font-size: 3.2rem; margin-top: 10px; margin-bottom: 8px; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.2));">
+                        ${getAvatar(level, u.selectedAnimal) || '🐣'}
+                    </div>
+                    
+                    <!-- 학생 이름 (노안 방지를 위해 1.4rem 크기로 큼직하고 선명하게 출력) -->
+                    <b style="font-size: 1.4rem; font-weight: 900; display: block; color: #2c3e50; text-shadow: 1px 1px 2px rgba(255,255,255,0.9); background: rgba(255,255,255,0.6); padding: 6px; border-radius: 8px; margin: 0 10px;">
+                        ${isMe ? '⭐ ' : ''}${title}${u.name}
+                    </b>
+                    
+                    ${pointDisplay}
+                </div>`; 
+        }); 
         
-const heroGrid = document.getElementById('hero-grid');
-if(heroGrid) heroGrid.innerHTML = h;
+        const heroGrid = document.getElementById('hero-grid');
+        if(heroGrid) heroGrid.innerHTML = h;
         if (
             adminStatus &&
             typeof renderAdminList === 'function'
