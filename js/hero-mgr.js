@@ -6,7 +6,7 @@ function initApp() {
     renderHeroes();
 }
 
-// 스프라이트 시트 기반 육육이 아바타 렌더링
+// 스프라이트 시트 기반 육육이 아바타 렌더링 (기존 원본 복구)
 function getAvatar(lv, selectedAnimal) {
     const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true"; 
     const animals = ["귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는", "날쌘돌이", "즐거운", "행복한", "정의로운", "천사", "닌자", "왕자", "공주", "근육맨", "마법사", "용사", "공부하는", "춤추는", "노래하는", "무지개"];
