@@ -955,3 +955,16 @@ document.addEventListener('DOMContentLoaded', () => {
         dateInput.value = checkinGetTodayKST();
     }
 });
+// 등교 관리 화면 데이터 로드 함수
+window.loadCheckinData = function() {
+    // 1. Firebase 데이터베이스에서 좌석 배치(layout) 정보를 먼저 한 번 불러옵니다.
+    db.ref('settings/layout').once('value').then(snap => {
+        // 2. 불러온 데이터를 전역 변수인 currentLayout에 저장합니다.
+        window.currentLayout = snap.val() || {};
+
+        // 3. 데이터가 모두 준비되었으므로, 좌석 맵과 통계를 화면에 그립니다.
+        refreshCheckinManagement(); 
+    }).catch(error => {
+        console.error("좌석 정보를 불러오지 못했습니다.", error);
+    });
+};
