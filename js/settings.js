@@ -159,9 +159,23 @@ window.renderCurrentSeatingView = async function() {
             if (studentName) {
                 const sInfo = usersMap[studentName] || {};
                 const animalEmoji = sInfo.selectedAnimal || "🐹";
+                
+                // 💡 수식어와 이름 분리 로직 (띄어쓰기 기준)
+                let modifier = "";
+                let mainName = studentName;
+                
+                if (studentName.includes(" ")) {
+                    const parts = studentName.split(" ");
+                    modifier = parts[0]; // 앞부분 (예: 패셔니스타)
+                    mainName = parts.slice(1).join(" "); // 뒷부분 (예: 민준)
+                }
+
                 studentDisplay = `
                     <div style="font-size: 1.5rem; margin-bottom: 4px;">${animalEmoji}</div>
-                    <div style="font-weight: bold; color: #2c3e50; font-size: 1.1rem;">${studentName}</div>
+                    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.2;">
+                        <span style="font-size: 0.85rem; color: #7f8c8d; font-weight: normal;">${modifier}</span>
+                        <span style="font-size: 1.4rem; font-weight: 900; color: #2c3e50;">${mainName}</span>
+                    </div>
                 `;
                 boxBg = "#ffffff";
                 borderColor = "#3498db";
