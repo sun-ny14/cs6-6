@@ -1,356 +1,931 @@
-// js/point-guide.js - 포인트 도감, 인벤토리, 승인/환불, 포인트 연대기 및 일괄 지급 통합 로직
+// js/global.js
+// 공통으로 사용되는 유틸리티 함수 모음
 
-// 시간 포맷팅 헬퍼 함수
-function formatDateTime(timestamp) {
-    if (!timestamp) return "";
-    const d = new Date(timestamp);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const h = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    return `${y}-${m}-${day} ${h}:${min}`;
+function getTodayKST() {
+    const now = new Date();
+
+    const krTime = new Date(
+        now.getTime() + (9 * 60 * 60 * 1000)
+    );
+
+    return (
+        krTime.getUTCFullYear() +
+        "-" +
+        String(krTime.getUTCMonth() + 1).padStart(2, '0') +
+        "-" +
+        String(krTime.getUTCDate()).padStart(2, '0')
+    );
 }
 
-// 중복 리스너 방지 잠금장치 변수
-window.isPointsListenerAttached = false;
-window.isPointGuideListenerAttached = false;
 
-// ----------------------------------------------------
-// 1. 인벤토리 및 승인, 포인트 연대기(pointLogs) 실시간 감지
-// ----------------------------------------------------
-window.initPointsTabListeners = function() {
-    if (window.isPointsListenerAttached) return; 
-    window.isPointsListenerAttached = true;
-    
-    // 주문 및 인벤토리 리스너
-    db.ref('orders').on('value', snap => {
-        let uHtml = "", wHtml = "", adminOrderHtml = "";
-        
+/* =========================================================
+   화면 표시
+   ========================================================= */
+
+function forceScreenDisplay(status) {
+
+    const load = document.getElementById('loading-screen');
+    const login = document.getElementById('login-screen');
+    const app = document.getElementById('main-app');
+
+    if (load) {
+        load.style.display = 'none';
+    }
+
+    if (status === 'app') {
+
+        if (login) {
+            login.style.display = 'none';
+        }
+
+        if (app) {
+            app.style.display = 'flex';
+        }
+
+    } else {
+
+        if (login) {
+            login.style.display = 'flex';
+        }
+
+        if (app) {
+            app.style.display = 'none';
+        }
+    }
+}
+
+
+/* =========================================================
+   탭 전환
+   ========================================================= */
+
+function showTab(t) {
+
+    // [수정]
+    // currentTab 미정의 오류를 방지한다.
+    window.currentTab = t;
+
+    try {
+        sessionStorage.setItem('activeTab', t);
+    } catch (e) {
+        console.warn('activeTab 저장 실패:', e);
+    }
+
+
+    document.querySelectorAll('.tab-content').forEach(s => {
+
+        s.classList.remove('active');
+
+        s.style.display = 'none';
+    });
+
+
+    document.querySelectorAll('.sidebar-menu button').forEach(b => {
+
+        b.classList.remove('active');
+    });
+
+
+    const targetTab =
+        document.getElementById('tab-' + t);
+
+    if (targetTab) {
+
+        targetTab.classList.add('active');
+
+        targetTab.style.display = 'block';
+    }
+
+
+    const targetBtn =
+        document.getElementById('btn-' + t);
+
+    if (targetBtn) {
+
+        targetBtn.classList.add('active');
+    }
+
+
+    /* -------------------------
+       등교
+       ------------------------- */
+
+    if (t === 'checkin') {
+
+        if (typeof switchCheckinSub === 'function') {
+
+            switchCheckinSub('checkin-main');
+        }
+
+        // 관리자 / 총사령관이면 로그 버튼 표시
+        const adminCheckinBtn =
+            document.getElementById('sub-btn-checkin-logs');
+
+        if (adminCheckinBtn) {
+
+            const adminStatus =
+                (typeof isAdmin !== 'undefined' && isAdmin) ||
+                (typeof isHelper !== 'undefined' && isHelper) ||
+                (typeof myName !== 'undefined' && myName === '총사령관');
+
+            adminCheckinBtn.style.display =
+                adminStatus ? 'block' : 'none';
+        }
+    }
+
+
+    /* -------------------------
+       상점
+       ------------------------- */
+
+    if (t === 'shop') {
+
+        if (typeof renderShop === 'function') {
+            renderShop();
+        }
+
+        if (typeof loadOrderRecords === 'function') {
+            loadOrderRecords();
+        }
+    }
+
+
+    /* -------------------------
+       포인트
+       ------------------------- */
+
+    if (t === 'points') {
+
+        if (typeof renderPointGuide === 'function') {
+            renderPointGuide();
+        }
+
+        if (typeof initPointsTabListeners === 'function') {
+            initPointsTabListeners();
+        }
+    }
+
+
+    /* -------------------------
+       학급관리
+       ------------------------- */
+
+    if (t === 'management') {
+
+        if (typeof renderManagementSub === 'function') {
+            renderManagementSub('grades');
+        }
+    }
+
+
+    /* -------------------------
+       등교로그 새로고침
+       ------------------------- */
+
+    if (t === 'checkin') {
+
+        const logArea =
+            document.getElementById('sub-checkin-logs');
+
+        if (
+            logArea &&
+            logArea.style.display !== 'none' &&
+            typeof refreshCheckinManagement === 'function'
+        ) {
+            refreshCheckinManagement();
+        }
+    }
+}
+
+
+/* =========================================================
+   공통 팝업 닫기
+   ========================================================= */
+
+function closePopup() {
+
+    if (
+        window.routineActive &&
+        ++rIdx < routineItems.length
+    ) {
+
+        document.getElementById('pop-content').innerText =
+            `[루틴 ${rIdx + 1}단계]\n${routineItems[rIdx]}`;
+
+    } else {
+
+        const overlay =
+            document.getElementById('common-overlay');
+
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+
+        rIdx = 0;
+    }
+}
+
+
+/* =========================================================
+   아바타
+   ========================================================= */
+
+function getAvatar(lv, selectedAnimal) {
+
+    return "";
+}
+
+
+/* =========================================================
+   등교 서브탭
+   ========================================================= */
+
+function switchCheckinSub(subId) {
+
+    const subMain =
+        document.getElementById('sub-checkin-main');
+
+    const subLogs =
+        document.getElementById('sub-checkin-logs');
+
+    const btnMain =
+        document.getElementById('sub-btn-checkin-main');
+
+    const btnLogs =
+        document.getElementById('sub-btn-checkin-logs');
+
+
+    if (subMain) {
+
+        subMain.style.display =
+            (subId === 'checkin-main')
+                ? 'block'
+                : 'none';
+    }
+
+
+    if (subLogs) {
+
+        subLogs.style.display =
+            (subId === 'checkin-logs')
+                ? 'block'
+                : 'none';
+    }
+
+
+    if (btnMain) {
+
+        btnMain.style.background =
+            (subId === 'checkin-main')
+                ? 'var(--dark, #2c3e50)'
+                : '#ddd';
+
+        btnMain.style.color =
+            (subId === 'checkin-main')
+                ? 'white'
+                : '#333';
+    }
+
+
+    if (btnLogs) {
+
+        btnLogs.style.background =
+            (subId === 'checkin-logs')
+                ? 'var(--dark, #2c3e50)'
+                : '#ddd';
+
+        btnLogs.style.color =
+            (subId === 'checkin-logs')
+                ? 'white'
+                : '#333';
+    }
+
+
+    if (subId === 'checkin-logs') {
+
+        if (typeof refreshCheckinManagement === 'function') {
+
+            refreshCheckinManagement();
+
+        } else if (
+            typeof generateNewLayout === 'function'
+        ) {
+
+            generateNewLayout();
+        }
+    }
+}
+
+
+/* =========================================================
+   학급관리 서브탭
+   ========================================================= */
+
+function renderManagementSub(type) {
+
+    const container =
+        document.getElementById('management-sub-container');
+
+    const btnGrades =
+        document.getElementById('sub-btn-grades');
+
+    const btnBudget =
+        document.getElementById('sub-btn-budget');
+
+
+    if (type === 'grades') {
+
+        if (btnGrades) {
+
+            btnGrades.style.background =
+                'var(--primary)';
+
+            btnGrades.style.color = 'white';
+        }
+
+        if (btnBudget) {
+
+            btnBudget.style.background = '#ddd';
+
+            btnBudget.style.color = '#333';
+        }
+
+
+        if (
+            typeof renderGradesMain === 'function'
+        ) {
+
+            renderGradesMain();
+
+        } else if (container) {
+
+            container.innerHTML = `
+                <div class="card">
+                    <h2>📝 성적 및 평가 관리</h2>
+                    <p>
+                        학생들의 성적과 수행평가 기록을 관리하는 공간입니다.
+                    </p>
+                </div>
+            `;
+        }
+
+    } else if (type === 'budget') {
+
+        if (btnBudget) {
+
+            btnBudget.style.background =
+                'var(--primary)';
+
+            btnBudget.style.color = 'white';
+        }
+
+        if (btnGrades) {
+
+            btnGrades.style.background = '#ddd';
+
+            btnGrades.style.color = '#333';
+        }
+
+
+        if (
+            typeof initBudgetManager === 'function'
+        ) {
+
+            initBudgetManager();
+        }
+    }
+}
+
+
+/* =========================================================
+   앱 시작
+   ========================================================= */
+
+function startApp() {
+
+    const adminStatus =
+        (typeof isAdmin !== 'undefined' && isAdmin);
+
+    const helperStatus =
+        (typeof isHelper !== 'undefined' && isHelper);
+
+    const commanderStatus =
+        (typeof myName !== 'undefined' && myName === "총사령관");
+
+
+    /* -------------------------
+       관리자 메뉴
+       ------------------------- */
+
+    if (
+        adminStatus ||
+        helperStatus ||
+        commanderStatus
+    ) {
+
+        const orderMgr =
+            document.getElementById('admin-order-mgr');
+
+        if (orderMgr) {
+            orderMgr.style.display = 'block';
+        }
+
+
+        const bbAdminBtn =
+            document.getElementById('btn-blackboard-admin');
+
+        if (bbAdminBtn) {
+            bbAdminBtn.style.display = 'block';
+        }
+
+
+        const adminBtn =
+            document.getElementById('btn-admin');
+
+        if (adminBtn) {
+            adminBtn.style.display = 'block';
+        }
+
+    } else {
+
+        const adminBtn =
+            document.getElementById('btn-admin');
+
+        if (adminBtn) {
+            adminBtn.style.display = 'none';
+        }
+    }
+
+
+    /* =====================================================
+       [수정]
+       총사령관의 등교 버튼을 숨기지 않는다.
+       ===================================================== */
+
+    const checkinTabBtn =
+        document.getElementById('btn-checkin');
+
+    if (checkinTabBtn) {
+
+        checkinTabBtn.style.display = 'block';
+    }
+
+
+    /* =====================================================
+       등교로그 관리자 버튼
+       ===================================================== */
+
+    const checkinLogBtn =
+        document.getElementById('sub-btn-checkin-logs');
+
+    if (checkinLogBtn) {
+
+        checkinLogBtn.style.display =
+            (
+                adminStatus ||
+                helperStatus ||
+                commanderStatus
+            )
+                ? 'block'
+                : 'none';
+    }
+
+
+    /* =====================================================
+       청소
+       ===================================================== */
+
+    if (commanderStatus) {
+
+        const cleaningTabBtn =
+            document.getElementById('btn-cleaning');
+
+        if (cleaningTabBtn) {
+
+            cleaningTabBtn.style.display =
+                'inline-block';
+        }
+
+    } else {
+
+        if (
+            typeof currentUser !== 'undefined' &&
+            currentUser &&
+            currentUser.role === '청소'
+        ) {
+
+            const cleaningTabBtn =
+                document.getElementById('btn-cleaning');
+
+            if (cleaningTabBtn) {
+
+                cleaningTabBtn.style.display =
+                    'inline-block';
+            }
+        }
+    }
+
+
+    window.isHousingEnabled = true;
+
+
+    /* =====================================================
+       Firebase settings listener
+       기존 settings 경로 유지
+       ===================================================== */
+
+    db.ref('settings').on('value', snap => {
+
+        const s = snap.val() || {};
+
+
+        giftList =
+            s.giftList || [];
+
+
+        routineItems =
+            s.routineText
+                ?.split('\n')
+                .filter(t => t.trim()) || [];
+
+
+        if (adminStatus) {
+
+            const passEl =
+                document.getElementById('conf-pass');
+
+            const lateEl =
+                document.getElementById('conf-late');
+
+            const closeEl =
+                document.getElementById('conf-close');
+
+            const routineEl =
+                document.getElementById('conf-routine');
+
+            const giftsEl =
+                document.getElementById('conf-gifts');
+
+
+            if (passEl) {
+                passEl.value =
+                    s.password || "";
+            }
+
+            if (lateEl) {
+                lateEl.value =
+                    s.lateTime || "08:40";
+            }
+
+            if (closeEl) {
+                closeEl.value =
+                    s.closeTime || "09:00";
+            }
+
+            if (routineEl) {
+                routineEl.value =
+                    s.routineText || "";
+            }
+
+            if (giftsEl) {
+                giftsEl.value =
+                    s.giftList?.join('\n') || "";
+            }
+        }
+
+
+        const guide =
+            document.getElementById('checkin-guide');
+
+        if (guide) {
+
+            guide.innerText =
+                `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
+        }
+
+
+        window.currentDefaultBg =
+            s.defaultBg || "";
+    });
+
+
+    /* =====================================================
+       좌석
+       ===================================================== */
+
+    if (
+        typeof generateNewLayout === 'function'
+    ) {
+
+        generateNewLayout();
+    }
+
+
+    /* =====================================================
+       포인트
+       ===================================================== */
+
+    if (
+        typeof renderPointGuide === 'function'
+    ) {
+
+        renderPointGuide();
+    }
+
+
+    if (
+        typeof initPointsTabListeners === 'function'
+    ) {
+
+        initPointsTabListeners();
+    }
+
+
+    /* =====================================================
+       주문
+       ===================================================== */
+
+    if (
+        typeof loadOrderRecords === 'function'
+    ) {
+
+        loadOrderRecords();
+    }
+
+
+    /* =====================================================
+       Firebase users listener
+       기존 users 경로 유지
+       ===================================================== */
+
+    db.ref('users').on('value', snap => {
+
+        let users = [];
+
+
         snap.forEach(c => {
-            const o = c.val(), key = c.key;
-            const isMyItem = (typeof myName !== 'undefined' && o.user === myName);
+
+            let u = c.val();
+
+            u.name = c.key;
+
+            users.push(u);
+        });
+
+
+        currentUsers =
+            users.sort((a, b) =>
+                (
+                    a.name === myName
+                        ? -1
+                        : b.name === myName
+                            ? 1
+                            : (a.no || 99) - (b.no || 99)
+                )
+            );
+
+
+      let h = ""; 
+        currentUsers.forEach(u => { 
+            // 💡 선생님 계정 및 총사령관은 메인 화면에서 제외
+            if(u.name === "총사령관" || u.name.includes("선생님")) return; 
             
-            if (isMyItem && (o.status === '대기' || o.status === '요청' || o.status === '환불')) {
-                const refundTag = o.status === '환불' ? '<span style="color:#e74c3c; font-size:0.9rem; font-weight:bold; margin-left:10px;">(환불/반려됨)</span>' : '';
-                uHtml += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #eee; background:#ffffff;">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span style="font-size:1.4rem;">📦</span>
-                            <b style="font-size:1.2rem; color:#2c3e50;">${o.item}</b>
-                            ${refundTag}
-                        </div>
-                        <button onclick="requestUseItem('${key}', '${o.item}')" style="background:#3498db; color:white; padding:10px 20px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:1.1rem; flex-shrink:0;">사용하기</button>
-                    </div>`;
-            }
-            else if (isMyItem && o.status === '사용요청') {
-                wHtml += `
-                    <div style="padding:12px; border-bottom:1px solid #eee; color:#7f8c8d; font-size:1.1rem;">
-                        ⏳ <b>${o.item}</b> (선생님 승인 대기중...)
-                    </div>`;
-            }
-
-            if (typeof isAdmin !== 'undefined' && isAdmin && o.status === '사용요청') {
-                adminOrderHtml += `
-                    <div style="background:#f8f9fa; border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:1.1rem;">🧑‍🎓 <b>${o.user}</b> 용사 - <b>${o.item}</b> 사용 요청</span>
-                        <div>
-                            <button onclick="approveItem('${key}', '${o.user}', '${o.item}')" style="background:#2ecc71; color:white; padding:8px 12px; border:none; border-radius:6px; margin-right:5px; cursor:pointer; font-weight:bold;">승인</button>
-                            <button onclick="refundItem('${key}', '${o.user}', '${o.item}')" style="background:#e74c3c; color:white; padding:8px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">환불(반려)</button>
-                        </div>
-                    </div>`;
-            }
-        });
-
-       const uEl = document.getElementById('inv-unused');
-        if (uEl && uEl.querySelector('.list')) {
-            const listContainer = uEl.querySelector('.list');
-            listContainer.style.display = 'block';
-            listContainer.style.background = '#ffffff';
-            listContainer.style.borderRadius = '10px';
-            listContainer.style.overflow = 'hidden';
-            listContainer.innerHTML = uHtml || "<p style='color:#999; padding:15px; font-size:1.1rem;'>보관함이 비어있습니다.</p>";
-        }
-        const wEl = document.getElementById('inv-waiting');
-        if (wEl && wEl.querySelector('.list')) wEl.querySelector('.list').innerHTML = wHtml || "<p style='color:#999; padding:10px;'>대기 중인 항목이 없습니다.</p>";
-        
-        const adminOrderEl = document.getElementById('order-list');
-        if (adminOrderEl) adminOrderEl.innerHTML = adminOrderHtml || "<p style='color:#999;'>대기 중인 사용 요청이 없습니다.</p>";
-    });
-
-    // 포인트 연대기('pointLogs') 실시간 감지 및 점수 정상 출력 처리
-    db.ref('pointLogs').limitToLast(50).on('value', snap => {
-        let historyArr = [];
-        snap.forEach(c => { 
-            const val = c.val();
-            const pointVal = val.pAmt !== undefined ? val.pAmt : (val.amount !== undefined ? val.amount : (val.p !== undefined ? val.p : 0));
+            const isMe = (u.name === myName);
+            const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
+            const level = u.lv || 1;
             
-            historyArr.push({
-                user: val.name || val.user || "알 수 없음",
-                p: parseInt(pointVal) || 0,
-                reason: val.reason || "지급/차감",
-                timeStr: val.time || formatDateTime(val.timestamp)
-            });
-        });
-        historyArr.reverse(); // 최신순 정렬
+            // RPG 재화 느낌의 포인트 UI
+            const pointDisplay = `<div style="background: rgba(0,0,0,0.6); color: #ffdf00; border-radius: 8px; padding: 4px 10px; display: inline-block; font-size: 0.95rem; font-weight: bold; margin-top: 10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.2);">💰 ${u.points || 0} P</div>`;
 
-        let historyHtml = "";
-        historyArr.forEach(h => {
-            if ((typeof isAdmin === 'undefined' || !isAdmin) && typeof myName !== 'undefined' && h.user !== myName) return;
+            // 레벨별 카드 색상 등급
+            let cardBg = "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)";
+            let borderColor = "#bdc3c7";
 
-            const pColor = h.p >= 0 ? '#e74c3c' : '#3498db';
-            const sign = h.p >= 0 ? '+' : '';
+            if (level >= 30) {
+                cardBg = "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)";
+                borderColor = "#e67e22";
+            } else if (level >= 20) {
+                cardBg = "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)";
+                borderColor = "#9b59b6";
+            } else if (level >= 10) {
+                cardBg = "linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)";
+                borderColor = "#2ecc71";
+            }
 
-            historyHtml += `
-                <div style="padding:12px; border-bottom:1px solid #eee; display:flex; flex-direction:column; gap:4px;">
-                    <span style="font-size:0.9rem; color:#7f8c8d;">🕒 ${h.timeStr}</span>
-                    <span style="font-size:1.1rem; color:#2c3e50;">
-                        <b>${h.user}</b>: ${h.reason} 
-                        <b style="color:${pColor}; margin-left:8px;">(${sign}${h.p}P)</b>
-                    </span>
-                </div>`;
-        });
+            const myHighlight = isMe ? "box-shadow: 0 0 15px rgba(241, 196, 15, 0.8), inset 0 0 10px rgba(255,255,255,0.5);" : "box-shadow: 3px 5px 10px rgba(0,0,0,0.15);";
 
-        const historyListEl = document.getElementById('point-history-list');
-        if (historyListEl) historyListEl.innerHTML = historyHtml || "<p style='color:#999; padding:10px;'>포인트 기록이 없습니다.</p>";
-    });
-};
-
-// ----------------------------------------------------
-// 2. 인벤토리 액션 함수들
-// ----------------------------------------------------
-window.requestUseItem = function(key, itemName) {
-    if (confirm(`[${itemName}] 물품을 사용하시겠습니까?\n선생님께 사용 승인 요청이 전송됩니다.`)) {
-        db.ref(`orders/${key}`).update({ status: '사용요청' });
-    }
-};
-
-window.approveItem = function(key, user, item) {
-    if (confirm(`[${user}] 학생의 [${item}] 사용을 승인하시겠습니까?\n(승인 즉시 인벤토리에서 완전히 삭제됩니다)`)) {
-        db.ref(`orders/${key}`).remove();
-    }
-};
-
-window.refundItem = function(key, user, item) {
-    if (confirm(`[${user}] 학생의 [${item}] 사용을 반려(환불)하시겠습니까?\n(학생의 미사용 보관함으로 다시 돌아갑니다)`)) {
-        db.ref(`orders/${key}`).update({ status: '환불' });
-    }
-};
-
-// ----------------------------------------------------
-// 3. 포인트 도감(pointGuide) 및 일괄 지급 팝업 연동 로직
-// ----------------------------------------------------
-window.renderPointGuide = function() {
-    if (window.isPointGuideListenerAttached) return; 
-    window.isPointGuideListenerAttached = true;
-
-    db.ref('pointGuide').on('value', async (snap) => {
-        const guideListEl = document.getElementById('guide-list');
-        if (!guideListEl) return;
-
-        if (typeof isAdmin === 'undefined' || !isAdmin) {
-            guideListEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #888; font-size: 1.2rem;">포인트 도감은 선생님만 조회할 수 있습니다.</div>`;
-            return;
-        }
-
-       let guides = [];
-        snap.forEach(c => { 
-            const val = c.val();
-            guides.push({ 
-                key: c.key, 
-                title: val.title || "제목 없음", 
-                points: val.p !== undefined ? val.p : (val.points || 0), 
-                desc: val.desc || (val.e ? `경험치 +${val.e}` : '설명 없음') 
-            }); 
-        });
-
-        let html = "";
-        if (typeof isAdmin !== 'undefined' && isAdmin) {
-            html += `<div style="grid-column: 1 / -1; margin-bottom: 10px;"><button onclick="openPointGuideModal()" style="width:100%; padding:15px; background:var(--gold, #f1c40f); color:#2c3e50; border:none; border-radius:12px; font-weight:bold; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.05); transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">+ 새 포인트 항목 추가</button></div>`;
-        }
-
-        // 💡 수정된 부분: 무조건 3열로 배치되도록 repeat(3, 1fr) 적용!
-       html += `<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px; width:100%;">`;
-        
-        guides.forEach(g => {
-            const adminControls = (typeof isAdmin !== 'undefined' && isAdmin) ? `
-                <div style="margin-top:12px; display:flex; gap:10px;" onclick="event.stopPropagation();">
-                    <button onclick="openPointGuideModal('${g.key}', '${g.title.replace(/'/g, "\\'")}', ${g.points}, '${(g.desc || '').replace(/'/g, "\\'")}')" style="flex:1; background:#f39c12; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;">수정</button>
-                    <button onclick="deletePointGuideItem('${g.key}', '${g.title.replace(/'/g, "\\'")}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;">삭제</button>
-                </div>` : "";
-
-            const onClickAction = (typeof isAdmin !== 'undefined' && isAdmin) ? `onclick="openBulkPointPopup('${g.title.replace(/'/g, "\\'")}', ${g.points})"` : "";
-            const hoverStyle = (typeof isAdmin !== 'undefined' && isAdmin) ? `cursor:pointer; transition:transform 0.2s;` : ``;
-
-            html += `
-                <div ${onClickAction} style="background:white; border:2px solid #3498db; padding:20px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); display:flex; flex-direction:column; justify-content:space-between; ${hoverStyle}" ${isAdmin ? `onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'"` : ""}>
-                    <div>
-                        <div style="font-size:1.2rem; font-weight:bold; color:#2c3e50; margin-bottom:8px;">📜 ${g.title}</div>
-                        <div style="font-size:1.4rem; font-weight:bold; color:${g.points >= 0 ? '#e74c3c' : '#3498db'}; margin-bottom:8px;">${g.points >= 0 ? '+' : ''}${g.points} P</div>
-                        <div style="font-size:1rem; color:#666; margin-bottom:8px;">${g.desc}</div>
-                        <div style="font-size:0.85rem; color:#2980b9; font-weight:bold;">👉 클릭하여 일괄 지급하기</div>
+            // 💡 기존의 깔끔하고 안정적인 메인 카드 구조로 복원 (이름이 두 번 겹치지 않음)
+            h += `<div class="hero-card" onclick="openStudentProfile('${u.name}')" 
+                    style="background: ${cardBg}; border: 3px solid ${borderColor}; border-radius: 15px; padding: 20px 10px 15px 10px; text-align: center; cursor: pointer; transition: transform 0.2s; ${myHighlight} position: relative; overflow: hidden;">
+                    
+                    <!-- 모서리 레벨 뱃지 -->
+                    <div style="position: absolute; top: 0; left: 0; background: ${borderColor}; color: white; padding: 4px 12px; border-radius: 0 0 12px 0; font-weight: 900; font-size: 1.1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
+                        Lv.${level}
                     </div>
-                    ${adminControls}
-                </div>`;
-        });
-        html += `</div>`;
-        guideListEl.innerHTML = html;
+
+                    <!-- 캐릭터 아바타 -->
+                    <div style="font-size: 3.2rem; margin-top: 10px; margin-bottom: 8px; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.2));">
+                        ${getAvatar(level, u.selectedAnimal) || '🐣'}
+                    </div>
+                    
+                    <!-- 학생 이름 (노안 방지를 위해 1.4rem 크기로 큼직하고 선명하게 출력) -->
+                    <b style="font-size: 1.4rem; font-weight: 900; display: block; color: #2c3e50; text-shadow: 1px 1px 2px rgba(255,255,255,0.9); background: rgba(255,255,255,0.6); padding: 6px; border-radius: 8px; margin: 0 10px;">
+                        ${isMe ? '⭐ ' : ''}${title}${u.name}
+                    </b>
+                    
+                    ${pointDisplay}
+                </div>`; 
+        }); 
+        
+        const heroGrid = document.getElementById('hero-grid');
+        if(heroGrid) heroGrid.innerHTML = h;
+        if (
+            adminStatus &&
+            typeof renderAdminList === 'function'
+        ) {
+
+            renderAdminList();
+        }
+
+
+        if (
+            typeof generateNewLayout === 'function'
+        ) {
+
+            generateNewLayout();
+        }
     });
-};
+}
 
-// 도감 항목 추가/수정 모달 팝업
-window.openPointGuideModal = function(key = '', title = '', points = 100, desc = '') {
-    if (typeof isAdmin === 'undefined' || !isAdmin) return;
 
-    let overlay = document.getElementById('common-overlay');
-    if (!overlay) return;
+// 1. 오직 선생님(관리자)에게만 'P' 플로팅 버튼 생성하기
+function createBatchPointButton() {
+    // 💡 관리자 여부 확인 (isAdmin이 true일 때만 생성)
+    const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
+    if (!isUserAdmin) return;
 
-    const isEdit = !!key;
-    const popTitle = isEdit ? '📜 포인트 도감 항목 수정' : '📜 새 포인트 항목 추가';
+    const existingBtn = document.getElementById('floating-batch-btn');
+    if (existingBtn) existingBtn.remove();
 
-    document.getElementById('pop-title').innerText = popTitle;
-    document.getElementById('pop-content').innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:15px; text-align:left; margin-top:15px; max-height:60vh; overflow-y:auto; padding:5px;">
-            <div>
-                <label style="font-size:1.1rem; font-weight:bold; display:block; margin-bottom:5px;">항목 이름:</label>
-                <input type="text" id="modal-guide-title" value="${title}" placeholder="예: 숙제 완료" style="width:100%; padding:12px; font-size:1.2rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
+    const btn = document.createElement('button');
+    btn.id = "floating-batch-btn";
+    btn.innerHTML = "P";
+    btn.style.cssText = `
+        position: fixed; bottom: 35px; right: 35px;
+        width: 75px; height: 75px; border-radius: 50%;
+        background-color: #8e44ad; color: white;
+        border: none; box-shadow: 0 6px 15px rgba(0,0,0,0.35);
+        font-weight: 900; font-size: 2rem; cursor: pointer;
+        z-index: 99999; display: flex; align-items: center; justify-content: center;
+    `;
+    
+    btn.onclick = function() {
+        if (typeof openBatchPointModal === 'function') {
+            openBatchPointModal();
+        }
+    };
+    
+    document.body.appendChild(btn);
+}
+
+// 페이지 로드 시 실행
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', createBatchPointButton);
+} else {
+    createBatchPointButton();
+}
+
+// 2. 포인트 및 경험치 개별 차등 지급 팝업창 열기 함수
+window.openBatchPointModal = function() {
+    let studentRows = "";
+    
+    if (typeof currentUsers !== 'undefined') {
+        currentUsers.forEach(u => {
+            if (u.name === "총사령관" || u.name.includes("선생님")) return;
+            const safeName = typeof checkinEscapeHtml === 'function' ? checkinEscapeHtml(u.name) : u.name;
+            studentRows += `
+                <div class="batch-student-row" style="display:flex; align-items:center; gap:10px; padding:8px 10px; margin-bottom:6px; background:#f8f9fa; border:1px solid #e0e0e0; border-radius:8px;">
+                    <label style="display:flex; align-items:center; gap:8px; flex:2; cursor:pointer; font-weight:bold;">
+                        <input type="checkbox" class="batch-student-chk" value="${safeName}" style="width:18px; height:18px;">
+                        <span>${safeName}</span>
+                        <span style="font-size:0.85rem; color:#666;">(${u.points || 0}P)</span>
+                    </label>
+                    <input type="number" class="batch-p-input" placeholder="포인트(P)" style="flex:1; padding:6px; text-align:center; border:1px solid #ccc; border-radius:6px; font-size:1rem;">
+                    <input type="number" class="batch-exp-input" placeholder="경험치(EXP)" style="flex:1; padding:6px; text-align:center; border:1px solid #ccc; border-radius:6px; font-size:1rem;">
+                </div>
+            `;
+        });
+    }
+
+    const modalHtml = `
+        <div style="padding: 10px;">
+            <h3 style="margin-top:0; color:#2c3e50; text-align:center;">🎁 포인트 및 경험치 개별 차등 지급</h3>
+            
+            <!-- 공통 사유 입력 칸 딱 1개 -->
+            <input type="text" id="batch-reason" placeholder="공통 사유 입력 (예: 모둠 활동 우수)" style="width: 100%; padding: 12px; margin-bottom: 12px; box-sizing: border-box; border-radius: 8px; border: 1px solid #ccc; font-size: 1.1rem;">
+
+            <div style="margin-bottom: 10px; display:flex; gap:10px;">
+                <button onclick="document.querySelectorAll('.batch-student-chk').forEach(cb => cb.checked = true)" style="padding:6px; cursor:pointer; background:#ecf0f1; border:none; border-radius:6px; font-weight:bold; flex:1;">전체 선택</button>
+                <button onclick="document.querySelectorAll('.batch-student-chk').forEach(cb => cb.checked = false)" style="padding:6px; cursor:pointer; background:#ecf0f1; border:none; border-radius:6px; font-weight:bold; flex:1;">전체 해제</button>
             </div>
-            <div>
-                <label style="font-size:1.1rem; font-weight:bold; display:block; margin-bottom:5px;">포인트 점수 (차감 시 마이너스):</label>
-                <input type="number" id="modal-guide-points" value="${points}" style="width:100%; padding:12px; font-size:1.2rem; border:2px solid #3498db; border-radius:8px; box-sizing:border-box;">
+
+            <!-- 학생별 목록 및 점수 입력 스크롤 박스 -->
+            <div style="max-height: 280px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 20px; background:#fff;">
+                ${studentRows}
             </div>
-            <div>
-                <label style="font-size:1.1rem; font-weight:bold; display:block; margin-bottom:5px;">항목 설명:</label>
-                <input type="text" id="modal-guide-desc" value="${desc}" placeholder="예: 오늘의 숙제를 완벽하게 해왔을 때" style="width:100%; padding:12px; font-size:1.2rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
+
+            <div style="display:flex; gap:10px;">
+                <button onclick="if(typeof closePopup === 'function') closePopup();" style="flex:1; padding:15px; background:#95a5a6; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:1.1rem;">취소</button>
+                <button onclick="submitBatchPoints()" style="flex:2; padding:15px; background:#27ae60; color:white; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; cursor:pointer;">선택된 학생들 반영하기</button>
             </div>
-        </div>
-        <div style="display:flex; gap:10px; margin-top:25px;">
-            <button onclick="savePointGuideModal('${key}')" style="background:#3498db; color:white; border:none; padding:15px; border-radius:10px; font-size:1.2rem; font-weight:bold; flex:1; cursor:pointer;">저장</button>
-            <button onclick="closePopup()" style="background:#e74c3c; color:white; border:none; padding:15px; border-radius:10px; font-size:1.2rem; font-weight:bold; flex:1; cursor:pointer;">취소</button>
         </div>
     `;
 
-    const closeBtn = document.getElementById('pop-close-btn');
-    if (closeBtn) closeBtn.style.display = 'none';
-
-    overlay.style.display = 'flex';
-};
-
-window.savePointGuideModal = function(key) {
-    const title = document.getElementById('modal-guide-title').value.trim();
-    const points = parseInt(document.getElementById('modal-guide-points').value);
-    const desc = document.getElementById('modal-guide-desc').value.trim();
-
-    if (!title) return alert("항목 이름을 입력해주세요!");
-    if (isNaN(points)) return alert("포인트 점수는 숫자만 입력해주세요!");
-
-    if (key) {
-        db.ref(`pointGuide/${key}`).update({ title, p: points, desc }).then(() => {
-            alert("✅ 수정되었습니다.");
-            closePopup();
-        });
+    if (typeof openPopup === 'function') {
+        openPopup("🎁 포인트 개별 차등 지급", modalHtml);
     } else {
-        db.ref('pointGuide').push({ title, p: points, desc }).then(() => {
-            alert("✅ 추가되었습니다.");
-            closePopup();
-        });
+        alert("팝업창을 띄우는 함수(openPopup)를 찾을 수 없습니다.");
     }
 };
 
-window.deletePointGuideItem = function(key, title) {
-    if (confirm(`정말 '${title}' 항목을 삭제하시겠습니까?`)) {
-        db.ref(`pointGuide/${key}`).remove().then(() => {
-            alert("🗑️ 삭제되었습니다.");
-        });
-    }
-};
-
-// ----------------------------------------------------
-// 4. 포인트 일괄 지급 팝업 로직 (5열 그리드 및 번호/이름 배치 개선)
-// ----------------------------------------------------
-window.openBulkPointPopup = async function(reason, points) {
-    if (typeof isAdmin === 'undefined' || !isAdmin) return;
-    const popup = document.getElementById('point-popup');
-    const titleEl = document.getElementById('point-pop-title');
-    const bodyEl = document.getElementById('point-pop-body');
-    const applyBtn = document.getElementById('point-apply-btn');
-
-    if (!popup || !bodyEl) return;
-
-    if (titleEl) {
-        titleEl.innerText = `⚖️ 포인트 일괄 전령 (${reason} : ${points >= 0 ? '+' : ''}${points}P)`;
+// 3. 실행 및 데이터베이스 반영 (입력 안 한 포인트/경험치는 0으로 처리)
+window.submitBatchPoints = async function() {
+    const reasonElement = document.getElementById('batch-reason');
+    if (!reasonElement) {
+        alert("사유 입력창을 찾을 수 없습니다.");
+        return;
     }
 
-    const userSnap = await db.ref('users').once('value');
-    let usersArr = [];
-    userSnap.forEach(c => { 
-        const val = c.val();
-        if(val.role !== '총관리자1' && val.role !== '총관리자2' && val.name !== '선생님') {
-            usersArr.push({ key: c.key, ...val }); 
+    const reason = reasonElement.value.trim();
+    if (!reason) {
+        alert("공통 사유를 정확히 입력해주세요.");
+        return;
+    }
+
+    const rowElements = document.querySelectorAll('.batch-student-row');
+    let targets = [];
+
+    rowElements.forEach(row => {
+        const chk = row.querySelector('.batch-student-chk');
+        if (chk && chk.checked) {
+            const studentName = chk.value;
+            const pInput = row.querySelector('.batch-p-input').value;
+            const expInput = row.querySelector('.batch-exp-input').value;
+
+            const pAmount = pInput === "" ? 0 : parseInt(pInput);
+            const expAmount = expInput === "" ? 0 : parseInt(expInput);
+
+            targets.push({
+                name: studentName,
+                p: isNaN(pAmount) ? 0 : pAmount,
+                exp: isNaN(expAmount) ? 0 : expAmount
+            });
         }
     });
-    usersArr.sort((a, b) => (parseInt(a.no) || 0) - (parseInt(b.no) || 0));
 
-    let bodyHtml = `
-        <div style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
-            <label style="font-weight:bold; cursor:pointer;"><input type="checkbox" onclick="toggleSelectAllStudents(this)" style="transform:scale(1.3); margin-right:8px;" checked> 전체 선택</label>
-        </div>
-        <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; max-height:400px; overflow-y:auto; padding:5px;">`;
-
-    usersArr.forEach(u => {
-        const studentNo = u.no ? `${u.no}번` : '번호 없음';
-        bodyHtml += `
-            <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8f9fa; padding:12px 8px; border-radius:10px; border:2px solid #ddd; cursor:pointer; text-align:center; position:relative; transition:all 0.2s;" onmouseover="this.style.borderColor='#3498db'" onmouseout="this.style.borderColor='#ddd'">
-                <input type="checkbox" class="student-checkbox" value="${u.key}" data-name="${u.name}" style="position:absolute; top:8px; left:8px; transform:scale(1.2);" checked>
-                <div style="font-size:0.9rem; color:#7f8c8d; font-weight:bold; margin-bottom:4px; margin-top:4px;">${studentNo}</div>
-                <div style="font-size:1.1rem; font-weight:bold; color:#2c3e50;">${u.name}</div>
-            </label>`;
-    });
-    bodyHtml += `</div>`;
-    bodyEl.innerHTML = bodyHtml;
-
-    if (applyBtn) {
-        const newApplyBtn = applyBtn.cloneNode(true);
-        applyBtn.parentNode.replaceChild(newApplyBtn, applyBtn);
-
-        newApplyBtn.onclick = async function() {
-            const checkboxes = document.querySelectorAll('.student-checkbox:checked');
-            if (checkboxes.length === 0) return alert("학생을 한 명 이상 선택해주세요!");
-            if (!confirm(`${checkboxes.length}명의 학생에게 [${reason}] 사유로 ${points}P를 부여하시겠습니까?`)) return;
-
-            const updates = {};
-            const timestamp = new Date().getTime(); 
-
-            for (let cb of checkboxes) {
-                const sKey = cb.value;
-                const sName = cb.getAttribute('data-name');
-                const uSnap = await db.ref(`users/${sKey}`).once('value');
-                if (uSnap.exists()) {
-                    const currentPoints = uSnap.val().points || 0;
-                    updates[`users/${sKey}/points`] = currentPoints + points;
-                    
-                    const hRef = db.ref('pointLogs').push();
-                    updates[`pointLogs/${hRef.key}`] = { 
-                        name: sName, 
-                        pAmt: points, 
-                        reason: reason, 
-                        time: new Date().toLocaleString('ko-KR') 
-                    };
-                }
-            }
-            await db.ref().update(updates);
-            alert("✨ 일괄 지급 완료!");
-            closePointPopup();
-        };
+    if (targets.length === 0) {
+        alert("포인트를 지급할 학생을 최소 1명 이상 체크해주세요.");
+        return;
     }
-    popup.style.display = 'flex';
-};
 
-window.toggleSelectAllStudents = function(masterCb) {
-    document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = masterCb.checked);
-};
+    if (!confirm(`선택한 ${targets.length}명의 학생에게 공통 사유로 포인트를 반영하시겠습니까?`)) return;
 
-window.closePointPopup = function() {
-    const popup = document.getElementById('point-popup');
-    if (popup) popup.style.display = 'none';
+    const today = (typeof checkinGetTodayKST === 'function') ? checkinGetTodayKST() : new Date().toISOString().split('T')[0]; 
+    const time = (typeof checkinGetNowKSTTime === 'function') ? checkinGetNowKSTTime() : new Date().toLocaleTimeString('en-GB').substring(0, 5);
+    let updates = {};
+
+    try {
+        for (const t of targets) {
+            const userSnap = await db.ref(`users/${t.name}`).once('value');
+            const userData = userSnap.val() || {};
+            const currentPoints = userData.points || 0;
+            const currentExp = userData.exp || 0;
+
+            const newPoints = currentPoints + t.p;
+            const newExp = currentExp + t.exp;
+
+            updates[`users/${t.name}/points`] = newPoints;
+            updates[`users/${t.name}/exp`] = newExp;
+
+            if (t.p !== 0 || t.exp !== 0) {
+                const historyKey = db.ref(`pointHistory/${t.name}`).push().key;
+                updates[`pointHistory/${t.name}/${historyKey}`] = {
+                    date: today,
+                    time: time,
+                    reason: reason,
+                    change: t.p,
+                    result: newPoints
+                };
+            }
+        }
+
+        await db.ref().update(updates);
+        alert(`✅ ${targets.length}명의 학생에게 포인트와 경험치가 성공적으로 반영되었습니다! ✨`);
+        
+        if (typeof closePopup === 'function') closePopup();
+        
+    } catch (error) {
+        console.error("차등 지급 오류:", error);
+        alert("반영 중 오류가 발생했습니다.");
+    }
 };
