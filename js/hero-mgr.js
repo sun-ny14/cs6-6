@@ -24,7 +24,7 @@ function getAvatar(lv, selectedAnimal) {
     </div>`;
 }
 
-// 메인 화면 용사 카드 렌더링
+// 메인 화면 용사 카드 렌더링 (권한 분기 및 중복 선언 정리 완료)
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -42,6 +42,9 @@ function renderHeroes() {
 
         usersArray.sort((a, b) => (a.number || a.no || 999) - (b.number || b.no || 999));
 
+        // 💡 관리자 여부를 함수 상단에서 한 번만 깔끔하게 정의
+        const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
+
         let html = '';
         usersArray.forEach(user => {
             let name = user.name || '용사';
@@ -49,20 +52,20 @@ function renderHeroes() {
             let role = user.role || (user.isHelper ? '상점' : '일반');
             let number = user.number || user.no || '';
             
-            const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
-            
-            // 💡 선생님이면 세부 관리 팝업, 학생이면 친구 방으로 이동하는 함수 명칭 통일
+            // 선생님이면 세부 관리 팝업, 학생이면 친구 방으로 이동
             let clickAction = isUserAdmin 
                 ? `openPointPopupForUser('${name}')` 
                 : `openFriendRoom('${name}')`;
 
-            // 정보 제한 로직: 관리자이거나 본인인 경우에만 상세 점수 표시 (나머지 친구들은 점수 숨김)
-            const canSeeAll = isUserAdmin || 
-                              (typeof myName !== 'undefined' && user.name === myName);
+            // 정보 표시 제한: 관리자이거나 본인인 경우에만 P와 E 표시, 다른 친구들은 Lv만 표시
+            const isMySelf = (typeof myName !== 'undefined' && user.name === myName);
+            let displayInfo = "";
             
-            let displayInfo = canSeeAll 
-                ? `Lv. ${lv} | P: ${user.points || 0} | E: ${user.exp || 0}` 
-                : `Lv. ${lv}`;
+            if (isUserAdmin || isMySelf) {
+                displayInfo = `Lv. ${lv} | P: ${user.points || 0} | E: ${user.exp || 0}`;
+            } else {
+                displayInfo = `Lv. ${lv}`;
+            }
 
             html += `
                 <div class="card hero-card-item" style="text-align:center; cursor:pointer; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="${clickAction}">
@@ -76,8 +79,7 @@ function renderHeroes() {
 
         heroGrid.innerHTML = html || `<p style="text-align:center; color:#666;">등록된 용사가 없습니다.</p>`;
 
-        // 💡 오직 선생님 계정일 때만 우측 하단에 'P' 플로팅 버튼 생성
-        const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
+        // 💡 오직 선생님 계정일 때만 우측 하단에 'P' 플로팅 버튼 생성 (중복 선언 제거)
         let existingFloating = document.getElementById('floating-point-btn-box');
         if (existingFloating) existingFloating.remove();
 
