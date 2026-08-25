@@ -34,7 +34,10 @@ window.generateSeatInputs = function() {
             for (let c = 0; c < cols; c++) {
                 const seatKey = `${r}_${c}`;
                 const posId = `${r}-${c}`;
-                const savedName = currentLayout[posId] || currentLayout[seatKey] || "";
+                const rawName = currentLayout[posId] || currentLayout[seatKey] || "";
+                
+                // 💡 설정 입력창에서도 수식어를 빼고 순수 이름만 출력되도록 정제 ("패셔니스타 민준" -> "민준")
+                const savedName = rawName ? rawName.trim().split(" ").pop() : "";
                 
                 html += `
                     <div style="background:#f8f9fa; border:1px solid #ccc; padding:8px; border-radius:8px; text-align:center;">
@@ -70,7 +73,9 @@ window.saveSeatSettings = async function() {
             const posId = `${r}-${c}`;
             const input = document.getElementById(`seat-input-${seatKey}`);
             if (input && input.value.trim()) {
-                newLayout[posId] = input.value.trim();
+                // 저장할 때도 수식어 없이 순수 이름만 깔끔하게 저장
+                const cleanName = input.value.trim().split(" ").pop();
+                newLayout[posId] = cleanName;
             }
         }
     }
@@ -150,32 +155,22 @@ window.renderCurrentSeatingView = async function() {
         for (let c = 0; c < config.cols; c++) {
             const posId = `${r}-${c}`;
             const seatKey = `${r}_${c}`;
-            const studentName = layout[posId] || layout[seatKey] || "";
+            const rawStudentName = layout[posId] || layout[seatKey] || "";
 
             let studentDisplay = `<span style="color: #bbb; font-size: 1rem;">(빈 자리)</span>`;
             let boxBg = "#f8f9fa";
             let borderColor = "#cbd5e1";
 
-            if (studentName) {
+            if (rawStudentName) {
+                // 💡 수식어 완전 제거 후 순수 이름만 추출 ("패셔니스타 민준" -> "민준")
+                const studentName = rawStudentName.trim().split(" ").pop();
+                
                 const sInfo = usersMap[studentName] || {};
                 const animalEmoji = sInfo.selectedAnimal || "🐹";
-                
-                // 💡 수식어와 이름 분리 로직 (띄어쓰기 기준)
-                let modifier = "";
-                let mainName = studentName;
-                
-                if (studentName.includes(" ")) {
-                    const parts = studentName.split(" ");
-                    modifier = parts[0]; // 앞부분 (예: 패셔니스타)
-                    mainName = parts.slice(1).join(" "); // 뒷부분 (예: 민준)
-                }
 
                 studentDisplay = `
-                    <div style="font-size: 1.5rem; margin-bottom: 4px;">${animalEmoji}</div>
-                    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.2;">
-                        <span style="font-size: 0.85rem; color: #7f8c8d; font-weight: normal;">${modifier}</span>
-                        <span style="font-size: 1.4rem; font-weight: 900; color: #2c3e50;">${mainName}</span>
-                    </div>
+                    <div style="font-size: 1.6rem; margin-bottom: 4px;">${animalEmoji}</div>
+                    <div style="font-size: 1.3rem; font-weight: 900; color: #2c3e50;">${studentName}</div>
                 `;
                 boxBg = "#ffffff";
                 borderColor = "#3498db";

@@ -303,26 +303,34 @@
         </div>
     </div>
 
-    <!-- 포인트 팝업 -->
-    <div id="point-popup" class="overlay" style="display:none;">
-        <div class="popup-box">
-            <h2 id="point-pop-title" style="margin-top:0; text-align:center;">
-                ⚖️ 포인트 전령
+   <!-- ⚖️ 수정된 포인트 전령 팝업창 (학생별 개별 사유 및 포인트 입력 가능) -->
+    <div id="point-popup" class="overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;">
+        <div class="popup-box" style="background:white; padding:30px; border-radius:15px; width: 600px; max-width: 95%; max-height: 85vh; display:flex; flex-direction:column; box-shadow:0 5px 25px rgba(0,0,0,0.3);">
+            
+            <h2 id="point-pop-title" style="margin-top:0; text-align:center; color:#2c3e50;">
+                ⚖️ 포인트 전령 (개별 지급)
             </h2>
 
-            <div id="point-pop-body" style="overflow-y:auto; flex:1;"></div>
+            <p style="color:#666; font-size:1rem; text-align:center; margin-bottom:12px;">
+                선택한 학생들마다 각각 다른 포인트와 사유를 입력하여 반영할 수 있습니다.
+            </p>
 
-            <div style="display:flex; gap:15px; margin-top:20px;">
-                <button
-                    onclick="closePointPopup()"
-                    style="background:#95a5a6; color:white; border:none; border-radius:15px; flex:1; padding:18px;">
+            <div style="margin-bottom: 12px; display:flex; gap:10px;">
+                <button onclick="document.querySelectorAll('.point-pop-chk').forEach(cb => { cb.checked = true; togglePointPopInputs(cb); })" style="padding:8px 12px; cursor:pointer; background:#ecf0f1; border:none; border-radius:6px; font-weight:bold; flex:1;">전체 선택</button>
+                <button onclick="document.querySelectorAll('.point-pop-chk').forEach(cb => { cb.checked = false; togglePointPopInputs(cb); })" style="padding:8px 12px; cursor:pointer; background:#ecf0f1; border:none; border-radius:6px; font-weight:bold; flex:1;">전체 해제</button>
+            </div>
+
+            <!-- 학생별 개별 입력 폼이 생성되는 스크롤 영역 -->
+            <div id="point-pop-body" style="overflow-y:auto; flex:1; border:1px solid #ddd; padding:12px; border-radius:8px; background:#fdfdfd; margin-bottom:20px;">
+            </div>
+
+            <div style="display:flex; gap:15px;">
+                <button onclick="closePointPopup()" style="background:#95a5a6; color:white; border:none; border-radius:12px; flex:1; padding:16px; font-weight:bold; cursor:pointer;">
                     닫기
                 </button>
 
-                <button
-                    id="point-apply-btn"
-                    style="background:var(--gold); font-weight:bold; border:none; border-radius:15px; flex:1; padding:18px;">
-                    반영하기
+                <button id="point-apply-btn" onclick="submitPointPopupCustom()" style="background:#27ae60; color:white; font-weight:bold; border:none; border-radius:12px; flex:2; padding:16px; cursor:pointer; font-size:1.1rem;">
+                    선택된 학생들 반영하기
                 </button>
             </div>
         </div>
@@ -525,109 +533,50 @@
                     </div>
                 </div>
 
-                <!-- 관리자 등교로그 -->
-                <div
-                    id="sub-checkin-logs"
-                    class="sub-checkin-content"
-                    style="display:none;">
+              <!-- 관리자 등교로그 영역 수정 -->
+<div id="sub-checkin-logs" class="sub-checkin-content" style="display:none;">
 
-                    <!-- 날짜 및 좌석 설정 -->
-                    <div class="checkin-card">
+    <!-- 1. 날짜 및 버튼 툴바 카드 -->
+    <div class="checkin-card">
+        <h2 style="margin-top:0;">📅 등교로그</h2>
 
-                        <h2 style="margin-top:0;">
-                            📅 등교로그 
-                        </h2>
+        <div class="checkin-admin-toolbar" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:15px;">
+            <label for="checkin-date-filter">조회 날짜</label>
+            <input type="date" id="checkin-date-filter" onchange="refreshCheckinManagement()" style="padding:12px; border:1px solid #ccc; border-radius:8px;">
 
-                        <div class="checkin-admin-toolbar">
+            <button onclick="refreshCheckinManagement()" style="background:#3498db; color:white; border:none; padding:12px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">
+                🔄 새로고침
+            </button>
 
-                            <label for="checkin-date-filter">
-                                조회 날짜
-                            </label>
+            <button onclick="openExclusionPopup()" style="background:#9b59b6; color:white; border:none; padding:12px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">
+                🚫 등교 제외 설정
+            </button>
 
-                            <input
-                                type="date"
-                                id="checkin-date-filter"
-                                onchange="refreshCheckinManagement()"
-                                style="padding:12px; border:1px solid #ccc; border-radius:8px;">
+            <button onclick="openMonthlyCalendar()" style="background:#2ecc71; color:white; border:none; padding:12px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">
+                📊 월간 출석부
+            </button>
+        </div>
 
-                            <label for="checkin-seat-rows">
-                                세로
-                            </label>
+        <!-- 💡 2. 출석 현황 통계 카드를 월간 출석부 버튼 아래에 가로로 나란히 배치 -->
+        <div id="checkin-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 15px;">
+        </div>
+    </div>
 
-                            <input
-                                type="number"
-                                id="checkin-seat-rows"
-                                min="1"
-                                max="20"
-                                value="6"
-                                style="width:80px; padding:12px; border:1px solid #ccc; border-radius:8px;">
+    <!-- 3. 오늘의 좌석 및 출결 현황 카드 -->
+    <div class="checkin-card">
+        <h3 style="margin-top:0;">🪑 오늘의 좌석 및 출결 현황</h3>
+        <p style="color:#666;">한 번 클릭하면 출결 처리, 빠르게 두 번 클릭하면 상세 수정이 가능합니다.</p>
+        
+        <div id="seat-map-container"></div>
+    </div>
 
-                            <label for="checkin-seat-cols">
-                                가로
-                            </label>
+    <!-- 💡 4. 등교 기록 카드를 좌석 아래쪽으로 깔끔하게 이동 -->
+    <div class="checkin-card">
+        <h3 style="margin-top:0;">📜 등교 기록</h3>
+        <div id="checkin-log-list"></div>
+    </div>
 
-                            <input
-                                type="number"
-                                id="checkin-seat-cols"
-                                min="1"
-                                max="20"
-                                value="5"
-                                style="width:80px; padding:12px; border:1px solid #ccc; border-radius:8px;">
-
-                            <button
-                                onclick="refreshCheckinManagement()"
-                                style="background:#3498db; color:white; border:none; padding:12px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">
-                                🔄 새로고침
-                            </button>
-
-                            <button
-                                onclick="openExclusionPopup()"
-                                style="background:#9b59b6; color:white; border:none; padding:12px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">
-                                🚫 등교 제외 설정
-                            </button>
-
-                            <button
-                                onclick="openMonthlyCalendar()"
-                                style="background:#2ecc71; color:white; border:none; padding:12px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">
-                                📊 월간 출석부
-                            </button>
-
-                        </div>
-                    </div>
-
-                    <!-- 통계 -->
-                    <div
-                        id="checkin-summary"
-                        class="checkin-summary-grid">
-                    </div>
-
-                    <!-- 좌석 지도 -->
-                    <div class="checkin-card">
-
-                        <h3 style="margin-top:0;">
-                            🪑 오늘의 좌석 및 출결 현황
-                        </h3>
-
-                        <p style="color:#666;">
-                            한 번 클릭하면 출결 처리, 빠르게 두 번 클릭하면 상세 수정이 가능합니다.
-                        </p>
-
-                        <div id="seat-map-container"></div>
-
-                    </div>
-
-                    <!-- 출결 로그 -->
-                    <div class="checkin-card">
-
-                        <h3 style="margin-top:0;">
-                            📜 등교 기록
-                        </h3>
-
-                        <div id="checkin-log-list"></div>
-
-                    </div>
-
-                </div>
+</div>
             </section>
 
             <!-- 4. 포인트 -->

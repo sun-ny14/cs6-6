@@ -24,7 +24,7 @@ function getAvatar(lv, selectedAnimal) {
     </div>`;
 }
 
-// 메인 화면 용사 카드 렌더링
+// 메인 화면 용사 카드 렌더링 (클릭 시 상세 팝업창 연동 복구 완료)
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -58,8 +58,9 @@ function renderHeroes() {
                 ? `Lv. ${lv} | P: ${user.points || 0} | E: ${user.exp || 0}` 
                 : `Lv. ${lv}`;
 
+            // 💡 둥근 카드 전체에 onclick="openPointPopupForUser('${name}')" 이벤트를 확실하게 연결했습니다.
             html += `
-                <div class="card" style="text-align:center; cursor:pointer; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${name}')">
+                <div class="card hero-card-item" style="text-align:center; cursor:pointer; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${name}')">
                     <div>${getAvatar(lv, user.animal)}</div>
                     <h3 style="margin-top:10px; color:var(--dark);">${number ? number + '. ' : ''}${name}</h3>
                     <p style="font-weight:bold; color:var(--primary); margin: 5px 0;">${displayInfo}</p>
@@ -70,12 +71,12 @@ function renderHeroes() {
 
         heroGrid.innerHTML = html || `<p style="text-align:center; color:#666;">등록된 용사가 없습니다.</p>`;
 
-        // 플로팅 버튼 (선생님/도우미/총사령관)
-        const canManage = (typeof isAdmin !== 'undefined' && isAdmin) || (typeof isHelper !== 'undefined' && isHelper) || (typeof myName !== 'undefined' && myName === "총사령관");
+       // 💡 오직 선생님(관리자) 계정인 경우에만 일괄 지급 플로팅 버튼 생성
+        const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
         let existingFloating = document.getElementById('floating-point-btn-box');
         if (existingFloating) existingFloating.remove();
 
-        if (canManage) {
+        if (isUserAdmin) {
             let floatingBox = document.createElement('div');
             floatingBox.id = 'floating-point-btn-box';
             floatingBox.style.cssText = "position: fixed; bottom: 35px; right: 35px; z-index: 9999;";

@@ -90,15 +90,34 @@ html, body {
     display: block;
 }
 
-/* 5. 용사들 그리드 및 포인트 도감 카드 그리드 (글자 넘침 방지 및 깔끔한 정렬) */
-.hero-grid, #guide-list {
+/* 5. 용사들 그리드 (글자 넘침 방지 및 깔끔한 정렬) */
+.hero-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+    gap: 22px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* 💡 포인트 도감 컨테이너 그리드 (가로 정렬 고정) */
+#guide-list {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
     gap: 20px !important;
     width: 100% !important;
     box-sizing: border-box !important;
 }
 
+/* 도감 카드 스타일 (가로로 예쁘게 정렬되도록 고정) */
+#guide-list > div {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
 /* 카드 내부 텍스트 줄바꿈 및 크기 제어 */
 .hero-grid > div, #guide-list > div {
     word-break: keep-all; /* 단어가 이상하게 잘리지 않도록 설정 */

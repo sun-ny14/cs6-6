@@ -758,128 +758,174 @@ function startApp() {
 }
 
 
-// 1. 화면 우측 하단에 플로팅 버튼(FAB) 추가하기
+// 1. 오직 선생님(관리자)에게만 'P' 플로팅 버튼 생성하기
 function createBatchPointButton() {
-    // 관리자(선생님)일 때만 보이도록 조건 추가 (필요시 활성화)
-    // if (!isAdmin) return; 
+    // 💡 관리자 여부 확인 (isAdmin이 true일 때만 생성)
+    const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
+    if (!isUserAdmin) return;
+
+    const existingBtn = document.getElementById('floating-batch-btn');
+    if (existingBtn) existingBtn.remove();
 
     const btn = document.createElement('button');
-    btn.innerHTML = "🎁<br>일괄지급";
+    btn.id = "floating-batch-btn";
+    btn.innerHTML = "P";
     btn.style.cssText = `
-        position: fixed; bottom: 30px; right: 30px;
-        width: 70px; height: 70px; border-radius: 50%;
-        background-color: #e74c3c; color: white;
-        border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        font-weight: bold; font-size: 0.9rem; cursor: pointer;
-        z-index: 9999; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; line-height: 1.2;
+        position: fixed; bottom: 35px; right: 35px;
+        width: 75px; height: 75px; border-radius: 50%;
+        background-color: #8e44ad; color: white;
+        border: none; box-shadow: 0 6px 15px rgba(0,0,0,0.35);
+        font-weight: 900; font-size: 2rem; cursor: pointer;
+        z-index: 99999; display: flex; align-items: center; justify-content: center;
     `;
-    btn.onclick = openBatchPointModal;
+    
+    btn.onclick = function() {
+        if (typeof openBatchPointModal === 'function') {
+            openBatchPointModal();
+        }
+    };
+    
     document.body.appendChild(btn);
 }
 
-// 앱 시작 시 플로팅 버튼 생성 호출
-document.addEventListener('DOMContentLoaded', createBatchPointButton);
+// 페이지 로드 시 실행
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', createBatchPointButton);
+} else {
+    createBatchPointButton();
+}
 
-// 2. 일괄 지급 팝업창 열기
+// 2. 포인트 및 경험치 개별 차등 지급 팝업창 열기 함수
 window.openBatchPointModal = function() {
-    let studentCheckboxes = "";
+    let studentRows = "";
     
-    // 학생 명단 불러와서 체크박스 만들기
     if (typeof currentUsers !== 'undefined') {
         currentUsers.forEach(u => {
             if (u.name === "총사령관" || u.name.includes("선생님")) return;
-            studentCheckboxes += `
-                <label style="display:inline-block; margin:5px; padding:10px; background:#f0f2f5; border-radius:8px; cursor:pointer;">
-                    <input type="checkbox" class="batch-student-chk" value="${checkinEscapeHtml(u.name)}"> 
-                    <span style="font-size:1.1rem; font-weight:bold;">${checkinEscapeHtml(u.name)}</span>
-                </label>
+            const safeName = typeof checkinEscapeHtml === 'function' ? checkinEscapeHtml(u.name) : u.name;
+            studentRows += `
+                <div class="batch-student-row" style="display:flex; align-items:center; gap:10px; padding:8px 10px; margin-bottom:6px; background:#f8f9fa; border:1px solid #e0e0e0; border-radius:8px;">
+                    <label style="display:flex; align-items:center; gap:8px; flex:2; cursor:pointer; font-weight:bold;">
+                        <input type="checkbox" class="batch-student-chk" value="${safeName}" style="width:18px; height:18px;">
+                        <span>${safeName}</span>
+                        <span style="font-size:0.85rem; color:#666;">(${u.points || 0}P)</span>
+                    </label>
+                    <input type="number" class="batch-p-input" placeholder="포인트(P)" style="flex:1; padding:6px; text-align:center; border:1px solid #ccc; border-radius:6px; font-size:1rem;">
+                    <input type="number" class="batch-exp-input" placeholder="경험치(EXP)" style="flex:1; padding:6px; text-align:center; border:1px solid #ccc; border-radius:6px; font-size:1rem;">
+                </div>
             `;
         });
     }
 
     const modalHtml = `
         <div style="padding: 10px;">
-            <h3 style="margin-top:0; color:#2c3e50;">어떤 학생들에게 포인트를 줄까요?</h3>
+            <h3 style="margin-top:0; color:#2c3e50; text-align:center;">🎁 포인트 및 경험치 개별 차등 지급</h3>
             
-            <div style="margin-bottom: 15px;">
-                <button onclick="document.querySelectorAll('.batch-student-chk').forEach(cb => cb.checked = true)" style="padding:5px 10px; margin-right:5px; cursor:pointer;">전체 선택</button>
-                <button onclick="document.querySelectorAll('.batch-student-chk').forEach(cb => cb.checked = false)" style="padding:5px 10px; cursor:pointer;">전체 해제</button>
+            <!-- 공통 사유 입력 칸 딱 1개 -->
+            <input type="text" id="batch-reason" placeholder="공통 사유 입력 (예: 모둠 활동 우수)" style="width: 100%; padding: 12px; margin-bottom: 12px; box-sizing: border-box; border-radius: 8px; border: 1px solid #ccc; font-size: 1.1rem;">
+
+            <div style="margin-bottom: 10px; display:flex; gap:10px;">
+                <button onclick="document.querySelectorAll('.batch-student-chk').forEach(cb => cb.checked = true)" style="padding:6px; cursor:pointer; background:#ecf0f1; border:none; border-radius:6px; font-weight:bold; flex:1;">전체 선택</button>
+                <button onclick="document.querySelectorAll('.batch-student-chk').forEach(cb => cb.checked = false)" style="padding:6px; cursor:pointer; background:#ecf0f1; border:none; border-radius:6px; font-weight:bold; flex:1;">전체 해제</button>
             </div>
 
-            <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                ${studentCheckboxes}
+            <!-- 학생별 목록 및 점수 입력 스크롤 박스 -->
+            <div style="max-height: 280px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 20px; background:#fff;">
+                ${studentRows}
             </div>
 
-            <input type="text" id="batch-reason" placeholder="지급 사유 (예: 발표 우수)" style="width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc;">
-            <input type="number" id="batch-amount" placeholder="포인트 금액 (예: 5)" style="width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc;">
-
-            <button onclick="submitBatchPoints()" style="width: 100%; padding: 15px; background: #3498db; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer;">
-                선택한 학생들에게 지급하기
-            </button>
+            <div style="display:flex; gap:10px;">
+                <button onclick="if(typeof closePopup === 'function') closePopup();" style="flex:1; padding:15px; background:#95a5a6; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:1.1rem;">취소</button>
+                <button onclick="submitBatchPoints()" style="flex:2; padding:15px; background:#27ae60; color:white; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; cursor:pointer;">선택된 학생들 반영하기</button>
+            </div>
         </div>
     `;
 
-    // 팝업 띄우기 (기존에 정의된 openPopup 함수 사용)
     if (typeof openPopup === 'function') {
-        openPopup("🎁 포인트 일괄 지급", modalHtml);
+        openPopup("🎁 포인트 개별 차등 지급", modalHtml);
+    } else {
+        alert("팝업창을 띄우는 함수(openPopup)를 찾을 수 없습니다.");
     }
 };
 
-// 3. 일괄 지급 실행 (Firebase DB 업데이트)
+// 3. 실행 및 데이터베이스 반영 (입력 안 한 포인트/경험치는 0으로 처리)
 window.submitBatchPoints = async function() {
-    const reason = document.getElementById('batch-reason').value.trim();
-    const amountStr = document.getElementById('batch-amount').value;
-    const amount = parseInt(amountStr);
-
-    if (!reason || isNaN(amount)) {
-        alert("사유와 지급할 포인트 금액을 정확히 입력해주세요.");
+    const reasonElement = document.getElementById('batch-reason');
+    if (!reasonElement) {
+        alert("사유 입력창을 찾을 수 없습니다.");
         return;
     }
 
-    const checkedBoxes = document.querySelectorAll('.batch-student-chk:checked');
-    const selectedStudents = Array.from(checkedBoxes).map(cb => cb.value);
-
-    if (selectedStudents.length === 0) {
-        alert("포인트를 받을 학생을 최소 1명 이상 선택해주세요.");
+    const reason = reasonElement.value.trim();
+    if (!reason) {
+        alert("공통 사유를 정확히 입력해주세요.");
         return;
     }
 
-    if (!confirm(`선택한 ${selectedStudents.length}명의 학생에게 각각 ${amount}P를 지급하시겠습니까?`)) return;
+    const rowElements = document.querySelectorAll('.batch-student-row');
+    let targets = [];
 
-    const today = checkinGetTodayKST(); // 기존에 만든 유틸 함수 사용
-    const time = checkinGetNowKSTTime();
+    rowElements.forEach(row => {
+        const chk = row.querySelector('.batch-student-chk');
+        if (chk && chk.checked) {
+            const studentName = chk.value;
+            const pInput = row.querySelector('.batch-p-input').value;
+            const expInput = row.querySelector('.batch-exp-input').value;
+
+            const pAmount = pInput === "" ? 0 : parseInt(pInput);
+            const expAmount = expInput === "" ? 0 : parseInt(expInput);
+
+            targets.push({
+                name: studentName,
+                p: isNaN(pAmount) ? 0 : pAmount,
+                exp: isNaN(expAmount) ? 0 : expAmount
+            });
+        }
+    });
+
+    if (targets.length === 0) {
+        alert("포인트를 지급할 학생을 최소 1명 이상 체크해주세요.");
+        return;
+    }
+
+    if (!confirm(`선택한 ${targets.length}명의 학생에게 공통 사유로 포인트를 반영하시겠습니까?`)) return;
+
+    const today = (typeof checkinGetTodayKST === 'function') ? checkinGetTodayKST() : new Date().toISOString().split('T')[0]; 
+    const time = (typeof checkinGetNowKSTTime === 'function') ? checkinGetNowKSTTime() : new Date().toLocaleTimeString('en-GB').substring(0, 5);
     let updates = {};
 
     try {
-        // 선택된 학생들의 현재 포인트 불러오기 및 업데이트 객체 만들기
-        for (const student of selectedStudents) {
-            const userSnap = await db.ref(`users/${student}`).once('value');
-            const currentPoints = userSnap.val()?.points || 0;
-            const newPoints = currentPoints + amount;
+        for (const t of targets) {
+            const userSnap = await db.ref(`users/${t.name}`).once('value');
+            const userData = userSnap.val() || {};
+            const currentPoints = userData.points || 0;
+            const currentExp = userData.exp || 0;
 
-            // 1. 유저 포인트 업데이트
-            updates[`users/${student}/points`] = newPoints;
+            const newPoints = currentPoints + t.p;
+            const newExp = currentExp + t.exp;
 
-            // 2. 포인트 히스토리 (연대기) 추가
-            const historyKey = db.ref(`pointHistory/${student}`).push().key;
-            updates[`pointHistory/${student}/${historyKey}`] = {
-                date: today,
-                time: time,
-                reason: reason,
-                change: amount,
-                result: newPoints
-            };
+            updates[`users/${t.name}/points`] = newPoints;
+            updates[`users/${t.name}/exp`] = newExp;
+
+            if (t.p !== 0 || t.exp !== 0) {
+                const historyKey = db.ref(`pointHistory/${t.name}`).push().key;
+                updates[`pointHistory/${t.name}/${historyKey}`] = {
+                    date: today,
+                    time: time,
+                    reason: reason,
+                    change: t.p,
+                    result: newPoints
+                };
+            }
         }
 
-        // DB에 일괄 저장
         await db.ref().update(updates);
-        alert(`✅ ${selectedStudents.length}명의 학생에게 포인트가 성공적으로 지급되었습니다!`);
+        alert(`✅ ${targets.length}명의 학생에게 포인트와 경험치가 성공적으로 반영되었습니다! ✨`);
         
         if (typeof closePopup === 'function') closePopup();
         
     } catch (error) {
-        console.error("일괄 지급 오류:", error);
-        alert("지급 중 오류가 발생했습니다.");
+        console.error("차등 지급 오류:", error);
+        alert("반영 중 오류가 발생했습니다.");
     }
 };

@@ -227,124 +227,109 @@ window.submitCheckIn = function() {
 };
 
 
-/* =========================================================
-   2. 좌석 지도 렌더링
-   ========================================================= */
+// js/checkin-seat.js 파일 내부의 renderSeatMap 함수 교체
 
-window.renderSeatMap = function(rows, cols) {
+window.renderSeatMap = async function() {
     const container = document.getElementById('seat-map-container');
     if (!container) return;
 
-    rows = parseInt(rows) || 6;
-    cols = parseInt(cols) || 5;
+    // 1. 파이어베이스에서 좌석 배치 설정, 학생 정보, 오늘의 출결 로그를 한 번에 불러옵니다.
+    const seatSnap = await db.ref('seatLayoutData').once('value');
+    const userSnap = await db.ref('users').once('value');
+    
+    const today = checkinGetTodayKST();
+    const logSnap = await db.ref(`checkinLogs/${today}`).once('value');
+    const logs = logSnap.val() || {};
 
-    container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-    container.innerHTML = "";
+    // 2. 설정된 가로, 세로 칸 수 가져오기 (기본값 세로 6, 가로 5)
+    let rows = 6;
+    let cols = 5;
+    let layout = {};
 
-    const dateFilterInput = document.getElementById('checkin-date-filter');
-    const targetDate = dateFilterInput && dateFilterInput.value ? dateFilterInput.value : checkinGetTodayKST();
-
-    const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-    const selectedDay = weekDays[new Date(targetDate + 'T00:00:00').getDay()];
-
-    Promise.all([
-        db.ref('checkinLogs').once('value'),
-        db.ref('settings/fixedExclusions').once('value')
-    ]).then(snaps => {
-        const logs = {};
-
-        snaps[0].forEach(child => {
-            const data = child.val() || {};
-            if (data.date === targetDate) {
-                logs[data.name] = data;
-            }
-        });
-
-        const exclusionData = snaps[1].val() || {};
-        const todayExclusions = exclusionData[selectedDay] || [];
-
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const posId = `${r}-${c}`;
-                const name = (typeof currentLayout !== 'undefined' && currentLayout[posId]) ? currentLayout[posId] : "";
-
-                const cell = document.createElement('div');
-                let bgColor = "#eee";
-                let statusText = "미등교";
-                let textColor = "black";
-
-                if (name) {
-                    const log = logs[name];
-                    const isFixedExcluded = todayExclusions.includes(name);
-
-                    if (log) {
-                        statusText = log.result || log.category || log.reason || "기록";
-                        if (statusText.includes('정상')) bgColor = "#ccffcc";
-                        else if (statusText.includes('지각')) bgColor = "#ffcccc";
-                        else bgColor = "#f39c12";
-                    } else if (isFixedExcluded) {
-                        bgColor = "#3498db";
-                        statusText = "고정 제외";
-                        textColor = "white";
-                    } else {
-                        bgColor = "#ffff00";
-                        statusText = "미등교";
-                    }
-                }
-
-                cell.style.cssText = `
-                    background:${bgColor}; border:1px solid #bbb; min-height:120px;
-                    border-radius:12px; display:flex; flex-direction:column;
-                    justify-content:center; align-items:center; text-align:center;
-                    padding:5px; cursor:pointer; color:${textColor}; user-select:none; box-sizing:border-box;
-                `;
-
-                if (name) {
-                    const timeText = logs[name]?.time && logs[name].time !== '-' ? `[${logs[name].time}]` : '';
-                    cell.innerHTML = `
-                        <div style="font-weight:900; font-size:1.3rem; margin-bottom:5px;">${checkinEscapeHtml(name)}</div>
-                        <div style="font-weight:bold; font-size:1rem;">${checkinEscapeHtml(statusText)}</div>
-                        <div style="font-size:0.9rem; margin-top:3px;">${checkinEscapeHtml(timeText)}</div>
-                    `;
-                } else {
-                    cell.innerHTML = `<div style="color:#aaa; font-size:0.9rem;">${r + 1}-${c + 1}</div>`;
-                }
-
-                cell.dataset.lastClick = 0;
-                cell.onclick = () => {
-                    if (typeof isEditMode !== 'undefined' && isEditMode) {
-                        openStudentPicker(posId, rows, cols);
-                        return;
-                    }
-                    if (!name) return;
-
-                    const now = Date.now();
-                    const lastClick = parseInt(cell.dataset.lastClick) || 0;
-                    if (now - lastClick < 50) return;
-
-                    cell.dataset.lastClick = now;
-
-                    if (cell.clickTimer) {
-                        clearTimeout(cell.clickTimer);
-                        cell.clickTimer = null;
-                        openLogEditPopup(name, targetDate);
-                    } else {
-                        cell.clickTimer = setTimeout(() => {
-                            cell.clickTimer = null;
-                            if (typeof handleCheckinClick === 'function') handleCheckinClick(name);
-                        }, 250);
-                    }
-                };
-
-                container.appendChild(cell);
-            }
+    if (seatSnap.exists()) {
+        const seatData = seatSnap.val();
+        if (seatData.config) {
+            rows = parseInt(seatData.config.rows) || 6;
+            cols = parseInt(seatData.config.cols) || 5;
         }
-    }).catch(error => {
-        console.error("좌석 지도 로딩 오류:", error);
-        container.innerHTML = `<div style="grid-column:1/-1; padding:30px; text-align:center; color:#c0392b;">좌석 정보를 불러오지 못했습니다.</div>`;
-    });
-};
+        layout = seatData.layout || {};
+    }
 
+    let usersMap = {};
+    if (userSnap.exists()) {
+        userSnap.forEach(c => {
+            usersMap[c.key] = c.val();
+        });
+    }
+
+    // 3. CSS Grid로 가로 세로 칸 수 반영
+    container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+    let html = "";
+
+    // 4. 행, 열을 돌며 좌석 카드 생성
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const posId = `${r}-${c}`;
+            const seatKey = `${r}_${c}`;
+            // 설정에 저장된 학생 이름 가져오기
+            const rawStudentName = layout[posId] || layout[seatKey] || "";
+
+            let studentDisplay = `<div style="color:#aaa; font-size:1rem;">(빈 자리)</div>`;
+            let boxBg = "#f8f9fa";
+            let borderColor = "#cbd5e1";
+            let textColor = "#666";
+            let statusText = "미등교";
+            let timeText = "-";
+
+            if (rawStudentName) {
+                // 💡 수식어 제거 로직: 띄어쓰기가 있다면 가장 마지막 단어(이름)만 추출합니다. (예: "날쌘돌이 민재" -> "민재")
+                const nameParts = rawStudentName.trim().split(" ");
+                const studentName = nameParts[nameParts.length - 1];
+
+                const sInfo = usersMap[studentName] || {};
+                const animalEmoji = sInfo.selectedAnimal || "🐹";
+
+                // 출결 상태 확인
+                if (logs[studentName]) {
+                    const st = logs[studentName].status;
+                    if (st === 'normal') {
+                        boxBg = "#e8f8f5"; borderColor = "#1abc9c"; textColor = "#16a085"; statusText = "출석 완료";
+                    } else if (st === 'late') {
+                        boxBg = "#fef9e7"; borderColor = "#f1c40f"; textColor = "#d4ac0d"; statusText = "지각";
+                    } else if (st === 'absent') {
+                        boxBg = "#fdedec"; borderColor = "#e74c3c"; textColor = "#c0392b"; statusText = "결석";
+                    }
+                }
+
+                if (logs[studentName]?.time && logs[studentName].time !== '-') {
+                    timeText = `[${logs[studentName].time}]`;
+                }
+
+                studentDisplay = `
+                    <div style="font-size: 1.8rem; margin-bottom: 4px;">${animalEmoji}</div>
+                    <div style="font-weight: 900; color: #2c3e50; font-size: 1.3rem; margin-bottom: 4px;">${studentName}</div>
+                    <div style="font-weight: bold; font-size: 0.95rem; color: ${textColor};">${statusText}</div>
+                    <div style="font-size: 0.85rem; margin-top: 2px; color: ${textColor};">${timeText}</div>
+                `;
+                if (!logs[studentName]) {
+                    boxBg = "#ffffff";
+                    borderColor = "#3498db";
+                }
+            }
+
+            html += `
+                <div onclick="openCheckinEditModal('${rawStudentName ? rawStudentName.trim().split(" ").pop() : ''}')" 
+                     style="background: ${boxBg}; border: 2px solid ${borderColor}; border-radius: 10px; padding: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.03); cursor: pointer; transition: transform 0.1s;"
+                     onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                    <small style="color: #888; display: block; margin-bottom: 6px; font-size: 0.85rem;">${r+1}행 ${c+1}열</small>
+                    ${studentDisplay}
+                </div>`;
+        }
+    }
+
+    container.innerHTML = html;
+};
 
 /* =========================================================
    3. 등교 관리 전체 새로고침
