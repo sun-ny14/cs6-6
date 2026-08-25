@@ -170,7 +170,7 @@ window.renderPointGuide = function() {
         }
 
         // 💡 수정된 부분: 무조건 3열로 배치되도록 repeat(3, 1fr) 적용!
-        html += `<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; width:100%;">`;
+       html += `<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px; width:100%;">`;
         
         guides.forEach(g => {
             const adminControls = (typeof isAdmin !== 'undefined' && isAdmin) ? `
