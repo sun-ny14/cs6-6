@@ -99,30 +99,34 @@ html, body {
     box-sizing: border-box !important;
 }
 
-/* 💡 포인트 도감 전체 탭 및 부모 영역 가로 확장 고정 */
+/* 1. 포인트 도감 탭 전체 영역 가로 100% 꽉 채우기 */
 #tab-points {
     width: 100% !important;
+    max-width: 100% !important;
     box-sizing: border-box !important;
 }
 
+/* 2. 도감 카드를 감싸는 부모 박스의 너비 제한 해제 및 가로 확장 */
 #tab-points .card {
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
 }
 
-/* 🎯 포인트 도감 항목 그리드: 무조건 한 줄에 3개씩 가로 배치 */
+/* 3. 도감 목록 그리드 (한 줄에 3개씩 배치하면서 공간을 꽉 채우기) */
 #guide-list {
     display: grid !important;
     grid-template-columns: repeat(3, 1fr) !important;
     gap: 20px !important;
     width: 100% !important;
+    max-width: 100% !important;
     box-sizing: border-box !important;
 }
 
-/* 개별 도감 카드 스타일 */
+/* 4. 개별 도감 항목 카드 자체를 가로로 넓게 확장 */
 #guide-list > div {
     width: 100% !important;
+    max-width: 100% !important;
     box-sizing: border-box !important;
     background: white;
     padding: 25px;
@@ -130,7 +134,6 @@ html, body {
     border: 2px solid #e2e8f0;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
-
 /* 일반 공통 스타일 */
 input, button, textarea, select {
     width: 100%;
