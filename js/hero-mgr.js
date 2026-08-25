@@ -24,7 +24,7 @@ function getAvatar(lv, selectedAnimal) {
     </div>`;
 }
 
-// 메인 화면 용사 카드 렌더링 (클릭 시 상세 팝업창 연동 복구 완료)
+// 메인 화면 용사 카드 렌더링 (권한별 클릭 동작 분리)
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -49,8 +49,18 @@ function renderHeroes() {
             let role = user.role || (user.isHelper ? '상점' : '일반');
             let number = user.number || user.no || '';
             
-            // 정보 제한 로직: 관리자/도우미이거나 본인인 경우에만 상세 정보 표시
-            const canSeeAll = (typeof isAdmin !== 'undefined' && isAdmin) || 
+            const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
+            
+            // 💡 핵심 분기: 선생님이면 관리 팝업, 학생이면 '해당 친구의 방(하우징)'으로 이동하도록 클릭 함수 다르게 지정
+            let clickAction = "";
+            if (isUserAdmin) {
+                clickAction = `openPointPopupForUser('${name}')`; // 선생님: 세부정보 관리 팝업
+            } else {
+                clickAction = `openFriendRoom('${name}')`; // 학생: 다른 친구의 방 구경하기
+            }
+
+            // 정보 표시 제한
+            const canSeeAll = isUserAdmin || 
                               (typeof isHelper !== 'undefined' && isHelper) || 
                               (typeof myName !== 'undefined' && user.name === myName);
             
@@ -58,9 +68,8 @@ function renderHeroes() {
                 ? `Lv. ${lv} | P: ${user.points || 0} | E: ${user.exp || 0}` 
                 : `Lv. ${lv}`;
 
-            // 💡 둥근 카드 전체에 onclick="openPointPopupForUser('${name}')" 이벤트를 확실하게 연결했습니다.
             html += `
-                <div class="card hero-card-item" style="text-align:center; cursor:pointer; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="openPointPopupForUser('${name}')">
+                <div class="card hero-card-item" style="text-align:center; cursor:pointer; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="${clickAction}">
                     <div>${getAvatar(lv, user.animal)}</div>
                     <h3 style="margin-top:10px; color:var(--dark);">${number ? number + '. ' : ''}${name}</h3>
                     <p style="font-weight:bold; color:var(--primary); margin: 5px 0;">${displayInfo}</p>
@@ -71,7 +80,7 @@ function renderHeroes() {
 
         heroGrid.innerHTML = html || `<p style="text-align:center; color:#666;">등록된 용사가 없습니다.</p>`;
 
-       // 💡 오직 선생님(관리자) 계정인 경우에만 일괄 지급 플로팅 버튼 생성
+        // 💡 오직 선생님 계정일 때만 우측 하단에 'P' 플로팅 버튼 생성
         const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
         let existingFloating = document.getElementById('floating-point-btn-box');
         if (existingFloating) existingFloating.remove();
@@ -80,13 +89,14 @@ function renderHeroes() {
             let floatingBox = document.createElement('div');
             floatingBox.id = 'floating-point-btn-box';
             floatingBox.style.cssText = "position: fixed; bottom: 35px; right: 35px; z-index: 9999;";
-            floatingBox.innerHTML = `<button onclick="openMultiPopup('일괄 포인트 지급', 0, 0)" style="background: #f1c40f; color: #2c3e50; border: none; padding: 15px 25px; border-radius: 30px; font-weight: bold; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">✨ 일괄 지급</button>`;
+            // 아까 만든 개별 차등 지급 모달 함수(openBatchPointModal)와 정확히 연결
+            floatingBox.innerHTML = `<button onclick="openBatchPointModal()" style="background: #8e44ad; color: white; border: none; width: 75px; height: 75px; border-radius: 50%; font-weight: 900; font-size: 2rem; cursor: pointer; box-shadow: 0 6px 15px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;">P</button>`;
             document.body.appendChild(floatingBox);
         }
     });
 }
 
-// 학생 세부정보 팝업
+// 💡 [선생님 전용] 학생 세부정보 관리 팝업 열기
 function openPointPopupForUser(userName) {
     db.ref('users').once('value').then(snapshot => {
         let targetUser = null;
@@ -100,10 +110,10 @@ function openPointPopupForUser(userName) {
             <div style="text-align:center;">${getAvatar(targetUser.level || 1, targetUser.animal)}</div>
             <p>레벨: Lv.${targetUser.level || 1} | 포인트: ${targetUser.points || 0}P | 경험치: ${targetUser.exp || 0}E</p>
             ${(typeof isAdmin !== 'undefined' && isAdmin) ? `
-                <input type="text" id="pop-reason" placeholder="사유" style="width:100%; padding:10px;">
-                <div style="display:flex; gap:10px; margin-top:10px;">
-                    <input type="number" id="pop-p" placeholder="P 증감">
-                    <input type="number" id="pop-e" placeholder="E 증감">
+                <input type="text" id="pop-reason" placeholder="사유" style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;">
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="pop-p" placeholder="P 증감" style="width:50%; padding:8px;">
+                    <input type="number" id="pop-e" placeholder="E 증감" style="width:50%; padding:8px;">
                 </div>` : ''}
         `;
         
@@ -114,6 +124,22 @@ function openPointPopupForUser(userName) {
         }
         popup.style.display = 'flex';
     });
+}
+
+// 💡 [학생 전용] 다른 친구 카드를 눌렀을 때 그 친구의 방(하우징)으로 이동시키는 함수
+function openFriendRoom(userName) {
+    // 하우징 탭으로 이동 후 해당 친구의 방을 렌더링하는 함수 호출 (housing.js에 정의된 함수 활용)
+    if (typeof showTab === 'function') showTab('housing');
+    if (typeof loadSpecificUserRoom === 'function') {
+        loadSpecificUserRoom(userName);
+    } else {
+        alert(`${userName 용사의 방으로 이동합니다.`);
+    }
+}
+
+function closePointPopup() { 
+    const popup = document.getElementById('point-popup');
+    if (popup) popup.style.display = 'none'; 
 }
 
 function closePointPopup() { document.getElementById('point-popup').style.display = 'none'; }
