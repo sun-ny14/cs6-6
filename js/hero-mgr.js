@@ -24,7 +24,7 @@ function getAvatar(lv, selectedAnimal) {
     </div>`;
 }
 
-// 메인 화면 용사 카드 렌더링 (권한 분기 및 중복 선언 정리 완료)
+// 메인 화면 용사 카드 렌더링 (다른 친구 포인트 완전 차단 버전)
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -42,7 +42,6 @@ function renderHeroes() {
 
         usersArray.sort((a, b) => (a.number || a.no || 999) - (b.number || b.no || 999));
 
-        // 💡 관리자 여부를 함수 상단에서 한 번만 깔끔하게 정의
         const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
 
         let html = '';
@@ -52,26 +51,27 @@ function renderHeroes() {
             let role = user.role || (user.isHelper ? '상점' : '일반');
             let number = user.number || user.no || '';
             
-            // 선생님이면 세부 관리 팝업, 학생이면 친구 방으로 이동
+            // 로그인한 사람이 나(본인)인지 확인
+            const isMySelf = (typeof myName !== 'undefined' && user.name === myName);
+            
+            // 클릭 동작 분리: 선생님이면 관리 팝업, 학생이면 친구 방으로 이동
             let clickAction = isUserAdmin 
                 ? `openPointPopupForUser('${name}')` 
                 : `openFriendRoom('${name}')`;
 
-            // 정보 표시 제한: 관리자이거나 본인인 경우에만 P와 E 표시, 다른 친구들은 Lv만 표시
-            const isMySelf = (typeof myName !== 'undefined' && user.name === myName);
-            let displayInfo = "";
-            
+            // 💡 핵심: 선생님이거나 본인인 경우에만 포인트와 경험치를 표시하고, 다른 친구 카드에는 절대 포인트 HTML을 만들지 않음!
+            let pointsHtml = "";
             if (isUserAdmin || isMySelf) {
-                displayInfo = `Lv. ${lv} | P: ${user.points || 0} | E: ${user.exp || 0}`;
+                pointsHtml = `<p style="font-weight:bold; color:var(--primary); margin: 5px 0;">Lv. ${lv} | P: ${user.points || 0} | E: ${user.exp || 0}</p>`;
             } else {
-                displayInfo = `Lv. ${lv}`;
+                pointsHtml = `<p style="font-weight:bold; color:#7f8c8d; margin: 5px 0;">Lv. ${lv}</p>`;
             }
 
             html += `
                 <div class="card hero-card-item" style="text-align:center; cursor:pointer; background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1);" onclick="${clickAction}">
                     <div>${getAvatar(lv, user.animal)}</div>
                     <h3 style="margin-top:10px; color:var(--dark);">${number ? number + '. ' : ''}${name}</h3>
-                    <p style="font-weight:bold; color:var(--primary); margin: 5px 0;">${displayInfo}</p>
+                    ${pointsHtml}
                     <p style="font-size:0.9rem; color:#666;">역할: ${role}</p>
                 </div>
             `;
@@ -79,7 +79,7 @@ function renderHeroes() {
 
         heroGrid.innerHTML = html || `<p style="text-align:center; color:#666;">등록된 용사가 없습니다.</p>`;
 
-        // 💡 오직 선생님 계정일 때만 우측 하단에 'P' 플로팅 버튼 생성 (중복 선언 제거)
+        // 선생님 계정일 때만 우측 하단에 'P' 플로팅 버튼 생성
         let existingFloating = document.getElementById('floating-point-btn-box');
         if (existingFloating) existingFloating.remove();
 
@@ -92,7 +92,6 @@ function renderHeroes() {
         }
     });
 }
-
 // 학생 세부정보 팝업 (선생님 전용)
 function openPointPopupForUser(userName) {
     db.ref('users').once('value').then(snapshot => {
