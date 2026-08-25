@@ -1,20 +1,25 @@
 // js/hero-mgr.js
-// 용사 목록, 육육이 아바타, 친구 방, 교사용 학생 상세정보
+// 용사 목록 / 육육이 아바타 / 친구 방 / 교사용 학생 상세정보 / 차등 지급
 
 function initApp() {
-    if (typeof currentTab !== 'undefined' && typeof showTab === 'function') {
+    if (
+        typeof currentTab !== 'undefined' &&
+        typeof showTab === 'function'
+    ) {
         showTab(currentTab);
     }
+
     renderHeroes();
 }
 
 
-// =====================================================
-// 육육이 아바타
-// =====================================================
+/* =========================================================
+   육육이 아바타
+   ========================================================= */
 
 function getAvatar(lv, selectedAnimal) {
-    const githubImageUrl = "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true";
+    const githubImageUrl =
+        "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true";
 
     const animals = [
         "귀여운",
@@ -39,18 +44,39 @@ function getAvatar(lv, selectedAnimal) {
         "무지개"
     ];
 
-    const level = parseInt(lv) || 1;
-    const name = selectedAnimal || animals[Math.min(Math.max(level - 1, 0), 19)];
 
-    const index = animals.indexOf(name) === -1
-        ? 0
-        : animals.indexOf(name);
+    const level =
+        parseInt(lv) || 1;
 
-    const col = index % 5;
-    const row = Math.floor(index / 5);
+    const name =
+        selectedAnimal ||
+        animals[
+            Math.min(
+                Math.max(level - 1, 0),
+                19
+            )
+        ];
 
-    const posX = col * 25;
-    const posY = row * 33.33;
+
+    const index =
+        animals.indexOf(name) === -1
+            ? 0
+            : animals.indexOf(name);
+
+
+    const col =
+        index % 5;
+
+    const row =
+        Math.floor(index / 5);
+
+
+    const posX =
+        col * 25;
+
+    const posY =
+        row * 33.33;
+
 
     return `
         <div style="
@@ -82,36 +108,51 @@ function getAvatar(lv, selectedAnimal) {
 }
 
 
-// =====================================================
-// 용사 목록
-// =====================================================
+/* =========================================================
+   용사 목록
+   ========================================================= */
 
 window.renderHeroes = async function() {
-    const heroGrid = document.getElementById('hero-grid');
+    const heroGrid =
+        document.getElementById('hero-grid');
 
     if (!heroGrid) {
         console.warn('hero-grid를 찾을 수 없습니다.');
         return;
     }
 
-    try {
-        const snapshot = await db.ref('users').once('value');
 
-        const usersData = snapshot.val() || {};
+    try {
+        const snapshot =
+            await db.ref('users').once('value');
+
+        const usersData =
+            snapshot.val() || {};
+
         const usersArray = [];
 
+
         Object.keys(usersData).forEach(key => {
-            const user = usersData[key];
+            const user =
+                usersData[key];
 
             if (!user) return;
 
-            const name = user.name || key;
 
-            // 선생님 / 총사령관 제외
-            if (name === '총사령관') return;
-            if (name.includes('선생님')) return;
+            const name =
+                user.name || key;
 
-            // 관리자 계정 이메일 제외
+
+            /* 관리자 계정 제외 */
+
+            if (name === '총사령관') {
+                return;
+            }
+
+            if (name.includes('선생님')) {
+                return;
+            }
+
             if (
                 typeof adminEmail !== 'undefined' &&
                 user.email &&
@@ -120,17 +161,21 @@ window.renderHeroes = async function() {
                 return;
             }
 
+
             usersArray.push({
-                key: key,
+                key:key,
                 ...user,
-                name: name
+                name:name
             });
         });
 
 
         usersArray.sort((a, b) => {
-            const aNo = parseInt(a.number || a.no) || 999;
-            const bNo = parseInt(b.number || b.no) || 999;
+            const aNo =
+                parseInt(a.number || a.no) || 999;
+
+            const bNo =
+                parseInt(b.number || b.no) || 999;
 
             return aNo - bNo;
         });
@@ -158,30 +203,50 @@ window.renderHeroes = async function() {
 
 
         usersArray.forEach(user => {
-            const name = user.name || '용사';
+            const name =
+                user.name || '용사';
+
 
             const lv =
-                parseInt(user.level || user.lv) || 1;
+                parseInt(
+                    user.level ||
+                    user.lv
+                ) || 1;
+
 
             const number =
-                user.number || user.no || '';
+                user.number ||
+                user.no ||
+                '';
+
 
             const role =
                 user.role ||
-                (user.isHelper ? '상점' : '일반');
+                (
+                    user.isHelper
+                        ? '상점'
+                        : '일반'
+                );
+
 
             const isMySelf =
                 typeof myName !== 'undefined' &&
                 user.name === myName;
 
 
-            // -----------------------------------------
-            // 학생에게 다른 학생의 포인트 숨기기
-            // -----------------------------------------
+            /* =================================================
+               포인트 표시
+               교사 → 모든 학생
+               학생 → 본인만
+               ================================================= */
 
             let pointsHtml = '';
 
-            if (isUserAdmin || isMySelf) {
+
+            if (
+                isUserAdmin ||
+                isMySelf
+            ) {
                 pointsHtml = `
                     <div style="
                         display:inline-block;
@@ -196,19 +261,20 @@ window.renderHeroes = async function() {
                         🪙 ${user.points || 0} P
                     </div>
                 `;
-            } else {
-                pointsHtml = '';
             }
 
 
-            // -----------------------------------------
-            // 카드
-            // -----------------------------------------
+            /* =================================================
+               카드 생성
+               ================================================= */
 
-            const card = document.createElement('div');
+            const card =
+                document.createElement('div');
+
 
             card.className =
                 'card hero-card-item';
+
 
             card.style.cssText = `
                 text-align:center;
@@ -217,7 +283,7 @@ window.renderHeroes = async function() {
                 border-radius:20px;
                 padding:20px;
                 box-shadow:0 4px 15px rgba(0,0,0,0.1);
-                transition:transform 0.15s, box-shadow 0.15s;
+                transition:transform 0.15s,box-shadow 0.15s;
             `;
 
 
@@ -225,7 +291,8 @@ window.renderHeroes = async function() {
                 <div>
                     ${getAvatar(
                         lv,
-                        user.selectedAnimal || user.animal
+                        user.selectedAnimal ||
+                        user.animal
                     )}
                 </div>
 
@@ -256,50 +323,67 @@ window.renderHeroes = async function() {
             `;
 
 
-            card.addEventListener('mouseenter', () => {
-                card.style.transform = 'translateY(-3px)';
-                card.style.boxShadow =
-                    '0 7px 20px rgba(0,0,0,0.15)';
-            });
+            card.addEventListener(
+                'mouseenter',
+                () => {
+                    card.style.transform =
+                        'translateY(-3px)';
 
-            card.addEventListener('mouseleave', () => {
-                card.style.transform = 'translateY(0)';
-                card.style.boxShadow =
-                    '0 4px 15px rgba(0,0,0,0.1)';
-            });
-
-
-            // -----------------------------------------
-            // 클릭 동작
-            // -----------------------------------------
-
-            card.addEventListener('click', () => {
-
-                if (isUserAdmin) {
-                    openPointPopupForUser(
-                        user.key,
-                        user
-                    );
-                } else {
-                    openFriendRoom(name);
+                    card.style.boxShadow =
+                        '0 7px 20px rgba(0,0,0,0.15)';
                 }
+            );
 
-            });
+
+            card.addEventListener(
+                'mouseleave',
+                () => {
+                    card.style.transform =
+                        'translateY(0)';
+
+                    card.style.boxShadow =
+                        '0 4px 15px rgba(0,0,0,0.1)';
+                }
+            );
+
+
+            /* =================================================
+               클릭
+               교사 → 학생 상세
+               학생 → 친구 방
+               ================================================= */
+
+            card.addEventListener(
+                'click',
+                () => {
+
+                    if (isUserAdmin) {
+                        openPointPopupForUser(
+                            user.key,
+                            user
+                        );
+                    } else {
+                        openFriendRoom(name);
+                    }
+
+                }
+            );
 
 
             heroGrid.appendChild(card);
         });
 
 
-        // ---------------------------------------------
-        // 관리자 전용 P 버튼
-        // ---------------------------------------------
+        /* 관리자 P 버튼 */
 
         createBatchPointButton();
 
 
     } catch (error) {
-        console.error('용사 목록 불러오기 오류:', error);
+        console.error(
+            '용사 목록 불러오기 오류:',
+            error
+        );
 
         heroGrid.innerHTML = `
             <p style="
@@ -314,11 +398,12 @@ window.renderHeroes = async function() {
 };
 
 
-// =====================================================
-// 교사용 학생 상세정보
-// =====================================================
+/* =========================================================
+   교사용 학생 상세 팝업
+   ========================================================= */
 
-window.openPointPopupForUser = async function(userKey, userData) {
+window.openPointPopupForUser =
+async function(userKey, userData) {
 
     if (
         typeof isAdmin === 'undefined' ||
@@ -328,52 +413,84 @@ window.openPointPopupForUser = async function(userKey, userData) {
     }
 
 
-    let targetUser = userData;
+    let targetUser =
+        userData;
 
 
-    // 데이터가 직접 넘어오지 않았을 경우 Firebase에서 조회
     if (!targetUser) {
-
         const snap =
-            await db.ref(`users/${userKey}`).once('value');
+            await db.ref(
+                `users/${userKey}`
+            ).once('value');
+
 
         if (!snap.exists()) {
-            alert('학생 정보를 찾을 수 없습니다.');
+            alert(
+                '학생 정보를 찾을 수 없습니다.'
+            );
+
             return;
         }
 
-        targetUser = snap.val();
+
+        targetUser =
+            snap.val();
     }
 
 
     const userName =
-        targetUser.name || userKey;
+        targetUser.name ||
+        userKey;
+
 
     const level =
-        parseInt(targetUser.level || targetUser.lv) || 1;
+        parseInt(
+            targetUser.level ||
+            targetUser.lv
+        ) || 1;
+
 
     const points =
-        parseInt(targetUser.points) || 0;
+        parseInt(
+            targetUser.points
+        ) || 0;
+
 
     const exp =
-        parseInt(targetUser.exp) || 0;
+        parseInt(
+            targetUser.exp
+        ) || 0;
 
 
     const popup =
-        document.getElementById('point-popup');
+        document.getElementById(
+            'point-popup'
+        );
+
 
     const titleEl =
-        document.getElementById('point-pop-title');
+        document.getElementById(
+            'point-pop-title'
+        );
+
 
     const bodyEl =
-        document.getElementById('point-pop-body');
+        document.getElementById(
+            'point-pop-body'
+        );
+
 
     const applyBtn =
-        document.getElementById('point-apply-btn');
+        document.getElementById(
+            'point-apply-btn'
+        );
 
 
     if (!popup || !bodyEl) {
-        alert('학생 상세정보 팝업을 찾을 수 없습니다.');
+        alert(
+            '학생 상세정보 팝업을 찾을 수 없습니다.'
+        );
+
         return;
     }
 
@@ -391,7 +508,8 @@ window.openPointPopupForUser = async function(userKey, userData) {
         ">
             ${getAvatar(
                 level,
-                targetUser.selectedAnimal || targetUser.animal
+                targetUser.selectedAnimal ||
+                targetUser.animal
             )}
         </div>
 
@@ -411,7 +529,8 @@ window.openPointPopupForUser = async function(userKey, userData) {
             </div>
 
             <div>
-                레벨: <b>Lv.${level}</b>
+                레벨:
+                <b>Lv.${level}</b>
             </div>
 
             <div>
@@ -477,39 +596,262 @@ window.openPointPopupForUser = async function(userKey, userData) {
 
 
     if (applyBtn) {
+        applyBtn.style.display =
+            'block';
 
-        applyBtn.style.display = 'block';
 
-        applyBtn.onclick = async function() {
+        applyBtn.onclick =
+        async function() {
 
-            if (
-                typeof applyUserScore === 'function'
-            ) {
-                await applyUserScore(
-                    userName,
-                    level
-                );
-            } else {
-                alert(
-                    '포인트 반영 함수(applyUserScore)를 찾을 수 없습니다.'
-                );
-            }
+            await applyUserScore(
+                userKey,
+                userName
+            );
 
         };
     }
 
 
-    popup.style.display = 'flex';
+    popup.style.display =
+        'flex';
 };
 
 
-// =====================================================
-// 학생 → 친구 방
-// =====================================================
+/* =========================================================
+   교사 학생 점수 반영
+   ========================================================= */
 
-window.openFriendRoom = function(userName) {
+window.applyUserScore =
+async function(userKey, userName) {
 
-    if (!userName) return;
+    if (
+        typeof isAdmin === 'undefined' ||
+        !isAdmin
+    ) {
+        return;
+    }
+
+
+    const reasonEl =
+        document.getElementById(
+            'pop-reason'
+        );
+
+
+    const pEl =
+        document.getElementById(
+            'pop-p'
+        );
+
+
+    const eEl =
+        document.getElementById(
+            'pop-e'
+        );
+
+
+    const reason =
+        reasonEl
+            ? reasonEl.value.trim()
+            : '관리자 직접 지급';
+
+
+    const pValue =
+        pEl && pEl.value !== ''
+            ? parseInt(pEl.value)
+            : 0;
+
+
+    const eValue =
+        eEl && eEl.value !== ''
+            ? parseInt(eEl.value)
+            : 0;
+
+
+    if (!reason) {
+        alert(
+            '사유를 입력해주세요.'
+        );
+
+        return;
+    }
+
+
+    if (
+        isNaN(pValue) ||
+        isNaN(eValue)
+    ) {
+        alert(
+            '포인트와 경험치는 숫자로 입력해주세요.'
+        );
+
+        return;
+    }
+
+
+    if (
+        pValue === 0 &&
+        eValue === 0
+    ) {
+        alert(
+            '포인트 또는 경험치 중 하나 이상 입력해주세요.'
+        );
+
+        return;
+    }
+
+
+    const userSnap =
+        await db.ref(
+            `users/${userKey}`
+        ).once('value');
+
+
+    if (!userSnap.exists()) {
+        alert(
+            '학생 정보를 찾을 수 없습니다.'
+        );
+
+        return;
+    }
+
+
+    const user =
+        userSnap.val();
+
+
+    const currentPoints =
+        parseInt(user.points) || 0;
+
+
+    const currentExp =
+        parseInt(user.exp) || 0;
+
+
+    const newPoints =
+        currentPoints +
+        pValue;
+
+
+    const newExp =
+        currentExp +
+        eValue;
+
+
+    const updates = {};
+
+
+    updates[
+        `users/${userKey}/points`
+    ] = newPoints;
+
+
+    updates[
+        `users/${userKey}/exp`
+    ] = newExp;
+
+
+    /*
+     * 기존 pointLogs 구조와 연결.
+     * 포인트가 실제로 변경된 경우에만 기록.
+     */
+
+    if (pValue !== 0) {
+        const logRef =
+            db.ref('pointLogs').push();
+
+
+        updates[
+            `pointLogs/${logRef.key}`
+        ] = {
+            name:userName,
+            pAmt:pValue,
+            reason:reason,
+            time:new Date().toLocaleString(
+                'ko-KR'
+            )
+        };
+    }
+
+
+    /*
+     * 기존 차등 지급에서 사용하던
+     * pointHistory도 함께 남김.
+     */
+
+    if (pValue !== 0) {
+        const historyRef =
+            db.ref(
+                `pointHistory/${userKey}`
+            ).push();
+
+
+        updates[
+            `pointHistory/${userKey}/${historyRef.key}`
+        ] = {
+            date:getTodayKST(),
+            time:new Date().toLocaleTimeString(
+                'ko-KR',
+                {
+                    hour:'2-digit',
+                    minute:'2-digit'
+                }
+            ),
+            reason:reason,
+            change:pValue,
+            result:newPoints
+        };
+    }
+
+
+    try {
+        await db.ref().update(
+            updates
+        );
+
+
+        alert(
+            `✅ ${userName} 학생에게 포인트/경험치를 반영했습니다.`
+        );
+
+
+        closePointPopup();
+
+
+        /*
+         * 데이터 갱신 후 카드도 즉시 갱신.
+         */
+
+        if (
+            typeof renderHeroes === 'function'
+        ) {
+            renderHeroes();
+        }
+
+
+    } catch (error) {
+        console.error(
+            '학생 점수 반영 오류:',
+            error
+        );
+
+        alert(
+            '점수 반영 중 오류가 발생했습니다.'
+        );
+    }
+};
+
+
+/* =========================================================
+   학생 → 친구 방
+   ========================================================= */
+
+window.openFriendRoom =
+function(userName) {
+
+    if (!userName) {
+        return;
+    }
 
 
     if (typeof showTab === 'function') {
@@ -520,7 +862,9 @@ window.openFriendRoom = function(userName) {
     if (
         typeof loadSpecificUserRoom === 'function'
     ) {
-        loadSpecificUserRoom(userName);
+        loadSpecificUserRoom(
+            userName
+        );
     } else {
         alert(
             `${userName} 용사의 방 기능을 찾을 수 없습니다.`
@@ -529,14 +873,18 @@ window.openFriendRoom = function(userName) {
 };
 
 
-// =====================================================
-// 관리자 전용 P 플로팅 버튼
-// =====================================================
+/* =========================================================
+   관리자 전용 P 플로팅 버튼
+   ========================================================= */
 
-window.createBatchPointButton = function() {
+window.createBatchPointButton =
+function() {
 
     const old =
-        document.getElementById('floating-point-btn-box');
+        document.getElementById(
+            'floating-point-btn-box'
+        );
+
 
     if (old) {
         old.remove();
@@ -554,10 +902,14 @@ window.createBatchPointButton = function() {
 
 
     const floatingBox =
-        document.createElement('div');
+        document.createElement(
+            'div'
+        );
+
 
     floatingBox.id =
         'floating-point-btn-box';
+
 
     floatingBox.style.cssText = `
         position:fixed;
@@ -568,9 +920,14 @@ window.createBatchPointButton = function() {
 
 
     const button =
-        document.createElement('button');
+        document.createElement(
+            'button'
+        );
 
-    button.innerText = 'P';
+
+    button.innerText =
+        'P';
+
 
     button.style.cssText = `
         background:#8e44ad;
@@ -589,10 +946,12 @@ window.createBatchPointButton = function() {
     `;
 
 
-    button.onclick = function() {
+    button.onclick =
+    function() {
 
         if (
-            typeof openBatchPointModal === 'function'
+            typeof openBatchPointModal ===
+            'function'
         ) {
             openBatchPointModal();
         } else {
@@ -604,7 +963,32 @@ window.createBatchPointButton = function() {
     };
 
 
-    floatingBox.appendChild(button);
+    floatingBox.appendChild(
+        button
+    );
 
-    document.body.appendChild(floatingBox);
+
+    document.body.appendChild(
+        floatingBox
+    );
+};
+
+
+/* =========================================================
+   팝업 닫기
+   ========================================================= */
+
+window.closePointPopup =
+function() {
+
+    const popup =
+        document.getElementById(
+            'point-popup'
+        );
+
+
+    if (popup) {
+        popup.style.display =
+            'none';
+    }
 };
