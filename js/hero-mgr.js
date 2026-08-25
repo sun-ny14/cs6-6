@@ -24,7 +24,7 @@ function getAvatar(lv, selectedAnimal) {
     </div>`;
 }
 
-// 메인 화면 용사 카드 렌더링 (권한별 클릭 동작 분리)
+// 메인 화면 용사 카드 렌더링
 function renderHeroes() {
     const heroGrid = document.getElementById('hero-grid');
     if (!heroGrid) return;
@@ -51,17 +51,13 @@ function renderHeroes() {
             
             const isUserAdmin = (typeof isAdmin !== 'undefined' && isAdmin);
             
-            // 💡 핵심 분기: 선생님이면 관리 팝업, 학생이면 '해당 친구의 방(하우징)'으로 이동하도록 클릭 함수 다르게 지정
-            let clickAction = "";
-            if (isUserAdmin) {
-                clickAction = `openPointPopupForUser('${name}')`; // 선생님: 세부정보 관리 팝업
-            } else {
-                clickAction = `openFriendRoom('${name}')`; // 학생: 다른 친구의 방 구경하기
-            }
+            // 💡 선생님이면 세부 관리 팝업, 학생이면 친구 방으로 이동하는 함수 명칭 통일
+            let clickAction = isUserAdmin 
+                ? `openPointPopupForUser('${name}')` 
+                : `openFriendRoom('${name}')`;
 
-            // 정보 표시 제한
+            // 정보 제한 로직: 관리자이거나 본인인 경우에만 상세 점수 표시 (나머지 친구들은 점수 숨김)
             const canSeeAll = isUserAdmin || 
-                              (typeof isHelper !== 'undefined' && isHelper) || 
                               (typeof myName !== 'undefined' && user.name === myName);
             
             let displayInfo = canSeeAll 
@@ -89,14 +85,13 @@ function renderHeroes() {
             let floatingBox = document.createElement('div');
             floatingBox.id = 'floating-point-btn-box';
             floatingBox.style.cssText = "position: fixed; bottom: 35px; right: 35px; z-index: 9999;";
-            // 아까 만든 개별 차등 지급 모달 함수(openBatchPointModal)와 정확히 연결
             floatingBox.innerHTML = `<button onclick="openBatchPointModal()" style="background: #8e44ad; color: white; border: none; width: 75px; height: 75px; border-radius: 50%; font-weight: 900; font-size: 2rem; cursor: pointer; box-shadow: 0 6px 15px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;">P</button>`;
             document.body.appendChild(floatingBox);
         }
     });
 }
 
-// 💡 [선생님 전용] 학생 세부정보 관리 팝업 열기
+// 학생 세부정보 팝업 (선생님 전용)
 function openPointPopupForUser(userName) {
     db.ref('users').once('value').then(snapshot => {
         let targetUser = null;
@@ -126,14 +121,13 @@ function openPointPopupForUser(userName) {
     });
 }
 
-// 💡 [학생 전용] 다른 친구 카드를 눌렀을 때 그 친구의 방(하우징)으로 이동시키는 함수
+// 다른 친구 카드를 눌렀을 때 그 친구의 방(하우징)으로 이동시키는 함수 (학생 전용)
 function openFriendRoom(userName) {
-    // 하우징 탭으로 이동 후 해당 친구의 방을 렌더링하는 함수 호출 (housing.js에 정의된 함수 활용)
     if (typeof showTab === 'function') showTab('housing');
     if (typeof loadSpecificUserRoom === 'function') {
         loadSpecificUserRoom(userName);
     } else {
-        alert(`${userName 용사의 방으로 이동합니다.`);
+        alert(`${userName} 용사의 방으로 이동합니다.`);
     }
 }
 
@@ -141,5 +135,3 @@ function closePointPopup() {
     const popup = document.getElementById('point-popup');
     if (popup) popup.style.display = 'none'; 
 }
-
-function closePointPopup() { document.getElementById('point-popup').style.display = 'none'; }
