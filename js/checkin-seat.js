@@ -1,585 +1,3123 @@
-// js/checkin-seat.js - 좌석 맵 렌더링, 출결 관리, 월간 출석부(인쇄 지원), 상세 기록 수정 및 요일별 제외 설정 통합 관리
+// js/checkin-seat.js
+// 좌석 맵 렌더링, 출결 관리, 월간 출석부,
+// 상세 기록 수정, 요일별 제외 설정,
+// 학생 본인 등교 기능 통합 관리
 
-// 1. 좌석 지도 렌더링 및 출석 상태별 색상/뱃지 부여
-window.renderSeatMap = function(rows, cols) {
-    const container = document.getElementById('seat-map-container');
-    if (!container) return;
-    
-    container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    container.innerHTML = "";
-    
-    const dateFilterInput = document.getElementById('checkin-date-filter');
-    const targetDate = dateFilterInput && dateFilterInput.value ? dateFilterInput.value : getTodayKST();
-    
-    const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-    const selectedDay = weekDays[new Date(targetDate).getDay()];
+
+/* =========================================================
+   공통 유틸리티
+   ========================================================= */
+
+function checkinGetTodayKST() {
+
+    if (typeof getTodayKST === 'function') {
+        return getTodayKST();
+    }
+
+    const now = new Date();
+
+    const krTime = new Date(
+        now.getTime() + 9 * 60 * 60 * 1000
+    );
+
+    return (
+        krTime.getUTCFullYear() +
+        "-" +
+        String(krTime.getUTCMonth() + 1).padStart(2, '0') +
+        "-" +
+        String(krTime.getUTCDate()).padStart(2, '0')
+    );
+}
+
+
+function checkinGetNowKSTTime() {
+
+    const now = new Date();
+
+    const krTime = new Date(
+        now.getTime() + 9 * 60 * 60 * 1000
+    );
+
+    return (
+        String(krTime.getUTCHours()).padStart(2, '0') +
+        ":" +
+        String(krTime.getUTCMinutes()).padStart(2, '0')
+    );
+}
+
+
+function checkinTimeToMinutes(timeString) {
+
+    if (!timeString) {
+        return null;
+    }
+
+    const match =
+        String(timeString).match(/^(\d{1,2}):(\d{2})$/);
+
+    if (!match) {
+        return null;
+    }
+
+    return (
+        parseInt(match[1], 10) * 60 +
+        parseInt(match[2], 10)
+    );
+}
+
+
+function checkinEscapeHtml(value) {
+
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+
+/* =========================================================
+   1. 학생 본인 등교
+   ========================================================= */
+
+/*
+    index.html:
+        onclick="submitCheckIn()"
+
+    이 함수가 학생용 등교 처리 담당.
+
+    Firebase:
+        settings/password
+        settings/lateTime
+        settings/closeTime
+
+    기록:
+        checkinLogs
+        checkins
+
+    기존 Firebase 경로를 그대로 사용한다.
+*/
+
+window.submitCheckIn = function() {
+
+    const passInput =
+        document.getElementById('checkin-pass');
+
+    const button =
+        document.getElementById('checkin-btn');
+
+
+    if (!passInput) {
+
+        alert(
+            "등교 암호 입력창을 찾을 수 없습니다."
+        );
+
+        return;
+    }
+
+
+    const enteredPassword =
+        String(passInput.value || '').trim();
+
+
+    if (!/^\d{4}$/.test(enteredPassword)) {
+
+        alert(
+            "등교 암호는 숫자 4자리로 입력해주세요."
+        );
+
+        passInput.focus();
+
+        return;
+    }
+
+
+    const studentName =
+        (
+            typeof myName !== 'undefined'
+                ? myName
+                : ''
+        );
+
+
+    if (!studentName) {
+
+        alert(
+            "로그인 정보를 확인할 수 없습니다."
+        );
+
+        return;
+    }
+
+
+    if (button) {
+
+        button.disabled = true;
+
+        button.innerText =
+            "등교 확인 중...";
+    }
+
+
+    db.ref('settings').once('value')
+        .then(settingsSnap => {
+
+            const settings =
+                settingsSnap.val() || {};
+
+
+            const correctPassword =
+                String(
+                    settings.password ?? ''
+                ).trim();
+
+
+            if (
+                !correctPassword ||
+                enteredPassword !== correctPassword
+            ) {
+
+                throw new Error(
+                    "등교 암호가 올바르지 않습니다."
+                );
+            }
+
+
+            const today =
+                checkinGetTodayKST();
+
+
+            const nowTime =
+                checkinGetNowKSTTime();
+
+
+            const nowMinutes =
+                checkinTimeToMinutes(nowTime);
+
+
+            const lateTime =
+                settings.lateTime || "08:40";
+
+
+            const closeTime =
+                settings.closeTime || "09:00";
+
+
+            const lateMinutes =
+                checkinTimeToMinutes(lateTime);
+
+
+            const closeMinutes =
+                checkinTimeToMinutes(closeTime);
+
+
+            let result =
+                "정상 등교";
+
+
+            if (
+                closeMinutes !== null &&
+                nowMinutes !== null &&
+                nowMinutes >= closeMinutes
+            ) {
+
+                throw new Error(
+                    `오늘의 등교가 마감되었습니다. (${closeTime})`
+                );
+            }
+
+
+            if (
+                lateMinutes !== null &&
+                nowMinutes !== null &&
+                nowMinutes >= lateMinutes
+            ) {
+
+                result =
+                    "지각 등교";
+            }
+
+
+            /*
+                이미 오늘 등교했는지 확인.
+                checkinLogs와 checkins 둘 다 확인한다.
+            */
+
+            return Promise.all([
+
+                db.ref('checkinLogs')
+                    .once('value'),
+
+                db.ref('checkins')
+                    .once('value')
+
+            ]).then(snaps => {
+
+                const logsSnap =
+                    snaps[0];
+
+                const checkinsSnap =
+                    snaps[1];
+
+
+                let alreadyChecked =
+                    false;
+
+
+                logsSnap.forEach(child => {
+
+                    const data =
+                        child.val() || {};
+
+
+                    if (
+                        data.name === studentName &&
+                        data.date === today
+                    ) {
+
+                        alreadyChecked = true;
+                    }
+                });
+
+
+                checkinsSnap.forEach(child => {
+
+                    const data =
+                        child.val() || {};
+
+
+                    if (
+                        data.user === studentName &&
+                        data.date === today
+                    ) {
+
+                        alreadyChecked = true;
+                    }
+                });
+
+
+                if (alreadyChecked) {
+
+                    throw new Error(
+                        "오늘은 이미 등교 처리가 되어 있습니다."
+                    );
+                }
+
+
+                const timeForLog =
+                    checkinGetNowKSTTime();
+
+
+                /*
+                    기존 checkinLogs 데이터 구조와 맞춘다.
+                */
+
+                const logData = {
+
+                    name: studentName,
+
+                    date: today,
+
+                    category:
+                        result === '지각 등교'
+                            ? '지각'
+                            : '정상',
+
+                    subCategory:
+                        '해당없음',
+
+                    reason:
+                        '',
+
+                    result:
+                        result,
+
+                    time:
+                        timeForLog
+                };
+
+
+                /*
+                    기존 checkins 데이터 구조 유지
+                */
+
+                const checkinData = {
+
+                    user: studentName,
+
+                    reason: result,
+
+                    date: today,
+
+                    time: timeForLog,
+
+                    docSubmitted: false
+                };
+
+
+                /*
+                    두 기존 Firebase 경로에 기록.
+                    기존 데이터 삭제/초기화 없음.
+                */
+
+                return Promise.all([
+
+                    db.ref('checkinLogs')
+                        .push(logData),
+
+                    db.ref('checkins')
+                        .push(checkinData)
+
+                ]).then(() => {
+
+                    return {
+                        result: result,
+                        time: timeForLog
+                    };
+                });
+            });
+        })
+        .then(record => {
+
+            passInput.value = '';
+
+
+            alert(
+                `✅ ${record.result} 처리되었습니다!\n\n` +
+                `등교 시간: ${record.time}`
+            );
+
+
+            if (button) {
+
+                button.disabled = false;
+
+                button.innerText =
+                    "본부 소환!";
+            }
+
+
+            if (
+                typeof refreshCheckinManagement === 'function'
+            ) {
+
+                refreshCheckinManagement();
+            }
+        })
+        .catch(error => {
+
+            console.error(
+                "등교 처리 오류:",
+                error
+            );
+
+
+            alert(
+                error.message ||
+                "등교 처리 중 오류가 발생했습니다."
+            );
+
+
+            if (button) {
+
+                button.disabled = false;
+
+                button.innerText =
+                    "본부 소환!";
+            }
+        });
+};
+
+
+/* =========================================================
+   2. 좌석 지도 렌더링
+   ========================================================= */
+
+window.renderSeatMap =
+function(rows, cols) {
+
+    const container =
+        document.getElementById(
+            'seat-map-container'
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    rows =
+        parseInt(rows) || 6;
+
+    cols =
+        parseInt(cols) || 5;
+
+
+    container.style.gridTemplateColumns =
+        `repeat(${cols}, minmax(0, 1fr))`;
+
+    container.innerHTML =
+        "";
+
+
+    const dateFilterInput =
+        document.getElementById(
+            'checkin-date-filter'
+        );
+
+
+    const targetDate =
+        dateFilterInput &&
+        dateFilterInput.value
+            ? dateFilterInput.value
+            : checkinGetTodayKST();
+
+
+    const weekDays = [
+        '일',
+        '월',
+        '화',
+        '수',
+        '목',
+        '금',
+        '토'
+    ];
+
+
+    const selectedDay =
+        weekDays[
+            new Date(
+                targetDate + 'T00:00:00'
+            ).getDay()
+        ];
+
 
     Promise.all([
-        db.ref('checkinLogs').once('value'),
-        db.ref('settings/fixedExclusions').once('value')
-    ]).then(snaps => {
-        const logs = {};
-        snaps[0].forEach(l => { 
-            if (l.val().date === targetDate) logs[l.val().name] = l.val(); 
-        });
-        
-        const exclusionData = snaps[1].val() || {};
-        const todayExclusions = exclusionData[selectedDay] || [];
 
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const posId = `${r}-${c}`;
-                const name = (typeof currentLayout !== 'undefined' && currentLayout[posId]) ? currentLayout[posId] : "";
-                const cell = document.createElement('div');
-                
-                let bgColor = "#eee"; 
-                let statusText = "미등교";
-                let textColor = "black";
+        db.ref('checkinLogs')
+            .once('value'),
+
+        db.ref('settings/fixedExclusions')
+            .once('value')
+
+    ]).then(snaps => {
+
+        const logs = {};
+
+
+        snaps[0].forEach(child => {
+
+            const data =
+                child.val() || {};
+
+
+            if (
+                data.date === targetDate
+            ) {
+
+                logs[data.name] =
+                    data;
+            }
+        });
+
+
+        const exclusionData =
+            snaps[1].val() || {};
+
+
+        const todayExclusions =
+            exclusionData[selectedDay] || [];
+
+
+        for (
+            let r = 0;
+            r < rows;
+            r++
+        ) {
+
+            for (
+                let c = 0;
+                c < cols;
+                c++
+            ) {
+
+                const posId =
+                    `${r}-${c}`;
+
+
+                const name =
+                    (
+                        typeof currentLayout !== 'undefined' &&
+                        currentLayout[posId]
+                    )
+                        ? currentLayout[posId]
+                        : "";
+
+
+                const cell =
+                    document.createElement('div');
+
+
+                let bgColor =
+                    "#eee";
+
+                let statusText =
+                    "미등교";
+
+                let textColor =
+                    "black";
+
 
                 if (name) {
-                    const log = logs[name]; 
-                    const isFixedExcluded = todayExclusions.includes(name); 
+
+                    const log =
+                        logs[name];
+
+
+                    const isFixedExcluded =
+                        todayExclusions.includes(name);
+
 
                     if (log) {
-                        statusText = log.result;
-                        if (log.result.includes('정상')) bgColor = "#ccffcc"; // 연한 초록
-                        else if (log.result.includes('지각')) bgColor = "#ffcccc"; // 연한 빨강
-                        else {
-                            bgColor = "#f39c12"; // 주황
-                            statusText = log.result;
+
+                        statusText =
+                            log.result ||
+                            log.category ||
+                            log.reason ||
+                            "기록";
+
+
+                        if (
+                            statusText.includes('정상')
+                        ) {
+
+                            bgColor =
+                                "#ccffcc";
+
+                        } else if (
+                            statusText.includes('지각')
+                        ) {
+
+                            bgColor =
+                                "#ffcccc";
+
+                        } else {
+
+                            bgColor =
+                                "#f39c12";
                         }
-                    } 
-                    else if (isFixedExcluded) {
-                        bgColor = "#3498db"; // 파랑
-                        statusText = "고정 제외";
-                        textColor = "white";
-                    } 
-                    else {
-                        bgColor = "#ffff00"; // 노랑 (미등교 상태)
-                        statusText = "미등교";
+
+                    } else if (
+                        isFixedExcluded
+                    ) {
+
+                        bgColor =
+                            "#3498db";
+
+                        statusText =
+                            "고정 제외";
+
+                        textColor =
+                            "white";
+
+                    } else {
+
+                        bgColor =
+                            "#ffff00";
+
+                        statusText =
+                            "미등교";
                     }
                 }
 
-                cell.style = `background:${bgColor}; border:1px solid #bbb; min-height:120px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:5px; cursor:pointer; color: ${textColor}; user-select:none; box-sizing:border-box;`;
+
+                cell.style.cssText = `
+                    background:${bgColor};
+                    border:1px solid #bbb;
+                    min-height:120px;
+                    border-radius:12px;
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:center;
+                    align-items:center;
+                    text-align:center;
+                    padding:5px;
+                    cursor:pointer;
+                    color:${textColor};
+                    user-select:none;
+                    box-sizing:border-box;
+                `;
+
 
                 if (name) {
+
+                    const timeText =
+                        logs[name]?.time &&
+                        logs[name].time !== '-'
+                            ? `[${logs[name].time}]`
+                            : '';
+
+
                     cell.innerHTML = `
-                        <div style="font-weight:900; font-size:1.6rem; margin-bottom:5px;">${name}</div>
-                        <div style="font-weight:bold; font-size:1.2rem;">${statusText}</div>
-                        <div style="font-size:1.1rem; margin-top:3px;">${logs[name]?.time && logs[name].time !== '-' ? '[' + logs[name].time + ']' : ''}</div>
+
+                        <div
+                            style="
+                                font-weight:900;
+                                font-size:1.3rem;
+                                margin-bottom:5px;
+                            ">
+                            ${checkinEscapeHtml(name)}
+                        </div>
+
+                        <div
+                            style="
+                                font-weight:bold;
+                                font-size:1rem;
+                            ">
+                            ${checkinEscapeHtml(statusText)}
+                        </div>
+
+                        <div
+                            style="
+                                font-size:0.9rem;
+                                margin-top:3px;
+                            ">
+                            ${checkinEscapeHtml(timeText)}
+                        </div>
                     `;
+
                 } else {
-                    cell.innerHTML = `<div style="color:#aaa; font-size:0.9rem;">${r+1}-${c+1}</div>`;
+
+                    cell.innerHTML = `
+                        <div
+                            style="
+                                color:#aaa;
+                                font-size:0.9rem;
+                            ">
+                            ${r + 1}-${c + 1}
+                        </div>
+                    `;
                 }
-                
-                cell.dataset.lastClick = 0;
-                cell.onclick = () => {
-                    if (typeof isEditMode !== 'undefined' && isEditMode) {
-                        openStudentPicker(posId, rows, cols);
-                        return;
-                    }
-                    if (!name) return;
 
-                    const now = Date.now();
-                    const lastClick = parseInt(cell.dataset.lastClick) || 0;
-                    if (now - lastClick < 50) return; 
-                    cell.dataset.lastClick = now;
 
-                    if (cell.clickTimer) {
-                        clearTimeout(cell.clickTimer);
-                        cell.clickTimer = null;
-                        openLogEditPopup(name, targetDate); 
-                    } else {
-                        cell.clickTimer = setTimeout(() => {
-                            cell.clickTimer = null;
-                            if (typeof handleCheckinClick === 'function') {
-                                handleCheckinClick(name);
-                            }
-                        }, 200); 
-                    }
-                };
+                cell.dataset.lastClick =
+                    0;
+
+
+                cell.onclick =
+                    () => {
+
+                        if (
+                            typeof isEditMode !== 'undefined' &&
+                            isEditMode
+                        ) {
+
+                            openStudentPicker(
+                                posId,
+                                rows,
+                                cols
+                            );
+
+                            return;
+                        }
+
+
+                        if (!name) {
+                            return;
+                        }
+
+
+                        const now =
+                            Date.now();
+
+
+                        const lastClick =
+                            parseInt(
+                                cell.dataset.lastClick
+                            ) || 0;
+
+
+                        if (
+                            now - lastClick < 50
+                        ) {
+
+                            return;
+                        }
+
+
+                        cell.dataset.lastClick =
+                            now;
+
+
+                        if (cell.clickTimer) {
+
+                            clearTimeout(
+                                cell.clickTimer
+                            );
+
+                            cell.clickTimer =
+                                null;
+
+
+                            openLogEditPopup(
+                                name,
+                                targetDate
+                            );
+
+                        } else {
+
+                            cell.clickTimer =
+                                setTimeout(() => {
+
+                                    cell.clickTimer =
+                                        null;
+
+
+                                    if (
+                                        typeof handleCheckinClick ===
+                                        'function'
+                                    ) {
+
+                                        handleCheckinClick(
+                                            name
+                                        );
+                                    }
+
+                                }, 250);
+                        }
+                    };
+
+
                 container.appendChild(cell);
             }
         }
+    })
+    .catch(error => {
+
+        console.error(
+            "좌석 지도 로딩 오류:",
+            error
+        );
+
+        container.innerHTML = `
+            <div
+                style="
+                    grid-column:1/-1;
+                    padding:30px;
+                    text-align:center;
+                    color:#c0392b;
+                ">
+                좌석 정보를 불러오지 못했습니다.
+            </div>
+        `;
     });
 };
 
-// 2. 좌석 수정 모드에서 특정 칸을 클릭했을 때 학생을 선택하는 팝업 창
-window.openStudentPicker = function(posId, rows, cols) {
-    if (typeof currentLayout === 'undefined') window.currentLayout = {};
-    const assignedNames = Object.values(currentLayout);
-    
-    let h = `<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; padding:10px; max-height:400px; overflow-y:auto;">`;
-    
-    h += `<button onclick="assignStudentToSeat('${posId}', '', ${rows}, ${cols})" style="background:#e74c3c; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">❌ 비우기</button>`;
-    
-    if (typeof currentUsers !== 'undefined') {
+
+/* =========================================================
+   3. 등교 관리 전체 새로고침
+   ========================================================= */
+
+window.refreshCheckinManagement =
+function() {
+
+    const dateInput =
+        document.getElementById(
+            'checkin-date-filter'
+        );
+
+
+    if (
+        dateInput &&
+        !dateInput.value
+    ) {
+
+        dateInput.value =
+            checkinGetTodayKST();
+    }
+
+
+    const rowsInput =
+        document.getElementById(
+            'checkin-seat-rows'
+        );
+
+
+    const colsInput =
+        document.getElementById(
+            'checkin-seat-cols'
+        );
+
+
+    const rows =
+        rowsInput
+            ? parseInt(rowsInput.value) || 6
+            : 6;
+
+
+    const cols =
+        colsInput
+            ? parseInt(colsInput.value) || 5
+            : 5;
+
+
+    renderSeatMap(
+        rows,
+        cols
+    );
+
+
+    renderCheckinSummary();
+
+    renderCheckinLogList();
+};
+
+
+/* =========================================================
+   4. 등교 통계
+   ========================================================= */
+
+window.renderCheckinSummary =
+function() {
+
+    const container =
+        document.getElementById(
+            'checkin-summary'
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    const dateInput =
+        document.getElementById(
+            'checkin-date-filter'
+        );
+
+
+    const targetDate =
+        dateInput &&
+        dateInput.value
+            ? dateInput.value
+            : checkinGetTodayKST();
+
+
+    Promise.all([
+
+        db.ref('checkinLogs')
+            .once('value'),
+
+        db.ref('users')
+            .once('value'),
+
+        db.ref('settings/fixedExclusions')
+            .once('value')
+
+    ]).then(snaps => {
+
+        let normal = 0;
+        let late = 0;
+        let other = 0;
+        let absent = 0;
+        let excluded = 0;
+
+
+        const checkedNames =
+            new Set();
+
+
+        snaps[0].forEach(child => {
+
+            const data =
+                child.val() || {};
+
+
+            if (
+                data.date !== targetDate ||
+                !data.name
+            ) {
+
+                return;
+            }
+
+
+            checkedNames.add(
+                data.name
+            );
+
+
+            const result =
+                data.result ||
+                data.category ||
+                data.reason ||
+                "";
+
+
+            if (
+                result.includes('정상')
+            ) {
+
+                normal++;
+
+            } else if (
+                result.includes('지각')
+            ) {
+
+                late++;
+
+            } else if (
+                result.includes('제외')
+            ) {
+
+                excluded++;
+
+            } else {
+
+                other++;
+            }
+        });
+
+
+        let studentCount = 0;
+
+
+        snaps[1].forEach(child => {
+
+            const data =
+                child.val() || {};
+
+
+            if (
+                child.key !== "총사령관"
+            ) {
+
+                studentCount++;
+            }
+        });
+
+
+        const fixedExclusions =
+            snaps[2].val() || {};
+
+
+        const weekDays = [
+            '일',
+            '월',
+            '화',
+            '수',
+            '목',
+            '금',
+            '토'
+        ];
+
+
+        const selectedDay =
+            weekDays[
+                new Date(
+                    targetDate + 'T00:00:00'
+                ).getDay()
+            ];
+
+
+        const exclusionList =
+            fixedExclusions[selectedDay] ||
+            [];
+
+
+        excluded =
+            Math.max(
+                excluded,
+                exclusionList.length
+            );
+
+
+        absent =
+            Math.max(
+                0,
+                studentCount -
+                checkedNames.size -
+                excluded
+            );
+
+
+        container.innerHTML = `
+
+            <div class="checkin-summary-card">
+                👥 전체 학생
+                <strong>${studentCount}</strong>
+            </div>
+
+            <div class="checkin-summary-card">
+                🟢 정상 등교
+                <strong>${normal}</strong>
+            </div>
+
+            <div class="checkin-summary-card">
+                🔴 지각
+                <strong>${late}</strong>
+            </div>
+
+            <div class="checkin-summary-card">
+                🟡 기타
+                <strong>${other}</strong>
+            </div>
+
+            <div class="checkin-summary-card">
+                ⚪ 미등교
+                <strong>${absent}</strong>
+            </div>
+
+            <div class="checkin-summary-card">
+                🔵 제외
+                <strong>${excluded}</strong>
+            </div>
+        `;
+
+    }).catch(error => {
+
+        console.error(
+            "등교 통계 오류:",
+            error
+        );
+    });
+};
+
+
+/* =========================================================
+   5. 등교 로그 목록
+   ========================================================= */
+
+window.renderCheckinLogList =
+function() {
+
+    const container =
+        document.getElementById(
+            'checkin-log-list'
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    const dateInput =
+        document.getElementById(
+            'checkin-date-filter'
+        );
+
+
+    const targetDate =
+        dateInput &&
+        dateInput.value
+            ? dateInput.value
+            : checkinGetTodayKST();
+
+
+    db.ref('checkinLogs')
+        .once('value')
+        .then(snap => {
+
+            const records = [];
+
+
+            snap.forEach(child => {
+
+                const data =
+                    child.val() || {};
+
+
+                if (
+                    data.date === targetDate &&
+                    data.name
+                ) {
+
+                    records.push({
+                        key: child.key,
+                        ...data
+                    });
+                }
+            });
+
+
+            records.sort((a, b) => {
+
+                return String(
+                    a.name || ''
+                ).localeCompare(
+                    String(b.name || ''),
+                    'ko'
+                );
+            });
+
+
+            let html = "";
+
+
+            if (!records.length) {
+
+                html = `
+                    <div
+                        style="
+                            padding:30px;
+                            text-align:center;
+                            color:#999;
+                        ">
+                        해당 날짜의 등교 기록이 없습니다.
+                    </div>
+                `;
+
+            } else {
+
+                html = `
+
+                    <div class="checkin-log-table-wrap">
+
+                        <table class="checkin-log-table">
+
+                            <thead>
+                                <tr>
+                                    <th>이름</th>
+                                    <th>상태</th>
+                                    <th>시간</th>
+                                    <th>사유</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                `;
+
+
+                records.forEach(record => {
+
+                    const result =
+                        record.result ||
+                        record.category ||
+                        '기록';
+
+
+                    html += `
+
+                        <tr>
+
+                            <td>
+                                <strong>
+                                    ${checkinEscapeHtml(
+                                        record.name
+                                    )}
+                                </strong>
+                            </td>
+
+                            <td>
+                                ${checkinEscapeHtml(
+                                    result
+                                )}
+                            </td>
+
+                            <td>
+                                ${checkinEscapeHtml(
+                                    record.time || '-'
+                                )}
+                            </td>
+
+                            <td>
+                                ${checkinEscapeHtml(
+                                    record.reason || '-'
+                                )}
+                            </td>
+
+                            <td>
+
+                                <button
+                                    onclick="openLogEditPopup(
+                                        '${checkinEscapeHtml(record.name)}',
+                                        '${checkinEscapeHtml(targetDate)}'
+                                    )"
+                                    style="
+                                        background:#3498db;
+                                        color:white;
+                                        border:none;
+                                        border-radius:7px;
+                                        padding:8px 12px;
+                                        cursor:pointer;
+                                    ">
+                                    ✏️ 수정
+                                </button>
+
+                            </td>
+
+                        </tr>
+                    `;
+                });
+
+
+                html += `
+                            </tbody>
+                        </table>
+
+                    </div>
+                `;
+            }
+
+
+            container.innerHTML =
+                html;
+
+        })
+        .catch(error => {
+
+            console.error(
+                "등교 로그 오류:",
+                error
+            );
+
+            container.innerHTML = `
+                <div
+                    style="
+                        padding:30px;
+                        text-align:center;
+                        color:#c0392b;
+                    ">
+                    등교 로그를 불러오지 못했습니다.
+                </div>
+            `;
+        });
+};
+
+
+/* =========================================================
+   6. 학생 배치 팝업
+   ========================================================= */
+
+window.openStudentPicker =
+function(posId, rows, cols) {
+
+    if (
+        typeof currentLayout === 'undefined'
+    ) {
+
+        window.currentLayout = {};
+    }
+
+
+    const assignedNames =
+        Object.values(
+            currentLayout
+        );
+
+
+    let h = `
+        <div
+            style="
+                display:grid;
+                grid-template-columns:repeat(3,1fr);
+                gap:10px;
+                padding:10px;
+                max-height:400px;
+                overflow-y:auto;
+            ">
+    `;
+
+
+    h += `
+        <button
+            onclick="assignStudentToSeat(
+                '${posId}',
+                '',
+                ${rows},
+                ${cols}
+            )"
+            style="
+                background:#e74c3c;
+                color:white;
+                padding:12px;
+                border:none;
+                border-radius:8px;
+                font-weight:bold;
+                cursor:pointer;
+            ">
+            ❌ 비우기
+        </button>
+    `;
+
+
+    if (
+        typeof currentUsers !== 'undefined'
+    ) {
+
         currentUsers.forEach(u => {
-            if (u.name === "총사령관") return;
-            const isAssigned = assignedNames.includes(u.name);
-            h += `<button onclick="assignStudentToSeat('${posId}', '${u.name}', ${rows}, ${cols})" 
-                    style="background:${isAssigned ? '#95a5a6' : 'var(--primary, #3498db)'}; color:white; font-size:1.1rem; padding:12px 5px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
-                    ${u.name}${isAssigned ? ' (배치됨)' : ''}
-                  </button>`;
+
+            if (
+                u.name === "총사령관"
+            ) {
+
+                return;
+            }
+
+
+            const isAssigned =
+                assignedNames.includes(
+                    u.name
+                );
+
+
+            h += `
+
+                <button
+                    onclick="assignStudentToSeat(
+                        '${checkinEscapeHtml(u.name)}',
+                        '${checkinEscapeHtml(u.name)}',
+                        ${rows},
+                        ${cols}
+                    )"
+                    style="
+                        background:${
+                            isAssigned
+                                ? '#95a5a6'
+                                : 'var(--primary,#3498db)'
+                        };
+                        color:white;
+                        font-size:1.1rem;
+                        padding:12px 5px;
+                        border:none;
+                        border-radius:8px;
+                        font-weight:bold;
+                        cursor:pointer;
+                    ">
+
+                    ${checkinEscapeHtml(u.name)}
+                    ${isAssigned ? ' (배치됨)' : ''}
+
+                </button>
+            `;
         });
     }
+
+
     h += `</div>`;
-    
-    if (typeof openPopup === 'function') {
-        openPopup("🧑‍🎓 학생 배치", h);
+
+
+    if (
+        typeof openPopup === 'function'
+    ) {
+
+        openPopup(
+            "🧑‍🎓 학생 배치",
+            h
+        );
     }
 };
 
-window.assignStudentToSeat = function(posId, name, rows, cols) {
-    if (typeof currentLayout === 'undefined') window.currentLayout = {};
-    
+
+/* =========================================================
+   7. 좌석 배치
+   ========================================================= */
+
+window.assignStudentToSeat =
+function(posId, name, rows, cols) {
+
+    if (
+        typeof currentLayout === 'undefined'
+    ) {
+
+        window.currentLayout = {};
+    }
+
+
     if (name === "") {
+
         delete currentLayout[posId];
+
     } else {
-        for (let key in currentLayout) {
-            if (currentLayout[key] === name) {
+
+        for (
+            let key in currentLayout
+        ) {
+
+            if (
+                currentLayout[key] === name
+            ) {
+
                 delete currentLayout[key];
             }
         }
-        currentLayout[posId] = name;
-    }
-    
-    if (typeof closePopup === 'function') closePopup();
-    if (typeof renderSeatMap === 'function') {
-        renderSeatMap(rows, cols);
-    }
-};
 
-// 3. 출결 원클릭 / 더블클릭 제어 시스템
-window.attendanceClickTimer = null;
-window.handleCheckinClick = function(user) {
-    if (window.attendanceClickTimer) {
-        clearTimeout(window.attendanceClickTimer);
-        window.attendanceClickTimer = null;
-        openDetailedCheckin(user);
-    } else {
-        window.attendanceClickTimer = setTimeout(() => {
-            window.attendanceClickTimer = null;
-            submitCheckin(user, '정상 등교');
-        }, 250); 
-    }
-};
 
-window.openDetailedCheckin = function(user) {
-    let h = `
-        <div style="text-align:center;">
-            <h3 style="margin-top:0;">${user} 출결 상태 변경</h3>
-            <select id="checkin-reason" style="width:100%; padding:15px; font-size:1.1rem; border-radius:10px; margin-bottom:20px;">
-                <option value="정상 등교">✅ 정상 등교</option>
-                <option value="결석">❌ 결석 (질병/미인정 등)</option>
-                <option value="교외체험학습">🎒 교외체험학습</option>
-                <option value="지각">⏰ 지각</option>
-                <option value="조퇴">🏃 조퇴</option>
-            </select>
-            <button onclick="submitCheckin('${user}', document.getElementById('checkin-reason').value)" style="width:100%; padding:15px; background:var(--gold, #f1c40f); font-weight:bold; font-size:1.2rem; border:none; border-radius:10px; cursor:pointer;">출결 기록 저장</button>
-        </div>
-    `;
-    if (typeof openPopup === 'function') openPopup("출석 관리", h);
-};
-
-// 4. 출석 기록 저장 함수 (시간 및 날짜 처리 완벽 정돈)
-window.submitCheckin = function(user, reason) {
-    const todayStr = (typeof getTodayKST === 'function') ? getTodayKST() : new Date().toISOString().split('T')[0];
-    const timeStr = reason.includes('정상') ? "" : new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-
-    db.ref('checkins').push({
-        user: user, 
-        reason: reason, 
-        date: todayStr,
-        time: timeStr, 
-        docSubmitted: false
-    }).then(() => {
-        alert(`[${user}] ${reason} 처리 완료! ✨`);
-        
-        if (typeof closePopup === 'function') closePopup();
-        if (typeof appendExtraLogsUI === 'function') appendExtraLogsUI();
-        
-        const rowsEl = document.getElementById('seat-rows');
-        const colsEl = document.getElementById('seat-cols');
-        if (rowsEl && colsEl && typeof renderSeatMap === 'function') {
-            renderSeatMap(parseInt(rowsEl.value), parseInt(colsEl.value));
-        }
-    });
-};
-
-// 5. 등교 기록 상세 수정 팝업 열기 (더블클릭 시 작동)
-window.openLogEditPopup = function(name, date) {
-    db.ref('checkinLogs').once('value', snap => {
-        let logKey = null;
-        let logData = {};
-        snap.forEach(c => {
-            if (c.val().name === name && c.val().date === date) {
-                logKey = c.key;
-                logData = c.val();
-            }
-        });
-
-        const h = `
-            <div style="text-align:left; padding:10px;">
-                <h3 style="text-align:center;">${name} 등교 상세 기록</h3>
-                <label style="display:block; margin-top:10px; font-weight:bold;">🚩 등교 상태 (대항목)</label>
-                <select id="edit-cat" style="width:100%; padding:8px; margin-top:5px; border-radius:6px; border:1px solid #ccc;">
-                    <option value="정상" ${logData.result === '정상 등교' ? 'selected' : ''}>정상 등교</option>
-                    <option value="지각" ${logData.result === '지각 등교' ? 'selected' : ''}>지각</option>
-                    <option value="결석" ${logData.category === '결석' ? 'selected' : ''}>결석</option>
-                    <option value="조퇴" ${logData.category === '조퇴' ? 'selected' : ''}>조퇴</option>
-                    <option value="제외" ${logData.category === '제외' ? 'selected' : ''}>기록 제외(방과후 등)</option>
-                </select>
-
-                <label style="display:block; margin-top:10px; font-weight:bold;">🔍 사유 구분 (소항목)</label>
-                <select id="edit-sub" style="width:100%; padding:8px; margin-top:5px; border-radius:6px; border:1px solid #ccc;">
-                    <option value="해당없음" ${logData.subCategory === '해당없음' ? 'selected' : ''}>-</option>
-                    <option value="질병" ${logData.subCategory === '질병' ? 'selected' : ''}>질병</option>
-                    <option value="인정" ${logData.subCategory === '인정' ? 'selected' : ''}>인정</option>
-                    <option value="미인정" ${logData.subCategory === '미인정' ? 'selected' : ''}>미인정</option>
-                    <option value="기타" ${logData.subCategory === '기타' ? 'selected' : ''}>기타</option>
-                </select>
-
-                <label style="display:block; margin-top:10px; font-weight:bold;">📝 구체적 사유 기록</label>
-                <textarea id="edit-desc" rows="3" placeholder="예: 아침 방과후 농구팀, 독감으로 인한 결석 등" style="width:100%; padding:8px; margin-top:5px; border-radius:6px; border:1px solid #ccc; box-sizing:border-box;">${logData.reason || ''}</textarea>
-                
-                <button onclick="saveDetailLog('${name}', '${date}', '${logKey}')" style="width:100%; background:var(--primary, #3498db); color:white; font-weight:bold; margin-top:15px; padding:12px; border:none; border-radius:8px; cursor:pointer;">상태 및 사유 저장</button>
-            </div>
-        `;
-        if (typeof openPopup === 'function') {
-            openPopup("📊 등교 기록 수정", h);
-        }
-    });
-};
-
-window.saveDetailLog = function(name, date, key) {
-    const category = document.getElementById('edit-cat').value;
-    const subCategory = document.getElementById('edit-sub').value;
-    const reason = document.getElementById('edit-desc').value;
-    
-    let resultText = category;
-    if (category === '정상' || category === '지각') resultText = category + ' 등교';
-
-    const updateData = {
-        name: name,
-        date: date,
-        category: category,
-        subCategory: subCategory,
-        reason: reason,
-        result: resultText,
-        time: "-" 
-    };
-
-    if (key && key !== 'null') {
-        db.ref('checkinLogs/' + key).update(updateData).then(afterSave);
-    } else {
-        db.ref('checkinLogs').push(updateData).then(afterSave);
+        currentLayout[posId] =
+            name;
     }
 
-    function afterSave() {
-        alert("✅ 변동 사유가 반영되었습니다.");
-        if (typeof closePopup === 'function') closePopup();
-        if (typeof generateNewLayout === 'function') {
-            generateNewLayout(); 
-        }
-    }
-};
 
-// 6. 요일별 고정 등교 제외 설정 시스템
-window.openExclusionPopup = function() {
-    db.ref('settings/fixedExclusions').once('value', snap => {
-        const data = snap.val() || {}; 
-        const days = ['월', '화', '수', '목', '금'];
-        
-        let h = `<div style="text-align:left;">
-                    <p style="font-size:1rem; color:var(--red, #e74c3c); font-weight:bold; margin-bottom:10px;">* 요일별로 등교 체크에서 제외할 학생을 선택하세요.</p>
-                    <div style="display:flex; gap:5px; margin-bottom:15px;">`;
-        
-        days.forEach(d => {
-            h += `<button onclick="showExclusionDay('${d}')" class="day-tab" id="tab-${d}" style="flex:1; padding:10px; border:1px solid #ccc; border-radius:8px; font-weight:bold; cursor:pointer;">${d}</button>`;
-        });
-        h += `</div>`;
+    if (
+        typeof closePopup === 'function'
+    ) {
 
-        days.forEach(d => {
-            const excludedList = data[d] || [];
-            h += `<div id="day-cont-${d}" class="day-content" style="display:none; grid-template-columns:repeat(3, 1fr); gap:10px; max-height:300px; overflow-y:auto;">`;
-            if (typeof currentUsers !== 'undefined') {
-                currentUsers.forEach(u => {
-                    if (u.name === "총사령관") return;
-                    const isChecked = excludedList.includes(u.name);
-                    h += `
-                        <label style="background:#f8f9fa; padding:10px; border-radius:10px; text-align:center; border:2px solid ${isChecked ? 'var(--purple, #9b59b6)' : '#eee'}; cursor:pointer;">
-                            <input type="checkbox" class="ex-check-${d}" value="${u.name}" ${isChecked ? 'checked' : ''} style="margin-bottom:5px;">
-                            <div style="font-weight:bold; font-size:1.1rem;">${u.name}</div>
-                        </label>`;
-                });
-            }
-            h += `</div>`;
-        });
-        
-        h += `<button onclick="saveExclusionsByDay()" style="width:100%; margin-top:20px; background:var(--purple, #9b59b6); color:white; padding:15px; border-radius:12px; font-weight:bold; cursor:pointer;">설정 저장하기</button></div>`;
-        
-        if (typeof openPopup === 'function') {
-            openPopup("🚫 요일별 등교제외 설정", h);
-        }
-        showExclusionDay('월'); 
-    });
-};
-
-window.showExclusionDay = function(day) {
-    document.querySelectorAll('.day-content').forEach(el => el.style.display = 'none');
-    document.querySelectorAll('.day-tab').forEach(el => el.style.background = 'white');
-    const targetCont = document.getElementById('day-cont-' + day);
-    const targetTab = document.getElementById('tab-' + day);
-    if (targetCont) targetCont.style.display = 'grid';
-    if (targetTab) targetTab.style.background = '#e9ecef';
-};
-
-window.saveExclusionsByDay = function() {
-    const data = {};
-    ['월', '화', '수', '목', '금'].forEach(d => {
-        const selected = [];
-        document.querySelectorAll('.ex-check-' + d + ':checked').forEach(el => selected.push(el.value));
-        data[d] = selected;
-    });
-    
-    db.ref('settings/fixedExclusions').set(data).then(() => {
-        alert("✨ 요일별 제외 명단이 저장되었습니다.");
-        if (typeof closePopup === 'function') closePopup();
-        if (typeof generateNewLayout === 'function') {
-            generateNewLayout(); 
-        }
-    });
-};
-
-// 7. 월간 출석부 및 인쇄 기능 연동
-window.openMonthlyCalendar = function() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth(); 
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    let weekdays = [];
-    for(let d = 1; d <= daysInMonth; d++) {
-        const dayOfWeek = new Date(year, month, d).getDay();
-        if(dayOfWeek !== 0 && dayOfWeek !== 6) weekdays.push(d);
+        closePopup();
     }
 
-    db.ref('checkins').once('value', checkinSnap => {
-        let usersSet = new Set();
-        
-        if (typeof currentUsers !== 'undefined') {
-            currentUsers.forEach(u => {
-                if (u.name !== "총사령관") usersSet.add(u.name);
-            });
-        }
 
-        checkinSnap.forEach(child => {
-            const c = child.val();
-            if (c.user && c.user !== "총사령관") {
-                usersSet.add(c.user);
-            }
-        });
-
-        const users = Array.from(usersSet).sort();
-        let attendanceData = {}; 
-        users.forEach(u => attendanceData[u] = {});
-        
-        const targetMonthStr = year + "-" + String(month + 1).padStart(2, '0');
-
-        checkinSnap.forEach(child => {
-            const c = child.val();
-            if(c.user && users.includes(c.user)) {
-                let d = null;
-                if (c.date && c.date.startsWith(targetMonthStr)) {
-                    d = parseInt(c.date.split('-')[2]);
-                } 
-                else if (c.time && c.time !== "-") {
-                    try {
-                       const parts = c.time.split('. ');
-                       if (parts.length >= 3) {
-                           const y = parseInt(parts[0]);
-                           const m = parseInt(parts[1]);
-                           if (y === year && m === (month + 1)) {
-                               d = parseInt(parts[2]);
-                           }
-                       }
-                    } catch(e) {}
-                }
-
-                if (d && !isNaN(d)) {
-                    attendanceData[c.user][d] = {
-                        status: c.reason,
-                        remark: c.remark || c.note || "" 
-                    };
-                }
-            }
-        });
-
-        let tableHtml = `
-            <style>
-                #popup-modal-content { max-width: 95% !important; width: 1200px !important; }
-                @media print {
-                    body * { visibility: hidden; }
-                    #print-area, #print-area * { visibility: visible; }
-                    #print-area { position: absolute; left: 0; top: 0; width: 100%; }
-                    .no-print { display: none !important; }
-                    table { page-break-inside: auto; }
-                    tr { page-break-inside: avoid; page-break-after: auto; }
-                }
-            </style>
-            
-            <div id="print-area" style="padding: 10px;">
-                <h2 class="print-title" style="text-align:center; margin-bottom:20px; font-size:1.8rem; display:none;">${month + 1}월 학급 출석부 (${year}년)</h2>
-                
-                <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div style="font-size:1rem; color:#495057; font-weight: 500;">
-                        📌 범례: <span style="color:#2b8a3e; font-weight:bold;">O</span> (정상등교) / 
-                        <span style="color:#e03131; font-weight:bold;">결</span> (결석) / 
-                        <span style="color:#f59f00; font-weight:bold;">지</span> (지각) / 
-                        <span style="color:#1c7ed6; font-weight:bold;">조</span> (조퇴)
-                    </div>
-                    <button onclick="window.printAttendanceBook()" style="background:#228be6; color:white; border:none; padding:10px 18px; font-size:1rem; font-weight:bold; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        🖨️ 출석부 인쇄하기
-                    </button>
-                </div>
-
-                <div style="overflow-x:auto; background: #fff; border-radius: 8px; border: 1px solid #dee2e6;">
-                    <table style="width:100%; border-collapse:collapse; text-align:center; min-width:1000px; font-size:1.05rem; font-family: sans-serif;">
-                        <thead>
-                            <tr style="background:#f8f9fa;">
-                                <th style="border:1px solid #ced4da; padding:12px 8px; font-weight:bold; background:#f8f9fa; width:90px; position:sticky; left:0; z-index:2;">이름</th>
-        `;
-        
-        weekdays.forEach(d => { 
-            tableHtml += `<th style="border:1px solid #ced4da; padding:12px 4px; font-weight:bold; min-width:35px;">${d}</th>`; 
-        });
-        
-        tableHtml += `      </tr>
-                        </thead>
-                        <tbody>`;
-
-        users.forEach(u => {
-            tableHtml += `<tr>
-                <td style="border:1px solid #ced4da; padding:12px 8px; font-weight:bold; position:sticky; left:0; background:#ffffff; z-index:1; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);">${u}</td>`;
-            
-            weekdays.forEach(d => {
-                let record = attendanceData[u][d];
-                let mark = '', color = 'transparent', remarkHtml = '';
-                
-                if(record) {
-                    let status = record.status;
-                    if (record.remark && record.remark.trim() !== '') {
-                        remarkHtml = `<div style="font-size:0.75rem; color:#495057; margin-top:3px; line-height:1;">(${record.remark})</div>`;
-                    }
-
-                    if(status.includes('정상') || status === '등교') { 
-                        mark = 'O'; color = '#ebfbee'; 
-                    }
-                    else if(status.includes('결석')) { 
-                        mark = '결'; color = '#fff5f5'; 
-                    }
-                    else if(status.includes('지각')) { 
-                        mark = '지'; color = '#fff9db'; 
-                    }
-                    else if(status.includes('조퇴')) {
-                        mark = '조'; color = '#e7f5ff'; 
-                    }
-                    else { 
-                        mark = status.substring(0,1); color = '#f3e5f5'; 
-                    } 
-                }
-                
-                tableHtml += `<td style="border:1px solid #ced4da; padding:8px 4px; background:${color}; font-weight: 500;">
-                    ${mark}
-                    ${remarkHtml}
-                </td>`;
-            });
-            tableHtml += `</tr>`;
-        });
-        
-        tableHtml += `  </tbody>
-                    </table>
-                </div>
-            </div>`;
-        
-        if (typeof openPopup === 'function') openPopup(`${month + 1}월 학급 출석부`, tableHtml);
-    });
+    renderSeatMap(
+        rows,
+        cols
+    );
 };
 
-window.printAttendanceBook = function() {
-    const title = document.querySelector('.print-title');
-    if(title) title.style.display = 'block';
-    window.print();
-    if(title) title.style.display = 'none';
-};
 
-// 8. 하단 로그 확장 UI (달력 보기 버튼 및 미제출 서류 관리)
-window.appendExtraLogsUI = function() {
-    const board = document.getElementById('tab-logs');
-    if(!board) return;
-    
-    let extraDiv = document.getElementById('extra-logs-div');
-    if(!extraDiv) {
-        extraDiv = document.createElement('div');
-        extraDiv.id = 'extra-logs-div';
-        board.appendChild(extraDiv);
-    }
+/* =========================================================
+   8. 관리자 출결 클릭
+   ========================================================= */
 
-    db.ref('checkins').once('value', snap => {
-        let checkins = [];
-        snap.forEach(child => { checkins.push({ key: child.key, ...child.val() }); });
-        checkins.reverse();
+window.attendanceClickTimer =
+    null;
 
-        let html = `
-            <hr style="margin: 30px 0; border: 1px dashed #ccc;">
-            <div style="text-align:center; margin-bottom:20px;">
-                <button onclick="openMonthlyCalendar()" style="padding:12px 20px; background:var(--purple, #9b59b6); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-                    📊 이번 달 출석부(달력) 보기
-                </button>
-            </div>
-        `;
 
-        let missingDocs = checkins.filter(c => 
-            (c.reason && (c.reason.includes('결석') || c.reason.includes('체험학습'))) && !c.docSubmitted
+window.handleCheckinClick =
+function(user) {
+
+    if (
+        window.attendanceClickTimer
+    ) {
+
+        clearTimeout(
+            window.attendanceClickTimer
         );
 
-        if (isAdmin && missingDocs.length > 0) {
-            html += `
-            <div style="background:#ffebee; border:2px solid #ef5350; border-radius:10px; padding:15px; margin-bottom:20px; text-align:left;">
-                <h4 style="margin:0 0 10px 0; color:#c62828;">⚠️ 서류 미제출자 명단 (클릭 시 확인 완료)</h4>
-                <div style="display:flex; flex-wrap:wrap; gap:10px;">
-            `;
-            missingDocs.forEach(c => {
-                let shortReason = c.reason.replace('교외체험학습', '체험').replace('결석', '결석');
-                html += `<button onclick="completeDoc('${c.key}')" style="padding:8px 12px; background:white; border:2px solid #ef5350; color:#c62828; border-radius:8px; font-weight:bold; cursor:pointer;">${c.user} (${shortReason})</button>`;
-            });
-            html += `</div></div>`;
+        window.attendanceClickTimer =
+            null;
+
+
+        openDetailedCheckin(
+            user
+        );
+
+    } else {
+
+        window.attendanceClickTimer =
+            setTimeout(() => {
+
+                window.attendanceClickTimer =
+                    null;
+
+
+                submitCheckin(
+                    user,
+                    '정상 등교'
+                );
+
+            }, 250);
+    }
+};
+
+
+/* =========================================================
+   9. 관리자 상세 출결
+   ========================================================= */
+
+window.openDetailedCheckin =
+function(user) {
+
+    const safeUser =
+        checkinEscapeHtml(user);
+
+
+    let h = `
+
+        <div style="text-align:center;">
+
+            <h3 style="margin-top:0;">
+                ${safeUser} 출결 상태 변경
+            </h3>
+
+            <select
+                id="checkin-reason"
+                style="
+                    width:100%;
+                    padding:15px;
+                    font-size:1.1rem;
+                    border-radius:10px;
+                    margin-bottom:20px;
+                ">
+
+                <option value="정상 등교">
+                    ✅ 정상 등교
+                </option>
+
+                <option value="결석">
+                    ❌ 결석
+                </option>
+
+                <option value="교외체험학습">
+                    🎒 교외체험학습
+                </option>
+
+                <option value="지각">
+                    ⏰ 지각
+                </option>
+
+                <option value="조퇴">
+                    🏃 조퇴
+                </option>
+
+            </select>
+
+            <button
+                onclick="
+                    submitCheckin(
+                        '${safeUser}',
+                        document.getElementById(
+                            'checkin-reason'
+                        ).value
+                    )
+                "
+                style="
+                    width:100%;
+                    padding:15px;
+                    background:var(--gold,#f1c40f);
+                    font-weight:bold;
+                    font-size:1.2rem;
+                    border:none;
+                    border-radius:10px;
+                    cursor:pointer;
+                ">
+                출결 기록 저장
+            </button>
+
+        </div>
+    `;
+
+
+    if (
+        typeof openPopup === 'function'
+    ) {
+
+        openPopup(
+            "출석 관리",
+            h
+        );
+    }
+};
+
+
+/* =========================================================
+   10. 관리자 출결 저장
+   ========================================================= */
+
+/*
+    중요:
+    이 함수는 학생용 submitCheckIn()과 별개다.
+
+    기존 코드의 Firebase 경로:
+        checkins
+
+    기존 관리자 좌석표:
+        checkinLogs
+
+    둘 다 유지한다.
+*/
+
+window.submitCheckin =
+function(user, reason) {
+
+    const todayStr =
+        checkinGetTodayKST();
+
+
+    const timeStr =
+        checkinGetNowKSTTime();
+
+
+    let resultText =
+        reason;
+
+
+    if (
+        reason === '정상 등교'
+    ) {
+
+        resultText =
+            '정상 등교';
+
+    } else if (
+        reason === '지각'
+    ) {
+
+        resultText =
+            '지각 등교';
+    }
+
+
+    const checkinData = {
+
+        user: user,
+
+        reason: reason,
+
+        date: todayStr,
+
+        time: timeStr,
+
+        docSubmitted: false
+    };
+
+
+    const logData = {
+
+        name: user,
+
+        date: todayStr,
+
+        category:
+            resultText.includes('지각')
+                ? '지각'
+                : resultText.includes('정상')
+                    ? '정상'
+                    : resultText,
+
+        subCategory:
+            '해당없음',
+
+        reason:
+            reason,
+
+        result:
+            resultText,
+
+        time:
+            timeStr
+    };
+
+
+    /*
+        기존 Firebase 데이터는 삭제하지 않는다.
+        두 경로에 새 기록을 추가한다.
+    */
+
+    Promise.all([
+
+        db.ref('checkins')
+            .push(checkinData),
+
+        db.ref('checkinLogs')
+            .push(logData)
+
+    ]).then(() => {
+
+        alert(
+            `[${user}] ${reason} 처리 완료! ✨`
+        );
+
+
+        if (
+            typeof closePopup === 'function'
+        ) {
+
+            closePopup();
         }
 
-        html += `<h3 style="margin-bottom:10px; border-bottom:2px solid #eee; padding-bottom:10px;">📜 전체 출결 로그</h3>`;
-        html += `<div class="list-container" style="max-height:300px; overflow-y:auto; padding-right:5px;">`;
-        let hasData = false;
-        
-        checkins.slice(0, 50).forEach(c => {
-            hasData = true;
-            let docTag = (c.docSubmitted) ? `<span style="color:#2e7d32; font-size:0.8rem; font-weight:bold; background:#e8f5e9; padding:3px 6px; border-radius:4px; margin-left:5px;">서류 완료</span>` : '';
-            html += `
-                <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee;">
-                    <span><b>${c.user}</b> - ${c.reason || '정상 등교'} ${docTag}</span>
-                    <small style="color:#666;">${c.time || ''}</small>
-                </div>
-            `;
-        });
 
-        if(!hasData) html += `<p style="text-align:center; color:#999; padding:20px;">출결 기록이 없습니다.</p>`;
-        html += `</div>`;
+        refreshCheckinManagement();
 
-        extraDiv.innerHTML = html;
+    }).catch(error => {
+
+        console.error(
+            "관리자 출결 저장 오류:",
+            error
+        );
+
+
+        alert(
+            "출결 저장 중 오류가 발생했습니다."
+        );
     });
 };
 
-window.completeDoc = function(key) {
-    if(!confirm("이 학생의 서류를 제출 완료 처리하시겠습니까?")) return;
-    db.ref(`checkins/${key}`).update({ docSubmitted: true }).then(() => { appendExtraLogsUI(); });
-}; 
+
+/* =========================================================
+   11. 등교 상세 기록 수정
+   ========================================================= */
+
+window.openLogEditPopup =
+function(name, date) {
+
+    db.ref('checkinLogs')
+        .once('value', snap => {
+
+            let logKey =
+                null;
+
+            let logData =
+                {};
+
+
+            snap.forEach(c => {
+
+                const data =
+                    c.val() || {};
+
+
+                if (
+                    data.name === name &&
+                    data.date === date
+                ) {
+
+                    logKey =
+                        c.key;
+
+                    logData =
+                        data;
+                }
+            });
+
+
+            const safeName =
+                checkinEscapeHtml(name);
+
+            const safeDate =
+                checkinEscapeHtml(date);
+
+
+            const h = `
+
+                <div
+                    style="
+                        text-align:left;
+                        padding:10px;
+                    ">
+
+                    <h3 style="text-align:center;">
+                        ${safeName} 등교 상세 기록
+                    </h3>
+
+                    <label
+                        style="
+                            display:block;
+                            margin-top:10px;
+                            font-weight:bold;
+                        ">
+                        🚩 등교 상태
+                    </label>
+
+                    <select
+                        id="edit-cat"
+                        style="
+                            width:100%;
+                            padding:8px;
+                            margin-top:5px;
+                            border-radius:6px;
+                            border:1px solid #ccc;
+                        ">
+
+                        <option
+                            value="정상"
+                            ${
+                                logData.result === '정상 등교'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            정상 등교
+                        </option>
+
+                        <option
+                            value="지각"
+                            ${
+                                logData.result === '지각 등교'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            지각
+                        </option>
+
+                        <option
+                            value="결석"
+                            ${
+                                logData.category === '결석'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            결석
+                        </option>
+
+                        <option
+                            value="조퇴"
+                            ${
+                                logData.category === '조퇴'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            조퇴
+                        </option>
+
+                        <option
+                            value="제외"
+                            ${
+                                logData.category === '제외'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            기록 제외
+                        </option>
+
+                    </select>
+
+
+                    <label
+                        style="
+                            display:block;
+                            margin-top:10px;
+                            font-weight:bold;
+                        ">
+                        🔍 사유 구분
+                    </label>
+
+                    <select
+                        id="edit-sub"
+                        style="
+                            width:100%;
+                            padding:8px;
+                            margin-top:5px;
+                            border-radius:6px;
+                            border:1px solid #ccc;
+                        ">
+
+                        <option
+                            value="해당없음"
+                            ${
+                                logData.subCategory === '해당없음'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            -
+                        </option>
+
+                        <option
+                            value="질병"
+                            ${
+                                logData.subCategory === '질병'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            질병
+                        </option>
+
+                        <option
+                            value="인정"
+                            ${
+                                logData.subCategory === '인정'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            인정
+                        </option>
+
+                        <option
+                            value="미인정"
+                            ${
+                                logData.subCategory === '미인정'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            미인정
+                        </option>
+
+                        <option
+                            value="기타"
+                            ${
+                                logData.subCategory === '기타'
+                                    ? 'selected'
+                                    : ''
+                            }>
+                            기타
+                        </option>
+
+                    </select>
+
+
+                    <label
+                        style="
+                            display:block;
+                            margin-top:10px;
+                            font-weight:bold;
+                        ">
+                        📝 구체적 사유 기록
+                    </label>
+
+                    <textarea
+                        id="edit-desc"
+                        rows="3"
+                        placeholder="예: 아침 방과후 농구팀, 독감으로 인한 결석 등"
+                        style="
+                            width:100%;
+                            padding:8px;
+                            margin-top:5px;
+                            border-radius:6px;
+                            border:1px solid #ccc;
+                            box-sizing:border-box;
+                        ">${checkinEscapeHtml(
+                            logData.reason || ''
+                        )}</textarea>
+
+
+                    <button
+                        onclick="
+                            saveDetailLog(
+                                '${safeName}',
+                                '${safeDate}',
+                                '${logKey || ''}'
+                            )
+                        "
+                        style="
+                            width:100%;
+                            background:var(--primary,#3498db);
+                            color:white;
+                            font-weight:bold;
+                            margin-top:15px;
+                            padding:12px;
+                            border:none;
+                            border-radius:8px;
+                            cursor:pointer;
+                        ">
+                        상태 및 사유 저장
+                    </button>
+
+                </div>
+            `;
+
+
+            if (
+                typeof openPopup === 'function'
+            ) {
+
+                openPopup(
+                    "📊 등교 기록 수정",
+                    h
+                );
+            }
+        });
+};
+
+
+/* =========================================================
+   12. 상세 기록 저장
+   ========================================================= */
+
+window.saveDetailLog =
+function(name, date, key) {
+
+    const catEl =
+        document.getElementById(
+            'edit-cat'
+        );
+
+    const subEl =
+        document.getElementById(
+            'edit-sub'
+        );
+
+    const descEl =
+        document.getElementById(
+            'edit-desc'
+        );
+
+
+    if (
+        !catEl ||
+        !subEl ||
+        !descEl
+    ) {
+
+        alert(
+            "출결 수정 정보를 찾을 수 없습니다."
+        );
+
+        return;
+    }
+
+
+    const category =
+        catEl.value;
+
+
+    const subCategory =
+        subEl.value;
+
+
+    const reason =
+        descEl.value;
+
+
+    let resultText =
+        category;
+
+
+    if (
+        category === '정상' ||
+        category === '지각'
+    ) {
+
+        resultText =
+            category + ' 등교';
+    }
+
+
+    const updateData = {
+
+        name: name,
+
+        date: date,
+
+        category: category,
+
+        subCategory: subCategory,
+
+        reason: reason,
+
+        result: resultText,
+
+        time:
+            checkinGetNowKSTTime()
+    };
+
+
+    let promise;
+
+
+    if (
+        key &&
+        key !== 'null'
+    ) {
+
+        promise =
+            db.ref(
+                'checkinLogs/' + key
+            ).update(
+                updateData
+            );
+
+    } else {
+
+        promise =
+            db.ref(
+                'checkinLogs'
+            ).push(
+                updateData
+            );
+    }
+
+
+    promise
+        .then(() => {
+
+            alert(
+                "✅ 변동 사유가 반영되었습니다."
+            );
+
+
+            if (
+                typeof closePopup === 'function'
+            ) {
+
+                closePopup();
+            }
+
+
+            refreshCheckinManagement();
+
+        })
+        .catch(error => {
+
+            console.error(
+                "출결 수정 오류:",
+                error
+            );
+
+            alert(
+                "출결 수정 중 오류가 발생했습니다."
+            );
+        });
+};
+
+
+/* =========================================================
+   13. 요일별 고정 등교 제외
+   ========================================================= */
+
+window.openExclusionPopup =
+function() {
+
+    db.ref(
+        'settings/fixedExclusions'
+    ).once('value', snap => {
+
+        const data =
+            snap.val() || {};
+
+
+        const days = [
+            '월',
+            '화',
+            '수',
+            '목',
+            '금'
+        ];
+
+
+        let h = `
+
+            <div style="text-align:left;">
+
+                <p
+                    style="
+                        font-size:1rem;
+                        color:var(--red,#e74c3c);
+                        font-weight:bold;
+                        margin-bottom:10px;
+                    ">
+                    * 요일별로 등교 체크에서 제외할 학생을 선택하세요.
+                </p>
+
+                <div
+                    style="
+                        display:flex;
+                        gap:5px;
+                        margin-bottom:15px;
+                    ">
+        `;
+
+
+        days.forEach(d => {
+
+            h += `
+
+                <button
+                    onclick="showExclusionDay('${d}')"
+                    class="day-tab"
+                    id="tab-${d}"
+                    style="
+                        flex:1;
+                        padding:10px;
+                        border:1px solid #ccc;
+                        border-radius:8px;
+                        font-weight:bold;
+                        cursor:pointer;
+                    ">
+                    ${d}
+                </button>
+            `;
+        });
+
+
+        h += `</div>`;
+
+
+        days.forEach(d => {
+
+            const excludedList =
+                data[d] || [];
+
+
+            h += `
+
+                <div
+                    id="day-cont-${d}"
+                    class="day-content"
+                    style="
+                        display:none;
+                        grid-template-columns:repeat(3,1fr);
+                        gap:10px;
+                        max-height:300px;
+                        overflow-y:auto;
+                    ">
+            `;
+
+
+            if (
+                typeof currentUsers !== 'undefined'
+            ) {
+
+                currentUsers.forEach(u => {
+
+                    if (
+                        u.name === "총사령관"
+                    ) {
+
+                        return;
+                    }
+
+
+                    const isChecked =
+                        excludedList.includes(
+                            u.name
+                        );
+
+
+                    h += `
+
+                        <label
+                            style="
+                                background:#f8f9fa;
+                                padding:10px;
+                                border-radius:10px;
+                                text-align:center;
+                                border:2px solid ${
+                                    isChecked
+                                        ? 'var(--purple,#9b59b6)'
+                                        : '#eee'
+                                };
+                                cursor:pointer;
+                            ">
+
+                            <input
+                                type="checkbox"
+                                class="ex-check-${d}"
+                                value="${checkinEscapeHtml(u.name)}"
+                                ${isChecked ? 'checked' : ''}
+                                style="margin-bottom:5px;">
+
+                            <div
+                                style="
+                                    font-weight:bold;
+                                    font-size:1.1rem;
+                                ">
+                                ${checkinEscapeHtml(u.name)}
+                            </div>
+
+                        </label>
+                    `;
+                });
+            }
+
+
+            h += `</div>`;
+        });
+
+
+        h += `
+
+            <button
+                onclick="saveExclusionsByDay()"
+                style="
+                    width:100%;
+                    margin-top:20px;
+                    background:var(--purple,#9b59b6);
+                    color:white;
+                    padding:15px;
+                    border-radius:12px;
+                    font-weight:bold;
+                    cursor:pointer;
+                    border:none;
+                ">
+                설정 저장하기
+            </button>
+
+            </div>
+        `;
+
+
+        if (
+            typeof openPopup === 'function'
+        ) {
+
+            openPopup(
+                "🚫 요일별 등교제외 설정",
+                h
+            );
+        }
+
+
+        showExclusionDay(
+            '월'
+        );
+    });
+};
+
+
+window.showExclusionDay =
+function(day) {
+
+    document
+        .querySelectorAll(
+            '.day-content'
+        )
+        .forEach(el => {
+
+            el.style.display =
+                'none';
+        });
+
+
+    document
+        .querySelectorAll(
+            '.day-tab'
+        )
+        .forEach(el => {
+
+            el.style.background =
+                'white';
+        });
+
+
+    const targetCont =
+        document.getElementById(
+            'day-cont-' + day
+        );
+
+
+    const targetTab =
+        document.getElementById(
+            'tab-' + day
+        );
+
+
+    if (targetCont) {
+
+        targetCont.style.display =
+            'grid';
+    }
+
+
+    if (targetTab) {
+
+        targetTab.style.background =
+            '#e9ecef';
+    }
+};
+
+
+window.saveExclusionsByDay =
+function() {
+
+    const data = {};
+
+
+    [
+        '월',
+        '화',
+        '수',
+        '목',
+        '금'
+    ].forEach(d => {
+
+        const selected = [];
+
+
+        document
+            .querySelectorAll(
+                '.ex-check-' + d + ':checked'
+            )
+            .forEach(el => {
+
+                selected.push(
+                    el.value
+                );
+            });
+
+
+        data[d] =
+            selected;
+    });
+
+
+    db.ref(
+        'settings/fixedExclusions'
+    ).set(data)
+        .then(() => {
+
+            alert(
+                "✨ 요일별 제외 명단이 저장되었습니다."
+            );
+
+
+            if (
+                typeof closePopup === 'function'
+            ) {
+
+                closePopup();
+            }
+
+
+            refreshCheckinManagement();
+
+        })
+        .catch(error => {
+
+            console.error(
+                "등교 제외 저장 오류:",
+                error
+            );
+
+            alert(
+                "등교 제외 명단 저장에 실패했습니다."
+            );
+        });
+};
+
+
+/* =========================================================
+   14. 월간 출석부
+   ========================================================= */
+
+window.openMonthlyCalendar =
+function() {
+
+    const now =
+        new Date();
+
+
+    const year =
+        now.getFullYear();
+
+
+    const month =
+        now.getMonth();
+
+
+    const daysInMonth =
+        new Date(
+            year,
+            month + 1,
+            0
+        ).getDate();
+
+
+    let weekdays = [];
+
+
+    for (
+        let d = 1;
+        d <= daysInMonth;
+        d++
+    ) {
+
+        const dayOfWeek =
+            new Date(
+                year,
+                month,
+                d
+            ).getDay();
+
+
+        if (
+            dayOfWeek !== 0 &&
+            dayOfWeek !== 6
+        ) {
+
+            weekdays.push(d);
+        }
+    }
+
+
+    db.ref('checkins')
+        .once('value', checkinSnap => {
+
+            let usersSet =
+                new Set();
+
+
+            if (
+                typeof currentUsers !== 'undefined'
+            ) {
+
+                currentUsers.forEach(u => {
+
+                    if (
+                        u.name !== "총사령관"
+                    ) {
+
+                        usersSet.add(
+                            u.name
+                        );
+                    }
+                });
+            }
+
+
+            checkinSnap.forEach(child => {
+
+                const c =
+                    child.val() || {};
+
+
+                if (
+                    c.user &&
+                    c.user !== "총사령관"
+                ) {
+
+                    usersSet.add(
+                        c.user
+                    );
+                }
+            });
+
+
+            const users =
+                Array.from(
+                    usersSet
+                ).sort();
+
+
+            let attendanceData =
+                {};
+
+
+            users.forEach(u => {
+
+                attendanceData[u] =
+                    {};
+            });
+
+
+            const targetMonthStr =
+                year +
+                "-" +
+                String(
+                    month + 1
+                ).padStart(2, '0');
+
+
+            checkinSnap.forEach(child => {
+
+                const c =
+                    child.val() || {};
+
+
+                if (
+                    c.user &&
+                    users.includes(c.user)
+                ) {
+
+                    let d =
+                        null;
+
+
+                    if (
+                        c.date &&
+                        c.date.startsWith(
+                            targetMonthStr
+                        )
+                    ) {
+
+                        d =
+                            parseInt(
+                                c.date.split('-')[2]
+                            );
+
+                    } else if (
+                        c.time &&
+                        c.time !== "-"
+                    ) {
+
+                        try {
+
+                            const parts =
+                                c.time.split('. ');
+
+
+                            if (
+                                parts.length >= 3
+                            ) {
+
+                                const y =
+                                    parseInt(parts[0]);
+
+                                const m =
+                                    parseInt(parts[1]);
+
+
+                                if (
+                                    y === year &&
+                                    m === month + 1
+                                ) {
+
+                                    d =
+                                        parseInt(
+                                            parts[2]
+                                        );
+                                }
+                            }
+
+                        } catch(e) {}
+                    }
+
+
+                    if (
+                        d &&
+                        !isNaN(d)
+                    ) {
+
+                        attendanceData[
+                            c.user
+                        ][d] = {
+
+                            status:
+                                c.reason,
+
+                            remark:
+                                c.remark ||
+                                c.note ||
+                                ""
+                        };
+                    }
+                }
+            });
+
+
+            let tableHtml = `
+
+                <style>
+
+                    #popup-modal-content {
+                        max-width:95% !important;
+                        width:1200px !important;
+                    }
+
+                    @media print {
+
+                        body * {
+                            visibility:hidden;
+                        }
+
+                        #print-area,
+                        #print-area * {
+                            visibility:visible;
+                        }
+
+                        #print-area {
+                            position:absolute;
+                            left:0;
+                            top:0;
+                            width:100%;
+                        }
+
+                        .no-print {
+                            display:none !important;
+                        }
+
+                        table {
+                            page-break-inside:auto;
+                        }
+
+                        tr {
+                            page-break-inside:avoid;
+                            page-break-after:auto;
+                        }
+                    }
+
+                </style>
+
+                <div
+                    id="print-area"
+                    style="padding:10px;">
+
+                    <h2
+                        class="print-title"
+                        style="
+                            text-align:center;
+                            margin-bottom:20px;
+                            font-size:1.8rem;
+                            display:none;
+                        ">
+                        ${month + 1}월 학급 출석부 (${year}년)
+                    </h2>
+
+                    <div
+                        class="no-print"
+                        style="
+                            display:flex;
+                            justify-content:space-between;
+                            align-items:center;
+                            margin-bottom:15px;
+                        ">
+
+                        <div
+                            style="
+                                font-size:1rem;
+                                color:#495057;
+                                font-weight:500;
+                            ">
+                            📌 범례:
+                            <span style="color:#2b8a3e;font-weight:bold;">O</span>
+                            정상등교 /
+                            <span style="color:#e03131;font-weight:bold;">결</span>
+                            결석 /
+                            <span style="color:#f59f00;font-weight:bold;">지</span>
+                            지각 /
+                            <span style="color:#1c7ed6;font-weight:bold;">조</span>
+                            조퇴
+                        </div>
+
+                        <button
+                            onclick="window.printAttendanceBook()"
+                            style="
+                                background:#228be6;
+                                color:white;
+                                border:none;
+                                padding:10px 18px;
+                                font-size:1rem;
+                                font-weight:bold;
+                                border-radius:6px;
+                                cursor:pointer;
+                            ">
+                            🖨️ 출석부 인쇄하기
+                        </button>
+
+                    </div>
+
+                    <div
+                        style="
+                            overflow-x:auto;
+                            background:#fff;
+                            border-radius:8px;
+                            border:1px solid #dee2e6;
+                        ">
+
+                        <table
+                            style="
+                                width:100%;
+                                border-collapse:collapse;
+                                text-align:center;
+                                min-width:1000px;
+                                font-size:1.05rem;
+                                font-family:sans-serif;
+                            ">
+
+                            <thead>
+
+                                <tr
+                                    style="
+                                        background:#f8f9fa;
+                                    ">
+
+                                    <th
+                                        style="
+                                            border:1px solid #ced4da;
+                                            padding:12px 8px;
+                                            font-weight:bold;
+                                            background:#f8f9fa;
+                                            width:90px;
+                                            position:sticky;
+                                            left:0;
+                                            z-index:2;
+                                        ">
+                                        이름
+                                    </th>
+            `;
+
+
+            weekdays.forEach(d => {
+
+                tableHtml += `
+
+                    <th
+                        style="
+                            border:1px solid #ced4da;
+                            padding:12px 4px;
+                            font-weight:bold;
+                            min-width:35px;
+                        ">
+                        ${d}
+                    </th>
+                `;
+            });
+
+
+            tableHtml += `
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+            `;
+
+
+            users.forEach(u => {
+
+                tableHtml += `
+
+                    <tr>
+
+                        <td
+                            style="
+                                border:1px solid #ced4da;
+                                padding:12px 8px;
+                                font-weight:bold;
+                                position:sticky;
+                                left:0;
+                                background:#fff;
+                                z-index:1;
+                            ">
+                            ${checkinEscapeHtml(u)}
+                        </td>
+                `;
+
+
+                weekdays.forEach(d => {
+
+                    const record =
+                        attendanceData[u][d];
+
+
+                    let mark =
+                        '';
+
+                    let color =
+                        'transparent';
+
+                    let remarkHtml =
+                        '';
+
+
+                    if (record) {
+
+                        const status =
+                            record.status ||
+                            '';
+
+
+                        if (
+                            record.remark &&
+                            record.remark.trim() !== ''
+                        ) {
+
+                            remarkHtml = `
+
+                                <div
+                                    style="
+                                        font-size:0.75rem;
+                                        color:#495057;
+                                        margin-top:3px;
+                                        line-height:1;
+                                    ">
+                                    (${checkinEscapeHtml(
+                                        record.remark
+                                    )})
+                                </div>
+                            `;
+                        }
+
+
+                        if (
+                            status.includes('정상') ||
+                            status === '등교'
+                        ) {
+
+                            mark =
+                                'O';
+
+                            color =
+                                '#ebfbee';
+
+                        } else if (
+                            status.includes('결석')
+                        ) {
+
+                            mark =
+                                '결';
+
+                            color =
+                                '#fff5f5';
+
+                        } else if (
+                            status.includes('지각')
+                        ) {
+
+                            mark =
+                                '지';
+
+                            color =
+                                '#fff9db';
+
+                        } else if (
+                            status.includes('조퇴')
+                        ) {
+
+                            mark =
+                                '조';
+
+                            color =
+                                '#e7f5ff';
+
+                        } else {
+
+                            mark =
+                                status.substring(0,1);
+
+                            color =
+                                '#f3e5f5';
+                        }
+                    }
+
+
+                    tableHtml += `
+
+                        <td
+                            style="
+                                border:1px solid #ced4da;
+                                padding:8px 4px;
+                                background:${color};
+                                font-weight:500;
+                            ">
+
+                            ${mark}
+
+                            ${remarkHtml}
+
+                        </td>
+                    `;
+                });
+
+
+                tableHtml += `
+                    </tr>
+                `;
+            });
+
+
+            tableHtml += `
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+            `;
+
+
+            if (
+                typeof openPopup === 'function'
+            ) {
+
+                openPopup(
+                    `${month + 1}월 학급 출석부`,
+                    tableHtml
+                );
+            }
+        });
+};
+
+
+window.printAttendanceBook =
+function() {
+
+    const title =
+        document.querySelector(
+            '.print-title'
+        );
+
+
+    if (title) {
+
+        title.style.display =
+            'block';
+    }
+
+
+    window.print();
+
+
+    if (title) {
+
+        title.style.display =
+            'none';
+    }
+};
+
+
+/* =========================================================
+   15. 기존 하단 로그 UI 호환
+   ========================================================= */
+
+window.appendExtraLogsUI =
+function() {
+
+    /*
+        기존 코드에서는 tab-logs를 찾았지만
+        현재 HTML에는 tab-logs가 없다.
+
+        현재 구조에서는 등교로그 영역을 직접 새로고침한다.
+    */
+
+    if (
+        typeof refreshCheckinManagement ===
+        'function'
+    ) {
+
+        refreshCheckinManagement();
+    }
+};
+
+
+/* =========================================================
+   16. 서류 제출 완료
+   ========================================================= */
+
+window.completeDoc =
+function(key) {
+
+    if (
+        !confirm(
+            "이 학생의 서류를 제출 완료 처리하시겠습니까?"
+        )
+    ) {
+
+        return;
+    }
+
+
+    db.ref(
+        `checkins/${key}`
+    )
+    .update({
+        docSubmitted: true
+    })
+    .then(() => {
+
+        refreshCheckinManagement();
+
+    })
+    .catch(error => {
+
+        console.error(
+            "서류 상태 변경 오류:",
+            error
+        );
+
+        alert(
+            "서류 상태 변경에 실패했습니다."
+        );
+    });
+};
+
+
+/* =========================================================
+   17. 페이지 로딩 후 등교 날짜 초기화
+   ========================================================= */
+
+document.addEventListener(
+    'DOMContentLoaded',
+    () => {
+
+        const dateInput =
+            document.getElementById(
+                'checkin-date-filter'
+            );
+
+
+        if (
+            dateInput &&
+            !dateInput.value
+        ) {
+
+            dateInput.value =
+                checkinGetTodayKST();
+        }
+    }
+);
