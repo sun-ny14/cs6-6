@@ -871,3 +871,34 @@ textarea:focus-visible{
 ::-webkit-scrollbar-track{
     background:#ecf0f1;
 }
+
+/* 포인트 도감 레이아웃 및 글자 크기 긴급 수정 */
+#guide-list {
+    display: block !important;
+    width: 100% !important;
+}
+
+#guide-list > div {
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+#guide-list div[style*="font-size:1rem"] {
+    font-size: clamp(18px, 1.2vw, 24px) !important;
+}
+
+#guide-list div[style*="font-size:1.25rem"] {
+    font-size: clamp(22px, 1.5vw, 30px) !important;
+}
+
+#guide-list div[style*="font-size:.88rem"] {
+    font-size: clamp(16px, 1vw, 20px) !important;
+}
+
+#guide-list div[style*="font-size:.75rem"] {
+    font-size: clamp(15px, .9vw, 18px) !important;
+}
+
+#guide-list button {
+    font-size: clamp(16px, 1vw, 20px) !important;
+}
