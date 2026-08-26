@@ -1085,3 +1085,258 @@ body .batch-student-grid input[type="number"]:focus {
         grid-template-columns: 1fr !important;
     }
 }
+/* =========================================================
+   용사 상세 프로필
+   ========================================================= */
+
+body #common-overlay:has(.student-profile-layout)
+> .popup-box {
+    width: min(95vw, 1080px) !important;
+    max-width: 1080px !important;
+}
+
+body .student-profile-layout {
+    display: grid;
+    grid-template-columns:
+        minmax(270px, 330px)
+        minmax(0, 1fr);
+    gap: 22px;
+    min-height: 440px;
+}
+
+body .student-profile-summary,
+body .student-profile-history {
+    min-width: 0;
+    border: 1px solid #dfe7ef;
+    border-radius: 18px;
+}
+
+/* 왼쪽 프로필 */
+
+body .student-profile-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    padding: 26px 20px;
+    text-align: center;
+
+    background:
+        linear-gradient(
+            145deg,
+            #eef7ff 0%,
+            #fffaf0 100%
+        );
+}
+
+body .student-profile-avatar > div {
+    width: 155px !important;
+    height: 155px !important;
+
+    box-shadow:
+        0 9px 24px
+        rgba(43, 78, 112, 0.18) !important;
+}
+
+body .student-profile-summary h2 {
+    margin: 17px 0 6px;
+
+    color: #20354b;
+    font-size: 30px !important;
+    line-height: 1.2;
+}
+
+body .student-profile-level {
+    padding: 5px 13px;
+
+    color: #ffffff;
+    background: #607d9b;
+    border-radius: 999px;
+
+    font-size: 16px;
+    font-weight: 800;
+}
+
+body .student-profile-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+
+    width: 100%;
+    margin-top: 22px;
+}
+
+body .student-profile-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+    padding: 14px 8px;
+
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #e2e8ef;
+    border-radius: 13px;
+}
+
+body .student-profile-stat span {
+    color: #687786;
+    font-size: 15px !important;
+    font-weight: 700;
+}
+
+body .student-profile-stat strong {
+    font-size: 22px;
+    line-height: 1.2;
+}
+
+body .student-profile-stat.point strong {
+    color: #8e44ad;
+}
+
+body .student-profile-stat.exp strong {
+    color: #2786c5;
+}
+
+/* 오른쪽 증감 내역 */
+
+body .student-profile-history {
+    display: flex;
+    flex-direction: column;
+
+    padding: 20px;
+    background: #ffffff;
+}
+
+body .student-profile-history-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    padding: 0 3px 14px;
+    border-bottom: 2px solid #edf1f5;
+}
+
+body .student-profile-history-title h3 {
+    margin: 0;
+
+    color: #24384d;
+    font-size: 23px;
+}
+
+body .student-profile-history-title span {
+    color: #8995a1;
+    font-size: 14px !important;
+    font-weight: 700;
+}
+
+body .student-profile-history-list {
+    flex: 1;
+
+    max-height: 385px;
+    padding-right: 5px;
+
+    overflow-y: auto;
+}
+
+body .profile-history-item {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr) auto;
+    gap: 7px 12px;
+
+    padding: 14px 5px;
+    border-bottom: 1px solid #edf1f5;
+}
+
+body .profile-history-top {
+    display: flex;
+    gap: 8px;
+
+    color: #8995a1;
+    font-size: 13px;
+}
+
+body .profile-history-reason {
+    grid-column: 1;
+
+    color: #2e4053;
+    font-size: 17px;
+    font-weight: 750;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body .profile-history-badges {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+body .profile-history-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 66px;
+    padding: 6px 9px;
+
+    border-radius: 999px;
+
+    font-size: 15px !important;
+    font-weight: 900;
+}
+
+body .profile-history-badge.plus {
+    color: #c0392b;
+    background: #fff0ee;
+}
+
+body .profile-history-badge.minus {
+    color: #2471a3;
+    background: #eaf5ff;
+}
+
+body .profile-history-badge.exp {
+    color: #8a6d00;
+    background: #fff8d9;
+}
+
+body .profile-history-empty-change,
+body .student-profile-no-history {
+    color: #98a2ad;
+    font-size: 15px !important;
+}
+
+body .student-profile-no-history {
+    display: grid;
+    min-height: 300px;
+
+    place-items: center;
+    text-align: center;
+}
+
+/* 작은 화면 */
+
+@media (max-width: 760px) {
+    body .student-profile-layout {
+        grid-template-columns: 1fr;
+    }
+
+    body .student-profile-avatar > div {
+        width: 130px !important;
+        height: 130px !important;
+    }
+
+    body .student-profile-history-list {
+        max-height: 320px;
+    }
+}
