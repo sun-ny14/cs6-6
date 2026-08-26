@@ -860,9 +860,10 @@ if (target.p !== 0 || target.exp !== 0) {
         result: newPoints,
         pointResult: newPoints,
         expResult: newExp
-    };
+        };
 }
 
+        } // ← 이거 하나 추가: for(const target of targets) 종료
 
         await db.ref().update(updates);
 
