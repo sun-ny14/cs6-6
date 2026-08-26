@@ -1,35 +1,77 @@
-<!-- blackboard.html -->
-<div id="bb-container" style="text-align:center; padding:20px;">
-    <h1 id="status-display" style="font-size:3rem;">로딩 중...</h1>
-    <div id="missing-students-list" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:20px; margin-top:30px;">
-        <!-- 미등교 학생이 여기에 버튼 형태로 뜹니다 -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6-6 전자칠판</title>
+    <style>
+        :root{--red:#e74c3c;--green:#27ae60;--dark:#2c3e50}
+        body{margin:0;padding:30px;background:#f4f7f6;font-family:"Segoe UI",sans-serif;color:var(--dark)}
+        #bb-container{text-align:center;max-width:1500px;margin:auto}
+        #missing-students-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;margin-top:30px}
+        .student-button{padding:32px 15px;font-size:1.7rem;font-weight:bold;background:var(--red);color:white;border:0;border-radius:18px;cursor:pointer}
+        .empty{grid-column:1/-1;padding:50px;background:white;border-radius:18px;color:var(--green);font-size:2rem;font-weight:bold}
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+</head>
+<body>
+    <div id="bb-container">
+        <h1 id="status-display">출결 현황</h1>
+        <p id="date-display"></p>
+        <div id="missing-students-list"></div>
     </div>
-</div>
 
-<script src="js/firebase-config.js"></script>
-<script>
-    // 등교 처리 함수 (학생 이름 터치 시 실행)
-    function touchCheckIn(name) {
-        if(confirm(name + " 용사를 등교 처리할까요?")) {
-            db.ref('attendance/' + new Date().toISOString().split('T')[0]).push({ name: name, time: new Date().toLocaleTimeString() });
-            alert("등교 완료!");
+    <script src="js/firebase-config.js"></script>
+    <script>
+        function getTodayKST(){
+            const now=new Date();
+            const krTime=new Date(now.getTime()+9*60*60*1000);
+            return krTime.getUTCFullYear()+'-'+String(krTime.getUTCMonth()+1).padStart(2,'0')+'-'+String(krTime.getUTCDate()).padStart(2,'0');
         }
-    }
 
-    // 미등교 학생 실시간 감시
-    db.ref('users').on('value', (snap) => {
-        const users = snap.val();
-        const today = new Date().toISOString().split('T')[0];
-        db.ref('attendance/' + today).once('value').then((att) => {
-            const checkedIn = att.val() ? Object.values(att.val()).map(a => a.name) : [];
-            const container = document.getElementById('missing-students-list');
-            container.innerHTML = '';
-            
-            for(let key in users) {
-                if(!checkedIn.includes(users[key].name)) {
-                    container.innerHTML += `<button onclick="touchCheckIn('${users[key].name}')" style="padding:40px; font-size:2rem; background:var(--red); color:white; border-radius:20px;">${users[key].name}</button>`;
-                }
-            }
-        });
-    });
-</script>
+        function escapeHtml(value){
+            return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
+        async function touchCheckIn(name){
+            if(!confirm(name+' 용사를 등교 처리할까요?'))return;
+            const today=getTodayKST();
+            const snap=await db.ref('checkins').orderByChild('date').equalTo(today).once('value');
+            let existingKey=null;
+            snap.forEach(child=>{const value=child.val()||{};if((value.name||value.user)===name)existingKey=child.key;});
+            const data={name,user:name,date:today,reason:'정상 등교',category:'정상',result:'정상 등교',time:'',timestamp:Date.now(),docSubmitted:false};
+            if(existingKey)await db.ref('checkins/'+existingKey).update(data);
+            else await db.ref('checkins').push(data);
+        }
+
+        async function renderMissingStudents(){
+            const today=getTodayKST();
+            document.getElementById('date-display').innerText=today;
+            const [usersSnap,checkinsSnap]=await Promise.all([
+                db.ref('users').once('value'),
+                db.ref('checkins').orderByChild('date').equalTo(today).once('value')
+            ]);
+            const checked=new Set();
+            checkinsSnap.forEach(child=>{const value=child.val()||{};checked.add(value.name||value.user);});
+            const missing=[];
+            usersSnap.forEach(child=>{
+                const value=child.val()||{};
+                const name=value.name||child.key;
+                if(name&&name!=='총사령관'&&!name.includes('선생님')&&!checked.has(name))missing.push(name);
+            });
+            const container=document.getElementById('missing-students-list');
+            container.innerHTML=missing.length
+                ?missing.map(name=>`<button class="student-button" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')
+                :'<div class="empty">✅ 모두 등교했습니다!</div>';
+            container.querySelectorAll('.student-button').forEach(button=>{
+                button.addEventListener('click',()=>touchCheckIn(button.dataset.name));
+            });
+        }
+
+        db.ref('users').on('value',renderMissingStudents);
+        db.ref('checkins').on('value',renderMissingStudents);
+    </script>
+</body>
+</html>

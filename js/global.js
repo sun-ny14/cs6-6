@@ -1,199 +1,914 @@
 // js/global.js
-// 공통으로 사용되는 유틸리티 함수 모음
+// 공통 유틸리티, 탭 전환, 앱 시작, 공통 팝업, 차등 포인트 지급
 
-function getTodayKST() { 
-    const now = new Date(); 
-    const krTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); 
-    return krTime.getUTCFullYear() + "-" + String(krTime.getUTCMonth() + 1).padStart(2, '0') + "-" + String(krTime.getUTCDate()).padStart(2, '0'); 
+window.currentTab=window.currentTab||sessionStorage.getItem('activeTab')||'main';
+window.isHousingEnabled=window.isHousingEnabled!==false;
+window.rIdx=window.rIdx||0;
+window.routineActive=false;
+window.routineItems=window.routineItems||[];
+
+function getTodayKST(){
+    const now=new Date();
+    const krTime=new Date(now.getTime()+9*60*60*1000);
+    return krTime.getUTCFullYear()+'-'+
+        String(krTime.getUTCMonth()+1).padStart(2,'0')+'-'+
+        String(krTime.getUTCDate()).padStart(2,'0');
 }
 
-function forceScreenDisplay(status) {
-    const load = document.getElementById('loading-screen'), login = document.getElementById('login-screen'), app = document.getElementById('main-app');
-    if(load) load.style.display = 'none';
-    if(status === 'app') { if(login) login.style.display = 'none'; if(app) app.style.display = 'block'; }
-    else { if(login) login.style.display = 'flex'; if(app) app.style.display = 'none'; }
-}
+function forceScreenDisplay(status){
+    const load=document.getElementById('loading-screen');
+    const login=document.getElementById('login-screen');
+    const app=document.getElementById('main-app');
 
-function showTab(t) { 
-    currentTab = t; 
-    sessionStorage.setItem('activeTab', t); 
-    
-    document.querySelectorAll('.tab-content').forEach(s => {
-        s.classList.remove('active');
-        s.style.display = ''; 
-    }); 
-    
-    document.querySelectorAll('.tab-menu button').forEach(b => b.classList.remove('active')); 
-    
-    const targetTab = document.getElementById('tab-'+t);
-    if (targetTab) targetTab.classList.add('active');
-    
-    const targetBtn = document.getElementById('btn-'+t);
-    if(targetBtn) targetBtn.classList.add('active'); 
-    
-    if (t === 'shop') {
-        if (typeof renderShop === 'function') renderShop();
-        if (typeof loadOrderRecords === 'function') loadOrderRecords();
-    }
-    if (t === 'points') {
-        if (typeof renderPointGuide === 'function') renderPointGuide();
-        if (typeof initPointsTabListeners === 'function') initPointsTabListeners();
-    }
-    if (t === 'management') {
-        renderManagementSub('grades');
+    if(load)load.style.display='none';
+
+    if(status==='app'){
+        if(login)login.style.display='none';
+        if(app)app.style.display='flex';
+    }else{
+        if(login)login.style.display='flex';
+        if(app)app.style.display='none';
     }
 }
 
-function openPopup(t,h,r=false) { 
-    document.getElementById('pop-title').innerHTML=t; 
-    document.getElementById('pop-content').innerHTML=h; 
-    document.getElementById('common-overlay').style.display='flex'; 
-    window.routineActive=r; 
-}
 
-function closePopup() { 
-    if(window.routineActive && ++rIdx < routineItems.length) {
-        document.getElementById('pop-content').innerText = `[루틴 ${rIdx+1}단계]\n${routineItems[rIdx]}`; 
-    } else { 
-        document.getElementById('common-overlay').style.display='none'; 
-        rIdx = 0; 
-    } 
-}
+/* =========================================================
+   공통 팝업
+   ========================================================= */
 
-function getAvatar(lv, selectedAnimal) {
-    return "";
-}
+window.openPopup=function(title,content){
+    const overlay=document.getElementById('common-overlay');
+    const titleEl=document.getElementById('pop-title');
+    const contentEl=document.getElementById('pop-content');
+    const closeBtn=document.getElementById('pop-close-btn');
 
-function switchCheckinSub(subId) {
-    document.getElementById('sub-checkin-main').style.display = (subId === 'checkin-main') ? 'block' : 'none';
-    document.getElementById('sub-checkin-logs').style.display = (subId === 'checkin-logs') ? 'block' : 'none';
-    
-    document.getElementById('sub-btn-checkin-main').style.background = (subId === 'checkin-main') ? 'var(--dark)' : '#ddd';
-    document.getElementById('sub-btn-checkin-main').style.color = (subId === 'checkin-main') ? 'white' : '#333';
-    
-    document.getElementById('sub-btn-checkin-logs').style.background = (subId === 'checkin-logs') ? 'var(--dark)' : '#ddd';
-    document.getElementById('sub-btn-checkin-logs').style.color = (subId === 'checkin-logs') ? 'white' : '#333';
-    
-    if (subId === 'checkin-logs') {
-        if (typeof generateNewLayout === 'function') generateNewLayout();
+    if(!overlay||!contentEl){
+        console.error('common-overlay 또는 pop-content를 찾을 수 없습니다.');
+        return;
     }
-}
 
-function renderManagementSub(type) {
-    const container = document.getElementById('management-sub-container');
-    const btnGrades = document.getElementById('sub-btn-grades');
-    const btnBudget = document.getElementById('sub-btn-budget');
-    
-    if (type === 'grades') {
-        btnGrades.style.background = 'var(--primary)'; btnGrades.style.color = 'white';
-        btnBudget.style.background = '#ddd'; btnBudget.style.color = '#333';
-        
-        if (typeof renderGradesMain === 'function') {
-            renderGradesMain();
-        } else {
-            container.innerHTML = `
-                <div class="card">
-                    <h2>📝 성적 및 평가 관리</h2>
-                    <p>학생들의 성적과 수행평가 기록을 관리하는 공간입니다.</p>
-                </div>
-            `;
+    if(titleEl)titleEl.innerText=title||'알림';
+
+    contentEl.innerHTML=content||'';
+
+    if(closeBtn)closeBtn.style.display='block';
+
+    overlay.style.display='flex';
+};
+
+window.closePopup=function(){
+    if(
+        window.routineActive&&
+        ++window.rIdx<(window.routineItems||[]).length
+    ){
+        const content=document.getElementById('pop-content');
+
+        if(content){
+            content.innerText=
+                `[루틴 ${window.rIdx+1}단계]\n${window.routineItems[window.rIdx]}`;
         }
-    } else if (type === 'budget') {
-        btnBudget.style.background = 'var(--primary)'; btnBudget.style.color = 'white';
-        btnGrades.style.background = '#ddd'; btnGrades.style.color = '#333';
-        
-        if (typeof initBudgetManager === 'function') {
-            initBudgetManager();
-        }
-    }
-}
 
-function startApp() {
-    if (isAdmin || isHelper || myName === "총사령관") { 
-        const orderMgr = document.getElementById('admin-order-mgr'); 
-        if (orderMgr) orderMgr.style.display = 'block'; 
-        
-        const bbAdminBtn = document.getElementById('btn-blackboard-admin');
-        if (bbAdminBtn) bbAdminBtn.style.display = 'inline-block';
+        return;
     }
 
-    if (myName === "총사령관") {
-        const checkinTabBtn = document.getElementById('btn-checkin');
-        if (checkinTabBtn) checkinTabBtn.style.display = 'none';
-        
-        const cleaningTabBtn = document.getElementById('btn-cleaning');
-        if (cleaningTabBtn) cleaningTabBtn.style.display = 'inline-block';
-    } else {
-        if (typeof currentUser !== 'undefined' && currentUser.role === '청소') {
-            const cleaningTabBtn = document.getElementById('btn-cleaning');
-            if (cleaningTabBtn) cleaningTabBtn.style.display = 'inline-block';
-        }
-    }
+    const overlay=document.getElementById('common-overlay');
 
-    window.isHousingEnabled = true;
+    if(overlay)overlay.style.display='none';
 
-    db.ref('settings').on('value', snap => {
-        const s = snap.val() || {}; 
-        giftList = s.giftList || []; 
-        routineItems = s.routineText?.split('\n').filter(t => t.trim()) || [];
-        
-        if (isAdmin) { 
-            const passEl = document.getElementById('conf-pass');
-            const lateEl = document.getElementById('conf-late');
-            const closeEl = document.getElementById('conf-close');
-            const routineEl = document.getElementById('conf-routine');
-            const giftsEl = document.getElementById('conf-gifts');
+    window.rIdx=0;
+    window.routineActive=false;
+};
 
-            if(passEl) passEl.value = s.password || ""; 
-            if(lateEl) lateEl.value = s.lateTime || "08:40"; 
-            if(closeEl) closeEl.value = s.closeTime || "09:00"; 
-            if(routineEl) routineEl.value = s.routineText || ""; 
-            if(giftsEl) giftsEl.value = s.giftList?.join('\n') || ""; 
-        }
-        const guide = document.getElementById('checkin-guide');
-        if(guide) guide.innerText = `✅ 정상: ~${s.lateTime || '08:40'} | ⚠️ 지각: ${s.closeTime || '09:00'} 마감`;
-        
-        window.currentDefaultBg = s.defaultBg || "";
+
+/* =========================================================
+   탭 전환
+   ========================================================= */
+
+function showTab(t){
+    window.currentTab=t;
+
+    try{
+        sessionStorage.setItem('activeTab',t);
+    }catch(e){}
+
+    document.querySelectorAll('.tab-content').forEach(el=>{
+        el.classList.remove('active');
+        el.style.display='none';
     });
 
-    if (typeof generateNewLayout === 'function') generateNewLayout();
-
-    if (typeof renderPointGuide === 'function') renderPointGuide();
-    if (typeof initPointsTabListeners === 'function') initPointsTabListeners();
-    if (typeof loadOrderRecords === 'function') loadOrderRecords();
-
-    db.ref('users').on('value', snap => {
-        let users = []; 
-        snap.forEach(c => { let u = c.val(); u.name = c.key; users.push(u); });
-        currentUsers = users.sort((a, b) => (a.name === myName ? -1 : b.name === myName ? 1 : (a.no || 99) - (b.no || 99)));
-        
-        let h = ""; 
-        currentUsers.forEach(u => { 
-            if(u.name === "총사령관") return; 
-            const isMe = (u.name === myName);
-            const title = u.selectedAnimal ? `${u.selectedAnimal} ` : "";
-            
-            const pointDisplay = (isMe || isAdmin) ? `<span style="color:var(--primary); font-weight:bold; font-size:1.1rem;">${u.points || 0}P</span>` : '';
-            h += `<div class="hero-card" onclick="openUserHistory('${u.name}')" style="${isMe ? 'border: 4px solid var(--gold); background: #fffdf2;' : ''}">
-                    <span>${getAvatar(u.lv || 1, u.selectedAnimal)}</span><br>
-                    <b style="font-size:1.3rem; display:block; margin-top:12px; color:var(--dark);">
-                        ${isMe ? '⭐ ' : ''}${title}LV.${u.lv || 1} ${u.name}
-                    </b>
-                    ${pointDisplay}
-                </div>`; 
-        }); 
-        const heroGrid = document.getElementById('hero-grid');
-        if(heroGrid) heroGrid.innerHTML = h;
-        
-        if (isAdmin && typeof renderAdminList === 'function') renderAdminList(); 
-        if (typeof generateNewLayout === 'function') generateNewLayout();   
+    document.querySelectorAll('.sidebar-menu button').forEach(el=>{
+        el.classList.remove('active');
     });
+
+    const tab=document.getElementById('tab-'+t);
+
+    if(tab){
+        tab.classList.add('active');
+        tab.style.display='block';
+    }
+
+    const btn=document.getElementById('btn-'+t);
+
+    if(btn)btn.classList.add('active');
+
+
+    if(t==='main'){
+        if(typeof renderHeroes==='function'){
+            renderHeroes();
+        }
+    }
+
+
+    if(t==='checkin'){
+        if(typeof switchCheckinSub==='function'){
+            switchCheckinSub('checkin-main');
+        }
+
+        const adminBtn=
+            document.getElementById('sub-btn-checkin-logs');
+
+        if(adminBtn){
+            adminBtn.style.display=
+                isCheckinAdminUser()?'block':'none';
+        }
+
+        if(typeof refreshCheckinGuide==='function'){
+            refreshCheckinGuide();
+        }
+    }
+
+
+    if(t==='shop'){
+        if(typeof renderShop==='function'){
+            renderShop();
+        }
+
+        if(typeof loadOrderRecords==='function'){
+            loadOrderRecords();
+        }
+    }
+
+
+    if(t==='points'){
+        if(typeof renderPointGuide==='function'){
+            renderPointGuide();
+        }
+
+        if(typeof initPointsTabListeners==='function'){
+            initPointsTabListeners();
+        }
+    }
+
+
+    if(t==='management'){
+        if(typeof renderManagementSub==='function'){
+            renderManagementSub('grades');
+        }
+    }
 }
 
-window.openMultiPopup = function(title, points, reason) {
-    if (typeof openBulkPointPopup === 'function') {
-        openBulkPointPopup(reason || title, points);
-    } else {
-        alert("일괄 지급 팝업 함수를 찾을 수 없습니다.");
+
+/* =========================================================
+   등교 관리자 권한
+   ========================================================= */
+
+function isCheckinAdminUser(){
+    const admin=
+        (typeof isAdmin!=='undefined'&&!!isAdmin)||
+        !!window.isAdmin;
+
+    const helper=
+        (typeof isHelper!=='undefined'&&!!isHelper)||
+        !!window.isHelper;
+
+    const name=
+        typeof myName!=='undefined'
+            ?myName
+            :window.myName;
+
+    const role=
+        typeof currentUser!=='undefined'&&currentUser
+            ?currentUser.role
+            :'';
+
+    return(
+        admin||
+        helper||
+        name==='총사령관'||
+        role==='관리자'||
+        role==='도우미'
+    );
+}
+
+
+/* =========================================================
+   등교 서브탭
+   ========================================================= */
+
+function switchCheckinSub(subId){
+    const main=
+        document.getElementById('sub-checkin-main');
+
+    const logs=
+        document.getElementById('sub-checkin-logs');
+
+    const btnMain=
+        document.getElementById('sub-btn-checkin-main');
+
+    const btnLogs=
+        document.getElementById('sub-btn-checkin-logs');
+
+
+    if(main){
+        main.style.display=
+            subId==='checkin-main'
+                ?'block'
+                :'none';
+    }
+
+    if(logs){
+        logs.style.display=
+            subId==='checkin-logs'
+                ?'block'
+                :'none';
+    }
+
+    if(btnLogs){
+        btnLogs.style.display=
+            isCheckinAdminUser()
+                ?'block'
+                :'none';
+    }
+
+
+    if(btnMain){
+        btnMain.style.background=
+            subId==='checkin-main'
+                ?'var(--dark,#2c3e50)'
+                :'#ddd';
+
+        btnMain.style.color=
+            subId==='checkin-main'
+                ?'white'
+                :'#333';
+    }
+
+
+    if(btnLogs){
+        btnLogs.style.background=
+            subId==='checkin-logs'
+                ?'var(--dark,#2c3e50)'
+                :'#ddd';
+
+        btnLogs.style.color=
+            subId==='checkin-logs'
+                ?'white'
+                :'#333';
+    }
+
+
+    if(subId==='checkin-logs'){
+        if(typeof refreshCheckinAdminPanel==='function'){
+            refreshCheckinAdminPanel();
+        }
+    }
+}
+
+
+/* =========================================================
+   앱 시작
+   ========================================================= */
+
+function startApp(){
+
+    if(window.appStarted)return;
+    window.appStarted=true;
+
+    const admin=
+        typeof isAdmin!=='undefined'&&!!isAdmin;
+
+    const helper=
+        typeof isHelper!=='undefined'&&!!isHelper;
+
+    const commander=
+        typeof myName!=='undefined'&&
+        myName==='총사령관';
+
+    const canManage=
+        admin||helper||commander;
+
+
+    const orderMgr=
+        document.getElementById('admin-order-mgr');
+
+    if(orderMgr){
+        orderMgr.style.display=
+            canManage?'block':'none';
+    }
+
+
+    const blackboard=
+        document.getElementById('btn-blackboard-admin');
+
+    if(blackboard){
+        blackboard.style.display=
+            canManage?'block':'none';
+    }
+
+
+    const adminBtn=
+        document.getElementById('btn-admin');
+
+    if(adminBtn){
+        adminBtn.style.display=
+            canManage?'block':'none';
+    }
+
+
+    const checkinBtn=
+        document.getElementById('btn-checkin');
+
+    if(checkinBtn){
+        checkinBtn.style.display='block';
+    }
+
+
+    const checkinLogsBtn=
+        document.getElementById('sub-btn-checkin-logs');
+
+    if(checkinLogsBtn){
+        checkinLogsBtn.style.display=
+            canManage?'block':'none';
+    }
+
+
+    const cleaning=
+        document.getElementById('btn-cleaning');
+
+    if(cleaning){
+        cleaning.style.display=
+            commander||
+            (
+                typeof currentUser!=='undefined'&&
+                currentUser&&
+                currentUser.role==='청소'
+            )
+                ?'inline-block'
+                :'none';
+    }
+
+
+    db.ref('settings').on('value',snap=>{
+
+        const s=snap.val()||{};
+
+        window.giftList=s.giftList||[];
+
+        window.routineItems=
+            (s.routineText||'')
+                .split('\n')
+                .filter(t=>t.trim());
+
+
+        if(admin){
+
+            const pass=
+                document.getElementById('conf-pass');
+
+            const late=
+                document.getElementById('conf-late');
+
+            const close=
+                document.getElementById('conf-close');
+
+            const routine=
+                document.getElementById('conf-routine');
+
+            const gifts=
+                document.getElementById('conf-gifts');
+
+
+            if(pass)pass.value=s.password||'';
+
+            if(late)late.value=s.lateTime||'08:40';
+
+            if(close)close.value=s.closeTime||'09:00';
+
+            if(routine)routine.value=s.routineText||'';
+
+            if(gifts){
+                gifts.value=
+                    (s.giftList||[]).join('\n');
+            }
+        }
+
+
+        const guide=
+            document.getElementById('checkin-guide');
+
+        if(guide){
+            guide.innerText=
+                `✅ 정상: ~${s.lateTime||'08:40'} | ⚠️ 지각: ${s.closeTime||'09:00'} 마감`;
+        }
+
+
+        window.currentDefaultBg=
+            s.defaultBg||'';
+
+        window.isHousingEnabled=
+            s.housingEnabled!==false;
+
+
+        if(typeof refreshCheckinGuide==='function'){
+            refreshCheckinGuide(s);
+        }
+    });
+
+
+    db.ref('users').on('value',snap=>{
+
+        const users=[];
+
+        snap.forEach(child=>{
+
+            const u=child.val()||{};
+
+            if(!u.name){
+                u.name=child.key;
+            }
+
+            users.push(u);
+        });
+
+
+        window.currentUsers=
+            users.sort((a,b)=>{
+
+                const my=
+                    typeof myName!=='undefined'
+                        ?myName
+                        :window.myName;
+
+                if(a.name===my)return -1;
+
+                if(b.name===my)return 1;
+
+                return(
+                    (parseInt(a.no)||99)-
+                    (parseInt(b.no)||99)
+                );
+            });
+
+
+        if(admin&&typeof renderAdminList==='function'){
+            renderAdminList();
+        }
+
+
+        if(typeof renderHeroes==='function'){
+            renderHeroes();
+        }
+    });
+
+
+    if(typeof generateNewLayout==='function'){
+        generateNewLayout();
+    }
+
+    if(typeof loadCheckinState==='function'){
+        loadCheckinState();
+    }
+
+    if(typeof renderPointGuide==='function'){
+        renderPointGuide();
+    }
+
+    if(typeof initPointsTabListeners==='function'){
+        initPointsTabListeners();
+    }
+
+    if(typeof loadOrderRecords==='function'){
+        loadOrderRecords();
+    }
+
+    if(typeof renderHeroes==='function'){
+        renderHeroes();
+    }
+}
+
+
+/* =========================================================
+   기존 호출명 호환
+   ========================================================= */
+
+window.openMultiPopup=function(title,points,reason){
+    if(typeof openBulkPointPopup==='function'){
+        openBulkPointPopup(
+            reason||title,
+            points
+        );
+    }else{
+        alert('일괄 지급 팝업 함수를 찾을 수 없습니다.');
+    }
+};
+
+
+// 포인트 증감과 로그 기록을 한 곳에서 처리합니다.
+window.addScore=async function(userName,points,exp,reason){
+    const pointValue=parseInt(points)||0;
+    const expValue=parseInt(exp)||0;
+    const userRef=db.ref(`users/${userName}`);
+
+    const result=await userRef.transaction(user=>{
+        if(!user)return user;
+        user.points=(parseInt(user.points)||0)+pointValue;
+        user.exp=(parseInt(user.exp)||0)+expValue;
+        return user;
+    });
+
+    if(!result.committed){
+        throw new Error(`사용자 점수 변경 실패: ${userName}`);
+    }
+
+    if(pointValue!==0){
+        await db.ref('pointLogs').push({
+            name:userName,
+            pAmt:pointValue,
+            reason:reason||'포인트 변경',
+            time:new Date().toLocaleString('ko-KR'),
+            timestamp:Date.now()
+        });
+    }
+};
+
+
+window.togglePointPopInputs=function(checkbox){
+    const row=checkbox&&checkbox.closest
+        ?checkbox.closest('label,.batch-student-row')
+        :null;
+    if(!row)return;
+    row.querySelectorAll('input[type="number"]').forEach(input=>{
+        input.disabled=!checkbox.checked;
+    });
+};
+
+
+// 팝업을 여는 기능이 실제 클릭 핸들러를 덮어씁니다.
+// 초기 HTML의 fallback 호출이 남아 있어도 오류가 나지 않게 합니다.
+window.submitPointPopupCustom=function(){
+    alert('먼저 포인트 지급 대상을 선택해 주세요.');
+};
+
+
+/* =========================================================
+   학생별 포인트/경험치 차등 지급
+   ========================================================= */
+
+window.openBatchPointModal=function(){
+
+    if(!isCheckinAdminUser()){
+        return;
+    }
+
+
+    let studentRows='';
+
+    const users=
+        Array.isArray(window.currentUsers)
+            ?window.currentUsers
+            :[];
+
+
+    users.forEach(u=>{
+
+        const name=u.name||'';
+
+        if(
+            !name||
+            name==='총사령관'||
+            name.includes('선생님')
+        ){
+            return;
+        }
+
+
+        const safe=
+            String(name)
+                .replace(/&/g,'&amp;')
+                .replace(/</g,'&lt;')
+                .replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;')
+                .replace(/'/g,'&#39;');
+
+
+        studentRows+=`
+            <div class="batch-student-row"
+                style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;">
+
+                <label style="display:flex;align-items:center;gap:8px;flex:2;cursor:pointer;font-weight:bold;">
+                    <input
+                        type="checkbox"
+                        class="batch-student-chk"
+                        value="${safe}"
+                        style="width:18px;height:18px;">
+
+                    <span>${safe}</span>
+
+                    <span style="font-size:.85rem;color:#666;">
+                        (${parseInt(u.points)||0}P)
+                    </span>
+                </label>
+
+                <input
+                    type="number"
+                    class="batch-p-input"
+                    placeholder="포인트(P)"
+                    style="flex:1;padding:6px;text-align:center;border:1px solid #ccc;border-radius:6px;font-size:1rem;">
+
+                <input
+                    type="number"
+                    class="batch-exp-input"
+                    placeholder="경험치(EXP)"
+                    style="flex:1;padding:6px;text-align:center;border:1px solid #ccc;border-radius:6px;font-size:1rem;">
+            </div>
+        `;
+    });
+
+
+    const html=`
+        <div style="padding:10px;">
+
+            <h3 style="margin-top:0;color:#2c3e50;text-align:center;">
+                🎁 포인트 및 경험치 개별 차등 지급
+            </h3>
+
+            <input
+                type="text"
+                id="batch-reason"
+                placeholder="공통 사유 입력 (예: 모둠 활동 우수)"
+                style="width:100%;padding:12px;margin-bottom:12px;box-sizing:border-box;border-radius:8px;border:1px solid #ccc;font-size:1.1rem;">
+
+            <div style="display:flex;gap:10px;margin-bottom:10px;">
+
+                <button
+                    onclick="document.querySelectorAll('.batch-student-chk').forEach(cb=>cb.checked=true)"
+                    style="padding:8px;cursor:pointer;background:#ecf0f1;border:none;border-radius:6px;font-weight:bold;flex:1;">
+                    전체 선택
+                </button>
+
+                <button
+                    onclick="document.querySelectorAll('.batch-student-chk').forEach(cb=>cb.checked=false)"
+                    style="padding:8px;cursor:pointer;background:#ecf0f1;border:none;border-radius:6px;font-weight:bold;flex:1;">
+                    전체 해제
+                </button>
+
+            </div>
+
+            <div
+                style="max-height:280px;overflow-y:auto;border:1px solid #ddd;padding:10px;border-radius:8px;margin-bottom:20px;background:#fff;">
+
+                ${studentRows||'<p style="text-align:center;color:#999;">학생이 없습니다.</p>'}
+
+            </div>
+
+            <div style="display:flex;gap:10px;">
+
+                <button
+                    onclick="closePopup()"
+                    style="flex:1;padding:15px;background:#95a5a6;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">
+                    취소
+                </button>
+
+                <button
+                    onclick="submitBatchPoints()"
+                    style="flex:2;padding:15px;background:#27ae60;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">
+                    선택 학생 반영
+                </button>
+
+            </div>
+
+        </div>
+    `;
+
+
+    openPopup(
+        '🎁 포인트 개별 차등 지급',
+        html
+    );
+};
+
+
+window.submitBatchPoints=async function(){
+
+    if(!isCheckinAdminUser()){
+        return;
+    }
+
+
+    const reasonEl=
+        document.getElementById('batch-reason');
+
+    const reason=
+        reasonEl
+            ?reasonEl.value.trim()
+            :'';
+
+
+    if(!reason){
+        return alert('공통 사유를 입력해 주세요.');
+    }
+
+
+    const targets=[];
+
+
+    document
+        .querySelectorAll('.batch-student-row')
+        .forEach(row=>{
+
+            const chk=
+                row.querySelector('.batch-student-chk');
+
+            if(!chk||!chk.checked)return;
+
+
+            const pText=
+                row.querySelector('.batch-p-input')?.value??'';
+
+            const eText=
+                row.querySelector('.batch-exp-input')?.value??'';
+
+
+            const p=
+                pText===''
+                    ?0
+                    :parseInt(pText);
+
+            const exp=
+                eText===''
+                    ?0
+                    :parseInt(eText);
+
+
+            targets.push({
+                name:chk.value,
+                p:Number.isNaN(p)?0:p,
+                exp:Number.isNaN(exp)?0:exp
+            });
+        });
+
+
+    if(!targets.length){
+        return alert('학생을 한 명 이상 선택해 주세요.');
+    }
+
+
+    if(!confirm(
+        `선택한 ${targets.length}명의 학생에게 포인트와 경험치를 반영하시겠습니까?`
+    )){
+        return;
+    }
+
+
+    const today=
+        typeof getTodayKST==='function'
+            ?getTodayKST()
+            :new Date().toISOString().slice(0,10);
+
+
+    const time=
+        new Date().toLocaleTimeString(
+            'ko-KR',
+            {
+                hour:'2-digit',
+                minute:'2-digit',
+                hour12:false
+            }
+        );
+
+
+    const updates={};
+
+
+    try{
+
+        for(const target of targets){
+
+            const userSnap=
+                await db.ref(
+                    `users/${target.name}`
+                ).once('value');
+
+
+            if(!userSnap.exists()){
+                continue;
+            }
+
+
+            const data=
+                userSnap.val()||{};
+
+
+            const oldPoints=
+                parseInt(data.points)||0;
+
+            const oldExp=
+                parseInt(data.exp)||0;
+
+
+            const newPoints=
+                oldPoints+target.p;
+
+            const newExp=
+                oldExp+target.exp;
+
+
+            updates[
+                `users/${target.name}/points`
+            ]=newPoints;
+
+            updates[
+                `users/${target.name}/exp`
+            ]=newExp;
+
+
+            if(target.p!==0){
+
+                const logKey=
+                    db.ref('pointLogs').push().key;
+
+
+                updates[
+                    `pointLogs/${logKey}`
+                ]={
+                    name:target.name,
+                    pAmt:target.p,
+                    reason:reason,
+                    time:new Date().toLocaleString('ko-KR')
+                };
+
+
+                const historyKey=
+                    db.ref(
+                        `pointHistory/${target.name}`
+                    ).push().key;
+
+
+                updates[
+                    `pointHistory/${target.name}/${historyKey}`
+                ]={
+                    date:today,
+                    time:time,
+                    reason:reason,
+                    change:target.p,
+                    result:newPoints
+                };
+            }
+        }
+
+
+        await db.ref().update(updates);
+
+
+        alert(
+            `✅ ${targets.length}명의 학생에게 포인트와 경험치를 반영했습니다.`
+        );
+
+
+        closePopup();
+
+    }catch(error){
+
+        console.error(
+            '차등 지급 오류:',
+            error
+        );
+
+        alert(
+            '반영 중 오류가 발생했습니다.'
+        );
+    }
+};
+
+
+/* =========================================================
+   기타
+   ========================================================= */
+
+window.toggleSelectAllStudents=function(masterCb){
+    document
+        .querySelectorAll('.student-checkbox')
+        .forEach(cb=>{
+            cb.checked=masterCb.checked;
+        });
+};
+
+
+window.closePointPopup=function(){
+    const popup=
+        document.getElementById('point-popup');
+
+    if(popup){
+        popup.style.display='none';
     }
 };

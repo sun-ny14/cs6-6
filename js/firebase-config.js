@@ -19,19 +19,22 @@ const db = firebase.database();
 const auth = firebase.auth(); 
 const provider = new firebase.auth.GoogleAuthProvider();
 
-// 전역(Global) 변수들 선언 (다른 js 파일에서도 함께 사용됨)
-let myName = "";
-let isAdmin = false;
-let isHelper = false;
-let currentUsers = [];
-let routineItems = [];
-let giftList = [];
-let rIdx = 0;
-let currentTab = sessionStorage.getItem('activeTab') || 'main';
-let currentShopCat = "전체";
-let currentLayout = {}; 
-let isEditMode = false;
-let selectedStudentForMove = null;
-let isCheckingIn = false;
-let isHousingEnabled = true;
-let totalBudget = 100000;
+// 앱 전체가 같은 상태를 보도록 window 한 곳에서만 관리합니다.
+// top-level let과 window.*를 섞으면 서로 다른 값이 생길 수 있습니다.
+window.myName = "";
+window.isAdmin = false;
+window.isHelper = false;
+window.currentUsers = [];
+window.routineItems = [];
+window.giftList = [];
+window.rIdx = 0;
+window.currentTab = sessionStorage.getItem('activeTab') || 'main';
+window.currentShopCat = "전체";
+window.currentLayout = {};
+window.currentRows = 6;
+window.currentCols = 5;
+window.isEditMode = false;
+window.selectedStudentForMove = null;
+window.isCheckingIn = false;
+window.isHousingEnabled = true;
+window.totalBudget = 100000;

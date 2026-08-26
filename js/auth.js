@@ -15,7 +15,7 @@ auth.onAuthStateChanged(user => {
     const loginScreen = document.getElementById('login-screen');
     const loadingScreen = document.getElementById('loading-screen');
     const mainApp = document.getElementById('main-app');
-    const sidebarToggleBtn = document.getElementById('sidebar-toggle'); 
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 
     if (DEV_MODE) return; 
 
@@ -44,22 +44,21 @@ auth.onAuthStateChanged(user => {
                     }
 
                     if (isAdmin) {
-                        ['btn-logs', 'btn-admin', 'btn-budget', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
+                        // 💡 [수정] 학급관리 버튼('btn-management') 및 관리자 전용 메뉴들이 확실히 뜨도록 추가!
+                        ['btn-logs', 'btn-admin', 'btn-budget', 'btn-management', 'btn-blackboard-admin', 'btn-cleaning', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
                             const el = document.getElementById(id);
                             if (el) el.style.display = 'block';
                         });
 
                         const myInv = document.getElementById('my-inventory');
                         if (myInv) myInv.style.display = 'none';
-
-                        if (!sessionStorage.getItem('activeTab') && typeof currentTab !== 'undefined') {
-                            currentTab = 'logs';
-                        }
                     }
                     
                     if (typeof startApp === 'function') startApp(); 
-                    if (typeof showTab === 'function' && typeof currentTab !== 'undefined') {
-                        showTab(currentTab);
+                    
+                    // 💡 [수정] 로그인 직후 무조건 '용사들' 탭('main')이 뜨도록 강제 설정하여 흰 바탕 문제 원천 차단
+                    if (typeof showTab === 'function') {
+                        showTab('main');
                     }
                 });
             } else { 
@@ -68,6 +67,7 @@ auth.onAuthStateChanged(user => {
             }
         });
     } else { 
+        window.appStarted = false;
         if (typeof forceScreenDisplay === 'function') {
             forceScreenDisplay('login');
         } else {
@@ -79,52 +79,13 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-// 2. 특정 용사의 정보 및 연대기(로그)를 팝업으로 띄워주는 함수
-window.openUserHistory = function(un) {
-    db.ref('users/' + un).once('value', sn => {
-        const u = sn.val() || {}; 
-        const lv = u.lv || 1; 
-        const pts = u.points || 0; 
-        const isMeOrAdmin = (isAdmin || un === myName);
-        
-        // 관리자 전용 특정 상품 구매한도 리셋 버튼
-        const adminResetBtn = isAdmin ? `<button onclick="resetUserItemLimit('${un}')" style="margin-top:10px; padding:8px 12px; background:var(--purple, #9b59b6); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🔄 특정 상품 구매한도 리셋</button>` : '';
-        const visitRoomBtn = `<button onclick="visitRoom('${un}')" style="margin-top:10px; padding:10px; background:var(--primary, #3498db); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🏠 방명록 방문하기</button>`;
-
-        let h = `
-        <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center; background:#f8f9fa; padding:20px; border-radius:20px; border:2px solid #eee;">
-            <div style="flex:0 0 100px; text-align:center;">
-                ${typeof getAvatar === 'function' ? getAvatar(lv, u.selectedAnimal) : ''}
-                <div style="margin-top:8px; font-weight:bold;">LV.${lv}</div>
-                ${un === myName ? `<button onclick="openAvatarPicker()" style="padding:5px; font-size:0.8rem; background:var(--gold, #f1c40f); border:none; border-radius:5px; cursor:pointer;">모습 변경</button>` : ''}
-            </div>
-            
-            <div style="flex:1; min-width: 150px;">
-                <h3 style="margin:0 0 10px 0;">${un} 용사</h3>
-                ${isMeOrAdmin ? `<div>💰 <b>${pts}P</b></div><div>✨ EXP: <b>${u.exp||0} / 100</b></div>${adminResetBtn}` : `<p style="color:var(--red, #e74c3c); font-weight:bold;">🛡️ 정보는 비밀입니다!</p>`}
-            </div>
-            
-            <div style="width: 100%;">
-                ${visitRoomBtn}
-            </div>
-        </div>`;
-        
-        if (isMeOrAdmin) { 
-            db.ref('pointLogs').once('value', lsn => { 
-                let uL = []; 
-                lsn.forEach(l => { if (l.val().name === un) uL.push(l.val()); }); 
-                let logHtml = `<div style="max-height:200px; overflow-y:auto; margin-top:10px;">`; 
-                uL.reverse().slice(0, 20).forEach(l => { 
-                    logHtml += `<div class="list-item"><span>${l.reason}<br><small>${l.time}</small></span><strong>${l.amount}P</strong></div>`; 
-                }); 
-                if (typeof openPopup === 'function') {
-                    openPopup(`${un} 정보`, h + logHtml + `</div>`); 
-                }
-            }); 
-        } else { 
-            if (typeof openPopup === 'function') {
-                openPopup(`${un} 정보`, h); 
-            }
-        }
-    });
+// 이전 카드 코드가 호출하던 이름을 현재 프로필 기능으로 연결합니다.
+window.openUserHistory = function(userName) {
+    if (window.isAdmin && typeof openStudentProfile === 'function') {
+        openStudentProfile(userName);
+    } else if (userName === window.myName && typeof openOwnStudentProfile === 'function') {
+        openOwnStudentProfile(userName);
+    } else if (typeof openFriendRoom === 'function') {
+        openFriendRoom(userName);
+    }
 };

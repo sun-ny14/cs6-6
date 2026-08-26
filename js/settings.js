@@ -5,6 +5,7 @@ window.initSettings = function() {
     loadStudentAdminList();
     loadGiftsSetting();
     loadSeatSettings();
+    renderCurrentSeatingView(); // 💡 초기화 시 현재 좌석 배치도 함께 렌더링
 };
 
 // --- [A] 좌석 배치 설정 ---
@@ -33,7 +34,10 @@ window.generateSeatInputs = function() {
             for (let c = 0; c < cols; c++) {
                 const seatKey = `${r}_${c}`;
                 const posId = `${r}-${c}`;
-                const savedName = currentLayout[posId] || currentLayout[seatKey] || "";
+                const rawName = currentLayout[posId] || currentLayout[seatKey] || "";
+                
+                // 💡 설정 입력창에서도 수식어를 빼고 순수 이름만 출력되도록 정제 ("패셔니스타 민준" -> "민준")
+                const savedName = rawName ? rawName.trim().split(" ").pop() : "";
                 
                 html += `
                     <div style="background:#f8f9fa; border:1px solid #ccc; padding:8px; border-radius:8px; text-align:center;">
@@ -69,7 +73,9 @@ window.saveSeatSettings = async function() {
             const posId = `${r}-${c}`;
             const input = document.getElementById(`seat-input-${seatKey}`);
             if (input && input.value.trim()) {
-                newLayout[posId] = input.value.trim();
+                // 저장할 때도 수식어 없이 순수 이름만 깔끔하게 저장
+                const cleanName = input.value.trim().split(" ").pop();
+                newLayout[posId] = cleanName;
             }
         }
     }
@@ -79,7 +85,15 @@ window.saveSeatSettings = async function() {
         layout: newLayout
     });
 
+    window.currentLayout = newLayout;
+    window.currentRows = rows;
+    window.currentCols = cols;
+
     alert("🪑 좌석 배치 설정과 이름들이 영구 저장되었습니다! ✨");
+    
+    if (typeof renderCurrentSeatingView === 'function') {
+        renderCurrentSeatingView();
+    }
     if (typeof generateNewLayout === 'function') generateNewLayout();
 };
 
@@ -92,6 +106,9 @@ window.loadSeatSettings = async function() {
     if (snap.exists()) {
         const data = snap.val();
         const config = data.config || {};
+        window.currentLayout = data.layout || {};
+        window.currentCols = parseInt(config.cols) || 5;
+        window.currentRows = parseInt(config.rows) || 6;
         if (colsEl) colsEl.value = config.cols || '';
         if (rowsEl) rowsEl.value = config.rows || '';
         if (config.cols && config.rows) generateSeatInputs();
@@ -102,6 +119,80 @@ window.loadSeatSettings = async function() {
             container.innerHTML = `<div style="padding: 20px; text-align: center; color: #888; font-size: 1.2rem; background: #f8f9fa; border-radius: 8px; margin-top: 15px;">설정된 좌석 배치가 없습니다. 크기 입력 후 '표 만들기'를 눌러주세요.</div>`;
         }
     }
+};
+
+function toggleSeatBuilder() {
+    const section = document.getElementById('seat-builder-section');
+    if (section) {
+        if (section.style.display === 'none' || section.style.display === '') {
+            section.style.display = 'block';
+        } else {
+            section.style.display = 'none';
+        }
+    }
+}
+
+// --- [E] 현재 좌석 배치 화면 실시간 렌더링 로직 ---
+window.renderCurrentSeatingView = async function() {
+    const viewContainer = document.getElementById('current-seating-view');
+    if (!viewContainer) return;
+
+    const seatSnap = await db.ref('seatLayoutData').once('value');
+    const userSnap = await db.ref('users').once('value');
+
+    if (!seatSnap.exists()) {
+        viewContainer.innerHTML = `<p style='color: #888; text-align: center; padding: 20px; font-size: 1.2rem;'>설정된 좌석 배치가 없습니다. 아래 '표 만들기'를 통해 설정해 주세요.</p>`;
+        return;
+    }
+
+    const seatData = seatSnap.val();
+    const config = seatData.config || { cols: 5, rows: 6 };
+    const layout = seatData.layout || {};
+
+    let usersMap = {};
+    if (userSnap.exists()) {
+        userSnap.forEach(c => {
+            usersMap[c.key] = c.val();
+        });
+    }
+
+    let html = `<div style="display: grid; grid-template-columns: repeat(${config.cols}, 1fr); gap: 12px; margin-top: 10px;">`;
+
+    for (let r = 0; r < config.rows; r++) {
+        for (let c = 0; c < config.cols; c++) {
+            const posId = `${r}-${c}`;
+            const seatKey = `${r}_${c}`;
+            const rawStudentName = layout[posId] || layout[seatKey] || "";
+
+            let studentDisplay = `<span style="color: #bbb; font-size: 1rem;">(빈 자리)</span>`;
+            let boxBg = "#f8f9fa";
+            let borderColor = "#cbd5e1";
+
+            if (rawStudentName) {
+                // 💡 수식어 완전 제거 후 순수 이름만 추출 ("패셔니스타 민준" -> "민준")
+                const studentName = rawStudentName.trim().split(" ").pop();
+                
+                const sInfo = usersMap[studentName] || {};
+                const animalEmoji = sInfo.selectedAnimal || "🐹";
+
+                studentDisplay = `
+                    <div style="font-size: 1.6rem; margin-bottom: 4px;">${animalEmoji}</div>
+                    <div style="font-size: 1.3rem; font-weight: 900; color: #2c3e50;">${studentName}</div>
+                `;
+                boxBg = "#ffffff";
+                borderColor = "#3498db";
+            }
+
+            html += `
+                <div style="background: ${boxBg}; border: 2px solid ${borderColor}; border-radius: 10px; padding: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
+                    <small style="color: #888; display: block; margin-bottom: 6px; font-size: 0.85rem;">${r+1}행 ${c+1}열</small>
+                    ${studentDisplay}
+                </div>`;
+        }
+    }
+    html += `</div>`;
+
+    viewContainer.innerHTML = html;
 };
 
 // --- [B] 학생(용사들) 명단 및 역할 관리 ---
@@ -187,23 +278,25 @@ window.confirmDeleteStudent = function(userName) {
     }
 };
 
-// --- [C] 시스템 설정 ---
+// --- [C] 시스템 설정 (db.ref('settings') 루트에 직접 저장하도록 수정) ---
 window.saveSettings = async function() {
     const password = document.getElementById('conf-pass').value;
     const lateTime = document.getElementById('conf-late').value;
     const closeTime = document.getElementById('conf-close').value;
+    const routineText = document.getElementById('conf-routine') ? document.getElementById('conf-routine').value : "";
 
-    await db.ref('settings/system').set({ password, lateTime, closeTime });
+    await db.ref('settings').update({ password, lateTime, closeTime, routineText });
     alert("💾 시스템 설정이 영구 저장되었습니다!");
 };
 
 window.loadSystemSettings = async function() {
-    const snap = await db.ref('settings/system').once('value');
+    const snap = await db.ref('settings').once('value');
     if (snap.exists()) {
         const data = snap.val();
         if (document.getElementById('conf-pass')) document.getElementById('conf-pass').value = data.password || '';
         if (document.getElementById('conf-late')) document.getElementById('conf-late').value = data.lateTime || '';
         if (document.getElementById('conf-close')) document.getElementById('conf-close').value = data.closeTime || '';
+        if (document.getElementById('conf-routine')) document.getElementById('conf-routine').value = data.routineText || '';
     }
 };
 
@@ -219,15 +312,17 @@ window.generateRandomPassword = function() {
 // --- [D] 레벨업 보상 설정 ---
 window.saveGifts = async function() {
     const giftsText = document.getElementById('conf-gifts').value;
-    await db.ref('settings/gifts').set({ listText: giftsText });
+    const listArr = giftsText.split('\n').map(item => item.trim()).filter(item => item);
+    await db.ref('settings').update({ giftList: listArr, 'gifts/listText': giftsText });
     alert("🎁 레벨업 보상 목록이 저장되었습니다!");
 };
 
 window.loadGiftsSetting = async function() {
-    const snap = await db.ref('settings/gifts').once('value');
+    const snap = await db.ref('settings').once('value');
     if (snap.exists()) {
         const data = snap.val();
-        if (document.getElementById('conf-gifts')) document.getElementById('conf-gifts').value = data.listText || '';
+        const textVal = data.gifts?.listText || (data.giftList ? data.giftList.join('\n') : '');
+        if (document.getElementById('conf-gifts')) document.getElementById('conf-gifts').value = textVal;
     }
 };
 
