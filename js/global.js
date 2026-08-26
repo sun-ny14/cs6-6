@@ -664,13 +664,9 @@ window.openBatchPointModal=function(){
 
             </div>
 
-            <div
-                style="max-height:280px;overflow-y:auto;border:1px solid #ddd;padding:10px;border-radius:8px;margin-bottom:20px;background:#fff;">
-
-                ${studentRows||'<p style="text-align:center;color:#999;">학생이 없습니다.</p>'}
-
-            </div>
-
+            <div class="batch-student-grid">
+    ${studentRows||'<p style="text-align:center;color:#999;">학생이 없습니다.</p>'}
+</div>
             <div style="display:flex;gap:10px;">
 
                 <button
