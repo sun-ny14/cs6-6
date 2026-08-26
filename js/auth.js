@@ -46,8 +46,6 @@ auth.onAuthStateChanged(user => {
                     if (isAdmin) {
                         // 💡 [수정] 학급관리 버튼('btn-management') 및 관리자 전용 메뉴들이 확실히 뜨도록 추가!
                         ['btn-logs', 'btn-admin', 'btn-budget', 'btn-management', 'btn-blackboard-admin', 'btn-cleaning', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
-                        // 💡 [수정] 학급관리 버튼('btn-management') 및 관리자 전용 메뉴들이 확실히 뜨도록 추가!
-                        ['btn-logs', 'btn-admin', 'btn-budget', 'btn-management', 'btn-blackboard-admin', 'btn-cleaning', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
                             const el = document.getElementById(id);
                             if (el) el.style.display = 'block';
                         });
@@ -57,10 +55,6 @@ auth.onAuthStateChanged(user => {
                     }
                     
                     if (typeof startApp === 'function') startApp(); 
-                    
-                    // 💡 [수정] 로그인 직후 무조건 '용사들' 탭('main')이 뜨도록 강제 설정하여 흰 바탕 문제 원천 차단
-                    if (typeof showTab === 'function') {
-                        showTab('main');
                     
                     // 💡 [수정] 로그인 직후 무조건 '용사들' 탭('main')이 뜨도록 강제 설정하여 흰 바탕 문제 원천 차단
                     if (typeof showTab === 'function') {

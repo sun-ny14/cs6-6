@@ -358,77 +358,6 @@ function startApp(){
     }
 
 
-    const adminBtn=
-        document.getElementById('btn-admin');
-
-    if(adminBtn){
-        adminBtn.style.display=
-            canManage?'block':'none';
-    }
-
-
-    const checkinBtn=
-        document.getElementById('btn-checkin');
-
-    if(checkinBtn){
-        checkinBtn.style.display='block';
-    }
-
-
-    const checkinLogsBtn=
-        document.getElementById('sub-btn-checkin-logs');
-
-    if(checkinLogsBtn){
-        checkinLogsBtn.style.display=
-            canManage?'block':'none';
-    }
-
-
-    const cleaning=
-        document.getElementById('btn-cleaning');
-
-    if(cleaning){
-        cleaning.style.display=
-            commander||
-            (
-                typeof currentUser!=='undefined'&&
-                currentUser&&
-                currentUser.role==='청소'
-            )
-                ?'inline-block'
-                :'none';
-    }
-
-
-    db.ref('settings').on('value',snap=>{
-
-        const s=snap.val()||{};
-
-        window.giftList=s.giftList||[];
-
-        window.routineItems=
-            (s.routineText||'')
-                .split('\n')
-                .filter(t=>t.trim());
-
-
-        if(admin){
-
-            const pass=
-                document.getElementById('conf-pass');
-
-            const late=
-                document.getElementById('conf-late');
-
-            const close=
-                document.getElementById('conf-close');
-
-            const routine=
-                document.getElementById('conf-routine');
-
-            const gifts=
-                document.getElementById('conf-gifts');
-
     db.ref('settings').on('value',snap=>{
 
         const s=snap.val()||{};
@@ -459,18 +388,6 @@ function startApp(){
                 document.getElementById('conf-gifts');
 
 
-            if(pass)pass.value=s.password||'';
-
-            if(late)late.value=s.lateTime||'08:40';
-
-            if(close)close.value=s.closeTime||'09:00';
-
-            if(routine)routine.value=s.routineText||'';
-
-            if(gifts){
-                gifts.value=
-                    (s.giftList||[]).join('\n');
-            }
             if(pass)pass.value=s.password||'';
 
             if(late)late.value=s.lateTime||'08:40';
