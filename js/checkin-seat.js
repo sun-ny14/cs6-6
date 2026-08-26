@@ -253,7 +253,6 @@ window.renderSeatMap=function(rows,cols){
 
         const logs={};
 
-        // 기존 checkinLogs도 읽습니다.
         snaps[1].forEach(c=>{
             const log=checkinNormalizeLog(
                 c.val(),
@@ -266,8 +265,6 @@ window.renderSeatMap=function(rows,cols){
             }
         });
 
-        // 현재 사용하는 checkins도 읽습니다.
-        // checkins를 나중에 읽으므로 최신 데이터가 우선됩니다.
         snaps[0].forEach(c=>{
             const log=checkinNormalizeLog(
                 c.val(),
@@ -282,7 +279,6 @@ window.renderSeatMap=function(rows,cols){
 
         const exclusionData=snaps[2].val()||{};
         const todayExclusions=exclusionData[selectedDay]||[];
-
         const layout=window.currentLayout||{};
 
         for(let r=0;r<rows;r++){
@@ -297,6 +293,7 @@ window.renderSeatMap=function(rows,cols){
                 let textColor='#000';
 
                 const log=name?logs[name]:null;
+
                 const isFixedExcluded=
                     name&&todayExclusions.includes(name);
 
@@ -377,51 +374,52 @@ window.renderSeatMap=function(rows,cols){
                         log&&
                         log.time&&
                         log.time!=='-'
-                        ?`[${log.time}]`
-                        :'';
+                            ?` · ${log.time}`
+                            :'';
 
                     cell.innerHTML=`
                         <div style="
+                            width:100%;
+                            overflow:hidden;
+                            color:${textColor};
                             font-weight:900;
-                            font-size:1.6rem;
-                            margin-bottom:5px;
+                            font-size:clamp(1.45rem,2vw,2rem);
+                            line-height:1.2;
+                            white-space:nowrap;
+                            word-break:keep-all;
+                            text-overflow:ellipsis;
                         ">
-                            ${name}
-                        </div>
-
-                        <div style="
-                            font-weight:bold;
-                            font-size:1.2rem;
-                        ">
-                            ${statusText}
-                        </div>
-
-                        <div style="
-                            font-size:1rem;
-                            margin-top:3px;
-                        ">
-                            ${time}
+                            ${checkinEscape(name)}
                         </div>
                     `;
+
+                    cell.title=
+                        `${name} · ${statusText}${time}`;
 
                 }else{
 
-                    cell.innerHTML=`
-                        <div style="
-                            color:#aaa;
-                            font-size:.9rem;
-                        ">
-                            ${r+1}-${c+1}
-                        </div>
-                    `;
+                    cell.innerHTML='';
+                    cell.title='빈 자리';
                 }
 
-                cell.dataset.lastClick=0;
+                const doubleClickDelay=520;
+                let detailOpenLock=false;
 
-                // ----------------------------------------
-                // 한 번 클릭 = 출결 처리
-                // 빠르게 두 번 클릭 = 상세 수정
-                // ----------------------------------------
+                const openDetailOnce=function(){
+
+                    if(detailOpenLock)return;
+
+                    detailOpenLock=true;
+
+                    openCheckinEditModal(
+                        name,
+                        targetDate
+                    );
+
+                    setTimeout(()=>{
+                        detailOpenLock=false;
+                    },700);
+                };
 
                 cell.onclick=function(){
 
@@ -444,11 +442,7 @@ window.renderSeatMap=function(rows,cols){
                         clearTimeout(cell._clickTimer);
                         cell._clickTimer=null;
 
-                        openCheckinEditModal(
-                            name,
-                            targetDate
-                        );
-
+                        openDetailOnce();
                         return;
                     }
 
@@ -461,11 +455,29 @@ window.renderSeatMap=function(rows,cols){
                             '정상 등교'
                         );
 
-                    },300);
+                    },doubleClickDelay);
                 };
 
                 cell.ondblclick=function(e){
+
                     e.preventDefault();
+                    e.stopPropagation();
+
+                    if(
+                        typeof isEditMode!=='undefined'&&
+                        isEditMode
+                    ){
+                        return;
+                    }
+
+                    if(!name)return;
+
+                    if(cell._clickTimer){
+                        clearTimeout(cell._clickTimer);
+                        cell._clickTimer=null;
+                    }
+
+                    openDetailOnce();
                 };
 
                 cell.onmouseenter=function(){
