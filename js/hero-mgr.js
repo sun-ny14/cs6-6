@@ -468,397 +468,204 @@ function createFloatingPointButton() {
    관리자 학생 상세정보
    ========================================================= */
 
-window.openStudentProfile = function(userName) {
-    if (!heroIsAdmin()) {
-        return;
-    }
+window.openStudentProfile = async function(userName) {
+    if (!heroIsAdmin()) return;
 
+    const escapeHtml = value =>
+        String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
 
-    db.ref("users").once("value").then(snapshot => {
-        let targetUser = null;
-        let targetKey = null;
+    try {
+        const [userSnap, historySnap] = await Promise.all([
+            db.ref(`users/${userName}`).once("value"),
+            db.ref(`pointHistory/${userName}`)
+                .limitToLast(20)
+                .once("value")
+        ]);
 
-
-        snapshot.forEach(child => {
-            const data =
-                child.val() || {};
-
-            /*
-             * Firebase key가 이름인 기존 구조
-             */
-            const name =
-                data.name || child.key;
-
-            if (name === userName) {
-                targetUser = data;
-                targetKey = child.key;
-            }
-        });
-
-
-        if (!targetUser) {
+        if (!userSnap.exists()) {
             alert("학생 정보를 찾을 수 없습니다.");
             return;
         }
 
-
-        const popup =
-            document.getElementById("point-popup");
-
-        const titleEl =
-            document.getElementById("point-pop-title");
-
-        const bodyEl =
-            document.getElementById("point-pop-body");
-
-        const applyBtn =
-            document.getElementById("point-apply-btn");
-
-
-        if (!popup || !bodyEl) {
-            alert(
-                "학생 상세정보 팝업을 찾을 수 없습니다."
-            );
-            return;
-        }
-
-
+        const targetUser = userSnap.val() || {};
         const level =
-            parseInt(
-                targetUser.level ||
-                targetUser.lv
-            ) || 1;
-
+            parseInt(targetUser.level || targetUser.lv) || 1;
 
         const animal =
             targetUser.animal ||
             targetUser.selectedAnimal;
 
+        const history = [];
 
-        if (titleEl) {
-            titleEl.innerText =
-                `🛡️ ${userName} 용사 정보`;
-        }
+        historySnap.forEach(child => {
+            history.push(child.val() || {});
+        });
 
+        history.reverse();
 
-        bodyEl.innerHTML = `
-            <div style="
-                text-align:center;
-                margin-bottom:15px;
-            ">
-                ${getAvatar(level, animal)}
+        const historyHtml = history.map(item => {
+            const pointChange = Number(
+                item.pChange !== undefined
+                    ? item.pChange
+                    : item.change
+            ) || 0;
 
-                <h2 style="
-                    margin:10px 0 5px;
-                ">
-                    ${userName}
-                </h2>
+            const expChange =
+                Number(item.expChange) || 0;
 
-                <div style="
-                    font-size:1.1rem;
-                    font-weight:bold;
-                ">
-                    Lv.${level}
-                </div>
-            </div>
+            const badges = [];
 
-            <div style="
-                display:grid;
-                grid-template-columns:1fr 1fr;
-                gap:10px;
-                margin-bottom:15px;
-            ">
-
-                <div style="
-                    background:#f8f9fa;
-                    padding:12px;
-                    border-radius:8px;
-                    text-align:center;
-                ">
-                    <div style="
-                        color:#777;
-                        font-size:0.9rem;
+            if (pointChange !== 0) {
+                badges.push(`
+                    <span class="
+                        profile-history-badge
+                        ${pointChange > 0 ? "plus" : "minus"}
                     ">
-                        포인트
+                        ${pointChange > 0 ? "+" : ""}
+                        ${pointChange}P
+                    </span>
+                `);
+            }
+
+            if (expChange !== 0) {
+                badges.push(`
+                    <span class="
+                        profile-history-badge exp
+                    ">
+                        ${expChange > 0 ? "+" : ""}
+                        ${expChange}EXP
+                    </span>
+                `);
+            }
+
+            return `
+                <div class="profile-history-item">
+
+                    <div class="profile-history-top">
+                        <span>
+                            ${escapeHtml(item.date || "")}
+                        </span>
+
+                        <span>
+                            ${escapeHtml(item.time || "")}
+                        </span>
                     </div>
-                    <b style="
-                        color:#8e44ad;
-                        font-size:1.3rem;
-                    ">
-                        ${targetUser.points || 0} P
-                    </b>
-                </div>
 
-                <div style="
-                    background:#f8f9fa;
-                    padding:12px;
-                    border-radius:8px;
-                    text-align:center;
-                ">
-                    <div style="
-                        color:#777;
-                        font-size:0.9rem;
-                    ">
-                        경험치
+                    <div class="profile-history-reason">
+                        ${escapeHtml(
+                            item.reason || "점수 변경"
+                        )}
                     </div>
-                    <b style="
-                        color:#3498db;
-                        font-size:1.3rem;
-                    ">
-                        ${targetUser.exp || 0} E
-                    </b>
+
+                    <div class="profile-history-badges">
+                        ${
+                            badges.join("") ||
+                            `
+                                <span class="
+                                    profile-history-empty-change
+                                ">
+                                    변경 내역 없음
+                                </span>
+                            `
+                        }
+                    </div>
+
                 </div>
+            `;
+        }).join("");
 
-            </div>
-
-            <input
-                type="text"
-                id="pop-reason"
-                placeholder="포인트/경험치 변경 사유"
-                style="
-                    width:100%;
-                    padding:10px;
-                    margin-bottom:10px;
-                    box-sizing:border-box;
-                    border:1px solid #ccc;
-                    border-radius:8px;
-                "
-            >
-
-            <div style="
-                display:flex;
-                gap:10px;
-            ">
-
-                <input
-                    type="number"
-                    id="pop-p"
-                    placeholder="P 증감"
-                    style="
-                        width:50%;
-                        padding:10px;
-                        box-sizing:border-box;
-                        border:1px solid #ccc;
-                        border-radius:8px;
-                    "
-                >
-
-                <input
-                    type="number"
-                    id="pop-e"
-                    placeholder="EXP 증감"
-                    style="
-                        width:50%;
-                        padding:10px;
-                        box-sizing:border-box;
-                        border:1px solid #ccc;
-                        border-radius:8px;
-                    "
-                >
-
-            </div>
-        `;
-
-
-        if (applyBtn) {
-            applyBtn.style.display =
-                "block";
-
-            applyBtn.onclick =
-                function() {
-                    applyUserScore(
-                        userName,
-                        targetUser,
-                        targetKey
-                    );
-                };
-        }
-
-
-        popup.style.display =
-            "flex";
-    });
-};
-
-
-/* =========================================================
-   관리자 학생 점수 반영
-   ========================================================= */
-
-window.applyUserScore = async function(
-    userName,
-    oldUserData,
-    userKey
-) {
-    if (!heroIsAdmin()) {
-        return;
-    }
-
-
-    const reasonEl =
-        document.getElementById("pop-reason");
-
-    const pEl =
-        document.getElementById("pop-p");
-
-    const eEl =
-        document.getElementById("pop-e");
-
-
-    const reason =
-        reasonEl
-            ? reasonEl.value.trim()
-            : "";
-
-
-    if (!reason) {
-        alert("사유를 입력해주세요.");
-        return;
-    }
-
-
-    const pAmount =
-        pEl && pEl.value !== ""
-            ? parseInt(pEl.value)
-            : 0;
-
-
-    const eAmount =
-        eEl && eEl.value !== ""
-            ? parseInt(eEl.value)
-            : 0;
-
-
-    if (isNaN(pAmount) || isNaN(eAmount)) {
-        alert("포인트와 경험치는 숫자로 입력해주세요.");
-        return;
-    }
-
-
-    if (pAmount === 0 && eAmount === 0) {
-        alert(
-            "포인트 또는 경험치 중 하나는 입력해주세요."
-        );
-        return;
-    }
-
-
-    if (
-        !confirm(
-            `[${userName}] 학생에게\n` +
-            `포인트 ${pAmount >= 0 ? "+" : ""}${pAmount}P\n` +
-            `경험치 ${eAmount >= 0 ? "+" : ""}${eAmount}E\n` +
-            `를 적용하시겠습니까?`
-        )
-    ) {
-        return;
-    }
-
-
-    try {
-        const userRef =
-            db.ref(`users/${userKey}`);
-
-
-        const currentPoints =
-            parseInt(oldUserData.points) || 0;
-
-        const currentExp =
-            parseInt(oldUserData.exp) || 0;
-
-
-        const newPoints =
-            currentPoints + pAmount;
-
-        const newExp =
-            currentExp + eAmount;
-
-
-        const updates = {};
-
-
-        updates[`users/${userKey}/points`] =
-            newPoints;
-
-        updates[`users/${userKey}/exp`] =
-            newExp;
-
-
-        /*
-         * 기존 pointHistory 구조 유지
-         */
-
-        if (pAmount !== 0) {
-            const historyKey =
-                db.ref(
-                    `pointHistory/${userKey}`
-                ).push().key;
-
-            updates[
-                `pointHistory/${userKey}/${historyKey}`
-            ] = {
-                date: getTodayKST(),
-                time: new Date().toLocaleTimeString(
-                    "ko-KR",
-                    {
-                        hour:"2-digit",
-                        minute:"2-digit"
-                    }
-                ),
-                reason: reason,
-                change: pAmount,
-                result: newPoints
-            };
-        }
-
-
-        /*
-         * 기존 pointLogs 구조도 유지
-         * point-guide.js와 연결
-         */
-
-        if (pAmount !== 0) {
-            const logKey =
-                db.ref("pointLogs").push().key;
-
-            updates[
-                `pointLogs/${logKey}`
-            ] = {
-                name: userName,
-                pAmt: pAmount,
-                reason: reason,
-                time: new Date().toLocaleString(
-                    "ko-KR"
-                )
-            };
-        }
-
-
-        await db.ref().update(updates);
-
-
-        alert(
-            "✅ 학생 정보가 성공적으로 반영되었습니다."
-        );
-
-
-        if (
-            typeof closePointPopup === "function"
-        ) {
+        if (typeof closePointPopup === "function") {
             closePointPopup();
         }
 
+        openPopup(
+            `🛡️ ${userName} 용사 정보`,
+            `
+                <div class="student-profile-layout">
 
-        renderHeroes();
+                    <section class="student-profile-summary">
+
+                        <div class="student-profile-avatar">
+                            ${getAvatar(level, animal)}
+                        </div>
+
+                        <h2>
+                            ${escapeHtml(userName)}
+                        </h2>
+
+                        <div class="student-profile-level">
+                            Lv.${level}
+                        </div>
+
+                        <div class="student-profile-stats">
+
+                            <div class="
+                                student-profile-stat point
+                            ">
+                                <span>🪙 포인트</span>
+
+                                <strong>
+                                    ${parseInt(targetUser.points) || 0} P
+                                </strong>
+                            </div>
+
+                            <div class="
+                                student-profile-stat exp
+                            ">
+                                <span>✨ 경험치</span>
+
+                                <strong>
+                                    ${parseInt(targetUser.exp) || 0} EXP
+                                </strong>
+                            </div>
+
+                        </div>
+
+                    </section>
+
+                    <section class="student-profile-history">
+
+                        <div class="
+                            student-profile-history-title
+                        ">
+                            <h3>최근 증감 내역</h3>
+                            <span>최근 20건</span>
+                        </div>
+
+                        <div class="
+                            student-profile-history-list
+                        ">
+                            ${
+                                historyHtml ||
+                                `
+                                    <div class="
+                                        student-profile-no-history
+                                    ">
+                                        아직 증감 내역이 없습니다.
+                                    </div>
+                                `
+                            }
+                        </div>
+
+                    </section>
+
+                </div>
+            `
+        );
 
     } catch (error) {
         console.error(
-            "학생 점수 반영 오류:",
+            "학생 상세정보 로딩 오류:",
             error
         );
 
         alert(
-            "반영 중 오류가 발생했습니다."
+            "학생 상세정보를 불러오지 못했습니다."
         );
     }
 };
