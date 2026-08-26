@@ -828,39 +828,40 @@ window.submitBatchPoints=async function(){
             ]=newExp;
 
 
-            if(target.p!==0){
+            if (target.p !== 0) {
+    const logKey =
+        db.ref("pointLogs").push().key;
 
-                const logKey=
-                    db.ref('pointLogs').push().key;
+    updates[`pointLogs/${logKey}`] = {
+        name: target.name,
+        pAmt: target.p,
+        reason: reason,
+        time: new Date().toLocaleString("ko-KR")
+    };
+}
 
+if (target.p !== 0 || target.exp !== 0) {
+    const historyKey =
+        db.ref(
+            `pointHistory/${target.name}`
+        ).push().key;
 
-                updates[
-                    `pointLogs/${logKey}`
-                ]={
-                    name:target.name,
-                    pAmt:target.p,
-                    reason:reason,
-                    time:new Date().toLocaleString('ko-KR')
-                };
+    updates[
+        `pointHistory/${target.name}/${historyKey}`
+    ] = {
+        date: today,
+        time: time,
+        reason: reason,
 
+        change: target.p,
+        pChange: target.p,
+        expChange: target.exp,
 
-                const historyKey=
-                    db.ref(
-                        `pointHistory/${target.name}`
-                    ).push().key;
-
-
-                updates[
-                    `pointHistory/${target.name}/${historyKey}`
-                ]={
-                    date:today,
-                    time:time,
-                    reason:reason,
-                    change:target.p,
-                    result:newPoints
-                };
-            }
-        }
+        result: newPoints,
+        pointResult: newPoints,
+        expResult: newExp
+    };
+}
 
 
         await db.ref().update(updates);
