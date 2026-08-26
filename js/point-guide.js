@@ -434,18 +434,6 @@ window.renderPointGuide = function() {
          * ========================================================
          */
 
-        html += `
-            <div style="
-                display:grid;
-                grid-template-columns:repeat(
-                    auto-fill,
-                    minmax(170px,1fr)
-                );
-                gap:10px;
-                width:100%;
-                align-items:stretch;
-            ">
-        `;
 
 
         guides.forEach(g => {
@@ -599,7 +587,7 @@ window.renderPointGuide = function() {
         });
 
 
-        html += `</div>`;
+        
 
         guideListEl.innerHTML = html;
     });
