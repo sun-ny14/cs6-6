@@ -245,19 +245,12 @@ function drawHeroes(usersArray) {
          *   다른 학생 -> 친구 방
          */
 
-        let clickAction = "";
+        const encodedName =
+    encodeURIComponent(name)
+        .replace(/'/g, "%27");
 
-        if (isAdminUser) {
-            clickAction =
-                `openStudentProfile(${JSON.stringify(name)})`;
-        } else if (isMySelf) {
-            clickAction =
-                `openOwnStudentProfile(${JSON.stringify(name)})`;
-        } else {
-            clickAction =
-                `openFriendRoom(${JSON.stringify(name)})`;
-        }
-
+const clickAction =
+    `openUserHistory(decodeURIComponent('${encodedName}'))`;
 
         /*
          * -------------------------------------------------
