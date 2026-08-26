@@ -383,6 +383,7 @@ window.saveBudget = function() {
 };
 
 window.deleteBudget = function(key, title) {
+window.deleteBudget = function(key, title) {
     if (confirm("정말로 이 내역을 삭제하시겠습니까?")) {
         db.ref('budgetRecords/' + key).remove().then(() => {
             alert("🗑️ 삭제되었습니다.");
