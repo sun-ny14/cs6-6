@@ -1,193 +1,213 @@
 // js/global.js
-// 공통 유틸리티 및 앱 초기화
+// 공통 유틸리티, 탭 전환, 앱 시작, 공통 팝업, 차등 포인트 지급
 
-function getTodayKST() {
-    const now = new Date();
-    const krTime = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+window.currentTab=window.currentTab||'main';
+window.isHousingEnabled=true;
+window.rIdx=0;
+window.routineActive=false;
+window.routineItems=window.routineItems||[];
 
-    return (
-        krTime.getUTCFullYear() +
-        "-" +
-        String(krTime.getUTCMonth() + 1).padStart(2, "0") +
-        "-" +
-        String(krTime.getUTCDate()).padStart(2, "0")
-    );
+function getTodayKST(){
+    const now=new Date();
+    const krTime=new Date(now.getTime()+9*60*60*1000);
+    return krTime.getUTCFullYear()+'-'+
+        String(krTime.getUTCMonth()+1).padStart(2,'0')+'-'+
+        String(krTime.getUTCDate()).padStart(2,'0');
+}
+
+function forceScreenDisplay(status){
+    const load=document.getElementById('loading-screen');
+    const login=document.getElementById('login-screen');
+    const app=document.getElementById('main-app');
+
+    if(load)load.style.display='none';
+
+    if(status==='app'){
+        if(login)login.style.display='none';
+        if(app)app.style.display='flex';
+    }else{
+        if(login)login.style.display='flex';
+        if(app)app.style.display='none';
+    }
 }
 
 
 /* =========================================================
-   화면 표시
+   공통 팝업
    ========================================================= */
 
-function forceScreenDisplay(status) {
-    const load = document.getElementById("loading-screen");
-    const login = document.getElementById("login-screen");
-    const app = document.getElementById("main-app");
+window.openPopup=function(title,content){
+    const overlay=document.getElementById('common-overlay');
+    const titleEl=document.getElementById('pop-title');
+    const contentEl=document.getElementById('pop-content');
+    const closeBtn=document.getElementById('pop-close-btn');
 
-    if (load) load.style.display = "none";
-
-    if (status === "app") {
-        if (login) login.style.display = "none";
-        if (app) app.style.display = "flex";
-    } else {
-        if (login) login.style.display = "flex";
-        if (app) app.style.display = "none";
+    if(!overlay||!contentEl){
+        console.error('common-overlay 또는 pop-content를 찾을 수 없습니다.');
+        return;
     }
-}
+
+    if(titleEl)titleEl.innerText=title||'알림';
+
+    contentEl.innerHTML=content||'';
+
+    if(closeBtn)closeBtn.style.display='block';
+
+    overlay.style.display='flex';
+};
+
+window.closePopup=function(){
+    if(
+        window.routineActive&&
+        ++window.rIdx<(window.routineItems||[]).length
+    ){
+        const content=document.getElementById('pop-content');
+
+        if(content){
+            content.innerText=
+                `[루틴 ${window.rIdx+1}단계]\n${window.routineItems[window.rIdx]}`;
+        }
+
+        return;
+    }
+
+    const overlay=document.getElementById('common-overlay');
+
+    if(overlay)overlay.style.display='none';
+
+    window.rIdx=0;
+    window.routineActive=false;
+};
 
 
 /* =========================================================
    탭 전환
    ========================================================= */
 
-function showTab(t) {
-    window.currentTab = t;
+function showTab(t){
+    window.currentTab=t;
 
-    try {
-        sessionStorage.setItem("activeTab", t);
-    } catch (e) {
-        console.warn("activeTab 저장 실패:", e);
-    }
+    try{
+        sessionStorage.setItem('activeTab',t);
+    }catch(e){}
 
-    document.querySelectorAll(".tab-content").forEach(s => {
-        s.classList.remove("active");
-        s.style.display = "none";
+    document.querySelectorAll('.tab-content').forEach(el=>{
+        el.classList.remove('active');
+        el.style.display='none';
     });
 
-    document.querySelectorAll(".sidebar-menu button").forEach(b => {
-        b.classList.remove("active");
+    document.querySelectorAll('.sidebar-menu button').forEach(el=>{
+        el.classList.remove('active');
     });
 
-    const targetTab = document.getElementById("tab-" + t);
+    const tab=document.getElementById('tab-'+t);
 
-    if (targetTab) {
-        targetTab.classList.add("active");
-        targetTab.style.display = "block";
+    if(tab){
+        tab.classList.add('active');
+        tab.style.display='block';
     }
 
-    const targetBtn = document.getElementById("btn-" + t);
+    const btn=document.getElementById('btn-'+t);
 
-    if (targetBtn) {
-        targetBtn.classList.add("active");
-    }
+    if(btn)btn.classList.add('active');
 
 
-    /* -------------------------
-       용사 목록
-       ------------------------- */
-
-    if (t === "heroes") {
-        if (typeof renderHeroes === "function") {
+    if(t==='main'){
+        if(typeof renderHeroes==='function'){
             renderHeroes();
         }
     }
 
 
-    /* -------------------------
-       등교
-       ------------------------- */
-
-    if (t === "checkin") {
-        if (typeof switchCheckinSub === "function") {
-            switchCheckinSub("checkin-main");
+    if(t==='checkin'){
+        if(typeof switchCheckinSub==='function'){
+            switchCheckinSub('checkin-main');
         }
 
-        const adminCheckinBtn =
-            document.getElementById("sub-btn-checkin-logs");
+        const adminBtn=
+            document.getElementById('sub-btn-checkin-logs');
 
-        if (adminCheckinBtn) {
-            const adminStatus =
-                (typeof isAdmin !== "undefined" && isAdmin) ||
-                (typeof isHelper !== "undefined" && isHelper) ||
-                (typeof myName !== "undefined" && myName === "총사령관");
+        if(adminBtn){
+            adminBtn.style.display=
+                isCheckinAdminUser()?'block':'none';
+        }
 
-            adminCheckinBtn.style.display =
-                adminStatus ? "block" : "none";
+        if(typeof refreshCheckinGuide==='function'){
+            refreshCheckinGuide();
         }
     }
 
 
-    /* -------------------------
-       상점
-       ------------------------- */
-
-    if (t === "shop") {
-        if (typeof renderShop === "function") {
+    if(t==='shop'){
+        if(typeof renderShop==='function'){
             renderShop();
         }
 
-        if (typeof loadOrderRecords === "function") {
+        if(typeof loadOrderRecords==='function'){
             loadOrderRecords();
         }
     }
 
 
-    /* -------------------------
-       포인트
-       ------------------------- */
-
-    if (t === "points") {
-        if (typeof renderPointGuide === "function") {
+    if(t==='points'){
+        if(typeof renderPointGuide==='function'){
             renderPointGuide();
         }
 
-        if (typeof initPointsTabListeners === "function") {
+        if(typeof initPointsTabListeners==='function'){
             initPointsTabListeners();
         }
     }
 
 
-    /* -------------------------
-       학급관리
-       ------------------------- */
-
-    if (t === "management") {
-        if (typeof renderManagementSub === "function") {
-            renderManagementSub("grades");
-        }
-    }
-
-
-    /* -------------------------
-       등교 로그
-       ------------------------- */
-
-    if (t === "checkin") {
-        const logArea =
-            document.getElementById("sub-checkin-logs");
-
-        if (
-            logArea &&
-            logArea.style.display !== "none" &&
-            typeof refreshCheckinManagement === "function"
-        ) {
-            refreshCheckinManagement();
+    if(t==='management'){
+        if(typeof renderManagementSub==='function'){
+            renderManagementSub('grades');
         }
     }
 }
 
 
 /* =========================================================
-   공통 팝업 닫기
+   아바타
+   실제 아바타는 hero-mgr.js에서 정의
    ========================================================= */
 
-function closePopup() {
-    if (
-        window.routineActive &&
-        ++rIdx < routineItems.length
-    ) {
-        document.getElementById("pop-content").innerText =
-            `[루틴 ${rIdx + 1}단계]\n${routineItems[rIdx]}`;
-    } else {
-        const overlay =
-            document.getElementById("common-overlay");
+function getAvatar(lv,selectedAnimal){
+    return '';
+}
 
-        if (overlay) {
-            overlay.style.display = "none";
-        }
 
-        rIdx = 0;
-    }
+/* =========================================================
+   등교 관리자 권한
+   ========================================================= */
+
+function isCheckinAdminUser(){
+    const admin=
+        (typeof isAdmin!=='undefined'&&!!isAdmin)||
+        !!window.isAdmin;
+
+    const helper=
+        (typeof isHelper!=='undefined'&&!!isHelper)||
+        !!window.isHelper;
+
+    const name=
+        typeof myName!=='undefined'
+            ?myName
+            :window.myName;
+
+    const role=
+        typeof currentUser!=='undefined'&&currentUser
+            ?currentUser.role
+            :'';
+
+    return(
+        admin||
+        helper||
+        name==='총사령관'||
+        role==='관리자'||
+        role==='도우미'
+    );
 }
 
 
@@ -195,94 +215,107 @@ function closePopup() {
    등교 서브탭
    ========================================================= */
 
-function switchCheckinSub(subId) {
-    const subMain =
-        document.getElementById("sub-checkin-main");
+function switchCheckinSub(subId){
+    const main=
+        document.getElementById('sub-checkin-main');
 
-    const subLogs =
-        document.getElementById("sub-checkin-logs");
+    const logs=
+        document.getElementById('sub-checkin-logs');
 
-    const btnMain =
-        document.getElementById("sub-btn-checkin-main");
+    const btnMain=
+        document.getElementById('sub-btn-checkin-main');
 
-    const btnLogs =
-        document.getElementById("sub-btn-checkin-logs");
+    const btnLogs=
+        document.getElementById('sub-btn-checkin-logs');
 
 
-    if (subMain) {
-        subMain.style.display =
-            subId === "checkin-main" ? "block" : "none";
+    if(main){
+        main.style.display=
+            subId==='checkin-main'
+                ?'block'
+                :'none';
     }
 
-    if (subLogs) {
-        subLogs.style.display =
-            subId === "checkin-logs" ? "block" : "none";
+    if(logs){
+        logs.style.display=
+            subId==='checkin-logs'
+                ?'block'
+                :'none';
     }
 
-    if (btnMain) {
-        btnMain.style.background =
-            subId === "checkin-main"
-                ? "var(--dark, #2c3e50)"
-                : "#ddd";
-
-        btnMain.style.color =
-            subId === "checkin-main"
-                ? "white"
-                : "#333";
+    if(btnLogs){
+        btnLogs.style.display=
+            isCheckinAdminUser()
+                ?'block'
+                :'none';
     }
 
-    if (btnLogs) {
-        btnLogs.style.background =
-            subId === "checkin-logs"
-                ? "var(--dark, #2c3e50)"
-                : "#ddd";
 
-        btnLogs.style.color =
-            subId === "checkin-logs"
-                ? "white"
-                : "#333";
+    if(btnMain){
+        btnMain.style.background=
+            subId==='checkin-main'
+                ?'var(--dark,#2c3e50)'
+                :'#ddd';
+
+        btnMain.style.color=
+            subId==='checkin-main'
+                ?'white'
+                :'#333';
     }
 
-    if (subId === "checkin-logs") {
-        if (typeof refreshCheckinManagement === "function") {
-            refreshCheckinManagement();
-        } else if (typeof generateNewLayout === "function") {
-            generateNewLayout();
+
+    if(btnLogs){
+        btnLogs.style.background=
+            subId==='checkin-logs'
+                ?'var(--dark,#2c3e50)'
+                :'#ddd';
+
+        btnLogs.style.color=
+            subId==='checkin-logs'
+                ?'white'
+                :'#333';
+    }
+
+
+    if(subId==='checkin-logs'){
+        if(typeof refreshCheckinAdminPanel==='function'){
+            refreshCheckinAdminPanel();
         }
     }
 }
 
 
 /* =========================================================
-   학급관리 서브탭
+   학급관리
    ========================================================= */
 
-function renderManagementSub(type) {
-    const container =
-        document.getElementById("management-sub-container");
+function renderManagementSub(type){
+    const container=
+        document.getElementById('management-sub-container');
 
-    const btnGrades =
-        document.getElementById("sub-btn-grades");
+    const grades=
+        document.getElementById('sub-btn-grades');
 
-    const btnBudget =
-        document.getElementById("sub-btn-budget");
+    const budget=
+        document.getElementById('sub-btn-budget');
 
 
-    if (type === "grades") {
-        if (btnGrades) {
-            btnGrades.style.background = "var(--primary)";
-            btnGrades.style.color = "white";
+    if(type==='grades'){
+
+        if(grades){
+            grades.style.background='var(--primary)';
+            grades.style.color='white';
         }
 
-        if (btnBudget) {
-            btnBudget.style.background = "#ddd";
-            btnBudget.style.color = "#333";
+        if(budget){
+            budget.style.background='#ddd';
+            budget.style.color='#333';
         }
 
-        if (typeof renderGradesMain === "function") {
+        if(typeof renderGradesMain==='function'){
             renderGradesMain();
-        } else if (container) {
-            container.innerHTML = `
+        }else if(container){
+            container.innerHTML=`
                 <div class="card">
                     <h2>📝 성적 및 평가 관리</h2>
                     <p>학생들의 성적과 수행평가 기록을 관리하는 공간입니다.</p>
@@ -290,18 +323,19 @@ function renderManagementSub(type) {
             `;
         }
 
-    } else if (type === "budget") {
-        if (btnBudget) {
-            btnBudget.style.background = "var(--primary)";
-            btnBudget.style.color = "white";
+    }else{
+
+        if(budget){
+            budget.style.background='var(--primary)';
+            budget.style.color='white';
         }
 
-        if (btnGrades) {
-            btnGrades.style.background = "#ddd";
-            btnGrades.style.color = "#333";
+        if(grades){
+            grades.style.background='#ddd';
+            grades.style.color='#333';
         }
 
-        if (typeof initBudgetManager === "function") {
+        if(typeof initBudgetManager==='function'){
             initBudgetManager();
         }
     }
@@ -312,308 +346,579 @@ function renderManagementSub(type) {
    앱 시작
    ========================================================= */
 
-function startApp() {
-    const adminStatus =
-        typeof isAdmin !== "undefined" && isAdmin;
+function startApp(){
 
-    const helperStatus =
-        typeof isHelper !== "undefined" && isHelper;
+    const admin=
+        typeof isAdmin!=='undefined'&&!!isAdmin;
 
-    const commanderStatus =
-        typeof myName !== "undefined" &&
-        myName === "총사령관";
+    const helper=
+        typeof isHelper!=='undefined'&&!!isHelper;
+
+    const commander=
+        typeof myName!=='undefined'&&
+        myName==='총사령관';
+
+    const canManage=
+        admin||helper||commander;
 
 
-    /* -------------------------
-       관리자 메뉴
-       ------------------------- */
+    const orderMgr=
+        document.getElementById('admin-order-mgr');
 
-    if (
-        adminStatus ||
-        helperStatus ||
-        commanderStatus
-    ) {
-        const orderMgr =
-            document.getElementById("admin-order-mgr");
-
-        if (orderMgr) {
-            orderMgr.style.display = "block";
-        }
-
-        const bbAdminBtn =
-            document.getElementById("btn-blackboard-admin");
-
-        if (bbAdminBtn) {
-            bbAdminBtn.style.display = "block";
-        }
-
-        const adminBtn =
-            document.getElementById("btn-admin");
-
-        if (adminBtn) {
-            adminBtn.style.display = "block";
-        }
-
-    } else {
-        const adminBtn =
-            document.getElementById("btn-admin");
-
-        if (adminBtn) {
-            adminBtn.style.display = "none";
-        }
+    if(orderMgr){
+        orderMgr.style.display=
+            canManage?'block':'none';
     }
 
 
-    /* -------------------------
-       등교 버튼
-       ------------------------- */
+    const blackboard=
+        document.getElementById('btn-blackboard-admin');
 
-    const checkinTabBtn =
-        document.getElementById("btn-checkin");
-
-    if (checkinTabBtn) {
-        checkinTabBtn.style.display = "block";
+    if(blackboard){
+        blackboard.style.display=
+            canManage?'block':'none';
     }
 
 
-    /* -------------------------
-       등교 로그 관리자 버튼
-       ------------------------- */
+    const adminBtn=
+        document.getElementById('btn-admin');
 
-    const checkinLogBtn =
-        document.getElementById("sub-btn-checkin-logs");
+    if(adminBtn){
+        adminBtn.style.display=
+            canManage?'block':'none';
+    }
 
-    if (checkinLogBtn) {
-        checkinLogBtn.style.display =
+
+    const checkinBtn=
+        document.getElementById('btn-checkin');
+
+    if(checkinBtn){
+        checkinBtn.style.display='block';
+    }
+
+
+    const checkinLogsBtn=
+        document.getElementById('sub-btn-checkin-logs');
+
+    if(checkinLogsBtn){
+        checkinLogsBtn.style.display=
+            canManage?'block':'none';
+    }
+
+
+    const cleaning=
+        document.getElementById('btn-cleaning');
+
+    if(cleaning){
+        cleaning.style.display=
+            commander||
             (
-                adminStatus ||
-                helperStatus ||
-                commanderStatus
+                typeof currentUser!=='undefined'&&
+                currentUser&&
+                currentUser.role==='청소'
             )
-                ? "block"
-                : "none";
+                ?'inline-block'
+                :'none';
     }
 
 
-    /* -------------------------
-       청소
-       ------------------------- */
+    db.ref('settings').on('value',snap=>{
 
-    if (commanderStatus) {
-        const cleaningTabBtn =
-            document.getElementById("btn-cleaning");
+        const s=snap.val()||{};
 
-        if (cleaningTabBtn) {
-            cleaningTabBtn.style.display = "inline-block";
-        }
+        window.giftList=s.giftList||[];
 
-    } else if (
-        typeof currentUser !== "undefined" &&
-        currentUser &&
-        currentUser.role === "청소"
-    ) {
-        const cleaningTabBtn =
-            document.getElementById("btn-cleaning");
-
-        if (cleaningTabBtn) {
-            cleaningTabBtn.style.display = "inline-block";
-        }
-    }
+        window.routineItems=
+            (s.routineText||'')
+                .split('\n')
+                .filter(t=>t.trim());
 
 
-    window.isHousingEnabled = true;
+        if(admin){
+
+            const pass=
+                document.getElementById('conf-pass');
+
+            const late=
+                document.getElementById('conf-late');
+
+            const close=
+                document.getElementById('conf-close');
+
+            const routine=
+                document.getElementById('conf-routine');
+
+            const gifts=
+                document.getElementById('conf-gifts');
 
 
-    /* =====================================================
-       Firebase settings
-       ===================================================== */
+            if(pass)pass.value=s.password||'';
 
-    db.ref("settings").on("value", snap => {
-        const s = snap.val() || {};
+            if(late)late.value=s.lateTime||'08:40';
 
-        giftList =
-            s.giftList || [];
+            if(close)close.value=s.closeTime||'09:00';
 
-        routineItems =
-            s.routineText
-                ?.split("\n")
-                .filter(t => t.trim()) || [];
+            if(routine)routine.value=s.routineText||'';
 
-
-        if (adminStatus) {
-            const passEl =
-                document.getElementById("conf-pass");
-
-            const lateEl =
-                document.getElementById("conf-late");
-
-            const closeEl =
-                document.getElementById("conf-close");
-
-            const routineEl =
-                document.getElementById("conf-routine");
-
-            const giftsEl =
-                document.getElementById("conf-gifts");
-
-
-            if (passEl) {
-                passEl.value =
-                    s.password || "";
-            }
-
-            if (lateEl) {
-                lateEl.value =
-                    s.lateTime || "08:40";
-            }
-
-            if (closeEl) {
-                closeEl.value =
-                    s.closeTime || "09:00";
-            }
-
-            if (routineEl) {
-                routineEl.value =
-                    s.routineText || "";
-            }
-
-            if (giftsEl) {
-                giftsEl.value =
-                    s.giftList?.join("\n") || "";
+            if(gifts){
+                gifts.value=
+                    (s.giftList||[]).join('\n');
             }
         }
 
 
-        const guide =
-            document.getElementById("checkin-guide");
+        const guide=
+            document.getElementById('checkin-guide');
 
-        if (guide) {
-            guide.innerText =
-                `✅ 정상: ~${s.lateTime || "08:40"} | ⚠️ 지각: ${s.closeTime || "09:00"} 마감`;
+        if(guide){
+            guide.innerText=
+                `✅ 정상: ~${s.lateTime||'08:40'} | ⚠️ 지각: ${s.closeTime||'09:00'} 마감`;
         }
 
 
-        window.currentDefaultBg =
-            s.defaultBg || "";
+        window.currentDefaultBg=
+            s.defaultBg||'';
+
+
+        if(typeof refreshCheckinGuide==='function'){
+            refreshCheckinGuide(s);
+        }
     });
 
 
-    /* =====================================================
-       좌석
-       ===================================================== */
+    db.ref('users').on('value',snap=>{
 
-    if (typeof generateNewLayout === "function") {
-        generateNewLayout();
-    }
+        const users=[];
 
+        snap.forEach(child=>{
 
-    /* =====================================================
-       포인트
-       ===================================================== */
+            const u=child.val()||{};
 
-    if (typeof renderPointGuide === "function") {
-        renderPointGuide();
-    }
-
-    if (typeof initPointsTabListeners === "function") {
-        initPointsTabListeners();
-    }
-
-
-    /* =====================================================
-       주문
-       ===================================================== */
-
-    if (typeof loadOrderRecords === "function") {
-        loadOrderRecords();
-    }
-
-
-    /* =====================================================
-       users 데이터
-       
-       중요:
-       여기서는 더 이상 hero-grid를 직접 그리지 않는다.
-       용사 목록은 hero-mgr.js가 유일하게 담당한다.
-       ===================================================== */
-
-    db.ref("users").on("value", snap => {
-        const users = [];
-
-        snap.forEach(c => {
-            const u = c.val() || {};
-
-            /*
-             * Firebase key가 학생 이름인 기존 구조를 유지
-             */
-            u.name = c.key;
+            if(!u.name){
+                u.name=child.key;
+            }
 
             users.push(u);
         });
 
 
-        currentUsers = users.sort((a, b) => {
-            if (a.name === myName) return -1;
-            if (b.name === myName) return 1;
+        window.currentUsers=
+            users.sort((a,b)=>{
 
-            return (
-                (parseInt(a.no) || 99) -
-                (parseInt(b.no) || 99)
-            );
-        });
+                const my=
+                    typeof myName!=='undefined'
+                        ?myName
+                        :window.myName;
+
+                if(a.name===my)return -1;
+
+                if(b.name===my)return 1;
+
+                return(
+                    (parseInt(a.no)||99)-
+                    (parseInt(b.no)||99)
+                );
+            });
 
 
-        /*
-         * 관리자 목록은 기존 기능 유지
-         */
-        if (
-            adminStatus &&
-            typeof renderAdminList === "function"
-        ) {
+        if(admin&&typeof renderAdminList==='function'){
             renderAdminList();
         }
 
 
-        /*
-         * 좌석도 기존 기능 유지
-         */
-        if (typeof generateNewLayout === "function") {
-            generateNewLayout();
-        }
-
-
-        /*
-         * 용사 목록은 hero-mgr.js에서만 그림
-         */
-        if (typeof renderHeroes === "function") {
-            renderHeroes(users);
+        if(typeof renderHeroes==='function'){
+            renderHeroes();
         }
     });
 
 
-    /* =====================================================
-       로그인 직후 용사 목록 강제 표시
-       ===================================================== */
+    if(typeof generateNewLayout==='function'){
+        generateNewLayout();
+    }
 
-    if (typeof renderHeroes === "function") {
+    if(typeof renderPointGuide==='function'){
+        renderPointGuide();
+    }
+
+    if(typeof initPointsTabListeners==='function'){
+        initPointsTabListeners();
+    }
+
+    if(typeof loadOrderRecords==='function'){
+        loadOrderRecords();
+    }
+
+    if(typeof renderHeroes==='function'){
         renderHeroes();
     }
 }
 
 
 /* =========================================================
-   초기화
+   기존 호출명 호환
    ========================================================= */
 
-function initApp() {
-    if (typeof renderHeroes === "function") {
-        renderHeroes();
+window.openMultiPopup=function(title,points,reason){
+    if(typeof openBulkPointPopup==='function'){
+        openBulkPointPopup(
+            reason||title,
+            points
+        );
+    }else{
+        alert('일괄 지급 팝업 함수를 찾을 수 없습니다.');
+    }
+};
+
+
+/* =========================================================
+   학생별 포인트/경험치 차등 지급
+   ========================================================= */
+
+window.openBatchPointModal=function(){
+
+    if(!isCheckinAdminUser()){
+        return;
     }
 
-    if (typeof showTab === "function") {
-        const savedTab =
-            sessionStorage.getItem("activeTab");
 
-        showTab(savedTab || "heroes");
+    let studentRows='';
+
+    const users=
+        Array.isArray(window.currentUsers)
+            ?window.currentUsers
+            :[];
+
+
+    users.forEach(u=>{
+
+        const name=u.name||'';
+
+        if(
+            !name||
+            name==='총사령관'||
+            name.includes('선생님')
+        ){
+            return;
+        }
+
+
+        const safe=
+            String(name)
+                .replace(/&/g,'&amp;')
+                .replace(/</g,'&lt;')
+                .replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;')
+                .replace(/'/g,'&#39;');
+
+
+        studentRows+=`
+            <div class="batch-student-row"
+                style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;">
+
+                <label style="display:flex;align-items:center;gap:8px;flex:2;cursor:pointer;font-weight:bold;">
+                    <input
+                        type="checkbox"
+                        class="batch-student-chk"
+                        value="${safe}"
+                        style="width:18px;height:18px;">
+
+                    <span>${safe}</span>
+
+                    <span style="font-size:.85rem;color:#666;">
+                        (${parseInt(u.points)||0}P)
+                    </span>
+                </label>
+
+                <input
+                    type="number"
+                    class="batch-p-input"
+                    placeholder="포인트(P)"
+                    style="flex:1;padding:6px;text-align:center;border:1px solid #ccc;border-radius:6px;font-size:1rem;">
+
+                <input
+                    type="number"
+                    class="batch-exp-input"
+                    placeholder="경험치(EXP)"
+                    style="flex:1;padding:6px;text-align:center;border:1px solid #ccc;border-radius:6px;font-size:1rem;">
+            </div>
+        `;
+    });
+
+
+    const html=`
+        <div style="padding:10px;">
+
+            <h3 style="margin-top:0;color:#2c3e50;text-align:center;">
+                🎁 포인트 및 경험치 개별 차등 지급
+            </h3>
+
+            <input
+                type="text"
+                id="batch-reason"
+                placeholder="공통 사유 입력 (예: 모둠 활동 우수)"
+                style="width:100%;padding:12px;margin-bottom:12px;box-sizing:border-box;border-radius:8px;border:1px solid #ccc;font-size:1.1rem;">
+
+            <div style="display:flex;gap:10px;margin-bottom:10px;">
+
+                <button
+                    onclick="document.querySelectorAll('.batch-student-chk').forEach(cb=>cb.checked=true)"
+                    style="padding:8px;cursor:pointer;background:#ecf0f1;border:none;border-radius:6px;font-weight:bold;flex:1;">
+                    전체 선택
+                </button>
+
+                <button
+                    onclick="document.querySelectorAll('.batch-student-chk').forEach(cb=>cb.checked=false)"
+                    style="padding:8px;cursor:pointer;background:#ecf0f1;border:none;border-radius:6px;font-weight:bold;flex:1;">
+                    전체 해제
+                </button>
+
+            </div>
+
+            <div
+                style="max-height:280px;overflow-y:auto;border:1px solid #ddd;padding:10px;border-radius:8px;margin-bottom:20px;background:#fff;">
+
+                ${studentRows||'<p style="text-align:center;color:#999;">학생이 없습니다.</p>'}
+
+            </div>
+
+            <div style="display:flex;gap:10px;">
+
+                <button
+                    onclick="closePopup()"
+                    style="flex:1;padding:15px;background:#95a5a6;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">
+                    취소
+                </button>
+
+                <button
+                    onclick="submitBatchPoints()"
+                    style="flex:2;padding:15px;background:#27ae60;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">
+                    선택 학생 반영
+                </button>
+
+            </div>
+
+        </div>
+    `;
+
+
+    openPopup(
+        '🎁 포인트 개별 차등 지급',
+        html
+    );
+};
+
+
+window.submitBatchPoints=async function(){
+
+    if(!isCheckinAdminUser()){
+        return;
     }
-}
+
+
+    const reasonEl=
+        document.getElementById('batch-reason');
+
+    const reason=
+        reasonEl
+            ?reasonEl.value.trim()
+            :'';
+
+
+    if(!reason){
+        return alert('공통 사유를 입력해 주세요.');
+    }
+
+
+    const targets=[];
+
+
+    document
+        .querySelectorAll('.batch-student-row')
+        .forEach(row=>{
+
+            const chk=
+                row.querySelector('.batch-student-chk');
+
+            if(!chk||!chk.checked)return;
+
+
+            const pText=
+                row.querySelector('.batch-p-input')?.value??'';
+
+            const eText=
+                row.querySelector('.batch-exp-input')?.value??'';
+
+
+            const p=
+                pText===''
+                    ?0
+                    :parseInt(pText);
+
+            const exp=
+                eText===''
+                    ?0
+                    :parseInt(eText);
+
+
+            targets.push({
+                name:chk.value,
+                p:Number.isNaN(p)?0:p,
+                exp:Number.isNaN(exp)?0:exp
+            });
+        });
+
+
+    if(!targets.length){
+        return alert('학생을 한 명 이상 선택해 주세요.');
+    }
+
+
+    if(!confirm(
+        `선택한 ${targets.length}명의 학생에게 포인트와 경험치를 반영하시겠습니까?`
+    )){
+        return;
+    }
+
+
+    const today=
+        typeof getTodayKST==='function'
+            ?getTodayKST()
+            :new Date().toISOString().slice(0,10);
+
+
+    const time=
+        new Date().toLocaleTimeString(
+            'ko-KR',
+            {
+                hour:'2-digit',
+                minute:'2-digit',
+                hour12:false
+            }
+        );
+
+
+    const updates={};
+
+
+    try{
+
+        for(const target of targets){
+
+            const userSnap=
+                await db.ref(
+                    `users/${target.name}`
+                ).once('value');
+
+
+            if(!userSnap.exists()){
+                continue;
+            }
+
+
+            const data=
+                userSnap.val()||{};
+
+
+            const oldPoints=
+                parseInt(data.points)||0;
+
+            const oldExp=
+                parseInt(data.exp)||0;
+
+
+            const newPoints=
+                oldPoints+target.p;
+
+            const newExp=
+                oldExp+target.exp;
+
+
+            updates[
+                `users/${target.name}/points`
+            ]=newPoints;
+
+            updates[
+                `users/${target.name}/exp`
+            ]=newExp;
+
+
+            if(target.p!==0){
+
+                const logKey=
+                    db.ref('pointLogs').push().key;
+
+
+                updates[
+                    `pointLogs/${logKey}`
+                ]={
+                    name:target.name,
+                    pAmt:target.p,
+                    reason:reason,
+                    time:new Date().toLocaleString('ko-KR')
+                };
+
+
+                const historyKey=
+                    db.ref(
+                        `pointHistory/${target.name}`
+                    ).push().key;
+
+
+                updates[
+                    `pointHistory/${target.name}/${historyKey}`
+                ]={
+                    date:today,
+                    time:time,
+                    reason:reason,
+                    change:target.p,
+                    result:newPoints
+                };
+            }
+        }
+
+
+        await db.ref().update(updates);
+
+
+        alert(
+            `✅ ${targets.length}명의 학생에게 포인트와 경험치를 반영했습니다.`
+        );
+
+
+        closePopup();
+
+    }catch(error){
+
+        console.error(
+            '차등 지급 오류:',
+            error
+        );
+
+        alert(
+            '반영 중 오류가 발생했습니다.'
+        );
+    }
+};
+
+
+/* =========================================================
+   기타
+   ========================================================= */
+
+window.toggleSelectAllStudents=function(masterCb){
+    document
+        .querySelectorAll('.student-checkbox')
+        .forEach(cb=>{
+            cb.checked=masterCb.checked;
+        });
+};
+
+
+window.closePointPopup=function(){
+    const popup=
+        document.getElementById('point-popup');
+
+    if(popup){
+        popup.style.display='none';
+    }
+};
