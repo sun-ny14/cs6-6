@@ -12,7 +12,7 @@ window.AVATAR_NAMES = [
     "용사", "공부하는", "춤추는", "노래하는", "무지개"
 ];
 
-function getAvatar(lv, selectedAnimal) {
+function getAvatar(lv, selectedAnimal, size) {
     const githubImageUrl =
         "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true";
 
@@ -36,10 +36,13 @@ function getAvatar(lv, selectedAnimal) {
     const posY = row * 33.33;
 
 
+    const avatarSize =
+        Math.max(56, parseInt(size, 10) || 86);
+
     return `
-        <div style="
-            width:70px;
-            height:70px;
+        <div class="hero-avatar-frame" style="
+            width:${avatarSize}px;
+            height:${avatarSize}px;
             overflow:hidden;
             border-radius:50%;
             background:white;
@@ -65,28 +68,541 @@ function getAvatar(lv, selectedAnimal) {
     `;
 }
 
-window.openAvatarPicker = function() {
-    if (!window.myName) return;
+/* global.js의 상세 팝업에서도 같은 스프라이트를 사용한다. */
+window.getAvatar = getAvatar;
 
-    const options = window.AVATAR_NAMES.map(name => `
-        <button onclick="selectAvatar(${JSON.stringify(name)})"
-            style="background:white;border:2px solid #ddd;border-radius:12px;padding:10px;cursor:pointer;">
-            ${getAvatar(1, name)}
-            <span style="display:block;margin-top:5px;font-weight:bold;">${name}</span>
+/* 레벨별 기본 칭호. 기존 프로젝트에서 같은 변수를 정의하면 그 설정을 우선 사용한다. */
+window.HERO_TITLE_LEVELS = window.HERO_TITLE_LEVELS || [
+    { level:1,  name:"모험가" },
+    { level:3,  name:"견습 용사" },
+    { level:5,  name:"용감한 용사" },
+    { level:7,  name:"정예 용사" },
+    { level:10, name:"빛나는 용사" },
+    { level:12, name:"왕국 수호자" },
+    { level:15, name:"전설의 용사" },
+    { level:20, name:"마스터 용사" }
+];
+
+function heroEscape(value) {
+    return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function heroUserLevel(user) {
+    return Math.max(
+        1,
+        parseInt(user && (user.level || user.lv), 10) || 1
+    );
+}
+
+function heroUnlockedAnimals(level) {
+    return window.AVATAR_NAMES.slice(
+        0,
+        Math.min(window.AVATAR_NAMES.length, Math.max(1, level))
+    );
+}
+
+function heroUnlockedTitles(user, level) {
+    const savedLists = [
+        user && user.unlockedTitles,
+        user && user.earnedTitles,
+        user && user.titles
+    ];
+
+    const saved = savedLists.find(Array.isArray) || [];
+    const byLevel = window.HERO_TITLE_LEVELS
+        .filter(item => level >= item.level)
+        .map(item => item.name);
+
+    return Array.from(
+        new Set(
+            byLevel
+                .concat(saved)
+                .filter(Boolean)
+                .map(String)
+        )
+    );
+}
+
+function heroFindUser(userName) {
+    return db.ref("users").once("value").then(snapshot => {
+        let found = null;
+
+        snapshot.forEach(child => {
+            const user = child.val() || {};
+            const name = user.name || child.key;
+
+            if (!found && name === userName) {
+                found = {
+                    key: child.key,
+                    data: Object.assign({}, user, { name:name })
+                };
+            }
+        });
+
+        return found;
+    });
+}
+
+function ensureHeroProfileEditorStyle() {
+    if (document.getElementById("hero-profile-editor-style")) return;
+
+    const style = document.createElement("style");
+    style.id = "hero-profile-editor-style";
+    style.textContent = `
+        #hero-profile-editor-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483000;
+            display: grid;
+            place-items: center;
+            padding: 22px;
+            background: rgba(20, 31, 51, .64);
+            backdrop-filter: blur(3px);
+        }
+        #hero-profile-editor-overlay * { box-sizing: border-box; }
+        #hero-profile-editor-overlay .hpe-dialog {
+            width: min(960px, 96vw);
+            max-height: min(850px, 94vh);
+            overflow: hidden;
+            border: 1px solid #d9c77d;
+            border-radius: 24px;
+            background: #fffdf7;
+            box-shadow: 0 24px 70px rgba(15, 27, 48, .34);
+        }
+        #hero-profile-editor-overlay .hpe-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            min-height: 76px;
+            padding: 16px 22px;
+            color: #192a49;
+            background: #fff8d8;
+            border-bottom: 1px solid #e5d9a6;
+        }
+        #hero-profile-editor-overlay .hpe-head h2 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 900;
+        }
+        #hero-profile-editor-overlay .hpe-close {
+            width: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0;
+            color: #35435b;
+            background: #fff;
+            border: 1px solid #d8dce3;
+            border-radius: 12px;
+            font-size: 26px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        #hero-profile-editor-overlay .hpe-body {
+            display: grid;
+            grid-template-columns: 300px minmax(0, 1fr);
+            max-height: calc(94vh - 76px);
+        }
+        #hero-profile-editor-overlay .hpe-preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 34px 25px 28px;
+            text-align: center;
+            background: linear-gradient(160deg, #fff8dc, #f4e9b6);
+            border-right: 1px solid #e0d4a1;
+        }
+        #hero-profile-editor-overlay .hpe-avatar-stage {
+            display: grid;
+            place-items: center;
+            width: 184px;
+            height: 184px;
+            margin-bottom: 20px;
+            background: #fff;
+            border: 5px solid #e3bf3e;
+            border-radius: 34px;
+            box-shadow: 0 10px 28px rgba(86, 67, 16, .13);
+        }
+        #hero-profile-editor-overlay .hpe-preview h3 {
+            margin: 0 0 8px;
+            color: #182844;
+            font-size: 28px;
+            font-weight: 900;
+        }
+        #hero-profile-editor-overlay .hpe-preview-title {
+            margin: 0 0 18px;
+            color: #725b14;
+            font-size: 18px;
+            font-weight: 800;
+        }
+        #hero-profile-editor-overlay .hpe-level {
+            display: inline-flex;
+            align-items: center;
+            min-height: 38px;
+            padding: 7px 14px;
+            color: #fff;
+            background: #243b64;
+            border-radius: 999px;
+            font-size: 17px;
+            font-weight: 850;
+        }
+        #hero-profile-editor-overlay .hpe-selectors {
+            min-width: 0;
+            overflow-y: auto;
+            padding: 26px 26px 20px;
+        }
+        #hero-profile-editor-overlay .hpe-section + .hpe-section {
+            margin-top: 28px;
+        }
+        #hero-profile-editor-overlay .hpe-section h3 {
+            margin: 0 0 6px;
+            color: #182844;
+            font-size: 21px;
+            font-weight: 900;
+        }
+        #hero-profile-editor-overlay .hpe-help {
+            margin: 0 0 14px;
+            color: #687285;
+            font-size: 16px;
+            line-height: 1.55;
+        }
+        #hero-profile-editor-overlay .hpe-avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+            gap: 12px;
+        }
+        #hero-profile-editor-overlay .hpe-avatar-option {
+            position: relative;
+            min-height: 130px;
+            padding: 12px 8px 10px;
+            color: #33415b;
+            background: #fff;
+            border: 2px solid #dfe3e9;
+            border-radius: 16px;
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        #hero-profile-editor-overlay .hpe-avatar-option.is-selected {
+            border-color: #e0b830;
+            background: #fff9df;
+            box-shadow: 0 0 0 3px rgba(224, 184, 48, .15);
+        }
+        #hero-profile-editor-overlay .hpe-avatar-option:disabled {
+            cursor: not-allowed;
+            opacity: .42;
+            filter: grayscale(.8);
+        }
+        #hero-profile-editor-overlay .hpe-avatar-name {
+            display: block;
+            margin-top: 7px;
+        }
+        #hero-profile-editor-overlay .hpe-lock-level {
+            position: absolute;
+            top: 7px;
+            right: 7px;
+            padding: 3px 6px;
+            color: #fff;
+            background: #59657a;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        #hero-profile-editor-overlay .hpe-title-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        #hero-profile-editor-overlay .hpe-title-option {
+            min-height: 44px;
+            padding: 9px 15px;
+            color: #34415a;
+            background: #fff;
+            border: 2px solid #dfe3e9;
+            border-radius: 999px;
+            font-size: 16px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+        #hero-profile-editor-overlay .hpe-title-option.is-selected {
+            color: #17345e;
+            border-color: #e0b830;
+            background: #fff3bd;
+        }
+        #hero-profile-editor-overlay .hpe-actions {
+            position: sticky;
+            bottom: -20px;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 12px;
+            margin: 28px -26px -20px;
+            padding: 16px 26px 20px;
+            background: rgba(255, 253, 247, .97);
+            border-top: 1px solid #e5e0d3;
+        }
+        #hero-profile-editor-overlay .hpe-actions button {
+            min-height: 52px;
+            border: 0;
+            border-radius: 13px;
+            font-size: 17px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        #hero-profile-editor-overlay .hpe-cancel {
+            color: #34415a;
+            background: #e8ebef;
+        }
+        #hero-profile-editor-overlay .hpe-save {
+            color: #fff;
+            background: #274a7d;
+        }
+        #hero-profile-editor-overlay .hpe-save:disabled {
+            cursor: wait;
+            opacity: .6;
+        }
+        body .hero-card-self,
+        body .hero-card-item.hero-card-self {
+            border-color: #d8b33a !important;
+            box-shadow: 0 10px 28px rgba(111, 83, 9, .14) !important;
+        }
+        body .hero-card-self .hero-self-badge {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            z-index: 2;
+            padding: 5px 10px;
+            color: #17345e !important;
+            background: #ffe88a;
+            border: 1px solid #dfbc3d;
+            border-radius: 999px;
+            font-size: 14px !important;
+            font-weight: 900;
+        }
+        @media (max-width: 720px) {
+            #hero-profile-editor-overlay { padding: 8px; }
+            #hero-profile-editor-overlay .hpe-dialog {
+                width: 100%;
+                max-height: 96vh;
+                border-radius: 18px;
+            }
+            #hero-profile-editor-overlay .hpe-body {
+                display: block;
+                max-height: calc(96vh - 70px);
+                overflow-y: auto;
+            }
+            #hero-profile-editor-overlay .hpe-preview {
+                padding: 24px 18px;
+                border-right: 0;
+                border-bottom: 1px solid #e0d4a1;
+            }
+            #hero-profile-editor-overlay .hpe-avatar-stage {
+                width: 164px;
+                height: 164px;
+            }
+            #hero-profile-editor-overlay .hpe-selectors {
+                overflow: visible;
+                padding: 22px 16px 16px;
+            }
+            #hero-profile-editor-overlay .hpe-actions {
+                bottom: -16px;
+                margin: 24px -16px -16px;
+                padding: 14px 16px 16px;
+            }
+        }
+    `;
+
+    document.head.appendChild(style);
+}
+
+window.closeHeroProfileEditor = function() {
+    const overlay = document.getElementById("hero-profile-editor-overlay");
+    if (overlay) overlay.remove();
+};
+
+function showHeroProfileEditor(user, userKey) {
+    ensureHeroProfileEditorStyle();
+    window.closeHeroProfileEditor();
+
+    const level = heroUserLevel(user);
+    const unlockedAnimals = heroUnlockedAnimals(level);
+    const unlockedTitles = heroUnlockedTitles(user, level);
+    const currentAnimal = user.selectedAnimal || user.animal;
+    let selectedAnimal = unlockedAnimals.includes(currentAnimal)
+        ? currentAnimal
+        : unlockedAnimals[unlockedAnimals.length - 1];
+    const currentTitle = user.selectedTitle || user.title;
+    let selectedTitle = unlockedTitles.includes(currentTitle)
+        ? currentTitle
+        : unlockedTitles[unlockedTitles.length - 1];
+
+    const overlay = document.createElement("div");
+    overlay.id = "hero-profile-editor-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "내 용사 모습 변경");
+
+    const avatarOptions = window.AVATAR_NAMES.map((name, index) => {
+        const requiredLevel = index + 1;
+        const unlocked = level >= requiredLevel;
+
+        return `
+            <button type="button"
+                class="hpe-avatar-option${name === selectedAnimal ? " is-selected" : ""}"
+                data-avatar-index="${index}"
+                ${unlocked ? "" : "disabled"}>
+                ${getAvatar(level, name, 72)}
+                <span class="hpe-avatar-name">${heroEscape(name)}</span>
+                ${unlocked ? "" : `<span class="hpe-lock-level">Lv.${requiredLevel}</span>`}
+            </button>
+        `;
+    }).join("");
+
+    const titleOptions = unlockedTitles.map((title, index) => `
+        <button type="button"
+            class="hpe-title-option${title === selectedTitle ? " is-selected" : ""}"
+            data-title-index="${index}">
+            ${heroEscape(title)}
         </button>
-    `).join('');
+    `).join("");
 
-    openPopup('모습 변경', `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;max-height:60vh;overflow:auto;">
-            ${options}
-        </div>
-    `);
+    overlay.innerHTML = `
+        <section class="hpe-dialog">
+            <header class="hpe-head">
+                <h2>내 용사 모습 변경</h2>
+                <button type="button" class="hpe-close" aria-label="닫기">×</button>
+            </header>
+            <div class="hpe-body">
+                <aside class="hpe-preview">
+                    <div class="hpe-avatar-stage" data-profile-preview>
+                        ${getAvatar(level, selectedAnimal, 148)}
+                    </div>
+                    <h3>${heroEscape(user.name || window.myName || "용사")}</h3>
+                    <p class="hpe-preview-title" data-title-preview>${heroEscape(selectedTitle)}</p>
+                    <span class="hpe-level">Lv.${level}</span>
+                </aside>
+                <main class="hpe-selectors">
+                    <section class="hpe-section">
+                        <h3>캐릭터 선택</h3>
+                        <p class="hpe-help">현재 레벨까지 해금된 캐릭터만 선택할 수 있습니다.</p>
+                        <div class="hpe-avatar-grid">${avatarOptions}</div>
+                    </section>
+                    <section class="hpe-section">
+                        <h3>칭호 선택</h3>
+                        <p class="hpe-help">획득했거나 현재 레벨에서 해금된 칭호입니다.</p>
+                        <div class="hpe-title-list">${titleOptions}</div>
+                    </section>
+                    <div class="hpe-actions">
+                        <button type="button" class="hpe-cancel">취소</button>
+                        <button type="button" class="hpe-save">선택한 모습 저장</button>
+                    </div>
+                </main>
+            </div>
+        </section>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const preview = overlay.querySelector("[data-profile-preview]");
+    const titlePreview = overlay.querySelector("[data-title-preview]");
+
+    overlay.querySelectorAll(".hpe-avatar-option:not(:disabled)").forEach(button => {
+        button.addEventListener("click", () => {
+            selectedAnimal = window.AVATAR_NAMES[Number(button.dataset.avatarIndex)];
+            overlay.querySelectorAll(".hpe-avatar-option").forEach(item => {
+                item.classList.toggle("is-selected", item === button);
+            });
+            preview.innerHTML = getAvatar(level, selectedAnimal, 148);
+        });
+    });
+
+    overlay.querySelectorAll(".hpe-title-option").forEach(button => {
+        button.addEventListener("click", () => {
+            selectedTitle = unlockedTitles[Number(button.dataset.titleIndex)];
+            overlay.querySelectorAll(".hpe-title-option").forEach(item => {
+                item.classList.toggle("is-selected", item === button);
+            });
+            titlePreview.textContent = selectedTitle;
+        });
+    });
+
+    const close = () => window.closeHeroProfileEditor();
+    overlay.querySelector(".hpe-close").addEventListener("click", close);
+    overlay.querySelector(".hpe-cancel").addEventListener("click", close);
+    overlay.addEventListener("click", event => {
+        if (event.target === overlay) close();
+    });
+
+    overlay.querySelector(".hpe-save").addEventListener("click", async event => {
+        const button = event.currentTarget;
+
+        if (!unlockedAnimals.includes(selectedAnimal) ||
+            !unlockedTitles.includes(selectedTitle)) {
+            alert("현재 해금된 캐릭터와 칭호만 선택할 수 있습니다.");
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = "저장 중...";
+
+        try {
+            await db.ref(`users/${userKey}`).update({
+                selectedAnimal:selectedAnimal,
+                animal:selectedAnimal,
+                selectedTitle:selectedTitle,
+                title:selectedTitle
+            });
+
+            window.closeHeroProfileEditor();
+            window.renderHeroes();
+        } catch (error) {
+            console.error("용사 모습 저장 오류:", error);
+            alert("저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+            button.disabled = false;
+            button.textContent = "선택한 모습 저장";
+        }
+    });
+}
+
+window.openHeroProfileEditor = function(userName) {
+    const targetName = userName || window.myName;
+    if (!targetName || targetName !== window.myName) return;
+
+    heroFindUser(targetName).then(found => {
+        if (!found) {
+            alert("내 용사 정보를 찾을 수 없습니다.");
+            return;
+        }
+
+        showHeroProfileEditor(found.data, found.key);
+    }).catch(error => {
+        console.error("내 용사 정보 불러오기 오류:", error);
+        alert("내 용사 정보를 불러오지 못했습니다.");
+    });
+};
+
+/* 이전 버튼과의 호환: 기존 모습 변경 버튼도 새 수정창을 연다. */
+window.openAvatarPicker = function() {
+    window.openHeroProfileEditor(window.myName);
 };
 
 window.selectAvatar = async function(name) {
-    if (!window.AVATAR_NAMES.includes(name) || !window.myName) return;
-    await db.ref(`users/${window.myName}`).update({ selectedAnimal:name });
-    closePopup();
+    if (!window.myName || !window.AVATAR_NAMES.includes(name)) return;
+
+    const found = await heroFindUser(window.myName);
+    if (!found || !heroUnlockedAnimals(heroUserLevel(found.data)).includes(name)) {
+        alert("아직 해금되지 않은 캐릭터입니다.");
+        return;
+    }
+
+    await db.ref(`users/${found.key}`).update({
+        selectedAnimal:name,
+        animal:name
+    });
+    window.renderHeroes();
 };
 
 
@@ -197,13 +713,30 @@ function drawHeroes(usersArray) {
 
 
     filteredUsers.sort((a, b) => {
+        /* 학생 로그인 시 본인 카드를 항상 첫 번째에 배치 */
+        if (!isAdminUser && typeof myName !== "undefined" && myName) {
+            const aIsMine = (a.name || "") === myName;
+            const bIsMine = (b.name || "") === myName;
+
+            if (aIsMine !== bIsMine) {
+                return aIsMine ? -1 : 1;
+            }
+        }
+
         const aNo =
             parseInt(a.number || a.no) || 999;
 
         const bNo =
             parseInt(b.number || b.no) || 999;
 
-        return aNo - bNo;
+        if (aNo !== bNo) {
+            return aNo - bNo;
+        }
+
+        return String(a.name || "").localeCompare(
+            String(b.name || ""),
+            "ko"
+        );
     });
 
 
@@ -225,6 +758,11 @@ function drawHeroes(usersArray) {
         const role =
             user.role ||
             (user.isHelper ? "상점" : "일반");
+
+        const heroTitle =
+            user.selectedTitle ||
+            user.title ||
+            "모험가";
 
 
         const isMySelf =
@@ -311,7 +849,7 @@ const clickAction =
 
         html += `
             <div
-                class="card hero-card-item"
+                class="card hero-card-item${isMySelf ? " hero-card-self" : ""}"
                 style="
                     text-align:center;
                     cursor:pointer;
@@ -323,6 +861,10 @@ const clickAction =
                 "
                 onclick="${clickAction}"
             >
+
+                ${isMySelf ? `
+                    <div class="hero-self-badge">내 용사</div>
+                ` : ""}
 
                 <div style="
                     position:absolute;
@@ -339,8 +881,9 @@ const clickAction =
 
                 ${getAvatar(
                     lv,
-                    user.animal ||
-                    user.selectedAnimal
+                    user.selectedAnimal ||
+                    user.animal,
+                    88
                 )}
 
                 <h3 style="
@@ -359,7 +902,7 @@ const clickAction =
                     color:#666;
                     margin-bottom:0;
                 ">
-                    역할: ${role}
+                    ${heroTitle} · 역할: ${role}
                 </p>
 
             </div>
@@ -497,8 +1040,8 @@ window.openStudentProfile = async function(userName) {
             parseInt(targetUser.level || targetUser.lv) || 1;
 
         const animal =
-            targetUser.animal ||
-            targetUser.selectedAnimal;
+            targetUser.selectedAnimal ||
+            targetUser.animal;
 
         const history = [];
 
@@ -676,35 +1219,7 @@ window.openStudentProfile = async function(userName) {
    ========================================================= */
 
 window.openOwnStudentProfile = function(userName) {
-    /*
-     * 학생은 관리자용 포인트 수정 팝업을 열 수 없다.
-     * 기존 학생 프로필 함수가 있으면 우선 사용한다.
-     */
-
-    if (
-        typeof openStudentProfileModal === "function"
-    ) {
-        openStudentProfileModal(userName);
-        return;
-    }
-
-
-    /*
-     * 기존에 학생 프로필 함수가 없다면
-     * 자기 방으로 이동한다.
-     */
-
-    if (
-        typeof showTab === "function"
-    ) {
-        showTab("housing");
-    }
-
-    if (
-        typeof loadSpecificUserRoom === "function"
-    ) {
-        loadSpecificUserRoom(userName);
-    }
+    window.openHeroProfileEditor(userName);
 };
 
 

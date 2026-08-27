@@ -909,3 +909,898 @@ window.closePointPopup=function(){
         popup.style.display='none';
     }
 };
+
+// 등교/출결 화면 전용 독립 팝업 패치
+(function () {
+    'use strict';
+
+    if (window.__checkinIndependentPopupInstalled) return;
+    window.__checkinIndependentPopupInstalled = true;
+
+    const OVERLAY_ID = 'checkin-independent-popup';
+    const STYLE_ID = 'checkin-independent-popup-style';
+    const originalOpenPopup = window.openPopup;
+    const originalClosePopup = window.closePopup;
+
+    function isCheckinPopup(title, content) {
+        const currentTab = String(window.currentTab || '');
+        const text = `${title || ''} ${content || ''}`;
+        const checkinTab = window.currentTab === 'checkin' ||
+            document.getElementById('tab-checkin')?.classList.contains('active') ||
+            document.getElementById('sub-checkin-logs')?.style.display === 'block';
+        const checkinContent = /등교|출석|출결|지각|결석|조퇴|학생 배치|요일별 등교제외/.test(text);
+        return checkinTab || checkinContent;
+    }
+
+    function installStyle() {
+        if (document.getElementById(STYLE_ID)) return;
+
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = `
+            #${OVERLAY_ID} {
+                position: fixed !important;
+                inset: 0 !important;
+                z-index: 2147483000 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                margin: 0 !important;
+                padding: 24px !important;
+                overflow: hidden !important;
+                background: rgba(15, 23, 42, 0.62) !important;
+                backdrop-filter: blur(5px);
+                -webkit-backdrop-filter: blur(5px);
+                box-sizing: border-box !important;
+            }
+
+            #${OVERLAY_ID}[hidden] {
+                display: none !important;
+            }
+
+            #${OVERLAY_ID} * {
+                box-sizing: border-box;
+            }
+
+            #${OVERLAY_ID} .checkin-popup-dialog {
+                display: flex;
+                flex-direction: column;
+                width: min(1120px, 96vw) !important;
+                max-width: 1120px !important;
+                height: auto !important;
+                max-height: 90vh !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                color: #172033 !important;
+                background: #ffffff !important;
+                border: 1px solid #d9dee8 !important;
+                border-top: 7px solid #263b63 !important;
+                border-radius: 22px !important;
+                box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32) !important;
+                transform: none !important;
+            }
+
+            #${OVERLAY_ID} .checkin-popup-header {
+                display: flex;
+                flex: 0 0 auto;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                min-height: 72px;
+                padding: 16px 20px 16px 26px;
+                background: #fffdf7;
+                border-bottom: 1px solid #e4e7ec;
+            }
+
+            #${OVERLAY_ID} .checkin-popup-title {
+                min-width: 0;
+                margin: 0;
+                overflow: hidden;
+                color: #182844;
+                font-size: 24px;
+                font-weight: 900;
+                line-height: 1.3;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            #${OVERLAY_ID} .checkin-popup-close {
+                flex: 0 0 46px;
+                width: 46px;
+                height: 46px;
+                min-height: 46px;
+                margin: 0;
+                padding: 0;
+                color: #263b63;
+                background: #eef1f5;
+                border: 0;
+                border-radius: 13px;
+                font-size: 27px;
+                font-weight: 900;
+                line-height: 1;
+                cursor: pointer;
+                box-shadow: none;
+            }
+
+            #${OVERLAY_ID} .checkin-popup-content {
+                flex: 1 1 auto;
+                min-height: 0;
+                padding: 24px 26px 28px;
+                overflow-x: auto;
+                overflow-y: auto;
+                background: #ffffff;
+                font-size: 16px;
+                line-height: 1.55;
+            }
+
+            #${OVERLAY_ID} .checkin-popup-content input,
+            #${OVERLAY_ID} .checkin-popup-content select,
+            #${OVERLAY_ID} .checkin-popup-content textarea,
+            #${OVERLAY_ID} .checkin-popup-content button {
+                font-size: 16px;
+            }
+
+            #${OVERLAY_ID} .checkin-popup-content table {
+                max-width: none;
+            }
+
+            @media (max-width: 700px) {
+                #${OVERLAY_ID} {
+                    align-items: flex-start !important;
+                    padding: 10px !important;
+                }
+
+                #${OVERLAY_ID} .checkin-popup-dialog {
+                    width: 100% !important;
+                    max-height: calc(100vh - 20px) !important;
+                    border-radius: 16px !important;
+                }
+
+                #${OVERLAY_ID} .checkin-popup-header {
+                    min-height: 62px;
+                    padding: 10px 12px 10px 16px;
+                }
+
+                #${OVERLAY_ID} .checkin-popup-title {
+                    font-size: 20px;
+                }
+
+                #${OVERLAY_ID} .checkin-popup-content {
+                    padding: 18px 14px 22px;
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    function ensureOverlay() {
+        let overlay = document.getElementById(OVERLAY_ID);
+        if (overlay) return overlay;
+
+        overlay = document.createElement('div');
+        overlay.id = OVERLAY_ID;
+        overlay.hidden = true;
+        overlay.innerHTML = `
+            <section class="checkin-popup-dialog" role="dialog" aria-modal="true" aria-labelledby="checkin-popup-title">
+                <header class="checkin-popup-header">
+                    <h2 class="checkin-popup-title" id="checkin-popup-title"></h2>
+                    <button type="button" class="checkin-popup-close" data-checkin-popup-close aria-label="닫기">×</button>
+                </header>
+                <div class="checkin-popup-content" id="checkin-popup-content"></div>
+            </section>
+        `;
+
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay || event.target.closest('[data-checkin-popup-close]')) {
+                closeCheckinPopup();
+            }
+        });
+
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+
+    function openCheckinPopup(title, content) {
+        installStyle();
+        const overlay = ensureOverlay();
+        const titleElement = overlay.querySelector('.checkin-popup-title');
+        const contentElement = overlay.querySelector('.checkin-popup-content');
+        const oldOverlay = document.getElementById('common-overlay');
+
+        if (oldOverlay) oldOverlay.style.display = 'none';
+        if (titleElement) titleElement.textContent = title || '등교 기록';
+        if (contentElement) {
+            contentElement.innerHTML = content || '';
+            contentElement.scrollTop = 0;
+            contentElement.scrollLeft = 0;
+        }
+
+        overlay.dataset.previousOverflow = document.body.style.overflow || '';
+        overlay.hidden = false;
+        document.body.style.overflow = 'hidden';
+        overlay.querySelector('.checkin-popup-close')?.focus();
+    }
+
+    function closeCheckinPopup() {
+        const overlay = document.getElementById(OVERLAY_ID);
+        if (!overlay || overlay.hidden) return false;
+
+        overlay.hidden = true;
+        const content = overlay.querySelector('.checkin-popup-content');
+        if (content) content.innerHTML = '';
+        document.body.style.overflow = overlay.dataset.previousOverflow || '';
+        return true;
+    }
+
+    window.openCheckinPopup = openCheckinPopup;
+    window.closeCheckinPopup = closeCheckinPopup;
+
+    window.openPopup = function (title, content) {
+        if (isCheckinPopup(title, content)) {
+            openCheckinPopup(title, content);
+            return;
+        }
+
+        if (typeof originalOpenPopup === 'function') {
+            return originalOpenPopup.apply(this, arguments);
+        }
+    };
+
+    window.closePopup = function () {
+        if (closeCheckinPopup()) return;
+
+        if (typeof originalClosePopup === 'function') {
+            return originalClosePopup.apply(this, arguments);
+        }
+    };
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeCheckinPopup();
+    });
+})();
+// 용사 상세창 V5: 왼쪽 프로필 / 오른쪽 포인트 증감 내역
+(function () {
+    'use strict';
+    if (window.__heroDetailV5Installed) return;
+    window.__heroDetailV5Installed = true;
+
+    const CARD_SELECTOR = '.hero-card,.hero-card-item,.student-card,[data-user-id],[data-student-id],#hero-grid > *,.hero-grid > *';
+    const OVERLAY_ID = 'hero-detail-v5';
+    const STYLE_ID = 'hero-detail-v5-style';
+    let activeRequest = 0;
+
+    const esc = value => String(value ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    function first(object, keys, fallback = '-') {
+        for (const key of keys) {
+            const value = object?.[key];
+            if (value !== undefined && value !== null && value !== '') return value;
+        }
+        return fallback;
+    }
+
+    function getUsers() {
+        for (const source of [window.currentUsers, window.users, window.students, window.heroes]) {
+            if (Array.isArray(source)) return source;
+            if (source && typeof source === 'object') return Object.values(source);
+        }
+        return [];
+    }
+
+    function getCard(target) {
+        return target instanceof Element ? target.closest(CARD_SELECTOR) : null;
+    }
+
+    function getCardName(card) {
+        const dataName = card.dataset.name || card.dataset.userName ||
+            card.dataset.username || card.dataset.heroName || card.dataset.studentName;
+        if (dataName) return String(dataName).trim();
+
+        const text = String(card.textContent || '').replace(/\s+/g, ' ').trim();
+        const match = getUsers().filter(user => user?.name && text.includes(String(user.name)))
+            .sort((a, b) => String(b.name).length - String(a.name).length)[0];
+        if (match) return String(match.name);
+
+        const node = card.querySelector('.hero-name,.student-name,[data-name],h2,h3,h4');
+        return node?.textContent?.trim() || text;
+    }
+
+    function getUser(card) {
+        const list = getUsers();
+        const id = card.dataset.userId || card.dataset.studentId ||
+            card.dataset.uid || card.dataset.key || card.dataset.id;
+
+        if (id) {
+            const match = list.find(user =>
+                [user?.id, user?.userId, user?.studentId, user?.uid, user?.key]
+                    .some(value => value != null && String(value) === String(id))
+            );
+            if (match) return match;
+        }
+
+        const name = getCardName(card);
+        return list.find(user =>
+            String(first(user, ['name', 'userName', 'username'], '')).trim() === name
+        ) || {
+            name,
+            points: card.dataset.points || card.dataset.point || 0,
+            exp: card.dataset.exp || card.dataset.experience || 0,
+            character: card.dataset.character || card.dataset.avatar || '🧙'
+        };
+    }
+
+    async function getFullUser(card) {
+        const localUser = getUser(card);
+        const name = String(first(localUser, ['name', 'userName', 'username'], getCardName(card))).trim();
+        const firebaseKey = String(
+            card.dataset.firebaseKey || card.dataset.userKey || card.dataset.key || name
+        ).trim();
+
+        if (typeof db === 'undefined' || !db?.ref) return localUser;
+
+        try {
+            // 현재 앱은 users/{학생 이름} 경로에 학생 정보를 저장합니다.
+            const directSnapshot = await db.ref(`users/${firebaseKey}`).once('value');
+            if (directSnapshot.exists()) {
+                const saved = directSnapshot.val() || {};
+                return { ...localUser, ...saved, name: saved.name || name || firebaseKey };
+            }
+
+            // 카드의 key와 학생 이름이 다른 경우 name 필드로 한 번 더 찾습니다.
+            const nameSnapshot = await db.ref('users').orderByChild('name').equalTo(name).once('value');
+            let found = null;
+            nameSnapshot.forEach(child => {
+                if (!found) found = { ...(child.val() || {}), __firebaseKey: child.key };
+            });
+            return found ? { ...localUser, ...found, name: found.name || name } : localUser;
+        } catch (error) {
+            console.error('학생 상세정보 로딩 오류:', error);
+            return localUser;
+        }
+    }
+
+    function avatarHtml(user, name) {
+        const selectedAnimal = String(first(user,
+            ['selectedAnimal', 'animal'],
+            ''
+        )).trim();
+        const level = Number(first(user, ['level', 'lv'], 1)) || 1;
+
+        if (selectedAnimal && typeof window.getAvatar === 'function') {
+            return window.getAvatar(level, selectedAnimal, 148);
+        }
+
+        if (selectedAnimal && typeof getAvatar === 'function') {
+            return getAvatar(level, selectedAnimal, 148);
+        }
+
+        const value = String(first(user,
+            ['avatarUrl', 'profileImage', 'characterImage', 'image', 'photo', 'avatar', 'character'],
+            String(name).charAt(0) || '용사'
+        )).trim();
+        if (/^(https?:|data:image\/|blob:|\/|\.\.\/|\.\/)/i.test(value)) {
+            return `<img src="${esc(value)}" alt="${esc(name)} 캐릭터">`;
+        }
+        return `<span>${esc(value || String(name).charAt(0) || '용사')}</span>`;
+    }
+
+    function historyTime(item) {
+        const raw = Number(item.timestamp || item.createdAt || item.timeStamp || 0);
+        if (Number.isFinite(raw) && raw > 0) return raw;
+        const parsed = Date.parse(`${item.date || ''} ${item.time || ''}`.trim());
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function snapshotValues(snapshot) {
+        const result = [];
+        if (!snapshot?.forEach) return result;
+        snapshot.forEach(child => result.push({ key: child.key, ...(child.val() || {}) }));
+        return result;
+    }
+
+    async function loadHistory(name) {
+        if (typeof db === 'undefined' || !db?.ref || !name) return [];
+        const [newHistory, oldHistory] = await Promise.all([
+            db.ref(`pointHistory/${name}`).once('value')
+                .then(snapshotValues).catch(() => []),
+            db.ref('pointLogs').orderByChild('name').equalTo(name).once('value')
+                .then(snapshotValues).catch(() => [])
+        ]);
+
+        const seen = new Set();
+        return [...newHistory, ...oldHistory]
+            .sort((a, b) => historyTime(b) - historyTime(a))
+            .filter(item => {
+                const amount = Number(first(item, ['pChange', 'change', 'pAmt'], 0)) || 0;
+                const key = [item.date, item.time, item.reason, amount, item.timestamp].join('|');
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            })
+            .slice(0, 50);
+    }
+
+    function renderHistory(items) {
+        if (!items.length) return '<div class="hd-empty">아직 포인트 증감 내역이 없습니다.</div>';
+
+        return items.map(item => {
+            const amount = Number(first(item, ['pChange', 'change', 'pAmt'], 0)) || 0;
+            const expAmount = Number(first(item, ['expChange'], 0)) || 0;
+            const result = first(item, ['pointResult', 'result'], '');
+            const reason = first(item, ['reason', 'title', 'memo'], '포인트 변경');
+            const time = [item.date, item.time].filter(Boolean).join(' ') ||
+                (historyTime(item) ? new Date(historyTime(item)).toLocaleString('ko-KR') : '날짜 정보 없음');
+            const tone = amount > 0 ? 'plus' : amount < 0 ? 'minus' : 'zero';
+            const signed = amount > 0 ? `+${amount}` : String(amount);
+            const expText = expAmount
+                ? `<span class="hd-exp-change">EXP ${expAmount > 0 ? '+' : ''}${esc(expAmount)}</span>`
+                : '';
+            const resultText = result !== ''
+                ? `<span class="hd-result">잔여 ${Number(result).toLocaleString('ko-KR')}P</span>`
+                : '';
+
+            return `<article class="hd-log-row">
+                <div class="hd-log-copy"><strong>${esc(reason)}</strong><time>${esc(time)}</time><div>${expText}${resultText}</div></div>
+                <b class="hd-change ${tone}">${esc(signed)}P</b>
+            </article>`;
+        }).join('');
+    }
+
+    function installStyle() {
+        if (document.getElementById(STYLE_ID)) return;
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = `
+            #${OVERLAY_ID}{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.62);backdrop-filter:blur(5px);box-sizing:border-box}
+            #${OVERLAY_ID}[hidden]{display:none!important}#${OVERLAY_ID} *{box-sizing:border-box}
+            #${OVERLAY_ID} .hd-dialog{position:relative;display:grid;grid-template-columns:310px minmax(0,1fr);width:min(1000px,96vw);height:min(680px,90vh);overflow:hidden;background:#fff;border:1px solid #d9dee8;border-top:8px solid #263b63;border-radius:24px;box-shadow:0 28px 75px rgba(0,0,0,.3)}
+            #${OVERLAY_ID} .hd-close{position:absolute;top:14px;right:14px;z-index:2;width:46px;height:46px;padding:0;border:0;border-radius:14px;background:#eef1f5;color:#263b63;font-size:27px;font-weight:900;cursor:pointer}
+            #${OVERLAY_ID} .hd-profile{display:flex;flex-direction:column;align-items:center;padding:42px 28px 30px;background:linear-gradient(155deg,#fff8dc,#f7edbd);border-right:1px solid #ded5ae;text-align:center}
+            #${OVERLAY_ID} .hd-avatar{display:grid;place-items:center;width:170px;height:170px;margin:10px 0 22px;overflow:hidden;background:#fff;border:5px solid #e0bf48;border-radius:38px;box-shadow:0 14px 30px rgba(86,68,15,.16);font-size:78px}
+            #${OVERLAY_ID} .hd-avatar img{width:100%;height:100%;object-fit:contain}.hd-kicker{margin:0 0 6px;color:#8a6a12;font-size:16px;font-weight:900}
+            #${OVERLAY_ID} .hd-name{margin:0;color:#182844;font-size:34px;line-height:1.2;font-weight:950}#${OVERLAY_ID} .hd-role{margin:8px 0 4px;color:#566174;font-size:17px;font-weight:750}#${OVERLAY_ID} .hd-meta{margin:0 0 22px;color:#7a8495;font-size:15px;font-weight:800}
+            #${OVERLAY_ID} .hd-profile-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:auto}#${OVERLAY_ID} .hd-profile-stat{padding:17px 9px;background:rgba(255,255,255,.86);border:1px solid #dccb85;border-radius:15px}
+            #${OVERLAY_ID} .hd-profile-stat span{display:block;color:#667085;font-size:15px;font-weight:800}#${OVERLAY_ID} .hd-profile-stat strong{display:block;margin-top:5px;color:#182844;font-size:22px;font-weight:950}
+            #${OVERLAY_ID} .hd-history{display:flex;min-width:0;flex-direction:column;padding:36px 32px 28px;background:#fbfcfe}#${OVERLAY_ID} .hd-history-head{padding-right:48px;margin-bottom:18px}
+            #${OVERLAY_ID} .hd-history-head h3{margin:0;color:#182844;font-size:27px;font-weight:950}#${OVERLAY_ID} .hd-history-head p{margin:7px 0 0;color:#667085;font-size:15px}
+            #${OVERLAY_ID} .hd-log-list{min-height:0;overflow-y:auto;padding-right:5px}#${OVERLAY_ID} .hd-log-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;margin-bottom:10px;background:#fff;border:1px solid #e0e5ec;border-radius:14px}
+            #${OVERLAY_ID} .hd-log-copy{min-width:0}#${OVERLAY_ID} .hd-log-copy>strong{display:block;overflow:hidden;color:#263b63;font-size:17px;text-overflow:ellipsis;white-space:nowrap}#${OVERLAY_ID} .hd-log-copy time{display:block;margin:5px 0;color:#7a8495;font-size:14px}
+            #${OVERLAY_ID} .hd-exp-change,#${OVERLAY_ID} .hd-result{display:inline-block;margin-right:10px;color:#667085;font-size:13px;font-weight:750}#${OVERLAY_ID} .hd-change{flex:0 0 auto;font-size:22px;font-weight:950}
+            #${OVERLAY_ID} .hd-change.plus{color:#16a05d}#${OVERLAY_ID} .hd-change.minus{color:#e34444}#${OVERLAY_ID} .hd-change.zero{color:#667085}#${OVERLAY_ID} .hd-empty,#${OVERLAY_ID} .hd-loading{display:grid;place-items:center;min-height:260px;color:#7a8495;background:#fff;border:1px dashed #cbd2dc;border-radius:16px;font-size:16px;text-align:center}
+            @media(max-width:720px){#${OVERLAY_ID}{padding:8px}#${OVERLAY_ID} .hd-dialog{display:block;height:min(92vh,760px);overflow-y:auto}#${OVERLAY_ID} .hd-profile{min-height:370px;padding:28px 18px 20px;border-right:0;border-bottom:1px solid #ded5ae}#${OVERLAY_ID} .hd-avatar{width:125px;height:125px;margin:4px 0 14px;border-radius:28px;font-size:58px}#${OVERLAY_ID} .hd-name{font-size:28px}#${OVERLAY_ID} .hd-role{margin-bottom:15px}#${OVERLAY_ID} .hd-history{padding:24px 16px}#${OVERLAY_ID} .hd-history-head h3{font-size:23px}#${OVERLAY_ID} .hd-log-list{overflow:visible}}
+        `;
+        document.head.appendChild(style);
+    }
+
+    function closeDetail() {
+        const overlay = document.getElementById(OVERLAY_ID);
+        activeRequest++;
+        if (!overlay) return;
+        overlay.hidden = true;
+        overlay.innerHTML = '';
+        document.body.style.overflow = overlay.dataset.oldOverflow || '';
+    }
+
+    function ensureOverlay() {
+        let overlay = document.getElementById(OVERLAY_ID);
+        if (overlay) return overlay;
+        overlay = document.createElement('div');
+        overlay.id = OVERLAY_ID;
+        overlay.hidden = true;
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay || event.target.closest('[data-hd-close]')) closeDetail();
+        });
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+
+    async function openDetail(user) {
+        installStyle();
+        const requestId = ++activeRequest;
+        const overlay = ensureOverlay();
+        const name = first(user, ['name', 'userName', 'username'], '이름 없음');
+        const points = Number(first(user, ['points', 'point', 'score'], 0)) || 0;
+        const exp = Number(first(user, ['exp', 'experience', 'xp'], 0)) || 0;
+        const level = first(user, ['level', 'lv'], Math.max(1, Math.floor(exp / 100) + 1));
+        const number = first(user, ['no', 'number', 'studentNo'], '-');
+        const title = first(user, ['selectedTitle', 'title', 'rank', 'grade'], '모험가');
+        const role = first(user, ['role', 'job', 'classRole'], '용사');
+
+        overlay.dataset.oldOverflow = document.body.style.overflow || '';
+        overlay.innerHTML = `<section class="hd-dialog" role="dialog" aria-modal="true" aria-label="${esc(name)} 상세정보">
+            <button type="button" class="hd-close" data-hd-close aria-label="닫기">×</button>
+            <aside class="hd-profile"><div class="hd-avatar">${avatarHtml(user, name)}</div><p class="hd-kicker">⚔ 용사 프로필</p><h2 class="hd-name">${esc(name)}</h2><p class="hd-role">${esc(title)} · ${esc(role)}</p><p class="hd-meta">Lv.${esc(level)} · ${esc(number)}번</p>
+                <div class="hd-profile-stats"><div class="hd-profile-stat"><span>포인트</span><strong>${points.toLocaleString('ko-KR')} P</strong></div><div class="hd-profile-stat"><span>경험치</span><strong>${exp.toLocaleString('ko-KR')} EXP</strong></div></div>
+            </aside>
+            <main class="hd-history"><header class="hd-history-head"><h3>포인트 증감 내역</h3><p>최근 기록부터 표시됩니다.</p></header><div class="hd-log-list"><div class="hd-loading">내역을 불러오는 중입니다.</div></div></main>
+        </section>`;
+        overlay.hidden = false;
+        document.body.style.overflow = 'hidden';
+
+        const items = await loadHistory(String(name));
+        if (requestId !== activeRequest || overlay.hidden) return;
+        const list = overlay.querySelector('.hd-log-list');
+        if (list) list.innerHTML = renderHistory(items);
+    }
+
+    // window 캡처 단계에서 먼저 처리하여 이전 상세창 클릭 코드를 확실히 막습니다.
+    window.addEventListener('click', async event => {
+        const card = getCard(event.target);
+        if (!card) return;
+        const control = event.target.closest('button,a,input,select,textarea,label');
+        if (control && control !== card) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        const user = await getFullUser(card);
+        const name = String(first(user, ['name', 'userName', 'username'], getCardName(card))).trim();
+        const adminUser = window.isAdmin === true ||
+            (typeof isAdmin !== 'undefined' && isAdmin === true);
+
+        if (!adminUser) {
+            if (name && name === window.myName &&
+                typeof window.openHeroProfileEditor === 'function') {
+                window.openHeroProfileEditor(name);
+                return;
+            }
+
+            if (typeof window.openFriendRoom === 'function') {
+                window.openFriendRoom(name);
+            }
+            return;
+        }
+
+        openDetail(user);
+    }, true);
+
+    document.addEventListener('mouseover', event => {
+        const card = getCard(event.target);
+        if (!card) return;
+        card.style.cursor = 'pointer';
+        card.title = card.title || '클릭하여 용사 상세정보 보기';
+    });
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeDetail();
+    });
+
+    window.openHeroDetail = openDetail;
+    window.closeHeroDetail = closeDetail;
+})();
+
+// 포인트 개별 차등 지급 — 학생 카드 그리드 V6
+(function () {
+    'use strict';
+
+    if (window.__batchStudentCardV6Installed) return;
+    window.__batchStudentCardV6Installed = true;
+
+    const STYLE_ID = 'batch-student-card-v6-style';
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function installCardStyle() {
+        if (document.getElementById(STYLE_ID)) return;
+
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = `
+            body .batch-card-modal-v6 {
+                width: 100% !important;
+                min-width: 0 !important;
+                padding: 4px !important;
+            }
+
+            body .batch-card-modal-v6 .batch-reason-input {
+                width: 100% !important;
+                min-height: 52px !important;
+                margin: 0 0 16px !important;
+                padding: 12px 14px !important;
+                color: #172033 !important;
+                background: #ffffff !important;
+                border: 1px solid #cbd3df !important;
+                border-radius: 11px !important;
+                font-size: 17px !important;
+                font-weight: 650 !important;
+            }
+
+            body .batch-card-modal-v6 .batch-select-tools {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 10px !important;
+                margin-bottom: 14px !important;
+            }
+
+            body .batch-card-modal-v6 .batch-select-tools button {
+                min-height: 48px !important;
+                margin: 0 !important;
+                padding: 10px 14px !important;
+                color: #263b63 !important;
+                background: #eef1f4 !important;
+                border: 1px solid #dce1e8 !important;
+                border-radius: 10px !important;
+                font-size: 16px !important;
+                font-weight: 850 !important;
+                cursor: pointer !important;
+            }
+
+            body .batch-card-modal-v6 .batch-student-grid {
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                align-items: stretch !important;
+                gap: 16px !important;
+                width: 100% !important;
+                max-height: min(55vh, 610px) !important;
+                margin: 0 0 18px !important;
+                padding: 4px 10px 10px 2px !important;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+                scrollbar-gutter: stable !important;
+            }
+
+            body .batch-card-modal-v6 .batch-student-row,
+            body .batch-card-modal-v6 .batch-student-card {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                align-content: start !important;
+                align-items: center !important;
+                gap: 12px !important;
+                width: auto !important;
+                min-width: 0 !important;
+                min-height: 174px !important;
+                margin: 0 !important;
+                padding: 18px !important;
+                color: #172033 !important;
+                background: linear-gradient(145deg, #ffffff 0%, #fffdf7 100%) !important;
+                border: 2px solid #d8dee8 !important;
+                border-top: 5px solid #263b63 !important;
+                border-radius: 17px !important;
+                box-shadow: 0 6px 16px rgba(24, 40, 68, 0.08) !important;
+                transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease !important;
+            }
+
+            body .batch-card-modal-v6 .batch-student-row:hover {
+                transform: translateY(-2px) !important;
+                border-color: #b9a35f !important;
+                box-shadow: 0 10px 22px rgba(24, 40, 68, 0.13) !important;
+            }
+
+            body .batch-card-modal-v6 .batch-student-row.is-selected,
+            body .batch-card-modal-v6 .batch-student-row:has(.batch-student-chk:checked) {
+                background: linear-gradient(145deg, #fffdf7 0%, #fff3c4 100%) !important;
+                border-color: #e1b83f !important;
+                border-top-color: #d6a91d !important;
+                box-shadow: 0 0 0 3px rgba(229, 185, 76, .18), 0 10px 22px rgba(24, 40, 68, .12) !important;
+            }
+
+            body .batch-card-modal-v6 .batch-student-row > .batch-card-student {
+                grid-column: 1 / -1 !important;
+                display: grid !important;
+                grid-template-columns: 27px minmax(0, 1fr) auto !important;
+                align-items: center !important;
+                gap: 10px !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                margin: 0 !important;
+                padding: 0 0 13px !important;
+                border-bottom: 1px solid #e4e7ec !important;
+                cursor: pointer !important;
+            }
+
+            body .batch-card-modal-v6 .batch-student-chk {
+                width: 24px !important;
+                height: 24px !important;
+                min-height: 24px !important;
+                margin: 0 !important;
+                accent-color: #263b63 !important;
+                cursor: pointer !important;
+            }
+
+            body .batch-card-modal-v6 .batch-card-name {
+                min-width: 0 !important;
+                overflow: hidden !important;
+                color: #182844 !important;
+                font-size: 20px !important;
+                font-weight: 900 !important;
+                line-height: 1.3 !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+            }
+
+            body .batch-card-modal-v6 .batch-card-current-point {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                min-height: 30px !important;
+                padding: 4px 10px !important;
+                color: #765b0b !important;
+                background: #fff1b5 !important;
+                border: 1px solid #ecd26e !important;
+                border-radius: 999px !important;
+                font-size: 15px !important;
+                font-weight: 850 !important;
+                white-space: nowrap !important;
+            }
+
+            body .batch-card-modal-v6 .batch-card-field {
+                display: block !important;
+                min-width: 0 !important;
+                margin: 0 !important;
+                color: #566174 !important;
+                font-size: 14px !important;
+                font-weight: 800 !important;
+                line-height: 1.4 !important;
+            }
+
+            body .batch-card-modal-v6 .batch-card-field input {
+                display: block !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                min-height: 52px !important;
+                margin: 6px 0 0 !important;
+                padding: 10px 8px !important;
+                color: #172033 !important;
+                background: #ffffff !important;
+                border: 1px solid #cbd3df !important;
+                border-radius: 10px !important;
+                font-size: 16px !important;
+                font-weight: 750 !important;
+                text-align: center !important;
+            }
+
+            body .batch-card-modal-v6 .batch-card-field input:focus {
+                border-color: #263b63 !important;
+                outline: none !important;
+                box-shadow: 0 0 0 3px rgba(38, 59, 99, .14) !important;
+            }
+
+            body .batch-card-modal-v6 .batch-action-buttons {
+                display: grid !important;
+                grid-template-columns: minmax(140px, 1fr) minmax(240px, 2fr) !important;
+                gap: 10px !important;
+                position: sticky !important;
+                bottom: 0 !important;
+                padding-top: 4px !important;
+                background: #ffffff !important;
+            }
+
+            body .batch-card-modal-v6 .batch-action-buttons button {
+                min-height: 54px !important;
+                margin: 0 !important;
+                border: 0 !important;
+                border-radius: 11px !important;
+                color: #ffffff !important;
+                font-size: 17px !important;
+                font-weight: 900 !important;
+                cursor: pointer !important;
+            }
+
+            body .batch-card-modal-v6 .batch-cancel-btn { background: #8e9da1 !important; }
+            body .batch-card-modal-v6 .batch-submit-btn { background: #22a95b !important; }
+
+            @media (max-width: 980px) {
+                body .batch-card-modal-v6 .batch-student-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                }
+            }
+
+            @media (max-width: 620px) {
+                body .batch-card-modal-v6 .batch-student-grid {
+                    grid-template-columns: 1fr !important;
+                    gap: 12px !important;
+                }
+
+                body .batch-card-modal-v6 .batch-student-row {
+                    min-height: 168px !important;
+                    padding: 16px !important;
+                }
+
+                body .batch-card-modal-v6 .batch-action-buttons {
+                    grid-template-columns: 1fr !important;
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    function setAllCards(checked) {
+        document.querySelectorAll('.batch-card-modal-v6 .batch-student-chk').forEach(checkbox => {
+            checkbox.checked = checked;
+            checkbox.closest('.batch-student-row')?.classList.toggle('is-selected', checked);
+        });
+    }
+
+    window.batchSelectAllCardsV6 = function () {
+        setAllCards(true);
+    };
+
+    window.batchClearAllCardsV6 = function () {
+        setAllCards(false);
+    };
+
+    window.openBatchPointModal = function () {
+        if (typeof isCheckinAdminUser === 'function' && !isCheckinAdminUser()) return;
+
+        installCardStyle();
+
+        const users = Array.isArray(window.currentUsers) ? window.currentUsers : [];
+        const cards = users
+            .filter(user => {
+                const name = user?.name || '';
+                return name && name !== '총사령관' && !name.includes('선생님');
+            })
+            .map(user => {
+                const safeName = escapeHtml(user.name || '');
+                const points = Number.parseInt(user.points, 10) || 0;
+
+                return `
+                    <article class="batch-student-row batch-student-card">
+                        <label class="batch-card-student">
+                            <input type="checkbox" class="batch-student-chk" value="${safeName}">
+                            <span class="batch-card-name">${safeName}</span>
+                            <span class="batch-card-current-point">${points.toLocaleString('ko-KR')}P</span>
+                        </label>
+
+                        <label class="batch-card-field">
+                            포인트(P)
+                            <input type="number" class="batch-p-input" placeholder="0" inputmode="numeric">
+                        </label>
+
+                        <label class="batch-card-field">
+                            경험치(EXP)
+                            <input type="number" class="batch-exp-input" placeholder="0" inputmode="numeric">
+                        </label>
+                    </article>
+                `;
+            })
+            .join('');
+
+        const html = `
+            <div class="batch-card-modal-v6">
+                <input
+                    type="text"
+                    id="batch-reason"
+                    class="batch-reason-input"
+                    placeholder="공통 사유 입력 (예: 모둠 활동 우수)"
+                >
+
+                <div class="batch-select-tools">
+                    <button type="button" onclick="batchSelectAllCardsV6()">전체 선택</button>
+                    <button type="button" onclick="batchClearAllCardsV6()">전체 해제</button>
+                </div>
+
+                <section class="batch-student-grid">
+                    ${cards || '<p style="grid-column:1/-1;padding:40px;text-align:center;color:#7a8495;font-size:17px;">학생이 없습니다.</p>'}
+                </section>
+
+                <div class="batch-action-buttons">
+                    <button type="button" class="batch-cancel-btn" onclick="closePopup()">취소</button>
+                    <button type="button" class="batch-submit-btn" onclick="submitBatchPoints()">선택 학생 반영</button>
+                </div>
+            </div>
+        `;
+
+        openPopup('🎁 포인트 개별 차등 지급', html);
+    };
+
+    document.addEventListener('change', event => {
+        if (!event.target.matches('.batch-card-modal-v6 .batch-student-chk')) return;
+        event.target.closest('.batch-student-row')
+            ?.classList.toggle('is-selected', event.target.checked);
+    });
+})();

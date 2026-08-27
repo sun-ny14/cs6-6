@@ -1340,3 +1340,1853 @@ body .student-profile-no-history {
         max-height: 320px;
     }
 }
+
+/* =========================================================
+   UI REDESIGN V2
+   기존 style.css 맨 아래에 추가
+   기능 변경 없음 / 디자인 오버라이드 전용
+   ========================================================= */
+
+
+/* =========================================================
+   1. DESIGN TOKENS
+   ========================================================= */
+
+:root {
+    --v2-bg: #f7f8fa;
+    --v2-surface: #ffffff;
+    --v2-surface-soft: #f9fafb;
+
+    --v2-text: #191f28;
+    --v2-text-2: #333d4b;
+    --v2-muted: #6b7684;
+    --v2-muted-2: #8b95a1;
+
+    --v2-line: #e5e8eb;
+    --v2-line-soft: #f0f1f3;
+
+    --v2-primary: #3182f6;
+    --v2-primary-hover: #1b64da;
+    --v2-primary-soft: #edf4ff;
+
+    --v2-green: #12b76a;
+    --v2-green-soft: #ecfdf3;
+
+    --v2-orange: #f79009;
+    --v2-orange-soft: #fff7ed;
+
+    --v2-red: #f04438;
+    --v2-red-soft: #fff1f0;
+
+    --v2-radius-sm: 8px;
+    --v2-radius: 12px;
+    --v2-radius-lg: 16px;
+
+    --v2-shadow:
+        0 1px 2px rgba(16, 24, 40, 0.04),
+        0 1px 3px rgba(16, 24, 40, 0.05);
+
+    --v2-shadow-modal:
+        0 24px 48px rgba(16, 24, 40, 0.16);
+}
+
+
+/* =========================================================
+   2. GLOBAL
+   ========================================================= */
+
+html {
+    font-size: 16px !important;
+}
+
+body {
+    color: var(--v2-text) !important;
+    background: var(--v2-bg) !important;
+
+    font-family:
+        Pretendard,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Noto Sans KR",
+        sans-serif !important;
+
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+
+    letter-spacing: -0.015em;
+}
+
+
+/* 제목 */
+
+body h1 {
+    margin-bottom: 24px !important;
+
+    color: var(--v2-text) !important;
+
+    font-size: clamp(28px, 2vw, 34px) !important;
+    font-weight: 750 !important;
+
+    line-height: 1.25 !important;
+    letter-spacing: -0.035em;
+}
+
+body h2 {
+    margin-bottom: 20px !important;
+
+    color: var(--v2-text) !important;
+
+    font-size: clamp(24px, 1.6vw, 30px) !important;
+    font-weight: 750 !important;
+
+    line-height: 1.3 !important;
+    letter-spacing: -0.03em;
+}
+
+body h3 {
+    margin-bottom: 16px !important;
+
+    color: var(--v2-text-2) !important;
+
+    font-size: clamp(19px, 1.2vw, 22px) !important;
+    font-weight: 700 !important;
+
+    line-height: 1.4 !important;
+}
+
+body h4 {
+    font-size: 17px !important;
+    font-weight: 700 !important;
+}
+
+
+/* 일반 텍스트 */
+
+body p,
+body li,
+body label,
+body input,
+body select,
+body textarea,
+body table th,
+body table td {
+    font-size: 16px !important;
+}
+
+
+/* =========================================================
+   3. MAIN LAYOUT
+   ========================================================= */
+
+body #main-app {
+    background: var(--v2-bg) !important;
+}
+
+
+/* =========================================================
+   4. SIDEBAR
+   ========================================================= */
+
+body .sidebar-menu {
+    width: 248px !important;
+    min-width: 248px !important;
+
+    padding: 24px 14px !important;
+
+    gap: 4px !important;
+
+    background: #ffffff !important;
+
+    border-right:
+        1px solid var(--v2-line) !important;
+
+    box-shadow: none !important;
+}
+
+
+/* 사이드바 제목 */
+
+body .sidebar-menu h2 {
+    margin: 2px 10px 22px !important;
+
+    color: var(--v2-text) !important;
+
+    font-size: 21px !important;
+    font-weight: 800 !important;
+
+    text-align: left !important;
+    letter-spacing: -0.04em;
+}
+
+
+/* 사이드 메뉴 버튼 */
+
+body .sidebar-menu button {
+    width: 100% !important;
+
+    min-height: 46px !important;
+
+    padding: 10px 13px !important;
+
+    border: 0 !important;
+    border-radius: 9px !important;
+
+    background: transparent !important;
+    color: var(--v2-muted) !important;
+
+    font-size: 15px !important;
+    font-weight: 600 !important;
+
+    text-align: left !important;
+
+    box-shadow: none !important;
+
+    transition:
+        background-color 0.16s ease,
+        color 0.16s ease !important;
+}
+
+
+body .sidebar-menu button:hover {
+    transform: none !important;
+    filter: none !important;
+
+    color: var(--v2-text-2) !important;
+
+    background: #f2f4f6 !important;
+}
+
+
+body .sidebar-menu button.active {
+    color: #1b64da !important;
+
+    background: var(--v2-primary-soft) !important;
+
+    font-weight: 700 !important;
+}
+
+
+/* 사이드바 접기 버튼 */
+
+body #sidebar-toggle-btn {
+    top: 22px !important;
+    left: 248px !important;
+
+    width: 36px !important;
+    min-width: 36px !important;
+
+    height: 44px !important;
+    min-height: 44px !important;
+
+    color: var(--v2-muted) !important;
+
+    background: #ffffff !important;
+
+    border:
+        1px solid var(--v2-line) !important;
+    border-left: 0 !important;
+
+    border-radius:
+        0 10px 10px 0 !important;
+
+    box-shadow:
+        2px 1px 5px rgba(16, 24, 40, 0.05) !important;
+
+    font-size: 17px !important;
+}
+
+
+body #sidebar-toggle-btn.collapsed {
+    left: 0 !important;
+}
+
+
+/* =========================================================
+   5. MAIN CONTENT
+   ========================================================= */
+
+body .main-content-area {
+    padding:
+        clamp(26px, 3vw, 44px)
+        clamp(24px, 3.5vw, 52px) !important;
+}
+
+
+/* =========================================================
+   6. CARD
+   ========================================================= */
+
+body .card,
+body .checkin-card {
+    margin-bottom: 18px !important;
+
+    padding:
+        clamp(20px, 2vw, 28px) !important;
+
+    background: var(--v2-surface) !important;
+
+    border:
+        1px solid var(--v2-line) !important;
+
+    border-radius:
+        var(--v2-radius-lg) !important;
+
+    box-shadow: var(--v2-shadow) !important;
+}
+
+
+/* =========================================================
+   7. BUTTONS
+   ========================================================= */
+
+body button {
+    min-height: 42px;
+
+    padding: 9px 15px;
+
+    border-radius: 9px !important;
+
+    font-size: 15px !important;
+    font-weight: 650 !important;
+
+    letter-spacing: -0.01em;
+
+    box-shadow: none;
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        transform 0.1s ease !important;
+}
+
+
+body button:hover {
+    filter: brightness(0.98);
+}
+
+
+body button:active {
+    transform: translateY(1px) !important;
+}
+
+
+/* 등교 메인 버튼 */
+
+body #checkin-btn {
+    min-height: 52px !important;
+
+    background: var(--v2-primary) !important;
+    color: #ffffff !important;
+
+    border: 1px solid var(--v2-primary) !important;
+
+    border-radius: 10px !important;
+
+    font-size: 16px !important;
+    font-weight: 700 !important;
+
+    box-shadow: none !important;
+}
+
+
+body #checkin-btn:hover {
+    background: var(--v2-primary-hover) !important;
+    border-color: var(--v2-primary-hover) !important;
+}
+
+
+/* 포인트 적용 */
+
+body #point-apply-btn {
+    background: var(--v2-primary) !important;
+    color: #fff !important;
+
+    border: 0 !important;
+}
+
+
+/* =========================================================
+   8. INPUT
+   ========================================================= */
+
+body input,
+body select,
+body textarea {
+    min-height: 44px !important;
+
+    padding: 10px 13px !important;
+
+    color: var(--v2-text) !important;
+
+    background: #ffffff !important;
+
+    border:
+        1px solid #d1d6db !important;
+
+    border-radius: 9px !important;
+
+    box-shadow: none !important;
+
+    font-size: 15px !important;
+
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease !important;
+}
+
+
+body input:hover,
+body select:hover,
+body textarea:hover {
+    border-color: #b0b8c1 !important;
+}
+
+
+body input:focus,
+body select:focus,
+body textarea:focus {
+    outline: none !important;
+
+    border-color:
+        var(--v2-primary) !important;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(49, 130, 246, 0.12) !important;
+}
+
+
+/* 등교 비밀번호 */
+
+body #checkin-pass {
+    width: 100% !important;
+
+    min-height: 52px !important;
+
+    padding: 11px 16px !important;
+
+    font-size: 18px !important;
+
+    border-radius: 10px !important;
+}
+
+
+/* =========================================================
+   9. HERO / 학생 카드
+   ========================================================= */
+
+body #hero-grid,
+body .hero-grid {
+    gap: 14px !important;
+
+    padding: 0 !important;
+
+    grid-template-columns:
+        repeat(
+            auto-fill,
+            minmax(220px, 1fr)
+        ) !important;
+}
+
+
+body .hero-card,
+body .hero-card-item {
+    min-height: 230px !important;
+
+    padding: 20px 16px !important;
+
+    background: #ffffff !important;
+
+    border:
+        1px solid var(--v2-line) !important;
+
+    border-radius: 14px !important;
+
+    box-shadow: none !important;
+
+    transition:
+        transform 0.16s ease,
+        border-color 0.16s ease,
+        box-shadow 0.16s ease !important;
+}
+
+
+body .hero-card:hover,
+body .hero-card-item:hover {
+    transform: translateY(-2px);
+
+    border-color: #cfd6dd !important;
+
+    box-shadow:
+        0 6px 16px rgba(16, 24, 40, 0.06) !important;
+}
+
+
+body .hero-card h3,
+body .hero-card-item h3 {
+    margin-bottom: 8px !important;
+
+    font-size: 19px !important;
+    font-weight: 750 !important;
+}
+
+
+body .hero-card p,
+body .hero-card-item p {
+    color: var(--v2-muted) !important;
+
+    font-size: 14px !important;
+}
+
+
+/* =========================================================
+   10. POINT GUIDE
+   ========================================================= */
+
+body #guide-list.point-guide-grid {
+    gap: 14px !important;
+}
+
+
+body #guide-list.point-guide-grid > div[style*="display:grid"],
+body #guide-list.point-guide-grid > div[style*="display: grid"] {
+    gap: 14px !important;
+}
+
+
+body #guide-list
+[onclick*="openBulkPointPopup"] {
+    min-height: 190px !important;
+
+    padding: 20px !important;
+
+    background: #fff !important;
+
+    border:
+        1px solid var(--v2-line) !important;
+
+    border-radius: 14px !important;
+
+    box-shadow: none !important;
+
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease !important;
+}
+
+
+body #guide-list
+[onclick*="openBulkPointPopup"]:hover {
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 6px 18px
+        rgba(16, 24, 40, 0.06) !important;
+}
+
+
+/* =========================================================
+   11. CHECK-IN SUB MENU
+   ========================================================= */
+
+body #checkin-sub-menu-container {
+    padding: 4px !important;
+
+    gap: 4px !important;
+
+    background: #f2f4f6;
+
+    border-radius: 11px;
+}
+
+
+body #checkin-sub-menu-container button {
+    flex: 1 1 160px !important;
+
+    min-height: 42px !important;
+
+    margin: 0 !important;
+
+    border: 0 !important;
+
+    border-radius: 8px !important;
+
+    font-size: 15px !important;
+
+    box-shadow: none !important;
+}
+
+
+/* JS가 넣는 #ddd 제거 */
+
+body #checkin-sub-menu-container
+button[style*="background: rgb(221"],
+body #checkin-sub-menu-container
+button[style*="background:#ddd"],
+body #checkin-sub-menu-container
+button[style*="background: #ddd"] {
+    background: transparent !important;
+
+    color: var(--v2-muted) !important;
+}
+
+
+/* JS가 넣는 진한 선택 버튼 */
+
+body #checkin-sub-menu-container
+button[style*="44, 62, 80"],
+body #checkin-sub-menu-container
+button[style*="#2c3e50"] {
+    background: #ffffff !important;
+
+    color: var(--v2-text) !important;
+
+    box-shadow:
+        0 1px 3px
+        rgba(16, 24, 40, 0.08) !important;
+}
+
+
+/* =========================================================
+   12. CHECK-IN GUIDE
+   ========================================================= */
+
+body #checkin-guide {
+    margin: 14px 0 !important;
+
+    padding: 11px 14px !important;
+
+    color: var(--v2-muted) !important;
+
+    background: #f8f9fa !important;
+
+    border:
+        1px solid var(--v2-line) !important;
+
+    border-radius: 9px !important;
+
+    font-size: 14px !important;
+}
+
+
+/* =========================================================
+   13. CHECK-IN SUMMARY KPI
+   ========================================================= */
+
+body #checkin-summary,
+body .checkin-summary-grid {
+    gap: 12px !important;
+}
+
+
+body #checkin-summary > div,
+body .checkin-summary-card {
+    padding: 18px 16px !important;
+
+    text-align: left !important;
+
+    background: #ffffff !important;
+
+    border:
+        1px solid var(--v2-line) !important;
+
+    border-radius: 12px !important;
+
+    box-shadow: none !important;
+}
+
+
+/* 기존 2px 컬러 테두리 제거 */
+
+body #checkin-summary > div:nth-child(1) {
+    border-left:
+        3px solid #98a2b3 !important;
+}
+
+body #checkin-summary > div:nth-child(2) {
+    border-left:
+        3px solid var(--v2-green) !important;
+}
+
+body #checkin-summary > div:nth-child(3) {
+    border-left:
+        3px solid var(--v2-orange) !important;
+}
+
+body #checkin-summary > div:nth-child(4) {
+    border-left:
+        3px solid var(--v2-red) !important;
+}
+
+
+body #checkin-summary > div > div {
+    margin-bottom: 6px;
+
+    color: var(--v2-muted) !important;
+
+    font-size: 13px !important;
+    font-weight: 650 !important;
+}
+
+
+body #checkin-summary strong,
+body .checkin-summary-card strong {
+    display: block;
+
+    margin: 0 !important;
+
+    color: var(--v2-text) !important;
+
+    font-size: 28px !important;
+    font-weight: 750 !important;
+
+    line-height: 1.2;
+}
+
+
+/* =========================================================
+   14. SEAT MAP
+   ========================================================= */
+
+body #seat-map-container {
+    display: grid !important;
+
+    gap: 10px !important;
+
+    padding: 2px !important;
+
+    overflow-x: auto;
+}
+
+
+/* 모든 좌석 기본 */
+
+body #seat-map-container > div {
+    min-height: 100px !important;
+
+    padding: 12px 8px !important;
+
+    border:
+        1px solid var(--v2-line) !important;
+
+    border-radius: 12px !important;
+
+    box-shadow: none !important;
+
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        border-color 0.15s ease !important;
+}
+
+
+body #seat-map-container > div:hover {
+    transform: translateY(-2px) !important;
+
+    box-shadow:
+        0 5px 14px
+        rgba(16, 24, 40, 0.07) !important;
+}
+
+
+/* 정상 */
+
+body #seat-map-container
+> div[style*="background:#ccffcc"],
+body #seat-map-container
+> div[style*="background: #ccffcc"] {
+    background:
+        var(--v2-green-soft) !important;
+
+    border-color:
+        #abefc6 !important;
+
+    color: #067647 !important;
+}
+
+
+/* 지각 */
+
+body #seat-map-container
+> div[style*="background:#ffcccc"],
+body #seat-map-container
+> div[style*="background: #ffcccc"] {
+    background:
+        var(--v2-orange-soft) !important;
+
+    border-color:
+        #fedf89 !important;
+
+    color: #b54708 !important;
+}
+
+
+/* 결석 */
+
+body #seat-map-container
+> div[style*="background:#ffd6d6"],
+body #seat-map-container
+> div[style*="background: #ffd6d6"] {
+    background:
+        var(--v2-red-soft) !important;
+
+    border-color:
+        #fecdca !important;
+
+    color: #b42318 !important;
+}
+
+
+/* 조퇴 */
+
+body #seat-map-container
+> div[style*="background:#ffe0a3"],
+body #seat-map-container
+> div[style*="background: #ffe0a3"] {
+    background: #fffaeb !important;
+
+    border-color: #fedf89 !important;
+
+    color: #b54708 !important;
+}
+
+
+/* 미등교 - 기존 형광 노랑 제거 */
+
+body #seat-map-container
+> div[style*="background:#ffff00"],
+body #seat-map-container
+> div[style*="background: #ffff00"] {
+    background: #f9fafb !important;
+
+    border-color: #dfe3e8 !important;
+
+    color: var(--v2-muted) !important;
+}
+
+
+/* 제외 */
+
+body #seat-map-container
+> div[style*="background:#3498db"],
+body #seat-map-container
+> div[style*="background: #3498db"] {
+    background:
+        var(--v2-primary-soft) !important;
+
+    border-color: #b2ccff !important;
+
+    color: #175cd3 !important;
+}
+
+
+/* 기타 */
+
+body #seat-map-container
+> div[style*="background:#f39c12"],
+body #seat-map-container
+> div[style*="background: #f39c12"] {
+    background: #fff7ed !important;
+
+    border-color: #fed7aa !important;
+
+    color: #b54708 !important;
+}
+
+
+/* 빈 자리 */
+
+body #seat-map-container
+> div[style*="background:#eee"],
+body #seat-map-container
+> div[style*="background: #eee"] {
+    background: #ffffff !important;
+
+    border:
+        1px dashed #d9dee3 !important;
+}
+
+
+/* 좌석 안 이름 */
+
+body #seat-map-container > div > div {
+    color: inherit !important;
+
+    font-size:
+        clamp(17px, 1.5vw, 22px) !important;
+
+    font-weight: 750 !important;
+
+    letter-spacing: -0.025em;
+}
+
+
+/* =========================================================
+   15. CHECK-IN LOG
+   ========================================================= */
+
+body #checkin-log-list {
+    overflow: hidden;
+
+    background: #ffffff;
+
+    border:
+        1px solid var(--v2-line);
+
+    border-radius: 12px;
+}
+
+
+body #checkin-log-list > div {
+    padding: 13px 16px !important;
+
+    border-bottom:
+        1px solid var(--v2-line-soft) !important;
+
+    font-size: 14px !important;
+}
+
+
+body #checkin-log-list > div:last-child {
+    border-bottom: 0 !important;
+}
+
+
+body #checkin-log-list small {
+    color: var(--v2-muted) !important;
+
+    font-size: 13px !important;
+}
+
+
+/* =========================================================
+   16. TABLE
+   ========================================================= */
+
+body .checkin-log-table-wrap {
+    overflow: hidden;
+
+    border:
+        1px solid var(--v2-line) !important;
+
+    border-radius: 12px !important;
+
+    box-shadow: none !important;
+}
+
+
+body .checkin-log-table th {
+    padding: 12px 14px !important;
+
+    color: var(--v2-muted) !important;
+
+    background: #f9fafb !important;
+
+    font-size: 13px !important;
+    font-weight: 650 !important;
+
+    border-bottom:
+        1px solid var(--v2-line) !important;
+}
+
+
+body .checkin-log-table td {
+    padding: 13px 14px !important;
+
+    color: var(--v2-text-2) !important;
+
+    background: #ffffff;
+
+    font-size: 14px !important;
+
+    border-bottom:
+        1px solid var(--v2-line-soft) !important;
+}
+
+
+/* =========================================================
+   17. INVENTORY / HISTORY / LIST
+   ========================================================= */
+
+body .inv-section .list {
+    background: #ffffff !important;
+
+    border:
+        1px solid var(--v2-line) !important;
+
+    border-radius: 12px !important;
+}
+
+
+body #point-history-list > div {
+    padding: 13px 15px !important;
+
+    border-bottom:
+        1px solid var(--v2-line-soft) !important;
+}
+
+
+body #point-history-list span {
+    font-size: 14px !important;
+}
+
+
+/* =========================================================
+   18. MODAL
+   ========================================================= */
+
+body .overlay {
+    background:
+        rgba(15, 23, 42, 0.38) !important;
+
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
+}
+
+
+body .overlay > .popup-box {
+    width: min(94vw, 760px) !important;
+
+    padding:
+        clamp(22px, 2.5vw, 32px) !important;
+
+    background: #ffffff !important;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.85) !important;
+
+    border-radius: 16px !important;
+
+    box-shadow:
+        var(--v2-shadow-modal) !important;
+}
+
+
+/* 모달 제목 */
+
+body .overlay .popup-box h2,
+body #point-pop-title,
+body #pop-title {
+    margin-bottom: 20px !important;
+
+    font-size: 24px !important;
+    font-weight: 750 !important;
+
+    text-align: left !important;
+
+    letter-spacing: -0.03em;
+}
+
+
+body #pop-content,
+body #point-pop-body {
+    color: var(--v2-text-2) !important;
+
+    font-size: 15px !important;
+}
+
+
+/* 모달 내부 지나치게 큰 글씨 방지 */
+
+body .overlay p,
+body .overlay label,
+body .overlay span,
+body .overlay input,
+body .overlay select,
+body .overlay textarea,
+body .overlay button,
+body .overlay table th,
+body .overlay table td {
+    font-size: 15px !important;
+}
+
+
+/* =========================================================
+   19. BATCH STUDENT
+   ========================================================= */
+
+body .batch-student-row {
+    min-height: 58px !important;
+
+    padding: 10px 12px !important;
+
+    background: #f9fafb !important;
+
+    border:
+        1px solid var(--v2-line) !important;
+
+    border-radius: 10px !important;
+
+    font-size: 14px !important;
+}
+
+
+/* =========================================================
+   20. LOGIN
+   ========================================================= */
+
+body #login-screen {
+    background:
+        linear-gradient(
+            145deg,
+            #f7f9fc 0%,
+            #f4f7fb 50%,
+            #eef4ff 100%
+        ) !important;
+}
+
+
+body .login-box {
+    width: min(90vw, 480px) !important;
+
+    padding:
+        clamp(30px, 5vw, 46px) !important;
+
+    background:
+        rgba(255, 255, 255, 0.96) !important;
+
+    border:
+        1px solid rgba(229, 232, 235, 0.9);
+
+    border-radius: 18px !important;
+
+    box-shadow:
+        0 16px 40px
+        rgba(16, 24, 40, 0.10) !important;
+}
+
+
+/* =========================================================
+   21. FLOATING BUTTON
+   ========================================================= */
+
+body #floating-point-btn-box button,
+body #floating-batch-btn {
+    width: 58px !important;
+    min-width: 58px !important;
+
+    height: 58px !important;
+
+    border-radius: 16px !important;
+
+    font-size: 24px !important;
+
+    box-shadow:
+        0 8px 20px
+        rgba(16, 24, 40, 0.12) !important;
+}
+
+
+/* =========================================================
+   22. SCROLLBAR
+   ========================================================= */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+
+::-webkit-scrollbar-thumb {
+    background: #c7cdd4;
+
+    border: 2px solid transparent;
+
+    border-radius: 999px;
+
+    background-clip: padding-box;
+}
+
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+
+/* =========================================================
+   23. FOCUS
+   ========================================================= */
+
+body button:focus-visible,
+body input:focus-visible,
+body select:focus-visible,
+body textarea:focus-visible {
+    outline:
+        2px solid
+        rgba(49, 130, 246, 0.45) !important;
+
+    outline-offset: 2px;
+}
+
+
+/* =========================================================
+   24. RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1200px) {
+
+    body .sidebar-menu {
+        width: 220px !important;
+        min-width: 220px !important;
+    }
+
+    body #sidebar-toggle-btn {
+        left: 220px !important;
+    }
+
+    body #sidebar-toggle-btn.collapsed {
+        left: 0 !important;
+    }
+
+}
+
+
+@media (max-width: 900px) {
+
+    body .sidebar-menu {
+        width: 210px !important;
+        min-width: 210px !important;
+
+        padding:
+            20px 10px !important;
+    }
+
+    body #sidebar-toggle-btn {
+        left: 210px !important;
+    }
+
+    body #sidebar-toggle-btn.collapsed {
+        left: 0 !important;
+    }
+
+    body .main-content-area {
+        padding:
+            24px 18px !important;
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    html {
+        font-size: 15px !important;
+    }
+
+    body {
+        font-size: 15px !important;
+    }
+
+    body .sidebar-menu {
+        width: min(80vw, 260px) !important;
+        min-width: min(80vw, 260px) !important;
+
+        padding:
+            22px 12px !important;
+
+        box-shadow:
+            8px 0 24px
+            rgba(16, 24, 40, 0.12) !important;
+    }
+
+    body #sidebar-toggle-btn {
+        left: min(80vw, 260px) !important;
+    }
+
+    body #sidebar-toggle-btn.collapsed {
+        left: 0 !important;
+    }
+
+    body .main-content-area {
+        padding:
+            18px 12px !important;
+    }
+
+    body .card,
+    body .checkin-card {
+        padding:
+            18px 14px !important;
+
+        border-radius:
+            13px !important;
+    }
+
+    body #hero-grid,
+    body .hero-grid {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            ) !important;
+    }
+
+    body .hero-card,
+    body .hero-card-item {
+        min-height:
+            190px !important;
+
+        padding:
+            14px 10px !important;
+    }
+
+    body #checkin-summary,
+    body .checkin-summary-grid {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            ) !important;
+    }
+
+    body .overlay > .popup-box {
+        width: 96vw !important;
+
+        padding:
+            20px 16px !important;
+
+        border-radius:
+            14px !important;
+    }
+
+}
+
+
+@media (max-width: 470px) {
+
+    body #hero-grid,
+    body .hero-grid {
+        grid-template-columns:
+            1fr !important;
+    }
+
+    body #checkin-summary,
+    body .checkin-summary-grid {
+        grid-template-columns:
+            1fr 1fr !important;
+    }
+
+}
+
+
+/* =========================================================
+   UI READABILITY + HERO THEME PATCH V3
+   이 구간은 반드시 style.css의 가장 마지막에 둡니다.
+   기능 코드는 건드리지 않고 V2의 작은 글자와 팝업 겹침만 교정합니다.
+   ========================================================= */
+
+:root {
+    --hero-ink: #172033;
+    --hero-navy: #263b63;
+    --hero-navy-deep: #182844;
+    --hero-gold: #e5b94c;
+    --hero-gold-soft: #fff4ce;
+    --hero-parchment: #fffdf7;
+    --hero-line: #d9dee8;
+    --hero-muted: #566174;
+}
+
+/* 전체 기본 글자 — 16px로 다시 작아지던 V2 규칙 교정 */
+html,
+body {
+    font-size: 18px !important;
+}
+
+body {
+    color: var(--hero-ink) !important;
+    line-height: 1.62 !important;
+}
+
+body p,
+body li,
+body label,
+body span,
+body input,
+body select,
+body textarea,
+body table th,
+body table td {
+    font-size: 17px !important;
+    line-height: 1.55 !important;
+}
+
+body h1 {
+    font-size: clamp(34px, 2.35vw, 42px) !important;
+}
+
+body h2 {
+    font-size: clamp(28px, 1.9vw, 35px) !important;
+}
+
+body h3 {
+    font-size: clamp(22px, 1.45vw, 27px) !important;
+}
+
+body h4 {
+    font-size: 20px !important;
+}
+
+body button,
+body .sidebar-menu button {
+    font-size: 17px !important;
+    font-weight: 750 !important;
+}
+
+body input,
+body select,
+body textarea {
+    min-height: 50px !important;
+}
+
+body input::placeholder,
+body textarea::placeholder {
+    color: #788396 !important;
+    opacity: 1 !important;
+}
+
+/* 사이드바 토글이 팝업 위로 비쳐 나오지 않도록 계층 교정 */
+body #sidebar-toggle-btn {
+    z-index: 200 !important;
+}
+
+body .overlay,
+body #common-overlay,
+body #point-popup {
+    z-index: 10000 !important;
+}
+
+/* 개별 차등 지급창 — 하나의 완결된 창처럼 표시 */
+body #common-overlay:has(.batch-student-row) {
+    padding: 24px !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+body #common-overlay:has(.batch-student-row) > .popup-box {
+    width: min(94vw, 980px) !important;
+    max-width: 980px !important;
+    max-height: 92vh !important;
+    padding: clamp(26px, 3vw, 38px) !important;
+    overflow: hidden !important;
+    background: var(--hero-parchment) !important;
+    border: 1px solid #d8c995 !important;
+    border-top: 7px solid var(--hero-navy) !important;
+    border-radius: 20px !important;
+}
+
+body #common-overlay:has(.batch-student-row) > .popup-box > h2 {
+    margin: 0 0 22px !important;
+    color: var(--hero-navy-deep) !important;
+    font-size: clamp(27px, 2vw, 34px) !important;
+    font-weight: 850 !important;
+}
+
+body #common-overlay:has(.batch-student-row) #pop-content,
+body #common-overlay:has(.batch-student-row) #point-pop-body {
+    max-height: calc(92vh - 120px) !important;
+    overflow: hidden !important;
+    color: var(--hero-ink) !important;
+    font-size: 17px !important;
+}
+
+/* 팝업 안에 이미 취소/반영 버튼이 있으므로 공통 팝업의 중복 닫기 버튼 제거 */
+body #common-overlay:has(.batch-student-row)
+> .popup-box
+> button:last-child {
+    display: none !important;
+}
+
+body #common-overlay:has(.batch-student-row) .batch-student-row {
+    min-height: 76px !important;
+    padding: 14px 16px !important;
+    background: #ffffff !important;
+    border: 1px solid var(--hero-line) !important;
+    border-radius: 13px !important;
+    font-size: 17px !important;
+}
+
+body #common-overlay:has(.batch-student-row) .batch-student-row:hover {
+    border-color: #b9a35f !important;
+    box-shadow: 0 4px 13px rgba(24, 40, 68, 0.08) !important;
+}
+
+body #common-overlay:has(.batch-student-row) .batch-student-row,
+body #common-overlay:has(.batch-student-row) .batch-student-row * {
+    font-size: 17px !important;
+}
+
+body #common-overlay:has(.batch-student-row) .batch-student-row input {
+    min-height: 48px !important;
+    font-size: 17px !important;
+}
+
+/* 팝업 안 학생 목록만 스크롤하고 하단 실행 버튼은 계속 보이도록 */
+body #common-overlay:has(.batch-student-row)
+div[style*="overflow-y:auto"],
+body #common-overlay:has(.batch-student-row)
+div[style*="overflow-y: auto"] {
+    max-height: min(48vh, 520px) !important;
+    scrollbar-gutter: stable !important;
+}
+
+/* 용사 목록 — 행정 카드보다 모험가 명부에 가까운 시각 언어 */
+body #hero-grid,
+body .hero-grid {
+    gap: 20px !important;
+}
+
+body .hero-card,
+body .hero-card-item {
+    position: relative !important;
+    isolation: isolate;
+    min-height: 255px !important;
+    padding: 24px 20px !important;
+    overflow: hidden !important;
+    background:
+        linear-gradient(145deg, #ffffff 0%, var(--hero-parchment) 72%, var(--hero-gold-soft) 100%) !important;
+    border: 1px solid #d8c995 !important;
+    border-top: 5px solid var(--hero-navy) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 22px rgba(24, 40, 68, 0.10) !important;
+}
+
+body .hero-card::before,
+body .hero-card-item::before {
+    content: "⚔";
+    position: absolute;
+    z-index: -1;
+    top: 10px;
+    right: 14px;
+    color: rgba(229, 185, 76, 0.28);
+    font-size: 38px !important;
+    line-height: 1 !important;
+}
+
+body .hero-card:hover,
+body .hero-card-item:hover {
+    transform: translateY(-5px) !important;
+    border-color: #c9ad5f !important;
+    box-shadow: 0 15px 32px rgba(24, 40, 68, 0.16) !important;
+}
+
+body .hero-card h3,
+body .hero-card-item h3 {
+    color: var(--hero-navy-deep) !important;
+    font-size: 23px !important;
+    font-weight: 850 !important;
+}
+
+body .hero-card p,
+body .hero-card-item p,
+body .hero-card span,
+body .hero-card-item span {
+    color: var(--hero-muted) !important;
+    font-size: 16px !important;
+    line-height: 1.55 !important;
+}
+
+/* 작게 고정되어 있던 로그·표·도감 텍스트 가독성 보정 */
+body #checkin-log-list > div,
+body #checkin-log-list small,
+body .checkin-log-table th,
+body .checkin-log-table td,
+body #point-history-list span,
+body #guide-list [onclick*="openBulkPointPopup"] * {
+    font-size: 16px !important;
+}
+
+@media (max-width: 700px) {
+    html,
+    body {
+        font-size: 17px !important;
+    }
+
+    body p,
+    body li,
+    body label,
+    body span,
+    body input,
+    body select,
+    body textarea,
+    body button {
+        font-size: 16px !important;
+    }
+
+    body #common-overlay:has(.batch-student-row) {
+        padding: 10px !important;
+    }
+
+    body #common-overlay:has(.batch-student-row) > .popup-box {
+        width: 97vw !important;
+        max-height: 95vh !important;
+        padding: 22px 16px !important;
+    }
+
+    body #common-overlay:has(.batch-student-row) .batch-student-row,
+    body #common-overlay:has(.batch-student-row) .batch-student-row * {
+        font-size: 16px !important;
+    }
+}
+
+
+/* =========================================================
+   STUDENT CARD GRID PATCH V4
+   개별 차등 지급 명단을 학생별 독립 카드로 표시
+   ========================================================= */
+
+body #common-overlay:has(.batch-student-grid) > .popup-box {
+    width: min(96vw, 1120px) !important;
+    max-width: 1120px !important;
+}
+
+body #common-overlay .batch-student-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+    max-height: min(54vh, 610px) !important;
+    margin: 12px 0 20px !important;
+    padding: 8px 10px 12px 2px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-gutter: stable !important;
+}
+
+body #common-overlay .batch-student-grid > .batch-student-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-content: start !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-width: 0 !important;
+    min-height: 170px !important;
+    margin: 0 !important;
+    padding: 18px !important;
+    background:
+        linear-gradient(145deg, #ffffff 0%, #fffdf7 100%) !important;
+    border: 2px solid #d8dee8 !important;
+    border-top: 5px solid var(--hero-navy) !important;
+    border-radius: 17px !important;
+    box-shadow: 0 6px 16px rgba(24, 40, 68, 0.08) !important;
+    cursor: default;
+    transition:
+        transform 0.16s ease,
+        border-color 0.16s ease,
+        background 0.16s ease,
+        box-shadow 0.16s ease !important;
+}
+
+body #common-overlay .batch-student-grid > .batch-student-row:hover {
+    transform: translateY(-3px) !important;
+    border-color: #b9a35f !important;
+    box-shadow: 0 10px 22px rgba(24, 40, 68, 0.13) !important;
+}
+
+/* 체크된 학생은 카드 전체를 강조해서 대상 확인이 쉽도록 표시 */
+body #common-overlay .batch-student-grid
+> .batch-student-row:has(.batch-student-chk:checked) {
+    background:
+        linear-gradient(145deg, #fffdf7 0%, var(--hero-gold-soft) 100%) !important;
+    border-color: var(--hero-gold) !important;
+    border-top-color: var(--hero-gold) !important;
+    box-shadow:
+        0 0 0 3px rgba(229, 185, 76, 0.20),
+        0 10px 24px rgba(24, 40, 68, 0.13) !important;
+}
+
+body #common-overlay .batch-student-grid
+> .batch-student-row > label {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: 26px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid #e4e7ec !important;
+    color: var(--hero-navy-deep) !important;
+    cursor: pointer !important;
+}
+
+body #common-overlay .batch-student-grid .batch-student-chk {
+    width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    margin: 0 !important;
+    accent-color: var(--hero-navy) !important;
+    cursor: pointer !important;
+}
+
+/* 학생 이름 */
+body #common-overlay .batch-student-grid
+> .batch-student-row > label > span:nth-of-type(1) {
+    overflow: hidden !important;
+    color: var(--hero-navy-deep) !important;
+    font-size: 20px !important;
+    font-weight: 850 !important;
+    line-height: 1.3 !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+}
+
+/* 현재 포인트 배지 */
+body #common-overlay .batch-student-grid
+> .batch-student-row > label > span:nth-of-type(2) {
+    display: inline-flex !important;
+    min-height: 30px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 3px 10px !important;
+    color: #765b0b !important;
+    background: var(--hero-gold-soft) !important;
+    border: 1px solid #ead487 !important;
+    border-radius: 999px !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+}
+
+body #common-overlay .batch-student-grid .batch-p-input,
+body #common-overlay .batch-student-grid .batch-exp-input {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 52px !important;
+    margin: 0 !important;
+    padding: 10px 8px !important;
+    color: var(--hero-ink) !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd3df !important;
+    border-radius: 10px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+}
+
+body #common-overlay .batch-student-grid .batch-p-input:focus,
+body #common-overlay .batch-student-grid .batch-exp-input:focus {
+    border-color: var(--hero-navy) !important;
+    box-shadow: 0 0 0 3px rgba(38, 59, 99, 0.14) !important;
+}
+
+@media (max-width: 980px) {
+    body #common-overlay .batch-student-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 620px) {
+    body #common-overlay .batch-student-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    body #common-overlay .batch-student-grid > .batch-student-row {
+        min-height: 160px !important;
+        padding: 16px !important;
+    }
+}
+
+
+/* =========================================================
+   POINT GUIDE MULTI-COLUMN PATCH V5
+   중간 래퍼 유무와 관계없이 포인트 도감을 가로 카드로 배치
+   ========================================================= */
+
+body #tab-points,
+body #tab-points > .card,
+body #guide-list {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+body #guide-list {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 18px !important;
+    padding: 4px !important;
+}
+
+/* point-guide.js가 카드들을 내부 div로 한 번 더 감싸는 경우 */
+body #guide-list > div:has([onclick*="openBulkPointPopup"]) {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 18px !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+/* 실제 도감 카드 */
+body #guide-list [onclick*="openBulkPointPopup"] {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 265px !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background:
+        linear-gradient(145deg, #ffffff 0%, #fffdf7 100%) !important;
+    border: 1px solid #d8dee8 !important;
+    border-top: 5px solid var(--hero-navy) !important;
+    border-radius: 17px !important;
+    box-shadow: 0 7px 18px rgba(24, 40, 68, 0.08) !important;
+    box-sizing: border-box !important;
+}
+
+body #guide-list [onclick*="openBulkPointPopup"]:hover {
+    transform: translateY(-4px) !important;
+    border-color: #c9ad5f !important;
+    box-shadow: 0 12px 26px rgba(24, 40, 68, 0.14) !important;
+}
+
+body #guide-list [onclick*="openBulkPointPopup"] > div:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+
+body #guide-list [onclick*="openBulkPointPopup"] button {
+    min-width: 0 !important;
+    min-height: 46px !important;
+    padding: 10px 12px !important;
+    font-size: 16px !important;
+}
+
+/* 수정/삭제 버튼 영역은 항상 카드 하단에 정렬 */
+body #guide-list [onclick*="openBulkPointPopup"]
+> div:last-child:has(button) {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin-top: 14px !important;
+}
+
+@media (max-width: 1450px) {
+    body #guide-list,
+    body #guide-list > div:has([onclick*="openBulkPointPopup"]) {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 980px) {
+    body #guide-list,
+    body #guide-list > div:has([onclick*="openBulkPointPopup"]) {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+    }
+}
+
+@media (max-width: 560px) {
+    body #guide-list,
+    body #guide-list > div:has([onclick*="openBulkPointPopup"]) {
+        grid-template-columns: 1fr !important;
+    }
+}
