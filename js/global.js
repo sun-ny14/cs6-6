@@ -1791,15 +1791,15 @@ window.closePointPopup=function(){
                             <span class="batch-card-current-point">${points.toLocaleString('ko-KR')}P</span>
                         </label>
 
-                        <label class="batch-card-field">
-                            포인트(P)
-                            <input type="number" class="batch-p-input" placeholder="0" inputmode="numeric">
-                        </label>
+                      <label class="batch-card-field">
+    <span>P:</span>
+    <input type="number" class="batch-p-input" placeholder="0" inputmode="numeric">
+</label>
 
-                        <label class="batch-card-field">
-                            경험치(EXP)
-                            <input type="number" class="batch-exp-input" placeholder="0" inputmode="numeric">
-                        </label>
+<label class="batch-card-field">
+    <span>EXP:</span>
+    <input type="number" class="batch-exp-input" placeholder="0" inputmode="numeric">
+</label>
                     </article>
                 `;
             })
