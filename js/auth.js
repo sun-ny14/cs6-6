@@ -1,123 +1,246 @@
-// js/auth.js - 로그인, 권한 인증 및 사용자 정보 팝업 통합 관리 파일
+// js/auth.js
 
-const DEV_MODE = false; 
+const DEV_MODE=false;
 
-function handleLogin() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch((error) => {
-        console.error("로그인 에러:", error);
-        alert("로그인에 실패했습니다. 다시 시도해 주세요.");
+function handleLogin(){
+    const provider=new firebase.auth.GoogleAuthProvider();
+
+    auth.signInWithPopup(provider).catch(error=>{
+        console.error('로그인 오류:',error);
+        alert('로그인에 실패했습니다.');
     });
 }
 
-// 1. 인증 상태 변화 감지 및 로그인 처리
-auth.onAuthStateChanged(user => {
-    const loginScreen = document.getElementById('login-screen');
-    const loadingScreen = document.getElementById('loading-screen');
-    const mainApp = document.getElementById('main-app');
-    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-
-    if (DEV_MODE) return; 
-
-    if (user) {
-        isAdmin = (user.email === adminEmail);
-        db.ref('userEmails/' + user.email.replace(/\./g, ',')).once('value', snap => {
-            if (snap.exists() || isAdmin) {
-                myName = snap.val() || "총사령관";
-                
-                db.ref('users/' + myName).once('value', uSnap => {
-                    const helperValue = uSnap.val()?.isHelper;
-
-// boolean true 또는 문자열 "true"만 도우미로 인정
-isHelper =
-    helperValue === true ||
-    helperValue === 'true';
-
-window.myName = myName;
-window.isAdmin = isAdmin;
-window.isHelper = isHelper;
-
-// 로그인할 때마다 관리자 메뉴 표시 상태 초기화
-const adminOnlyMenuIds = [
-    'btn-logs',
-    'btn-admin',
-    'btn-budget',
-    'btn-management',
-    'btn-blackboard-admin',
-    'btn-cleaning',
-    'floating-point-btn',
-    'floating-multi-btn'
-];
-
-adminOnlyMenuIds.forEach(id=>{
+function setMenuVisible(id,visible,displayType='block'){
     const element=document.getElementById(id);
 
-    if(element){
-        element.style.display=
-            isAdmin
-                ?'block'
-                :'none';
-    }
-});
-                    
-                    if (typeof forceScreenDisplay === 'function') {
-                        forceScreenDisplay('app');
-                    } else {
-                        if (loginScreen) loginScreen.style.display = 'none';
-                        if (loadingScreen) loadingScreen.style.display = 'none';
-                        if (mainApp) mainApp.style.display = 'flex';
-                    }
+    if(!element)return;
 
-                    if (sidebarToggleBtn) sidebarToggleBtn.style.display = 'block';
+    element.hidden=!visible;
 
-                    if (isAdmin || isHelper) {
-                        const orderMgr = document.getElementById('admin-order-mgr');
-                        if (orderMgr) orderMgr.style.display = 'block';
-                    }
+    element.style.setProperty(
+        'display',
+        visible ? displayType : 'none',
+        'important'
+    );
+}
 
-                    if (isAdmin) {
-                        // 💡 [수정] 학급관리 버튼('btn-management') 및 관리자 전용 메뉴들이 확실히 뜨도록 추가!
-                        ['btn-logs', 'btn-admin', 'btn-budget', 'btn-management', 'btn-blackboard-admin', 'btn-cleaning', 'floating-point-btn', 'floating-multi-btn'].forEach(id => {
-                            const el = document.getElementById(id);
-                            if (el) el.style.display = 'block';
-                        });
+function applyAccessControl(){
+    const admin=window.isAdmin===true;
+    const role=window.currentUser?.role||'';
 
-                        const myInv = document.getElementById('my-inventory');
-                        if (myInv) myInv.style.display = 'none';
-                    }
-                    
-                    if (typeof startApp === 'function') startApp(); 
-                    
-                    // 💡 [수정] 로그인 직후 무조건 '용사들' 탭('main')이 뜨도록 강제 설정하여 흰 바탕 문제 원천 차단
-                    if (typeof showTab === 'function') {
-                        showTab('main');
-                    }
-                });
-            } else { 
-                alert("미등록 용사입니다!"); 
-                auth.signOut(); 
-            }
-        });
-    } else { 
-        window.appStarted = false;
-        if (typeof forceScreenDisplay === 'function') {
-            forceScreenDisplay('login');
-        } else {
-            if (loginScreen) loginScreen.style.display = 'flex';
-            if (loadingScreen) loadingScreen.style.display = 'none';
-            if (mainApp) mainApp.style.display = 'none';
+    // 관리자 전용 메뉴
+    [
+        'btn-logs',
+        'btn-budget',
+        'btn-management',
+        'btn-blackboard-admin',
+        'btn-admin',
+        'floating-point-btn',
+        'floating-multi-btn'
+    ].forEach(id=>{
+        setMenuVisible(id,admin);
+    });
+
+    // 상점 주문 관리
+    setMenuVisible(
+        'admin-order-mgr',
+        admin
+    );
+
+    // 등교로그 및 좌석
+    setMenuVisible(
+        'sub-btn-checkin-logs',
+        admin
+    );
+
+    // 청소 메뉴는 관리자 또는 청소 역할 학생만
+    setMenuVisible(
+        'btn-cleaning',
+        admin||role==='청소'
+    );
+
+    // 관리자에게는 학생용 보관함 숨김
+    setMenuVisible(
+        'my-inventory',
+        !admin
+    );
+}
+
+window.applyAccessControl=applyAccessControl;
+
+auth.onAuthStateChanged(async user=>{
+    const loginScreen=document.getElementById('login-screen');
+    const loadingScreen=document.getElementById('loading-screen');
+    const mainApp=document.getElementById('main-app');
+    const sidebarToggleBtn=document.getElementById(
+        'sidebar-toggle-btn'
+    );
+
+    if(DEV_MODE)return;
+
+    if(!user){
+        window.myName='';
+        window.isAdmin=false;
+        window.isHelper=false;
+        window.currentUser=null;
+        window.appStarted=false;
+
+        applyAccessControl();
+
+        if(loginScreen){
+            loginScreen.style.setProperty(
+                'display',
+                'flex',
+                'important'
+            );
         }
-        if (sidebarToggleBtn) sidebarToggleBtn.style.display = 'none'; 
+
+        if(loadingScreen){
+            loadingScreen.style.setProperty(
+                'display',
+                'none',
+                'important'
+            );
+        }
+
+        if(mainApp){
+            mainApp.style.setProperty(
+                'display',
+                'none',
+                'important'
+            );
+        }
+
+        if(sidebarToggleBtn){
+            sidebarToggleBtn.style.setProperty(
+                'display',
+                'none',
+                'important'
+            );
+        }
+
+        return;
+    }
+
+    try{
+        const loginEmail=String(user.email||'')
+            .trim()
+            .toLowerCase();
+
+        const savedAdminEmail=String(adminEmail||'')
+            .trim()
+            .toLowerCase();
+
+        const admin=
+            loginEmail===savedAdminEmail;
+
+        const emailKey=
+            loginEmail.replace(/\./g,',');
+
+        const emailSnapshot=
+            await db.ref(
+                `userEmails/${emailKey}`
+            ).once('value');
+
+        if(!emailSnapshot.exists()&&!admin){
+            alert('미등록 용사입니다.');
+            await auth.signOut();
+            return;
+        }
+
+        const studentName=
+            emailSnapshot.val()||
+            '총사령관';
+
+        const userSnapshot=
+            await db.ref(
+                `users/${studentName}`
+            ).once('value');
+
+        const userData=
+            userSnapshot.val()||{};
+
+        window.myName=studentName;
+        window.isAdmin=admin;
+
+        window.isHelper=
+            userData.isHelper===true||
+            userData.isHelper==='true';
+
+        window.currentUser={
+            ...userData,
+            name:userData.name||studentName
+        };
+
+        // 로그인할 때마다 권한 다시 적용
+        applyAccessControl();
+
+        if(loginScreen){
+            loginScreen.style.setProperty(
+                'display',
+                'none',
+                'important'
+            );
+        }
+
+        if(loadingScreen){
+            loadingScreen.style.setProperty(
+                'display',
+                'none',
+                'important'
+            );
+        }
+
+        if(mainApp){
+            mainApp.style.setProperty(
+                'display',
+                'flex',
+                'important'
+            );
+        }
+
+        if(sidebarToggleBtn){
+            sidebarToggleBtn.style.setProperty(
+                'display',
+                'flex',
+                'important'
+            );
+        }
+
+        if(typeof startApp==='function'){
+            startApp();
+        }
+
+        // startApp 실행 후 다시 한번 권한 적용
+        applyAccessControl();
+
+        if(typeof showTab==='function'){
+            showTab('main');
+        }
+
+    }catch(error){
+        console.error('로그인 정보 처리 오류:',error);
+        alert('로그인 정보를 불러오지 못했습니다.');
     }
 });
 
-// 이전 카드 코드가 호출하던 이름을 현재 프로필 기능으로 연결합니다.
-window.openUserHistory = function(userName) {
-    if (window.isAdmin && typeof openStudentProfile === 'function') {
+window.openUserHistory=function(userName){
+    if(
+        window.isAdmin===true&&
+        typeof openStudentProfile==='function'
+    ){
         openStudentProfile(userName);
-    } else if (userName === window.myName && typeof openOwnStudentProfile === 'function') {
+
+    }else if(
+        userName===window.myName&&
+        typeof openOwnStudentProfile==='function'
+    ){
         openOwnStudentProfile(userName);
-    } else if (typeof openFriendRoom === 'function') {
+
+    }else if(
+        typeof openFriendRoom==='function'
+    ){
         openFriendRoom(userName);
     }
 };
