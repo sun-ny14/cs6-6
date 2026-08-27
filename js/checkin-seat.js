@@ -494,12 +494,29 @@ window.submitCheckin=async function(
 
 
         // ======================================
-        // 출결 + 포인트 한 번에 저장
-        // ======================================
+// 일반 학생 직접 등교 시 권한 제한 경로 제외
+// ======================================
 
-        await db.ref().update(
-            updates
-        );
+const isDirectStudentCheckin =
+    source === 'qr' &&
+    !(
+        typeof isCheckinAdminUser === 'function' &&
+        isCheckinAdminUser()
+    );
+
+if(isDirectStudentCheckin){
+    Object.keys(updates).forEach(path=>{
+        if(
+            path.startsWith('pointLogs/') ||
+            path.startsWith(`pointHistory/${user}/`)
+        ){
+            delete updates[path];
+        }
+    });
+}
+
+// 등교 기록과 학생 포인트 저장
+await db.ref().update(updates);
 
 
         if(
