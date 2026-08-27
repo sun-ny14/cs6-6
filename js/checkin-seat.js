@@ -61,164 +61,498 @@ window.refreshCheckinGuide=async function(settings){
     }
 };
 
-window.submitCheckIn=async function(){
-    if(window.isCheckingIn)return;
-
-    const passInput=document.getElementById('checkin-pass');
-    const password=passInput?passInput.value.trim():'';
-    if(!/^\d{4}$/.test(password)){
-        return alert('오늘의 등교 암호 4자리를 입력해 주세요.');
+window.submitCheckin=async function(
+    user,
+    reason,
+    options={}
+){
+    if(!user){
+        return null;
     }
 
-    if(!window.myName){
-        return alert('로그인 정보를 확인할 수 없습니다. 다시 로그인해 주세요.');
+    const today=
+        checkinGetToday();
+
+    const now=
+        new Date();
+
+    // ==========================================
+    // 출결 상태 판정
+    // ==========================================
+
+    let category=reason;
+
+    if(reason.includes('정상')){
+
+        category='정상';
+
+    }else if(reason.includes('지각')){
+
+        category='지각';
+
+    }else if(reason.includes('결석')){
+
+        category='결석';
+
+    }else if(reason.includes('조퇴')){
+
+        category='조퇴';
+
+    }else if(reason.includes('제외')){
+
+        category='제외';
     }
 
-    window.isCheckingIn=true;
-    const button=document.getElementById('checkin-btn');
-    if(button)button.disabled=true;
 
-    try{
-        const snap=await db.ref('settings').once('value');
-        const settings=snap.val()||{};
+    const result=
+        category==='정상'||
+        category==='지각'
+            ?category+' 등교'
+            :category;
 
-        if(String(settings.password||'')!==password){
-            alert('등교 암호가 맞지 않습니다.');
-            return;
-        }
 
-        const toMinutes=value=>{
-            const parts=String(value||'').split(':').map(Number);
-            return parts.length===2&&parts.every(Number.isFinite)
-                ?parts[0]*60+parts[1]
-                :null;
-        };
-        const now=new Date();
-        const currentMinutes=now.getHours()*60+now.getMinutes();
-        const lateMinutes=toMinutes(settings.lateTime||'08:40');
-        const closeMinutes=toMinutes(settings.closeTime||'09:00');
+    // ==========================================
+    // 출결 처리 출처
+    //
+    // qr      = 학생 직접 등교
+    // teacher = 담임 직접 지각 처리
+    // manual  = 기타 수동 처리
+    // ==========================================
 
-        if(closeMinutes!==null&&currentMinutes>closeMinutes){
-            alert(`등교 확인 시간이 마감되었습니다. (${settings.closeTime||'09:00'})`);
-            return;
-        }
+    const source=
+        options.source||
+        (
+            category==='지각'
+                ?'teacher'
+                :'manual'
+        );
 
-        const reason=lateMinutes!==null&&currentMinutes>lateMinutes
-            ?'지각 등교'
-            :'정상 등교';
 
-        await submitCheckin(window.myName,reason);
-        if(passInput)passInput.value='';
-        alert(reason==='정상 등교'?'✅ 정상 등교 완료!':'⚠️ 지각 등교로 기록되었습니다.');
-    }catch(error){
-        console.error('등교 처리 오류:',error);
-        alert('등교 처리 중 오류가 발생했습니다.');
-    }finally{
-        window.isCheckingIn=false;
-        if(button)button.disabled=false;
-    }
-};
+    // ==========================================
+    // QR 지각 분수
+    // ==========================================
 
-window.refreshCheckinManagement=async function(){
-    try{
-        const state=await loadCheckinState();
-        const dateInput=document.getElementById('checkin-date-filter');
-        const targetDate=dateInput&&dateInput.value
-            ?dateInput.value
-            :checkinGetToday();
-        if(dateInput&&!dateInput.value)dateInput.value=targetDate;
+    const lateBy=
+        source==='qr'
+            ?Math.max(
+                0,
+                parseInt(
+                    options.lateMinutes,
+                    10
+                )||0
+            )
+            :0;
 
-        const snaps=await Promise.all([
-            db.ref('checkins').once('value'),
-            db.ref('checkinLogs').once('value')
-        ]);
-        const latestByName={};
 
-        snaps.forEach((snap,index)=>{
-            snap.forEach(child=>{
-                const log=checkinNormalizeLog(
-                    child.val(),
-                    child.key,
-                    index===0?'checkins':'checkinLogs'
+    // ==========================================
+    // 지각 포인트 규칙
+    //
+    // 정상 등교
+    // → 0P
+    //
+    // 학생 QR 등교
+    // → 늦은 분수 × -1P
+    // → 최대 -9P
+    //
+    // 담임 직접 지각 처리
+    // → 무조건 총 -9P
+    // ==========================================
+
+    let desiredPenalty=0;
+
+
+    if(category==='지각'){
+
+        if(source==='qr'){
+
+            desiredPenalty=
+                -Math.min(
+                    9,
+                    lateBy
                 );
-                if(log.name&&log.date===targetDate){
-                    const old=latestByName[log.name];
-                    if(!old||log.timestamp>=old.timestamp)latestByName[log.name]=log;
+
+        }else{
+
+            desiredPenalty=-9;
+        }
+    }
+
+
+    // ==========================================
+    // 출결 시간
+    // ==========================================
+
+    const time=
+        category==='정상'
+            ?''
+            :now.toLocaleTimeString(
+                'ko-KR',
+                {
+                    hour:'2-digit',
+                    minute:'2-digit',
+                    hour12:false
                 }
-            });
+            );
+
+
+    try{
+
+        // ======================================
+        // 기존 출결 + 학생 포인트 조회
+        // ======================================
+
+        const [
+            checkinsSnap,
+            userSnap
+        ]=await Promise.all([
+
+            db.ref(
+                'checkins'
+            ).once('value'),
+
+            db.ref(
+                `users/${user}`
+            ).once('value')
+
+        ]);
+
+
+        let existingKey=null;
+        let existingData=null;
+
+
+        checkinsSnap.forEach(c=>{
+
+            const v=
+                c.val()||{};
+
+            if(
+                (v.user||v.name)===user&&
+                v.date===today
+            ){
+
+                existingKey=c.key;
+                existingData=v;
+            }
         });
 
-        const names=[...new Set(Object.values(state.layout).filter(Boolean))];
-        const logs=Object.values(latestByName).sort((a,b)=>b.timestamp-a.timestamp);
-        const attended=names.filter(name=>latestByName[name]);
-        const normal=attended.filter(name=>(latestByName[name].result||'').includes('정상')).length;
-        const late=attended.filter(name=>(latestByName[name].result||'').includes('지각')).length;
-        const absent=names.length-attended.length;
 
-        const summary=document.getElementById('checkin-summary');
-        if(summary){
-            summary.innerHTML=[
-                ['전체',names.length,'#34495e'],
-                ['정상',normal,'#27ae60'],
-                ['지각',late,'#e67e22'],
-                ['미등교',absent,'#e74c3c']
-            ].map(([label,count,color])=>`
-                <div style="background:white;border:2px solid ${color};border-radius:10px;padding:12px;text-align:center;">
-                    <div style="color:${color};font-weight:bold;">${label}</div>
-                    <strong style="font-size:1.5rem;">${count}</strong>
-                </div>
-            `).join('');
+        // ======================================
+        // 기존 지각 차감액
+        //
+        // 예:
+        //
+        // 기존 0
+        // QR 3분 지각
+        // → -3
+        //
+        // 기존 -3
+        // 담임 지각 처리
+        // → 추가 -6
+        // → 최종 -9
+        //
+        // 기존 -9
+        // 다시 지각 저장
+        // → 추가 차감 0
+        //
+        // 기존 -9
+        // 정상으로 수정
+        // → +9 복구
+        // ======================================
+
+        const previousPenalty=
+            parseInt(
+                existingData&&
+                existingData.pointPenalty,
+                10
+            )||0;
+
+
+        const pointDelta=
+            desiredPenalty-
+            previousPenalty;
+
+
+        const recordKey=
+            existingKey||
+            db.ref(
+                'checkins'
+            ).push().key;
+
+
+        // ======================================
+        // 출결 데이터
+        // ======================================
+
+        const data={
+
+            ...(existingData||{}),
+
+            user:user,
+
+            name:user,
+
+            reason:reason,
+
+            category:category,
+
+            subCategory:
+                existingData&&
+                existingData.subCategory
+                    ?existingData.subCategory
+                    :'해당없음',
+
+            result:result,
+
+            date:today,
+
+            time:time,
+
+            docSubmitted:
+                existingData
+                    ?!!existingData.docSubmitted
+                    :false,
+
+            timestamp:
+                Date.now(),
+
+            // ----------------------------------
+            // 지각 포인트 정보
+            // ----------------------------------
+
+            pointPenalty:
+                desiredPenalty,
+
+            penaltySource:
+                category==='지각'
+                    ?source
+                    :'none',
+
+            lateMinutes:
+                source==='qr'
+                    ?lateBy
+                    :0
+        };
+
+
+        const updates={};
+
+
+        updates[
+            `checkins/${recordKey}`
+        ]=data;
+
+
+        let newPoints=null;
+
+
+        // ======================================
+        // 실제 포인트 변동이 있을 때만 처리
+        // ======================================
+
+        if(
+            userSnap.exists()&&
+            pointDelta!==0
+        ){
+
+            const userData=
+                userSnap.val()||{};
+
+
+            const oldPoints=
+                parseInt(
+                    userData.points,
+                    10
+                )||0;
+
+
+            newPoints=
+                oldPoints+
+                pointDelta;
+
+
+            // 학생 현재 포인트
+            updates[
+                `users/${user}/points`
+            ]=newPoints;
+
+
+            // ==================================
+            // 포인트 사유
+            // ==================================
+
+            let pointReason='';
+
+
+            if(pointDelta>0){
+
+                pointReason=
+                    '출결 수정에 따른 지각 차감 복구';
+
+            }else if(source==='qr'){
+
+                pointReason=
+                    `지각 등교 자동 차감 `+
+                    `(${lateBy}분 지각)`;
+
+            }else{
+
+                pointReason=
+                    '담임 지각 처리 자동 차감';
+            }
+
+
+            // ==================================
+            // pointLogs
+            // ==================================
+
+            const pointLogKey=
+                db.ref(
+                    'pointLogs'
+                ).push().key;
+
+
+            updates[
+                `pointLogs/${pointLogKey}`
+            ]={
+
+                name:user,
+
+                pAmt:
+                    pointDelta,
+
+                reason:
+                    pointReason,
+
+                time:
+                    new Date()
+                    .toLocaleString(
+                        'ko-KR'
+                    ),
+
+                timestamp:
+                    Date.now()
+            };
+
+
+            // ==================================
+            // pointHistory
+            // ==================================
+
+            const historyKey=
+                db.ref(
+                    `pointHistory/${user}`
+                ).push().key;
+
+
+            updates[
+                `pointHistory/${user}/${historyKey}`
+            ]={
+
+                date:
+                    today,
+
+                time:
+                    new Date()
+                    .toLocaleTimeString(
+                        'ko-KR',
+                        {
+                            hour:'2-digit',
+                            minute:'2-digit',
+                            hour12:false
+                        }
+                    ),
+
+                reason:
+                    pointReason,
+
+                change:
+                    pointDelta,
+
+                pChange:
+                    pointDelta,
+
+                expChange:
+                    0,
+
+                result:
+                    newPoints,
+
+                pointResult:
+                    newPoints,
+
+                expResult:
+                    parseInt(
+                        userData.exp,
+                        10
+                    )||0,
+
+                timestamp:
+                    Date.now()
+            };
         }
 
-        const list=document.getElementById('checkin-log-list');
-        if(list){
-            list.innerHTML=logs.length
-                ?logs.map(log=>`
-                    <div style="display:flex;justify-content:space-between;gap:15px;padding:10px;border-bottom:1px solid #eee;">
-                        <span><b>${checkinEscape(log.name)}</b> - ${checkinEscape(log.result||log.reason)}</span>
-                        <small>${checkinEscape(log.time)}</small>
-                    </div>
-                `).join('')
-                :'<p style="text-align:center;color:#999;padding:20px;">해당 날짜의 출결 기록이 없습니다.</p>';
+
+        // ======================================
+        // 출결 + 포인트 한 번에 저장
+        // ======================================
+
+        await db.ref().update(
+            updates
+        );
+
+
+        if(
+            typeof closePopup===
+            'function'
+        ){
+            closePopup();
         }
 
-        renderSeatMap(state.rows,state.cols);
-    }catch(error){
-        console.error('출결 관리 새로고침 오류:',error);
-        alert('출결 현황을 불러오지 못했습니다.');
+
+        if(
+            typeof appendExtraLogsUI===
+            'function'
+        ){
+            appendExtraLogsUI();
+        }
+
+
+        checkinRefreshSeatMap();
+
+
+        return {
+
+            category:
+                category,
+
+            source:
+                source,
+
+            lateMinutes:
+                lateBy,
+
+            penalty:
+                desiredPenalty,
+
+            pointDelta:
+                pointDelta,
+
+            points:
+                newPoints
+        };
+
+
+    }catch(err){
+
+        console.error(
+            '출결 저장 오류:',
+            err
+        );
+
+        throw err;
     }
 };
-
-window.refreshCheckinAdminPanel=window.refreshCheckinManagement;
-
-function checkinRefreshSeatMap(){
-    const rc=checkinGetRowsCols();
-    if(typeof renderSeatMap==='function')renderSeatMap(rc.rows,rc.cols);
-}
-
-function checkinNormalizeLog(v,key,source){
-    v=v||{};
-    const name=v.name||v.user||'';
-    let result=v.result||'';
-
-    if(!result&&v.reason)result=v.reason;
-    if(result==='정상')result='정상 등교';
-    if(result==='지각')result='지각 등교';
-
-    return {
-        key:key||null,
-        source:source||'checkins',
-        name:name,
-        date:v.date||'',
-        result:result||'미등교',
-        category:v.category||'',
-        subCategory:v.subCategory||'해당없음',
-        reason:v.reason||'',
-        time:v.time||'-',
-        docSubmitted:!!v.docSubmitted,
-        timestamp:v.timestamp||0
-    };
-}
 
 
 // ====================================================
@@ -720,119 +1054,147 @@ window.openCheckinEditModal=function(
 // 4. 출결 저장
 // ====================================================
 
-window.submitCheckin=function(
-    user,
-    reason
-){
+window.submitCheckIn=async function(){
+    if(window.isCheckingIn)return;
 
-    if(!user)return;
+    const passInput=document.getElementById('checkin-pass');
+    const password=passInput?passInput.value.trim():'';
 
-    const today=checkinGetToday();
-    const now=new Date();
-
-    const time=
-        reason.includes('정상')
-        ?''
-        :now.toLocaleTimeString(
-            'ko-KR',
-            {
-                hour:'2-digit',
-                minute:'2-digit'
-            }
-        );
-
-    let category=reason;
-
-    if(reason.includes('정상')){
-        category='정상';
-    }else if(reason.includes('지각')){
-        category='지각';
-    }else if(reason.includes('결석')){
-        category='결석';
-    }else if(reason.includes('조퇴')){
-        category='조퇴';
-    }else if(reason.includes('제외')){
-        category='제외';
+    if(!/^\d{4}$/.test(password)){
+        return alert('오늘의 등교 암호 4자리를 입력해 주세요.');
     }
 
-    const result=
-        category==='정상'||
-        category==='지각'
-        ?category+' 등교'
-        :category;
+    if(!window.myName){
+        return alert('로그인 정보를 확인할 수 없습니다. 다시 로그인해 주세요.');
+    }
 
-    return db.ref('checkins')
-    .once('value')
-    .then(snap=>{
+    window.isCheckingIn=true;
 
-        let existingKey=null;
+    const button=document.getElementById('checkin-btn');
+    if(button)button.disabled=true;
 
-        snap.forEach(c=>{
+    try{
+        const snap=await db.ref('settings').once('value');
+        const settings=snap.val()||{};
 
-            const v=c.val()||{};
+        if(String(settings.password||'')!==password){
+            alert('등교 암호가 맞지 않습니다.');
+            return;
+        }
 
-            if(
-                (v.user||v.name)===user&&
-                v.date===today
-            ){
-                existingKey=c.key;
-            }
-        });
+        const toMinutes=value=>{
+            const parts=String(value||'').split(':').map(Number);
 
-        const data={
-            user:user,
-            name:user,
-            reason:reason,
-            category:category,
-            subCategory:'해당없음',
-            result:result,
-            date:today,
-            time:time,
-            docSubmitted:false,
-            timestamp:Date.now()
+            return parts.length===2&&parts.every(Number.isFinite)
+                ?parts[0]*60+parts[1]
+                :null;
         };
 
-        if(existingKey){
+        const now=new Date();
 
-            return db.ref(
-                'checkins/'+existingKey
-            ).update(data);
+        const currentMinutes=
+            now.getHours()*60+
+            now.getMinutes();
 
-        }
+        const lateMinutes=
+            toMinutes(
+                settings.lateTime||'08:40'
+            );
 
-        return db.ref(
-            'checkins'
-        ).push(data);
-
-    })
-    .then(()=>{
-
-        if(typeof closePopup==='function'){
-            closePopup();
-        }
+        const closeMinutes=
+            toMinutes(
+                settings.closeTime||'09:00'
+            );
 
         if(
-            typeof appendExtraLogsUI==='function'
+            closeMinutes!==null&&
+            currentMinutes>closeMinutes
         ){
-            appendExtraLogsUI();
+            alert(
+                `등교 확인 시간이 마감되었습니다. `+
+                `(${settings.closeTime||'09:00'})`
+            );
+
+            return;
         }
 
-        checkinRefreshSeatMap();
+        // 지각 기준시간보다 몇 분 늦었는지 계산
+        const lateBy=
+            lateMinutes!==null
+                ?Math.max(
+                    0,
+                    currentMinutes-lateMinutes
+                )
+                :0;
 
-    })
-    .catch(err=>{
+        const reason=
+            lateBy>0
+                ?'지각 등교'
+                :'정상 등교';
+
+        // QR/암호 직접 등교임을 명확하게 전달
+        const saveResult=
+            await submitCheckin(
+                window.myName,
+                reason,
+                {
+                    source:'qr',
+                    lateMinutes:lateBy
+                }
+            );
+
+        if(passInput){
+            passInput.value='';
+        }
+
+        if(lateBy>0){
+
+            const penalty=
+                saveResult&&
+                Number.isFinite(
+                    saveResult.penalty
+                )
+                    ?Math.abs(
+                        saveResult.penalty
+                    )
+                    :Math.min(
+                        9,
+                        lateBy
+                    );
+
+            alert(
+                `⚠️ ${lateBy}분 지각입니다.\n`+
+                `${penalty}포인트가 자동 차감되었습니다.`
+            );
+
+        }else{
+
+            // 정상 등교는 포인트 변화 없음
+            alert(
+                '✅ 정상 등교 완료!'
+            );
+        }
+
+    }catch(error){
 
         console.error(
-            '출결 저장 오류:',
-            err
+            '등교 처리 오류:',
+            error
         );
 
         alert(
-            '출결 처리 중 오류가 발생했습니다.'
+            '등교 처리 중 오류가 발생했습니다.'
         );
-    });
-};
 
+    }finally{
+
+        window.isCheckingIn=false;
+
+        if(button){
+            button.disabled=false;
+        }
+    }
+};
 
 // ====================================================
 // 5. 출결 상세 수정
@@ -1162,20 +1524,27 @@ window.openLogEditPopup=function(
 // 6. 상세 출결 저장
 // ====================================================
 
-window.saveDetailLog=function(
+window.saveDetailLog=async function(
     name,
     date,
     key
 ){
 
     const catEl=
-        document.getElementById('edit-cat');
+        document.getElementById(
+            'edit-cat'
+        );
 
     const subEl=
-        document.getElementById('edit-sub');
+        document.getElementById(
+            'edit-sub'
+        );
 
     const descEl=
-        document.getElementById('edit-desc');
+        document.getElementById(
+            'edit-desc'
+        );
+
 
     if(
         !catEl||
@@ -1185,134 +1554,515 @@ window.saveDetailLog=function(
         return;
     }
 
-    const category=catEl.value;
-    const subCategory=subEl.value;
-    const reason=descEl.value.trim();
+
+    const category=
+        catEl.value;
+
+    const subCategory=
+        subEl.value;
+
+    const reason=
+        descEl.value.trim();
+
 
     const result=
         category==='정상'||
         category==='지각'
-        ?category+' 등교'
-        :category;
-
-    const data={
-
-        user:name,
-
-        name:name,
-
-        date:date,
-
-        category:category,
-
-        subCategory:subCategory,
-
-        reason:reason,
-
-        result:result,
-
-        time:'-',
-
-        timestamp:Date.now()
-    };
+            ?category+' 등교'
+            :category;
 
 
-    Promise.all([
+    try{
 
-        db.ref('checkins')
-        .once('value'),
+        // ======================================
+        // 기존 출결 + 기존 로그 + 학생 조회
+        // ======================================
 
-        db.ref('checkinLogs')
-        .once('value')
+        const [
+            checkinsSnap,
+            logsSnap,
+            userSnap
+        ]=await Promise.all([
 
-    ])
-    .then(snaps=>{
+            db.ref(
+                'checkins'
+            ).once('value'),
+
+            db.ref(
+                'checkinLogs'
+            ).once('value'),
+
+            db.ref(
+                `users/${name}`
+            ).once('value')
+
+        ]);
+
 
         let checkinsKey=null;
         let logsKey=null;
 
-        snaps[0].forEach(c=>{
+        let existingData=null;
+        let existingLogData=null;
 
-            const v=c.val()||{};
+
+        // ======================================
+        // checkins 기존 기록 찾기
+        // ======================================
+
+        checkinsSnap.forEach(c=>{
+
+            const v=
+                c.val()||{};
 
             if(
                 (v.user||v.name)===name&&
                 v.date===date
             ){
+
                 checkinsKey=c.key;
+
+                existingData=v;
             }
         });
 
-        snaps[1].forEach(c=>{
 
-            const v=c.val()||{};
+        // ======================================
+        // 과거 checkinLogs 기록 찾기
+        // ======================================
+
+        logsSnap.forEach(c=>{
+
+            const v=
+                c.val()||{};
 
             if(
                 (v.user||v.name)===name&&
                 v.date===date
             ){
+
                 logsKey=c.key;
+
+                existingLogData=v;
             }
         });
 
-        const writes=[];
+
+        // ======================================
+        // 기존 지각 차감값 확인
+        // ======================================
+
+        let previousPenalty=0;
+
+
+        if(
+            existingData&&
+            existingData.pointPenalty!==undefined
+        ){
+
+            previousPenalty=
+                parseInt(
+                    existingData.pointPenalty,
+                    10
+                )||0;
+
+        }else if(
+            existingLogData&&
+            existingLogData.pointPenalty!==undefined
+        ){
+
+            previousPenalty=
+                parseInt(
+                    existingLogData.pointPenalty,
+                    10
+                )||0;
+        }
+
+
+        // ======================================
+        // 담임 직접 지각
+        //
+        // 지각 = 무조건 총 -9P
+        //
+        // 다른 상태 = 지각 패널티 0P
+        // ======================================
+
+        const desiredPenalty=
+            category==='지각'
+                ?-9
+                :0;
+
+
+        // ======================================
+        // 차이만 실제 포인트 반영
+        //
+        // QR로 이미 -3P
+        // → 담임 지각
+        // → -6P만 추가
+        //
+        // 이미 -9P
+        // → 다시 지각
+        // → 0P
+        //
+        // -9P 상태에서 정상 수정
+        // → +9P
+        // ======================================
+
+        const pointDelta=
+            desiredPenalty-
+            previousPenalty;
+
+
+        // ======================================
+        // 기존 등교 시간 유지
+        // ======================================
+
+        const oldTime=
+            (
+                existingData&&
+                existingData.time
+            )||
+            (
+                existingLogData&&
+                existingLogData.time
+            )||
+            '';
+
+
+        let saveTime=
+            oldTime;
+
+
+        // 정상은 시간 표시 안 함
+        if(category==='정상'){
+
+            saveTime='';
+
+        }else if(
+            !saveTime||
+            saveTime==='-'
+        ){
+
+            saveTime=
+                new Date()
+                .toLocaleTimeString(
+                    'ko-KR',
+                    {
+                        hour:'2-digit',
+                        minute:'2-digit',
+                        hour12:false
+                    }
+                );
+        }
+
+
+        const baseData=
+            existingData||
+            existingLogData||
+            {};
+
+
+        // ======================================
+        // 저장할 출결 데이터
+        // ======================================
+
+        const data={
+
+            ...baseData,
+
+            user:
+                name,
+
+            name:
+                name,
+
+            date:
+                date,
+
+            category:
+                category,
+
+            subCategory:
+                subCategory,
+
+            reason:
+                reason,
+
+            result:
+                result,
+
+            time:
+                saveTime,
+
+            docSubmitted:
+                !!baseData.docSubmitted,
+
+            timestamp:
+                Date.now(),
+
+            pointPenalty:
+                desiredPenalty,
+
+            penaltySource:
+                category==='지각'
+                    ?'teacher'
+                    :'none',
+
+            lateMinutes:
+                0
+        };
+
+
+        const updates={};
+
+
+        // ======================================
+        // checkins 갱신
+        // ======================================
 
         if(checkinsKey){
 
-            writes.push(
+            updates[
+                `checkins/${checkinsKey}`
+            ]=data;
+
+        }else{
+
+            const newKey=
                 db.ref(
-                    'checkins/'+checkinsKey
-                ).update(data)
+                    'checkins'
+                ).push().key;
+
+
+            updates[
+                `checkins/${newKey}`
+            ]=data;
+        }
+
+
+        // ======================================
+        // 예전 checkinLogs가 존재하면
+        // 같이 맞춰줌
+        // ======================================
+
+        if(logsKey){
+
+            updates[
+                `checkinLogs/${logsKey}`
+            ]={
+
+                ...(existingLogData||{}),
+
+                ...data
+            };
+        }
+
+
+        let newPoints=null;
+
+
+        // ======================================
+        // 포인트 변경
+        // ======================================
+
+        if(
+            userSnap.exists()&&
+            pointDelta!==0
+        ){
+
+            const userData=
+                userSnap.val()||{};
+
+
+            const oldPoints=
+                parseInt(
+                    userData.points,
+                    10
+                )||0;
+
+
+            newPoints=
+                oldPoints+
+                pointDelta;
+
+
+            updates[
+                `users/${name}/points`
+            ]=newPoints;
+
+
+            // ==================================
+            // 포인트 로그 사유
+            // ==================================
+
+            const pointReason=
+                pointDelta<0
+                    ?'담임 지각 처리 자동 차감'
+                    :'출결 수정에 따른 지각 차감 복구';
+
+
+            // ==================================
+            // pointLogs
+            // ==================================
+
+            const pointLogKey=
+                db.ref(
+                    'pointLogs'
+                ).push().key;
+
+
+            updates[
+                `pointLogs/${pointLogKey}`
+            ]={
+
+                name:
+                    name,
+
+                pAmt:
+                    pointDelta,
+
+                reason:
+                    pointReason,
+
+                time:
+                    new Date()
+                    .toLocaleString(
+                        'ko-KR'
+                    ),
+
+                timestamp:
+                    Date.now()
+            };
+
+
+            // ==================================
+            // pointHistory
+            // ==================================
+
+            const historyKey=
+                db.ref(
+                    `pointHistory/${name}`
+                ).push().key;
+
+
+            updates[
+                `pointHistory/${name}/${historyKey}`
+            ]={
+
+                date:
+                    date,
+
+                time:
+                    new Date()
+                    .toLocaleTimeString(
+                        'ko-KR',
+                        {
+                            hour:'2-digit',
+                            minute:'2-digit',
+                            hour12:false
+                        }
+                    ),
+
+                reason:
+                    pointReason,
+
+                change:
+                    pointDelta,
+
+                pChange:
+                    pointDelta,
+
+                expChange:
+                    0,
+
+                result:
+                    newPoints,
+
+                pointResult:
+                    newPoints,
+
+                expResult:
+                    parseInt(
+                        userData.exp,
+                        10
+                    )||0,
+
+                timestamp:
+                    Date.now()
+            };
+        }
+
+
+        // ======================================
+        // Firebase 일괄 반영
+        // ======================================
+
+        await db.ref().update(
+            updates
+        );
+
+
+        // ======================================
+        // 완료 메시지
+        // ======================================
+
+        if(category==='지각'){
+
+            if(pointDelta<0){
+
+                alert(
+                    `⚠️ 지각 처리 완료\n`+
+                    `${Math.abs(pointDelta)}포인트가 추가 차감되었습니다.\n`+
+                    `최종 지각 차감: 9포인트`
+                );
+
+            }else{
+
+                alert(
+                    `⚠️ 지각 처리 완료\n`+
+                    `이미 9포인트가 차감된 상태입니다.`
+                );
+            }
+
+        }else if(pointDelta>0){
+
+            alert(
+                `✅ 출결 수정 완료\n`+
+                `기존 지각 차감 ${pointDelta}포인트가 복구되었습니다.`
             );
 
         }else{
 
-            writes.push(
-                db.ref('checkins')
-                .push(data)
+            alert(
+                '✅ 변동 사유가 반영되었습니다.'
             );
         }
 
-        // 기존 checkinLogs 데이터가 있으면
-        // 같이 갱신해서 기존 데이터와도 호환합니다.
-        if(logsKey){
 
-            writes.push(
-                db.ref(
-                    'checkinLogs/'+logsKey
-                ).update(data)
-            );
-        }
-
-        return Promise.all(writes);
-
-    })
-    .then(()=>{
-
-        alert(
-            '✅ 변동 사유가 반영되었습니다.'
-        );
-
-        if(typeof closePopup==='function'){
+        if(
+            typeof closePopup===
+            'function'
+        ){
             closePopup();
         }
 
+
         checkinRefreshSeatMap();
 
-    })
-    .catch(err=>{
+
+    }catch(err){
 
         console.error(
             '상세 출결 저장 오류:',
             err
         );
 
+
         alert(
             '출결 수정 중 오류가 발생했습니다.'
         );
-    });
+    }
 };
-
 
 // ====================================================
 // 7. 요일별 등교 제외
