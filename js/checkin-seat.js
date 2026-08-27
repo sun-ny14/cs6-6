@@ -16,6 +16,19 @@ function checkinGetRowsCols(){
     };
 }
 
+function checkinRefreshSeatMap(){
+    const rc=checkinGetRowsCols();
+
+    if(typeof window.renderSeatMap==='function'){
+        window.renderSeatMap(
+            rc.rows,
+            rc.cols
+        );
+    }
+}
+
+window.checkinRefreshSeatMap=checkinRefreshSeatMap;
+
 function checkinEscape(value){
     return String(value??'')
         .replace(/&/g,'&amp;')
@@ -497,23 +510,6 @@ window.submitCheckin=async function(
 // 일반 학생 직접 등교 시 권한 제한 경로 제외
 // ======================================
 
-const isDirectStudentCheckin =
-    source === 'qr' &&
-    !(
-        typeof isCheckinAdminUser === 'function' &&
-        isCheckinAdminUser()
-    );
-
-if(isDirectStudentCheckin){
-    Object.keys(updates).forEach(path=>{
-        if(
-            path.startsWith('pointLogs/') ||
-            path.startsWith(`pointHistory/${user}/`)
-        ){
-            delete updates[path];
-        }
-    });
-}
 
 // 등교 기록과 학생 포인트 저장
 await db.ref().update(updates);
