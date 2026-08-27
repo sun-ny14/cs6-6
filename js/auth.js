@@ -26,7 +26,39 @@ auth.onAuthStateChanged(user => {
                 myName = snap.val() || "총사령관";
                 
                 db.ref('users/' + myName).once('value', uSnap => {
-                    isHelper = uSnap.val()?.isHelper || false;
+                    const helperValue = uSnap.val()?.isHelper;
+
+// boolean true 또는 문자열 "true"만 도우미로 인정
+isHelper =
+    helperValue === true ||
+    helperValue === 'true';
+
+window.myName = myName;
+window.isAdmin = isAdmin;
+window.isHelper = isHelper;
+
+// 로그인할 때마다 관리자 메뉴 표시 상태 초기화
+const adminOnlyMenuIds = [
+    'btn-logs',
+    'btn-admin',
+    'btn-budget',
+    'btn-management',
+    'btn-blackboard-admin',
+    'btn-cleaning',
+    'floating-point-btn',
+    'floating-multi-btn'
+];
+
+adminOnlyMenuIds.forEach(id=>{
+    const element=document.getElementById(id);
+
+    if(element){
+        element.style.display=
+            isAdmin
+                ?'block'
+                :'none';
+    }
+});
                     
                     if (typeof forceScreenDisplay === 'function') {
                         forceScreenDisplay('app');
