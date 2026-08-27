@@ -85,6 +85,42 @@ window.closePopup=function(){
    ========================================================= */
 
 function showTab(t){
+    const adminOnlyTabs=[
+        'blackboard-admin',
+        'management',
+        'admin'
+    ];
+
+    const admin=
+        window.isAdmin===true;
+
+    const cleaningAllowed=
+        admin||
+        window.currentUser?.role==='청소';
+
+    if(
+        adminOnlyTabs.includes(t)&&
+        !admin
+    ){
+        console.warn(
+            '관리자 전용 화면 접근 차단:',
+            t
+        );
+
+        t='main';
+    }
+
+    if(
+        t==='cleaning'&&
+        !cleaningAllowed
+    ){
+        console.warn(
+            '청소 화면 접근 차단'
+        );
+
+        t='main';
+    }
+
     window.currentTab=t;
 
     try{
