@@ -294,9 +294,8 @@ function startApp(){
         typeof myName!=='undefined'&&
         myName==='총사령관';
 
-    const canManage=
-        admin||helper||commander;
-
+   const canManage=
+    admin||commander;
 
     const orderMgr=
         document.getElementById('admin-order-mgr');
