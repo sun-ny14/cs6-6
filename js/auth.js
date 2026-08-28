@@ -25,9 +25,32 @@ function setMenuVisible(id,visible,displayType='block'){
     );
 }
 
+window.canUseCleaningTab=function(){
+    if(window.isAdmin===true)return true;
+
+    const name=String(window.myName||'').trim();
+    if(!name)return false;
+
+    const assignments=window.cleaningAssignments||{};
+    const saved=assignments[name];
+    const roleValue=(window.studentRoles||{})[name];
+    const role=typeof roleValue==='string'
+        ?roleValue.trim()
+        :String(
+            roleValue?.role||
+            roleValue?.name||
+            roleValue?.title||
+            ''
+        ).trim();
+
+    return saved===true||
+        saved==='true'||
+        (saved&&typeof saved==='object'&&saved.enabled===true)||
+        /청소|쓸기|닦기|분리수거|쓰레기|정리/.test(role);
+};
+
 function applyAccessControl(){
     const admin=window.isAdmin===true;
-    const role=window.currentUser?.role||'';
 
     // 관리자 전용 메뉴
     [
@@ -57,7 +80,7 @@ function applyAccessControl(){
     // 청소 메뉴는 관리자 또는 청소 역할 학생만
     setMenuVisible(
         'btn-cleaning',
-        admin||role==='청소'
+        window.canUseCleaningTab()
     );
 
     // 관리자에게는 학생용 보관함 숨김

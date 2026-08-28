@@ -105,19 +105,67 @@ window.buyItem = async function(k, n, p, l) {
             }
         }
 
-        await db.ref('users/' + myName).update({ points: myPoints - p });
+        const now = Date.now();
+const newPoints = myPoints - p;
 
-        if (itemData && itemData.stock !== undefined && itemData.stock > 0) {
-            await db.ref('shop/' + k).update({ stock: itemData.stock - 1 });
-        }
+const orderKey =
+    db.ref('orders').push().key;
 
-        await db.ref('orders').push({
-            user: myName,
-            item: n,
-            price: p,
-            time: new Date().getTime(),
-            status: "요청"
-        });
+const logKey =
+    db.ref('pointLogs').push().key;
+
+const historyKey =
+    db.ref(`pointHistory/${myName}`).push().key;
+
+const updates = {};
+
+updates[`users/${myName}/points`] =
+    newPoints;
+
+if (
+    itemData &&
+    itemData.stock !== undefined &&
+    itemData.stock > 0
+) {
+    updates[`shop/${k}/stock`] =
+        itemData.stock - 1;
+}
+
+updates[`orders/${orderKey}`] = {
+    user: myName,
+    item: n,
+    price: p,
+    time: now,
+    status: "요청"
+};
+
+updates[`pointLogs/${logKey}`] = {
+    name: myName,
+    pAmt: -p,
+    reason: `[상점 구매] ${n}`,
+    time: new Date(now).toLocaleString('ko-KR'),
+    timestamp: now
+};
+
+updates[
+    `pointHistory/${myName}/${historyKey}`
+] = {
+    date: new Date(now)
+        .toLocaleDateString('sv-SE'),
+
+    time: new Date(now)
+        .toLocaleTimeString('ko-KR'),
+
+    reason: `[상점 구매] ${n}`,
+    change: -p,
+    pChange: -p,
+    expChange: 0,
+    result: newPoints,
+    pointResult: newPoints,
+    timestamp: now
+};
+
+await db.ref().update(updates);
 
         alert(`✅ [${n}] 구매 완료!`);
     } catch (err) {

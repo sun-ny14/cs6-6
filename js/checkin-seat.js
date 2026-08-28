@@ -37,6 +37,414 @@ function checkinEscape(value){
         .replace(/"/g,'&quot;')
         .replace(/'/g,'&#39;');
 }
+/* =========================================================
+   출결 데이터 형식 통일
+   ========================================================= */
+
+function checkinNormalizeLog(value,key,source){
+    const data=
+        value&&typeof value==='object'
+            ?value
+            :{};
+
+    const name=String(
+        data.name||
+        data.user||
+        data.studentName||
+        ''
+    ).trim();
+
+    const timestamp=
+        Number(
+            data.timestamp||
+            data.createdAt||
+            0
+        )||0;
+
+    let date=String(
+        data.date||
+        data.checkinDate||
+        ''
+    ).slice(0,10);
+
+    if(!date&&timestamp){
+        date=new Date(timestamp).toLocaleDateString(
+            'sv-SE',
+            {timeZone:'Asia/Seoul'}
+        );
+    }
+
+    let time=String(
+        data.time||
+        data.checkinTime||
+        ''
+    ).trim();
+
+    if(!time&&timestamp){
+        time=new Date(timestamp).toLocaleTimeString(
+            'ko-KR',
+            {
+                hour:'2-digit',
+                minute:'2-digit',
+                hour12:false,
+                timeZone:'Asia/Seoul'
+            }
+        );
+    }
+
+    const category=String(
+        data.category||
+        data.status||
+        ''
+    ).trim();
+
+    const reason=String(
+        data.reason||
+        data.result||
+        category||
+        '출결 기록'
+    ).trim();
+
+    const result=String(
+        data.result||
+        (
+            category==='정상'||
+            category==='지각'
+                ?category+' 등교'
+                :category
+        )||
+        reason
+    ).trim();
+
+    return {
+        ...data,
+        key:key||'',
+        source:source||'',
+        name:name,
+        user:name,
+        date:date,
+        time:time,
+        category:category,
+        reason:reason,
+        result:result,
+        timestamp:timestamp
+    };
+}
+
+window.checkinNormalizeLog=
+    checkinNormalizeLog;
+
+
+/* =========================================================
+   좌석 및 출결 새로고침
+   ========================================================= */
+
+window.refreshCheckinManagement=async function(){
+    const dateInput=
+        document.getElementById('checkin-date-filter');
+
+    const targetDate=
+        dateInput&&dateInput.value
+            ?dateInput.value
+            :checkinGetToday();
+
+    if(dateInput&&!dateInput.value){
+        dateInput.value=targetDate;
+    }
+
+    try{
+        await window.loadCheckinState();
+
+        const [
+            checkinsSnap,
+            logsSnap,
+            usersSnap,
+            exclusionsSnap
+        ]=
+            await Promise.all([
+                db.ref('checkins').once('value'),
+                db.ref('checkinLogs').once('value'),
+                db.ref('users').once('value'),
+                db.ref('settings/fixedExclusions').once('value')
+            ]);
+
+        const byName=new Map();
+
+        const collect=(snapshot,source)=>{
+            snapshot.forEach(child=>{
+                const log=checkinNormalizeLog(
+                    child.val(),
+                    child.key,
+                    source
+                );
+
+                if(
+                    !log.name||
+                    log.date!==targetDate
+                ){
+                    return;
+                }
+
+                const old=byName.get(log.name);
+
+                if(
+                    !old||
+                    log.timestamp>=old.timestamp||
+                    source==='checkins'
+                ){
+                    byName.set(log.name,log);
+                }
+            });
+        };
+
+        collect(logsSnap,'checkinLogs');
+        collect(checkinsSnap,'checkins');
+
+        const loadedUsers=[];
+
+        usersSnap.forEach(child=>{
+            const user=child.val()||{};
+
+            loadedUsers.push({
+                ...user,
+                name:String(user.name||child.key||'').trim()
+            });
+        });
+
+        const students=loadedUsers.filter(user=>{
+            const name=
+                String(user&&user.name||'');
+
+            return(
+                name&&
+                name!=='총사령관'&&
+                !name.includes('선생님')
+            );
+        });
+
+        const weekDays=['일','월','화','수','목','금','토'];
+        const selectedDay=weekDays[
+            new Date(targetDate+'T12:00:00').getDay()
+        ];
+
+        const fixedExclusions=
+            exclusionsSnap.val()||{};
+
+        const excludedNames=new Set(
+            Array.isArray(fixedExclusions[selectedDay])
+                ?fixedExclusions[selectedDay]
+                :[]
+        );
+
+       const attendanceStudents=students.filter(
+    user=>!excludedNames.has(user.name)
+);
+
+const excludedStudents=students.filter(
+    user=>excludedNames.has(user.name)
+);
+
+const attendanceStudentNames=new Set(
+            attendanceStudents.map(user=>user.name)
+        );
+
+        const records=
+            Array.from(byName.values())
+            .sort((a,b)=>{
+                const aUser=students.find(
+                    user=>user.name===a.name
+                );
+
+                const bUser=students.find(
+                    user=>user.name===b.name
+                );
+
+                return(
+                    (parseInt(aUser&&aUser.no)||999)-
+                    (parseInt(bUser&&bUser.no)||999)
+                );
+            });
+
+        const countRecords=records.filter(
+            log=>attendanceStudentNames.has(log.name)
+        );
+
+        const normal=countRecords.filter(log=>{
+            const result=String(log.result||'');
+
+            return(
+                result.includes('정상')||
+                result==='등교'
+            );
+        }).length;
+
+        const late=countRecords.filter(log=>
+            String(log.result||'').includes('지각')
+        ).length;
+
+        const attendedNames=new Set(
+            countRecords
+                .filter(log=>{
+                    const result=
+                        String(log.result||'');
+
+                    return(
+                        result.includes('정상')||
+                        result==='등교'||
+                        result.includes('지각')
+                    );
+                })
+                .map(log=>log.name)
+        );
+
+        const absent=attendanceStudents.filter(
+            user=>!attendedNames.has(user.name)
+        ).length;
+
+        const summary=
+            document.getElementById(
+                'checkin-summary'
+            );
+
+       if(summary){
+    summary.innerHTML=`
+        <div style="
+            padding:16px;
+            text-align:center;
+            background:#e8eef7 !important;
+            color:#25324a !important;
+            border:2px solid #9aa7ba !important;
+            border-radius:12px;
+            font-weight:900;
+            box-shadow:0 5px 12px rgba(37,50,74,.10) !important;
+        ">
+            전체 학생 <b>${students.length}명</b>
+
+            ${
+                excludedStudents.length
+                    ?`
+                        <small style="
+                            display:block;
+                            margin-top:4px;
+                            color:#526071 !important;
+                        ">
+                            등교 제외 ${excludedStudents.length}명
+                        </small>
+                    `
+                    :''
+            }
+        </div>
+
+        <div style="
+            padding:16px;
+            text-align:center;
+            background:#bbf7d0 !important;
+            color:#14532d !important;
+            border:2px solid #22c55e !important;
+            border-radius:12px;
+            font-weight:900;
+            box-shadow:0 5px 12px rgba(34,197,94,.16) !important;
+        ">
+            정상등교 <b>${normal}명</b>
+        </div>
+
+        <div style="
+            padding:16px;
+            text-align:center;
+            background:#fed7aa !important;
+            color:#7c2d12 !important;
+            border:2px solid #f59e0b !important;
+            border-radius:12px;
+            font-weight:900;
+            box-shadow:0 5px 12px rgba(245,158,11,.16) !important;
+        ">
+            지각등교 <b>${late}명</b>
+        </div>
+
+        <div style="
+            padding:16px;
+            text-align:center;
+            background:#fecaca !important;
+            color:#7f1d1d !important;
+            border:2px solid #ef4444 !important;
+            border-radius:12px;
+            font-weight:900;
+            box-shadow:0 5px 12px rgba(239,68,68,.16) !important;
+        ">
+            미등교 <b>${absent}명</b>
+        </div>
+    `;
+}
+
+        const list=
+            document.getElementById(
+                'checkin-log-list'
+            );
+
+        if(list){
+            list.innerHTML=records.length
+                ?`
+                    <div class="checkin-log-table-wrap">
+                        <table class="checkin-log-table">
+                            <thead>
+                                <tr>
+                                    <th>이름</th>
+                                    <th>상태</th>
+                                    <th>시간</th>
+                                    <th>사유</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                ${records.map(log=>`
+                                    <tr>
+                                        <td>
+                                            ${checkinEscape(log.name)}
+                                        </td>
+
+                                        <td>
+                                            ${checkinEscape(log.result)}
+                                        </td>
+
+                                        <td>
+                                            ${checkinEscape(log.time||'-')}
+                                        </td>
+
+                                        <td>
+                                            ${checkinEscape(log.reason||'-')}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `
+                :`
+                    <p style="
+                        color:#777;
+                        padding:18px;
+                        text-align:center;
+                    ">
+                        해당 날짜의 등교 기록이 없습니다.
+                    </p>
+                `;
+        }
+
+        checkinRefreshSeatMap();
+
+    }catch(error){
+        console.error(
+            '등교 관리 새로고침 오류:',
+            error
+        );
+    }
+};
+
+window.refreshCheckinAdminPanel=
+    window.refreshCheckinManagement;
+
+window.generateNewLayout=
+    window.refreshCheckinManagement;
 
 window.loadCheckinState=async function(){
     const snap=await db.ref('seatLayoutData').once('value');
@@ -195,17 +603,14 @@ window.submitCheckin=async function(
     // 출결 시간
     // ==========================================
 
-    const time=
-        category==='정상'
-            ?''
-            :now.toLocaleTimeString(
-                'ko-KR',
-                {
-                    hour:'2-digit',
-                    minute:'2-digit',
-                    hour12:false
-                }
-            );
+    const time=now.toLocaleTimeString(
+    'ko-KR',
+    {
+        hour:'2-digit',
+        minute:'2-digit',
+        hour12:false
+    }
+);
 
 
     try{
@@ -513,7 +918,23 @@ window.submitCheckin=async function(
 
 // 등교 기록과 학생 포인트 저장
 await db.ref().update(updates);
-
+if(
+    typeof window.setNormalCheckinRoomCoinReward===
+    'function'
+){
+    try{
+        await window.setNormalCheckinRoomCoinReward(
+            user,
+            today,
+            category==='정상'
+        );
+    }catch(roomCoinError){
+        console.error(
+            '정상등교 방꾸미기 코인 처리 오류:',
+            roomCoinError
+        );
+    }
+}
 
         if(
             typeof closePopup===
@@ -531,9 +952,15 @@ await db.ref().update(updates);
         }
 
 
-        checkinRefreshSeatMap();
-
-
+        if(
+            typeof isAdmin!=='undefined'&&
+            isAdmin&&
+            typeof window.refreshCheckinManagement==='function'
+        ){
+            await window.refreshCheckinManagement();
+        }else{
+            checkinRefreshSeatMap();
+        }
         return {
 
             category:
@@ -725,20 +1152,29 @@ window.renderSeatMap=function(rows,cols){
                             :'';
 
                     cell.innerHTML=`
-                        <div style="
-                            width:100%;
-                            overflow:hidden;
-                            color:${textColor};
-                            font-weight:900;
-                            font-size:clamp(1.45rem,2vw,2rem);
-                            line-height:1.2;
-                            white-space:nowrap;
-                            word-break:keep-all;
-                            text-overflow:ellipsis;
-                        ">
-                            ${checkinEscape(name)}
-                        </div>
-                    `;
+    <div style="
+        width:100%;
+        overflow:hidden;
+        color:${textColor};
+        font-weight:900;
+        font-size:clamp(1.3rem,2vw,1.8rem);
+        line-height:1.2;
+        white-space:nowrap;
+        text-overflow:ellipsis;
+    ">
+        ${checkinEscape(name)}
+    </div>
+
+    <div style="
+        margin-top:7px;
+        color:${textColor};
+        font-size:1rem;
+        font-weight:800;
+    ">
+        ${checkinEscape(statusText)}
+        ${checkinEscape(time)}
+    </div>
+`;
 
                     cell.title=
                         `${name} · ${statusText}${time}`;
@@ -1746,12 +2182,7 @@ window.saveDetailLog=async function(
             oldTime;
 
 
-        // 정상은 시간 표시 안 함
-        if(category==='정상'){
-
-            saveTime='';
-
-        }else if(
+        if(
             !saveTime||
             saveTime==='-'
         ){
@@ -2013,6 +2444,23 @@ window.saveDetailLog=async function(
         await db.ref().update(
             updates
         );
+        if(
+    typeof window.setNormalCheckinRoomCoinReward===
+    'function'
+){
+    try{
+        await window.setNormalCheckinRoomCoinReward(
+            name,
+            date,
+            category==='정상'
+        );
+    }catch(roomCoinError){
+        console.error(
+            '출결 수정 방꾸미기 코인 처리 오류:',
+            roomCoinError
+        );
+    }
+}
 
 
         // ======================================
@@ -2060,7 +2508,13 @@ window.saveDetailLog=async function(
         }
 
 
-        checkinRefreshSeatMap();
+        if(
+            typeof window.refreshCheckinManagement==='function'
+        ){
+            await window.refreshCheckinManagement();
+        }else{
+            checkinRefreshSeatMap();
+        }
 
 
     }catch(err){
@@ -2318,7 +2772,13 @@ window.saveExclusionsByDay=function(){
             closePopup();
         }
 
-        checkinRefreshSeatMap();
+        if(
+            typeof window.refreshCheckinManagement==='function'
+        ){
+            window.refreshCheckinManagement();
+        }else{
+            checkinRefreshSeatMap();
+        }
     });
 };
 
@@ -2327,9 +2787,19 @@ window.saveExclusionsByDay=function(){
 // 8. 월간 출석부
 // ====================================================
 
-window.openMonthlyCalendar=function(){
+window.openMonthlyCalendar=function(targetYear,targetMonth){
 
-    const now=new Date();
+    const hasTarget=
+        Number.isFinite(Number(targetYear))&&
+        Number.isFinite(Number(targetMonth));
+
+    const now=hasTarget
+        ?new Date(
+            Number(targetYear),
+            Number(targetMonth),
+            1
+        )
+        :new Date();
 
     const year=now.getFullYear();
     const month=now.getMonth();
@@ -2538,17 +3008,68 @@ window.openMonthlyCalendar=function(){
 
 
                 <div
-                    class="no-print"
-                    style="
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                        margin-bottom:15px;
-                    "
-                >
+    class="no-print"
+    style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:12px;
+        flex-wrap:wrap;
+        margin-bottom:15px;
+    "
+>
 
-                    <div>
-                        📌 범례:
+    <div style="
+        display:flex;
+        align-items:center;
+        gap:10px;
+    ">
+
+        <button
+            type="button"
+            onclick="openMonthlyCalendar(${year},${month-1})"
+            style="
+                padding:9px 13px;
+                border:1px solid #cbd5e1;
+                border-radius:8px;
+                background:#f8fafc;
+                color:#263b63;
+                font-weight:800;
+                cursor:pointer;
+            "
+        >
+            ◀ 이전 달
+        </button>
+
+        <strong style="
+            min-width:120px;
+            text-align:center;
+            color:#182844;
+            font-size:1.05rem;
+        ">
+            ${year}년 ${month+1}월
+        </strong>
+
+        <button
+            type="button"
+            onclick="openMonthlyCalendar(${year},${month+1})"
+            style="
+                padding:9px 13px;
+                border:1px solid #cbd5e1;
+                border-radius:8px;
+                background:#f8fafc;
+                color:#263b63;
+                font-weight:800;
+                cursor:pointer;
+            "
+        >
+            다음 달 ▶
+        </button>
+
+    </div>
+
+    <div>
+        📌 범례:
 
                         <b style="color:#2b8a3e;">
                             O
@@ -2590,19 +3111,28 @@ window.openMonthlyCalendar=function(){
                 </div>
 
 
-                <div style="
-                    overflow-x:auto;
-                    background:#fff;
-                    border-radius:8px;
-                    border:1px solid #dee2e6;
-                ">
+               <div
+    class="monthly-attendance-scroll"
+    style="
+        display:block;
+        width:100%;
+        max-width:100%;
+        overflow-x:scroll !important;
+        overflow-y:visible;
+        -webkit-overflow-scrolling:touch;
+        background:#fff;
+        border-radius:8px;
+        border:1px solid #dee2e6;
+        scrollbar-gutter:stable;
+    "
+>
 
-                    <table style="
-                        width:100%;
-                        border-collapse:collapse;
-                        text-align:center;
-                        min-width:1000px;
-                    ">
+    <table style="
+        width:max-content;
+        min-width:100%;
+        border-collapse:collapse;
+        text-align:center;
+    ">
 
                         <thead>
 

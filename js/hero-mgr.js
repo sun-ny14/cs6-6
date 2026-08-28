@@ -92,6 +92,13 @@ function heroEscape(value) {
         .replace(/'/g, "&#039;");
 }
 
+function heroNormalizeName(value) {
+    return String(value == null ? "" : value)
+        .normalize("NFKC")
+        .replace(/\s+/g, "")
+        .trim();
+}
+
 function heroUserLevel(user) {
     return Math.max(
         1,
@@ -366,6 +373,8 @@ function ensureHeroProfileEditorStyle() {
         }
         body .hero-card-self,
         body .hero-card-item.hero-card-self {
+            order: -999 !important;
+            background: linear-gradient(145deg, #fffdf2 0%, #fff2b8 100%) !important;
             border-color: #d8b33a !important;
             box-shadow: 0 10px 28px rgba(111, 83, 9, .14) !important;
         }
@@ -684,8 +693,12 @@ function drawHeroes(usersArray) {
 
     if (!heroGrid) return;
 
+    /* 본인 카드 강조 스타일을 카드가 그려질 때 바로 준비한다. */
+    ensureHeroProfileEditorStyle();
+
 
     const isAdminUser = heroIsAdmin();
+    const loginName = heroNormalizeName(window.myName);
 
 
     const filteredUsers =
@@ -695,15 +708,26 @@ function drawHeroes(usersArray) {
             const name =
                 user.name || "";
 
+            const isCurrentStudentAccount =
+                !isAdminUser &&
+                loginName &&
+                heroNormalizeName(name) === loginName;
+
             /*
              * 총사령관 / 선생님 계정은 학생 용사 목록에서 제외
              */
             if (name === "총사령관") return false;
-            if (name.includes("선생님")) return false;
+            if (
+                name.includes("선생님") &&
+                !isCurrentStudentAccount
+            ) {
+                return false;
+            }
 
             if (
                 typeof adminEmail !== "undefined" &&
-                user.email === adminEmail
+                user.email === adminEmail &&
+                !isCurrentStudentAccount
             ) {
                 return false;
             }
@@ -714,9 +738,9 @@ function drawHeroes(usersArray) {
 
     filteredUsers.sort((a, b) => {
         /* 학생 로그인 시 본인 카드를 항상 첫 번째에 배치 */
-        if (!isAdminUser && typeof myName !== "undefined" && myName) {
-            const aIsMine = (a.name || "") === myName;
-            const bIsMine = (b.name || "") === myName;
+        if (!isAdminUser && loginName) {
+            const aIsMine = heroNormalizeName(a.name) === loginName;
+            const bIsMine = heroNormalizeName(b.name) === loginName;
 
             if (aIsMine !== bIsMine) {
                 return aIsMine ? -1 : 1;
@@ -766,8 +790,9 @@ function drawHeroes(usersArray) {
 
 
         const isMySelf =
-            typeof myName !== "undefined" &&
-            user.name === myName;
+            !isAdminUser &&
+            loginName &&
+            heroNormalizeName(user.name) === loginName;
 
 
         /*
@@ -850,6 +875,8 @@ const clickAction =
         html += `
             <div
                 class="card hero-card-item${isMySelf ? " hero-card-self" : ""}"
+                data-name="${heroEscape(name)}"
+                data-firebase-key="${heroEscape(user.__firebaseKey || name)}"
                 style="
                     text-align:center;
                     cursor:pointer;
@@ -902,7 +929,7 @@ const clickAction =
                     color:#666;
                     margin-bottom:0;
                 ">
-                    ${heroTitle} · 역할: ${role}
+                    ${heroTitle}
                 </p>
 
             </div>
@@ -1025,8 +1052,8 @@ window.openStudentProfile = async function(userName) {
     try {
         const [userSnap, historySnap] = await Promise.all([
             db.ref(`users/${userName}`).once("value"),
-            db.ref(`pointHistory/${userName}`)
-                .limitToLast(20)
+            db.ref("pointLogs")
+                .limitToLast(1000)
                 .once("value")
         ]);
 
@@ -1045,21 +1072,52 @@ window.openStudentProfile = async function(userName) {
 
         const history = [];
 
+        const normalizedUserName = String(userName)
+            .normalize("NFC")
+            .replace(/\s+/g, "");
+
         historySnap.forEach(child => {
-            history.push(child.val() || {});
+            const item = child.val() || {};
+            const itemName = String(
+                item.name ||
+                item.user ||
+                item.userName ||
+                item.studentName ||
+                item.targetName ||
+                ""
+            ).normalize("NFC").replace(/\s+/g, "");
+
+            if (itemName === normalizedUserName) {
+                history.push({
+                    ...item,
+                    __key:child.key
+                });
+            }
         });
 
-        history.reverse();
+        history.sort((a, b) => {
+            const aTime = Number(a.timestamp || a.createdAt || 0);
+            const bTime = Number(b.timestamp || b.createdAt || 0);
+            if (aTime !== bTime) return bTime - aTime;
+            return String(b.__key || "")
+                .localeCompare(String(a.__key || ""));
+        });
+
+        history.splice(20);
 
         const historyHtml = history.map(item => {
             const pointChange = Number(
-                item.pChange !== undefined
-                    ? item.pChange
-                    : item.change
+                item.pAmt !== undefined
+                    ? item.pAmt
+                    : (item.amount !== undefined ? item.amount : item.p)
             ) || 0;
 
             const expChange =
-                Number(item.expChange) || 0;
+                Number(
+                    item.eAmt !== undefined
+                        ? item.eAmt
+                        : (item.expAmt !== undefined ? item.expAmt : item.expChange)
+                ) || 0;
 
             const badges = [];
 

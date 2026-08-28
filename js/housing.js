@@ -467,3 +467,1207 @@ window.sendRoomReaction = function(targetUser, type) {
         });
     });
 };
+/* =========================================================
+   용사의 방 V2
+   - 기본 10코인
+   - 정상등교 하루 1코인
+   - 레벨업마다 5코인
+   - 배경 레벨 해금
+   - 상점에서 일반 포인트 대신 방꾸미기 코인 사용
+   ========================================================= */
+
+(function(){
+
+    const START_COINS=10;
+    const LEVEL_REWARD=5;
+    const CHECKIN_REWARD=1;
+
+    const LEVEL_BACKGROUNDS=[
+        {
+            level:1,
+            name:'초보 용사의 방',
+            img:'assets/housing/backgrounds/level-1.png'
+        },
+        {
+            level:3,
+            name:'숲속 오두막',
+            img:'assets/housing/backgrounds/level-3.png'
+        },
+        {
+            level:5,
+            name:'마법 연구실',
+            img:'assets/housing/backgrounds/level-5.png'
+        },
+        {
+            level:8,
+            name:'기사단 숙소',
+            img:'assets/housing/backgrounds/level-8.png'
+        },
+        {
+            level:12,
+            name:'별빛 관측실',
+            img:'assets/housing/backgrounds/level-12.png'
+        },
+        {
+            level:16,
+            name:'왕실 용사의 방',
+            img:'assets/housing/backgrounds/level-16.png'
+        }
+    ];
+
+    function roomIsAdmin(){
+        return (
+            typeof isAdmin!=='undefined'&&
+            !!isAdmin
+        );
+    }
+
+    function roomLevel(user){
+        return Math.max(
+            1,
+            parseInt(
+                user&&(
+                    user.level||
+                    user.lv
+                ),
+                10
+            )||1
+        );
+    }
+
+    function roomToday(){
+        if(typeof getTodayKST==='function'){
+            return getTodayKST();
+        }
+
+        return new Date().toLocaleDateString(
+            'sv-SE',
+            {
+                timeZone:'Asia/Seoul'
+            }
+        );
+    }
+
+    function roomEscape(value){
+        return String(value??'')
+            .replace(/&/g,'&amp;')
+            .replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;')
+            .replace(/'/g,'&#39;');
+    }
+
+
+    /* =====================================================
+       코인 초기화 및 레벨업 보상
+       ===================================================== */
+
+    window.syncHousingRewards=async function(userName){
+
+        if(!userName){
+            return null;
+        }
+
+        const ref=
+            db.ref(`users/${userName}`);
+
+        const result=
+            await ref.transaction(user=>{
+
+                if(!user){
+                    return user;
+                }
+
+                const currentLevel=
+                    roomLevel(user);
+
+                const currentCoins=
+                    parseInt(
+                        user.roomCoins,
+                        10
+                    );
+
+                /*
+                 * 기존 학생 첫 적용
+                 * 현재 레벨까지 소급 지급하지 않고
+                 * 기본 10코인만 지급
+                 */
+                if(!Number.isFinite(currentCoins)){
+
+                    user.roomCoins=
+                        START_COINS;
+
+                    user.roomRewardedLevel=
+                        currentLevel;
+
+                    return user;
+                }
+
+                const rewardedLevel=
+                    parseInt(
+                        user.roomRewardedLevel,
+                        10
+                    );
+
+                if(!Number.isFinite(rewardedLevel)){
+
+                    user.roomRewardedLevel=
+                        currentLevel;
+
+                    return user;
+                }
+
+                /*
+                 * 오른 레벨 수 × 5코인
+                 */
+                if(currentLevel>rewardedLevel){
+
+                    user.roomCoins=
+                        currentCoins+
+                        (
+                            currentLevel-
+                            rewardedLevel
+                        )*
+                        LEVEL_REWARD;
+
+                    user.roomRewardedLevel=
+                        currentLevel;
+                }
+
+                return user;
+            });
+
+        return (
+            result.committed&&
+            result.snapshot
+        )
+            ?result.snapshot.val()
+            :null;
+    };
+
+
+    /* =====================================================
+       정상등교 코인 지급·회수
+
+       같은 날짜에 여러 번 저장해도 1회만 지급
+       정상 → 지각/결석 수정 시 다시 회수
+       ===================================================== */
+
+    window.setNormalCheckinRoomCoinReward=
+    async function(
+        userName,
+        date,
+        isNormal
+    ){
+
+        if(!userName){
+            return false;
+        }
+
+        const rewardDate=
+            String(
+                date||
+                roomToday()
+            ).slice(0,10);
+
+        const ref=
+            db.ref(
+                `users/${userName}`
+            );
+
+        let changed=false;
+
+        const result=
+            await ref.transaction(user=>{
+
+                if(!user){
+                    return user;
+                }
+
+                const currentLevel=
+                    roomLevel(user);
+
+                const currentCoins=
+                    parseInt(
+                        user.roomCoins,
+                        10
+                    );
+
+                if(!Number.isFinite(currentCoins)){
+
+                    user.roomCoins=
+                        START_COINS;
+
+                    user.roomRewardedLevel=
+                        currentLevel;
+                }
+
+                user.roomCoinRewards=
+                    user.roomCoinRewards||{};
+
+                user.roomCoinRewards.checkin=
+                    user.roomCoinRewards.checkin||{};
+
+                const oldReward=
+                    user.roomCoinRewards
+                        .checkin[rewardDate];
+
+                /*
+                 * 이미 정상등교 코인을 받은 경우
+                 */
+                if(isNormal&&oldReward){
+
+                    return user;
+                }
+
+                /*
+                 * 정상등교 1코인 지급
+                 */
+                if(isNormal){
+
+                    user.roomCoins=
+                        (
+                            parseInt(
+                                user.roomCoins,
+                                10
+                            )||0
+                        )+
+                        CHECKIN_REWARD;
+
+                    user.roomCoinRewards
+                        .checkin[rewardDate]={
+                            amount:
+                                CHECKIN_REWARD,
+
+                            timestamp:
+                                Date.now()
+                        };
+
+                    changed=true;
+
+                    return user;
+                }
+
+                /*
+                 * 정상등교가 취소된 경우 회수
+                 */
+                if(!isNormal&&oldReward){
+
+                    const oldAmount=
+                        parseInt(
+                            oldReward.amount,
+                            10
+                        )||
+                        CHECKIN_REWARD;
+
+                    user.roomCoins=
+                        Math.max(
+                            0,
+                            (
+                                parseInt(
+                                    user.roomCoins,
+                                    10
+                                )||0
+                            )-
+                            oldAmount
+                        );
+
+                    delete user
+                        .roomCoinRewards
+                        .checkin[rewardDate];
+
+                    changed=true;
+                }
+
+                return user;
+            });
+
+        return !!(
+            result.committed&&
+            changed
+        );
+    };
+
+
+    window.grantNormalCheckinRoomCoin=
+    function(userName,date){
+
+        return window
+            .setNormalCheckinRoomCoinReward(
+                userName,
+                date,
+                true
+            );
+    };
+
+
+    /* =====================================================
+       코인 및 배경 UI
+       ===================================================== */
+
+    function ensureRoomPanels(){
+
+        const room=
+            document.getElementById(
+                'my-room-container'
+            );
+
+        if(
+            !room||
+            !room.parentNode
+        ){
+            return;
+        }
+
+        let wallet=
+            document.getElementById(
+                'housing-wallet-bar'
+            );
+
+        if(!wallet){
+
+            wallet=
+                document.createElement(
+                    'div'
+                );
+
+            wallet.id=
+                'housing-wallet-bar';
+
+            wallet.style.cssText=`
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:12px;
+                width:100%;
+                max-width:640px;
+                margin:0 auto 16px;
+                padding:15px 18px;
+                background:#fff4bd;
+                border:2px solid #e7b625;
+                border-radius:14px;
+                color:#4b3a00;
+                font-weight:900;
+                box-sizing:border-box;
+            `;
+
+            room.parentNode.insertBefore(
+                wallet,
+                room
+            );
+        }
+
+        let backgroundPanel=
+            document.getElementById(
+                'housing-background-panel'
+            );
+
+        if(!backgroundPanel){
+
+            backgroundPanel=
+                document.createElement(
+                    'div'
+                );
+
+            backgroundPanel.id=
+                'housing-background-panel';
+
+            backgroundPanel.style.cssText=`
+                width:100%;
+                max-width:640px;
+                margin:18px auto 0;
+                padding:18px;
+                background:#f8fafc;
+                border:1px solid #dbe2ea;
+                border-radius:15px;
+                box-sizing:border-box;
+            `;
+
+            room.parentNode.insertBefore(
+                backgroundPanel,
+                room.nextSibling
+            );
+        }
+    }
+
+
+    function renderRoomPanels(user){
+
+        ensureRoomPanels();
+
+        const wallet=
+            document.getElementById(
+                'housing-wallet-bar'
+            );
+
+        const panel=
+            document.getElementById(
+                'housing-background-panel'
+            );
+
+        const coins=
+            parseInt(
+                user&&user.roomCoins,
+                10
+            )||0;
+
+        const level=
+            roomLevel(user);
+
+        const currentBackground=
+            String(
+                user&&
+                user.myRoom&&
+                user.myRoom.background||
+                ''
+            );
+
+        if(wallet){
+
+            wallet.innerHTML=`
+                <span>
+                    🪙 방꾸미기 코인
+                </span>
+
+                <strong style="
+                    font-size:1.35rem;
+                ">
+                    ${coins.toLocaleString('ko-KR')} C
+                </strong>
+
+                <small style="
+                    color:#6b5a1c;
+                ">
+                    Lv.${level}
+                    · 레벨업 +${LEVEL_REWARD}C
+                    · 정상등교 +${CHECKIN_REWARD}C
+                </small>
+            `;
+        }
+
+        if(panel){
+
+            panel.innerHTML=`
+                <h3 style="
+                    margin:0 0 12px;
+                    color:#263b63;
+                ">
+                    🖼️ 레벨 배경
+                </h3>
+
+                <div style="
+                    display:grid;
+                    grid-template-columns:
+                        repeat(
+                            auto-fit,
+                            minmax(145px,1fr)
+                        );
+                    gap:10px;
+                ">
+
+                    ${
+                        LEVEL_BACKGROUNDS
+                        .map(background=>{
+
+                            const unlocked=
+                                level>=
+                                background.level;
+
+                            const selected=
+                                currentBackground===
+                                background.img;
+
+                            return `
+                                <button
+                                    type="button"
+                                    onclick="
+                                        applyUnlockedHousingBackground(
+                                            '${background.img}',
+                                            ${background.level}
+                                        )
+                                    "
+                                    ${unlocked?'':'disabled'}
+                                    style="
+                                        padding:10px;
+                                        text-align:left;
+                                        background:${
+                                            selected
+                                                ?'#e5f0ff'
+                                                :'#fff'
+                                        };
+                                        border:2px solid ${
+                                            selected
+                                                ?'#3975d5'
+                                                :'#d9e0e8'
+                                        };
+                                        border-radius:12px;
+                                        cursor:${
+                                            unlocked
+                                                ?'pointer'
+                                                :'not-allowed'
+                                        };
+                                        opacity:${
+                                            unlocked
+                                                ?'1'
+                                                :'.55'
+                                        };
+                                    "
+                                >
+
+                                    <div style="
+                                        height:78px;
+                                        margin-bottom:7px;
+                                        border-radius:8px;
+                                        background:
+                                            #e9edf3
+                                            url('${background.img}')
+                                            center/cover
+                                            no-repeat;
+                                    ">
+                                    </div>
+
+                                    <strong style="
+                                        display:block;
+                                        color:#263b63;
+                                    ">
+                                        ${
+                                            roomEscape(
+                                                background.name
+                                            )
+                                        }
+                                    </strong>
+
+                                    <small style="
+                                        color:${
+                                            unlocked
+                                                ?'#24713f'
+                                                :'#a33'
+                                        };
+                                        font-weight:800;
+                                    ">
+                                        ${
+                                            unlocked
+                                                ?'사용 가능'
+                                                :`Lv.${background.level} 해금`
+                                        }
+                                    </small>
+
+                                </button>
+                            `;
+                        })
+                        .join('')
+                    }
+
+                </div>
+            `;
+        }
+    }
+
+
+    /* =====================================================
+       기존 방 렌더링을 유지하며 코인·배경 UI 추가
+       ===================================================== */
+
+    const originalRenderMyRoom=
+        window.renderMyRoom;
+
+    window.renderMyRoom=function(){
+
+        if(
+            typeof originalRenderMyRoom===
+            'function'
+        ){
+            originalRenderMyRoom();
+        }
+
+        if(!window.myName){
+            return;
+        }
+
+        db.ref(
+            `users/${window.myName}`
+        )
+        .once('value')
+        .then(snapshot=>{
+
+            renderRoomPanels(
+                snapshot.val()||{}
+            );
+        });
+    };
+
+
+    window.openHousingTab=
+    async function(){
+
+        if(!window.myName){
+
+            return alert(
+                '로그인이 필요합니다!'
+            );
+        }
+
+        if(
+            !window.isHousingEnabled&&
+            !roomIsAdmin()
+        ){
+
+            return alert(
+                '현재 용사의 방을 점검 중입니다.'
+            );
+        }
+
+        try{
+
+            await window
+                .syncHousingRewards(
+                    window.myName
+                );
+
+        }catch(error){
+
+            console.error(
+                '방꾸미기 코인 초기화 오류:',
+                error
+            );
+        }
+
+        window.renderMyRoom();
+
+        if(
+            typeof window
+                .renderHousingInventory===
+            'function'
+        ){
+            window.renderHousingInventory();
+        }
+    };
+
+
+    /* =====================================================
+       레벨 배경 적용
+       ===================================================== */
+
+    window.applyUnlockedHousingBackground=
+    async function(
+        image,
+        requiredLevel
+    ){
+
+        const snapshot=
+            await db.ref(
+                `users/${window.myName}`
+            )
+            .once('value');
+
+        const user=
+            snapshot.val()||{};
+
+        if(
+            roomLevel(user)<
+            parseInt(requiredLevel,10)
+        ){
+
+            return alert(
+                `Lv.${requiredLevel}부터 `+
+                `사용할 수 있는 배경입니다.`
+            );
+        }
+
+        await db.ref(
+            `users/${window.myName}/`+
+            `myRoom/background`
+        )
+        .set(image);
+
+        window.renderMyRoom();
+    };
+
+
+    /* =====================================================
+       방꾸미기 코인 상점
+       ===================================================== */
+
+    window.openHousingShopPopup=
+    async function(){
+
+        const user=
+            await window
+                .syncHousingRewards(
+                    window.myName
+                )||{};
+
+        const coins=
+            parseInt(
+                user.roomCoins,
+                10
+            )||0;
+
+        const html=`
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                padding:14px 16px;
+                margin-bottom:12px;
+                background:#fff4bd;
+                border:2px solid #e7b625;
+                border-radius:13px;
+                color:#4b3a00;
+                font-weight:900;
+            ">
+                <span>
+                    🪙 내 방꾸미기 코인
+                </span>
+
+                <strong style="
+                    font-size:1.35rem;
+                ">
+                    ${coins.toLocaleString('ko-KR')} C
+                </strong>
+            </div>
+
+            <div style="
+                display:flex;
+                justify-content:center;
+                gap:8px;
+                flex-wrap:wrap;
+                padding:12px;
+                margin-bottom:10px;
+                background:#f8f9fa;
+                border-radius:12px;
+            ">
+                <button
+                    onclick="loadHousingShop('전체')"
+                >
+                    전체
+                </button>
+
+                <button
+                    onclick="loadHousingShop('가구')"
+                >
+                    🪑 가구
+                </button>
+
+                <button
+                    onclick="loadHousingShop('인물')"
+                >
+                    👤 인물
+                </button>
+            </div>
+
+            <p style="
+                margin:0 0 12px;
+                text-align:center;
+                color:#667085;
+            ">
+                배경은 구매하지 않고 레벨에 따라 해금됩니다.
+            </p>
+
+            ${
+                roomIsAdmin()
+                    ?`
+                        <button
+                            onclick="
+                                openAddHousingShopPopup()
+                            "
+                            style="
+                                width:100%;
+                                margin-bottom:12px;
+                                padding:13px;
+                                color:white;
+                                background:#2eaf62;
+                                border:0;
+                                border-radius:10px;
+                                font-weight:900;
+                                cursor:pointer;
+                            "
+                        >
+                            + 새 가구 등록
+                        </button>
+                    `
+                    :''
+            }
+
+            <div
+                id="housing-shop-items"
+                style="
+                    display:grid;
+                    grid-template-columns:
+                        repeat(
+                            auto-fill,
+                            minmax(140px,1fr)
+                        );
+                    gap:12px;
+                    max-height:50vh;
+                    padding:5px;
+                    overflow-y:auto;
+                "
+            >
+                불러오는 중...
+            </div>
+        `;
+
+        if(typeof openPopup==='function'){
+
+            openPopup(
+                '🛒 하우징 상점',
+                html
+            );
+        }
+
+        window.loadHousingShop(
+            '전체'
+        );
+    };
+
+
+    window.loadHousingShop=
+    function(filterCategory){
+
+        const container=
+            document.getElementById(
+                'housing-shop-items'
+            );
+
+        if(!container){
+            return;
+        }
+
+        db.ref('housingShop')
+        .once('value')
+        .then(snapshot=>{
+
+            let html='';
+            let count=0;
+
+            snapshot.forEach(child=>{
+
+                const item=
+                    child.val()||{};
+
+                /*
+                 * 기존 배경 상품은 숨김
+                 */
+                if(item.category==='배경'){
+                    return;
+                }
+
+                if(
+                    filterCategory!=='전체'&&
+                    item.category!==
+                    filterCategory
+                ){
+                    return;
+                }
+
+                count++;
+
+                html+=`
+                    <div style="
+                        padding:12px;
+                        text-align:center;
+                        background:white;
+                        border:1px solid #d9dee8;
+                        border-radius:12px;
+                    ">
+
+                        <div style="
+                            color:#667085;
+                            font-size:.78rem;
+                        ">
+                            ${
+                                roomEscape(
+                                    item.category
+                                )
+                            }
+                        </div>
+
+                        <img
+                            src="${
+                                roomEscape(
+                                    item.img||
+                                    item.url||
+                                    ''
+                                )
+                            }"
+                            style="
+                                width:70px;
+                                height:70px;
+                                margin:8px 0;
+                                object-fit:contain;
+                            "
+                        >
+
+                        <div style="
+                            font-weight:900;
+                        ">
+                            ${
+                                roomEscape(
+                                    item.name
+                                )
+                            }
+                        </div>
+
+                        <div style="
+                            margin:6px 0;
+                            color:#946700;
+                            font-weight:900;
+                        ">
+                            ${
+                                parseInt(
+                                    item.price,
+                                    10
+                                )||0
+                            }C
+                        </div>
+
+                        <button
+                            onclick="
+                                buyHousingItem(
+                                    '${child.key}'
+                                )
+                            "
+                            style="
+                                width:100%;
+                                padding:8px;
+                                background:#f4c542;
+                                border:0;
+                                border-radius:7px;
+                                font-weight:900;
+                                cursor:pointer;
+                            "
+                        >
+                            구매하기
+                        </button>
+
+                        ${
+                            roomIsAdmin()
+                                ?`
+                                    <button
+                                        onclick="
+                                            deleteHousingShopItem(
+                                                '${child.key}'
+                                            )
+                                        "
+                                        style="
+                                            width:100%;
+                                            margin-top:5px;
+                                            padding:6px;
+                                            color:white;
+                                            background:#dc4c4c;
+                                            border:0;
+                                            border-radius:7px;
+                                            cursor:pointer;
+                                        "
+                                    >
+                                        삭제
+                                    </button>
+                                `
+                                :''
+                        }
+
+                    </div>
+                `;
+            });
+
+            container.innerHTML=
+                count
+                    ?html
+                    :`
+                        <p style="
+                            grid-column:1/-1;
+                            text-align:center;
+                            color:#999;
+                        ">
+                            등록된 아이템이 없습니다.
+                        </p>
+                    `;
+        });
+    };
+
+
+    window.buyHousingItem=
+    async function(itemKey){
+
+        const itemSnapshot=
+            await db.ref(
+                `housingShop/${itemKey}`
+            )
+            .once('value');
+
+        const item=
+            itemSnapshot.val();
+
+        if(!item){
+
+            return alert(
+                '존재하지 않는 아이템입니다.'
+            );
+        }
+
+        if(item.category==='배경'){
+
+            return alert(
+                '배경은 레벨 해금 목록에서 선택해 주세요.'
+            );
+        }
+
+        const price=
+            Math.max(
+                0,
+                parseInt(
+                    item.price,
+                    10
+                )||0
+            );
+
+        const charge=
+            roomIsAdmin()
+                ?0
+                :price;
+
+        const message=
+            roomIsAdmin()
+                ?`[${item.name}] 관리자 테스트 구매`
+                :`[${item.name}]을 ${price}C에 구매하시겠습니까?`;
+
+        if(!confirm(message)){
+            return;
+        }
+
+        const inventoryKey=
+            db.ref(
+                `users/${window.myName}/housingInventory`
+            )
+            .push()
+            .key;
+
+        let insufficient=false;
+
+        const result=
+            await db.ref(
+                `users/${window.myName}`
+            )
+            .transaction(user=>{
+
+                if(!user){
+                    return user;
+                }
+
+                const currentCoins=
+                    parseInt(
+                        user.roomCoins,
+                        10
+                    );
+
+                if(!Number.isFinite(currentCoins)){
+
+                    user.roomCoins=
+                        START_COINS;
+
+                    user.roomRewardedLevel=
+                        roomLevel(user);
+                }
+
+                if(
+                    !roomIsAdmin()&&
+                    user.roomCoins<charge
+                ){
+
+                    insufficient=true;
+
+                    return;
+                }
+
+                user.roomCoins=
+                    (
+                        parseInt(
+                            user.roomCoins,
+                            10
+                        )||0
+                    )-
+                    charge;
+
+                user.housingInventory=
+                    user.housingInventory||{};
+
+                user.housingInventory[
+                    inventoryKey
+                ]={
+                    shopKey:
+                        itemKey,
+
+                    name:
+                        item.name,
+
+                    category:
+                        item.category,
+
+                    img:
+                        item.img||
+                        item.url||
+                        '',
+
+                    purchasedAt:
+                        Date.now()
+                };
+
+                return user;
+            });
+
+        if(!result.committed){
+
+            return alert(
+                insufficient
+                    ?'방꾸미기 코인이 부족합니다.'
+                    :'구매 처리 중 오류가 발생했습니다.'
+            );
+        }
+
+        if(charge>0){
+
+            db.ref('roomCoinLogs')
+            .push({
+                name:
+                    window.myName,
+
+                amount:
+                    -charge,
+
+                reason:
+                    `하우징 상점 구매: ${item.name}`,
+
+                itemKey:
+                    itemKey,
+
+                timestamp:
+                    Date.now(),
+
+                time:
+                    new Date()
+                    .toLocaleString(
+                        'ko-KR'
+                    )
+            });
+        }
+
+        alert(
+            charge>0
+                ?`구매 완료! ${charge}C를 사용했습니다.`
+                :'관리자 테스트 구매가 완료되었습니다.'
+        );
+
+        if(
+            typeof window
+                .renderHousingInventory===
+            'function'
+        ){
+            window.renderHousingInventory();
+        }
+
+        window.renderMyRoom();
+        window.openHousingShopPopup();
+    };
+
+})();

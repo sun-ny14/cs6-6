@@ -455,10 +455,13 @@ window.renderAdminList = function() {
                 <select
                     onchange="updateUserRole('${u.name}',this.value)"
                     style="
-                        width:105px;
-                        height:55px;
-                        padding:0 5px;
-                        font-size:1.1rem;
+                        width:130px;
+min-width:130px;
+height:55px;
+padding:0 32px 0 14px;
+box-sizing:border-box;
+font-size:1.05rem;
+text-align:center;
                         border-radius:8px;
                         border:2px solid ${roleColor};
                         background:${roleColor};
@@ -472,21 +475,21 @@ window.renderAdminList = function() {
                         value="일반"
                         ${currentRole === '일반' ? 'selected' : ''}
                     >
-                        👤 일반
+                        일반
                     </option>
 
                     <option
                         value="상점"
                         ${currentRole === '상점' ? 'selected' : ''}
                     >
-                        🛍️ 상점
+                        상점
                     </option>
 
                     <option
                         value="청소"
                         ${currentRole === '청소' ? 'selected' : ''}
                     >
-                        🧹 청소
+                        청소
                     </option>
                 </select>
 

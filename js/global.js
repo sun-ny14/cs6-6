@@ -95,8 +95,9 @@ function showTab(t){
         window.isAdmin===true;
 
     const cleaningAllowed=
-        admin||
-        window.currentUser?.role==='청소';
+        typeof window.canUseCleaningTab==='function'
+            ?window.canUseCleaningTab()
+            :admin;
 
     if(
         adminOnlyTabs.includes(t)&&
@@ -384,12 +385,8 @@ function startApp(){
 
     if(cleaning){
         cleaning.style.display=
-            commander||
-            (
-                typeof currentUser!=='undefined'&&
-                currentUser&&
-                currentUser.role==='청소'
-            )
+            typeof window.canUseCleaningTab==='function'&&
+            window.canUseCleaningTab()
                 ?'inline-block'
                 :'none';
     }
@@ -398,6 +395,13 @@ function startApp(){
     db.ref('settings').on('value',snap=>{
 
         const s=snap.val()||{};
+
+        window.studentRoles=s.studentRoles||{};
+        window.cleaningAssignments=s.cleaningAssignments||{};
+
+        if(typeof window.applyAccessControl==='function'){
+            window.applyAccessControl();
+        }
 
         window.giftList=s.giftList||[];
 
@@ -469,6 +473,8 @@ function startApp(){
         snap.forEach(child=>{
 
             const u=child.val()||{};
+
+            u.__firebaseKey=child.key;
 
             if(!u.name){
                 u.name=child.key;
@@ -873,7 +879,8 @@ window.submitBatchPoints=async function(){
         name: target.name,
         pAmt: target.p,
         reason: reason,
-        time: new Date().toLocaleString("ko-KR")
+        time: new Date().toLocaleString("ko-KR"),
+        timestamp: Date.now()
     };
 }
 
@@ -896,7 +903,8 @@ if (target.p !== 0 || target.exp !== 0) {
 
         result: newPoints,
         pointResult: newPoints,
-        expResult: newExp
+        expResult: newExp,
+        timestamp: Date.now()
         };
 }
         } // ← 이거 하나 추가: for(const target of targets) 종료
@@ -1310,12 +1318,12 @@ window.closePointPopup=function(){
         )).trim();
         const level = Number(first(user, ['level', 'lv'], 1)) || 1;
 
-        if (selectedAnimal && typeof window.getAvatar === 'function') {
-            return window.getAvatar(level, selectedAnimal, 148);
+        if (typeof window.getAvatar === 'function') {
+            return window.getAvatar(level, selectedAnimal || undefined, 148);
         }
 
-        if (selectedAnimal && typeof getAvatar === 'function') {
-            return getAvatar(level, selectedAnimal, 148);
+        if (typeof getAvatar === 'function') {
+            return getAvatar(level, selectedAnimal || undefined, 148);
         }
 
         const value = String(first(user,
@@ -1344,22 +1352,26 @@ window.closePointPopup=function(){
 
     async function loadHistory(name) {
         if (typeof db === 'undefined' || !db?.ref || !name) return [];
-        const [newHistory, oldHistory] = await Promise.all([
-            db.ref(`pointHistory/${name}`).once('value')
-                .then(snapshotValues).catch(() => []),
-            db.ref('pointLogs').orderByChild('name').equalTo(name).once('value')
-                .then(snapshotValues).catch(() => [])
-        ]);
 
-        const seen = new Set();
-        return [...newHistory, ...oldHistory]
-            .sort((a, b) => historyTime(b) - historyTime(a))
-            .filter(item => {
-                const amount = Number(first(item, ['pChange', 'change', 'pAmt'], 0)) || 0;
-                const key = [item.date, item.time, item.reason, amount, item.timestamp].join('|');
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
+        const normalizeName = value => String(value ?? '')
+            .normalize('NFC')
+            .replace(/\s+/g, '')
+            .trim();
+        const targetName = normalizeName(name);
+        const snapshot = await db.ref('pointLogs')
+            .limitToLast(1000)
+            .once('value');
+
+        return snapshotValues(snapshot)
+            .filter(item => normalizeName(first(
+                item,
+                ['name', 'user', 'userName', 'studentName', 'targetName'],
+                ''
+            )) === targetName)
+            .sort((a, b) => {
+                const timeDiff = historyTime(b) - historyTime(a);
+                if (timeDiff) return timeDiff;
+                return String(b.key || '').localeCompare(String(a.key || ''));
             })
             .slice(0, 50);
     }
@@ -1368,9 +1380,8 @@ window.closePointPopup=function(){
         if (!items.length) return '<div class="hd-empty">아직 포인트 증감 내역이 없습니다.</div>';
 
         return items.map(item => {
-            const amount = Number(first(item, ['pChange', 'change', 'pAmt'], 0)) || 0;
-            const expAmount = Number(first(item, ['expChange'], 0)) || 0;
-            const result = first(item, ['pointResult', 'result'], '');
+            const amount = Number(first(item, ['pAmt', 'amount', 'p'], 0)) || 0;
+            const expAmount = Number(first(item, ['eAmt', 'expAmt', 'expChange'], 0)) || 0;
             const reason = first(item, ['reason', 'title', 'memo'], '포인트 변경');
             const time = [item.date, item.time].filter(Boolean).join(' ') ||
                 (historyTime(item) ? new Date(historyTime(item)).toLocaleString('ko-KR') : '날짜 정보 없음');
@@ -1379,12 +1390,9 @@ window.closePointPopup=function(){
             const expText = expAmount
                 ? `<span class="hd-exp-change">EXP ${expAmount > 0 ? '+' : ''}${esc(expAmount)}</span>`
                 : '';
-            const resultText = result !== ''
-                ? `<span class="hd-result">잔여 ${Number(result).toLocaleString('ko-KR')}P</span>`
-                : '';
 
             return `<article class="hd-log-row">
-                <div class="hd-log-copy"><strong>${esc(reason)}</strong><time>${esc(time)}</time><div>${expText}${resultText}</div></div>
+                <div class="hd-log-copy"><strong>${esc(reason)}</strong><time>${esc(time)}</time><div>${expText}</div></div>
                 <b class="hd-change ${tone}">${esc(signed)}P</b>
             </article>`;
         }).join('');

@@ -197,7 +197,14 @@ window.initPointsTabListeners = function() {
 
 
     // 포인트 연대기
-    db.ref('pointLogs').limitToLast(50).on('value', snap => {
+    const pointLogQuery = window.isAdmin === true
+    ? db.ref('pointLogs').limitToLast(50)
+    : db.ref('pointLogs')
+        .orderByChild('name')
+        .equalTo(window.myName)
+        .limitToLast(50);
+
+pointLogQuery.on('value', snap => {
         let historyArr = [];
 
         snap.forEach(c => {

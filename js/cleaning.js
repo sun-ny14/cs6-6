@@ -861,7 +861,7 @@
 
             updates[`${SETTINGS_ROOT}/studentRoles/${name}`] = role || null;
             updates[`${SETTINGS_ROOT}/cleaningAssignments/${name}`] =
-                role && cleaner ? true : null;
+                cleaner ? true : null;
         });
 
         button.disabled = true;
