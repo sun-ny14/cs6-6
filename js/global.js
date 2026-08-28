@@ -149,9 +149,11 @@ function showTab(t){
 
 
     if(t==='main'){
-        if(typeof renderHeroes==='function'){
-            renderHeroes();
-        }
+      window.heroesLoaded=true;
+
+if(typeof renderHeroes==='function'){
+    renderHeroes(window.currentUsers);
+}
     }
 
 
