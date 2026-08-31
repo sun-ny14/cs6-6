@@ -321,6 +321,12 @@ window.refundSoldOutItem = async function(orderKey, itemName, price) {
 
 // 7. 관리자: 단일 주문 승인 (리셋 쿠폰 자동 처리 연동)
 window.approveSingleItem = async function(key, user, item) {
+    if (typeof window.canManageShopRequests !== 'function' ||
+        !window.canManageShopRequests()) {
+        alert('상점 역할 학생과 선생님만 요청을 승인할 수 있습니다.');
+        return;
+    }
+
     if(confirm(`${user} 용사의 [${item}] 1개를 승인하시겠습니까?`)) {
         const timeStr = new Date().toLocaleString();
         
@@ -355,6 +361,12 @@ window.approveSingleItem = async function(key, user, item) {
 
 // 8. 관리자: 주문 일괄 승인 (리셋 쿠폰 포함)
 window.approveUserAll = async function(keyStr, user) {
+    if (typeof window.canManageShopRequests !== 'function' ||
+        !window.canManageShopRequests()) {
+        alert('상점 역할 학생과 선생님만 요청을 승인할 수 있습니다.');
+        return;
+    }
+
     if(confirm(`${user} 용사의 모든 사용 요청을 승인하시겠습니까?`)) {
         const keys = keyStr.split(',');
         const updates = {};
@@ -453,6 +465,12 @@ window.submitResetRequest = function(orderKey, couponName) {
 
 // 11. 관리자: 단일 주문 거절 및 포인트 자동 환불
 window.rejectSingleItem = function(key, user, item) {
+    if (typeof window.canManageShopRequests !== 'function' ||
+        !window.canManageShopRequests()) {
+        alert('상점 역할 학생과 선생님만 요청을 거절할 수 있습니다.');
+        return;
+    }
+
     if(confirm(`${user} 용사의 [${item}] 요청을 거절하고 포인트를 환불하시겠습니까?`)) {
         let refundP = 0;
         if(window.shopData) {

@@ -15,6 +15,12 @@ function formatDateTime(timestamp) {
 window.isPointsListenerAttached = false;
 window.isPointGuideListenerAttached = false;
 
+function canManageItemUseRequests() {
+    return typeof window.canManageShopRequests === 'function'
+        ? window.canManageShopRequests()
+        : window.isAdmin === true;
+}
+
 
 // ============================================================
 // 1. 인벤토리 / 승인 / 포인트 연대기
@@ -105,8 +111,7 @@ window.initPointsTabListeners = function() {
             }
 
             if (
-                typeof isAdmin !== 'undefined' &&
-                isAdmin &&
+                canManageItemUseRequests() &&
                 o.status === '사용요청'
             ) {
                 adminOrderHtml += `
@@ -314,6 +319,11 @@ window.requestUseItem = function(key, itemName) {
 
 
 window.approveItem = function(key, user, item) {
+    if (!canManageItemUseRequests()) {
+        alert('상점 역할 학생과 선생님만 사용 요청을 승인할 수 있습니다.');
+        return;
+    }
+
     if (
         confirm(
             `[${user}] 학생의 [${item}] 사용을 승인하시겠습니까?\n` +
@@ -326,6 +336,11 @@ window.approveItem = function(key, user, item) {
 
 
 window.rejectItemUseRequest = function(key, user, item) {
+    if (!canManageItemUseRequests()) {
+        alert('상점 역할 학생과 선생님만 사용 요청을 반려할 수 있습니다.');
+        return;
+    }
+
     if (
         confirm(
             `[${user}] 학생의 [${item}] 사용을 반려(환불)하시겠습니까?\n` +

@@ -334,7 +334,9 @@ function startApp(){
         myName==='총사령관';
 
    const canManage=
-    admin||commander;
+    typeof window.canManageShopRequests==='function'
+        ?window.canManageShopRequests()
+        :admin||commander;
 
     const orderMgr=
         document.getElementById('admin-order-mgr');
@@ -507,6 +509,22 @@ if (typeof refreshCheckinGuide === 'function') {
                     (parseInt(b.no)||99)
                 );
             });
+
+        const loginName=String(window.myName||'').trim();
+        const loggedInUser=window.currentUsers.find(user=>
+            String(user&&user.name||'').trim()===loginName
+        );
+
+        if(loggedInUser){
+            window.currentUser={...loggedInUser};
+            window.isHelper=
+                loggedInUser.isHelper===true||
+                loggedInUser.isHelper==='true';
+
+            if(typeof window.applyAccessControl==='function'){
+                window.applyAccessControl();
+            }
+        }
 
 
         if(admin&&typeof renderAdminList==='function'){

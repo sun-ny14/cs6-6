@@ -28,6 +28,8 @@ function setMenuVisible(id,visible,displayType='block'){
 window.canUseCleaningTab=function(){
     if(window.isAdmin===true)return true;
 
+    if(window.canManageCleaningChecks())return true;
+
     const name=String(window.myName||'').trim();
     if(!name)return false;
 
@@ -49,6 +51,20 @@ window.canUseCleaningTab=function(){
         /청소|쓸기|닦기|분리수거|쓰레기|정리/.test(role);
 };
 
+window.canManageCleaningChecks=function(){
+    const role=String(window.currentUser?.role||'').trim();
+
+    return window.isAdmin===true||role==='청소';
+};
+
+window.canManageShopRequests=function(){
+    const role=String(window.currentUser?.role||'').trim();
+
+    return window.isAdmin===true||
+        role==='상점'||
+        window.isHelper===true;
+};
+
 function applyAccessControl(){
     const admin=window.isAdmin===true;
 
@@ -68,7 +84,7 @@ function applyAccessControl(){
     // 상점 주문 관리
     setMenuVisible(
         'admin-order-mgr',
-        admin
+        window.canManageShopRequests()
     );
 
     // 등교로그 및 좌석

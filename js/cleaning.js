@@ -23,6 +23,16 @@
         );
     }
 
+    function canCheckCleaning() {
+        if (isCleaningAdmin()) return true;
+
+        if (typeof window.canManageCleaningChecks === 'function') {
+            return window.canManageCleaningChecks();
+        }
+
+        return String(window.currentUser && window.currentUser.role || '').trim() === '청소';
+    }
+
     function getLoginName() {
         return String(
             typeof myName !== 'undefined'
@@ -532,6 +542,7 @@
 
     function renderRoleView(data) {
         const admin = data.admin;
+        const checker = data.checker;
         const loginName = data.loginName;
         const assigned = data.students
             .map(student => ({
@@ -541,7 +552,7 @@
             }))
             .filter(item => item.role);
 
-        if (!admin) {
+        if (!checker) {
             const mine = assigned.find(item => item.name === loginName);
 
             if (!mine) {
@@ -606,12 +617,11 @@
             data.statuses[item.name] && data.statuses[item.name].roleDone
         );
 
-        return `
+        const roleSettings = admin ? `
             <div class="cleaning-info-box">
                 역할을 입력한 학생만 학생 화면과 완료 현황에 표시됩니다.
                 역할이 없는 학생은 입력칸을 비워 두세요. 청소 담당 학생은 체크 표시를 함께 설정합니다.
             </div>
-
             <section class="cleaning-section">
                 <div class="cleaning-section-head">
                     <h3>학생별 역할 설정</h3>
@@ -623,7 +633,14 @@
                     ${editRows || '<div class="cleaning-empty">등록된 학생이 없습니다.</div>'}
                 </div>
             </section>
+        ` : `
+            <div class="cleaning-info-box">
+                학생들의 1인 1역 수행 여부를 확인한 뒤 완료 처리해 주세요.
+            </div>
+        `;
 
+        return `
+            ${roleSettings}
             <section class="cleaning-section">
                 <div class="cleaning-section-head">
                     <h3>오늘의 1인 1역 현황</h3>
@@ -683,19 +700,21 @@
                 data.statuses[seat.name] &&
                 data.statuses[seat.name].cleanDone
             );
-            const canClick = cleaner &&
-                (data.admin || seat.name === data.loginName);
+            const canClick = data.checker ||
+                (cleaner && seat.name === data.loginName);
 
             let action = '<span class="seat-state-text">청소 담당 아님</span>';
 
-            if (cleaner && canClick) {
+            if (canClick) {
                 action = `
                     <button type="button"
                         class="${done ? 'is-done' : ''}"
                         data-status-name="${escapeHtml(seat.name)}"
                         data-status-field="cleanDone"
                         data-status-value="${done ? 'false' : 'true'}">
-                        ${done ? '청소 완료됨' : '청소 완료'}
+                        ${data.checker
+                            ? (done ? '자리 청소 확인 취소' : '자리 청소 확인')
+                            : (done ? '청소 완료됨' : '청소 완료')}
                     </button>
                 `;
             } else if (cleaner) {
@@ -707,7 +726,7 @@
             }
 
             return `
-                <article class="seat-card${cleaner ? ' is-cleaner' : ''}${done ? ' is-done' : ''}">
+                <article class="seat-card${(cleaner || data.checker) ? ' is-cleaner' : ''}${done ? ' is-done' : ''}">
                     <span class="seat-number">${seat.row + 1}-${seat.col + 1}</span>
                     <strong class="seat-name">${escapeHtml(seat.name)}</strong>
                     <span class="seat-role">${escapeHtml(role || '1인 1역 미지정')}</span>
@@ -719,6 +738,7 @@
         const cleanerNames = data.seatInfo.seats
             .filter(seat => {
                 if (!seat.name) return false;
+                if (data.checker) return true;
                 const role = readRole(data.roles[seat.name]);
                 return isCleaningStudent(seat.name, role, data.cleaningAssignments);
             })
@@ -729,9 +749,10 @@
 
         return `
             <div class="cleaning-info-box">
-                설정 탭의 좌석 배치입니다. 청소 담당으로 지정된 학생은 자기 자리에서
-                청소 완료를 누를 수 있습니다.
-                ${data.admin ? `현재 ${doneCount}/${cleanerNames.length}명 완료` : ''}
+                ${data.checker
+                    ? '각 학생의 자리를 확인한 뒤 자리 청소 확인 버튼을 눌러 주세요.'
+                    : '청소 담당으로 지정된 학생은 자기 자리에서 청소 완료를 누를 수 있습니다.'}
+                ${data.checker ? `현재 ${doneCount}/${cleanerNames.length}명 확인 완료` : ''}
             </div>
             <section class="cleaning-section">
                 <div class="cleaning-section-head">
@@ -802,9 +823,11 @@
             const seatInfo = getSeatInformation(settings);
             const students = getStudentList(seatInfo.seats);
             const admin = isCleaningAdmin();
+            const checker = canCheckCleaning();
 
             const data = {
                 admin:admin,
+                checker:checker,
                 loginName:getLoginName(),
                 today:today,
                 settings:settings,
@@ -882,9 +905,10 @@
     window.toggleRoleCleaningStatus = async function (name, field, newStatus) {
         const loginName = getLoginName();
         const admin = isCleaningAdmin();
+        const checker = canCheckCleaning();
 
         if (!['roleDone', 'cleanDone'].includes(field)) return;
-        if (!admin && name !== loginName) {
+        if (!checker && name !== loginName) {
             alert('본인의 완료 상태만 변경할 수 있습니다.');
             return;
         }
@@ -904,7 +928,7 @@
                 return;
             }
 
-            if (field === 'cleanDone' && !cleaner) {
+            if (field === 'cleanDone' && !cleaner && !checker) {
                 alert('청소 담당 학생만 청소 완료를 누를 수 있습니다.');
                 return;
             }
