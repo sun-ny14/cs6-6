@@ -472,11 +472,81 @@ window.rejectSingleItem = function(key, user, item) {
     }
 };
 
-// 실시간 데이터 변경 감지 리스너 (상점 렌더링 전용)
-db.ref('shop').on('value', (s) => { 
-    window.shopData = []; 
-    s.forEach(c => window.shopData.push(c)); 
-    window.renderShop(); 
+// 로그인 후 상점 실시간 데이터 연결
+window.shopRef = null;
+window.shopValueHandler = null;
+
+window.stopShopListener = function() {
+    if (window.shopRef && window.shopValueHandler) {
+        window.shopRef.off(
+            'value',
+            window.shopValueHandler
+        );
+    }
+
+    window.shopRef = null;
+    window.shopValueHandler = null;
+};
+
+window.startShopListener = function() {
+    window.stopShopListener();
+
+    if (!auth.currentUser) {
+        return;
+    }
+
+    window.shopData = [];
+
+    const shopRef = db.ref('shop');
+
+    const valueHandler = function(snapshot) {
+        const loadedItems = [];
+
+        snapshot.forEach(child => {
+            loadedItems.push(child);
+        });
+
+        window.shopData = loadedItems;
+
+        console.log(
+            '상점 상품 불러오기 완료:',
+            window.shopData.length
+        );
+
+        if (typeof window.renderShop === 'function') {
+            window.renderShop();
+        }
+    };
+
+    window.shopRef = shopRef;
+    window.shopValueHandler = valueHandler;
+
+    shopRef.on(
+        'value',
+        valueHandler,
+        function(error) {
+            console.error(
+                '상점 상품 불러오기 실패:',
+                error
+            );
+
+            window.shopData = [];
+
+            if (typeof window.renderShop === 'function') {
+                window.renderShop();
+            }
+        }
+    );
+};
+
+// Firebase 로그인 상태가 확인된 후 상점 연결
+auth.onAuthStateChanged(function(user) {
+    if (user) {
+        window.startShopListener();
+    } else {
+        window.stopShopListener();
+        window.shopData = [];
+    }
 });
 // 12. 관리자: 상점 주문 및 포인트 연대기(orders) 데이터 실시간 렌더링 함수
 window.loadOrderRecords = function() {

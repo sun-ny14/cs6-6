@@ -172,15 +172,18 @@ function ensureHeroProfileEditorStyle() {
             backdrop-filter: blur(3px);
         }
         #hero-profile-editor-overlay * { box-sizing: border-box; }
-        #hero-profile-editor-overlay .hpe-dialog {
-            width: min(960px, 96vw);
-            max-height: min(850px, 94vh);
-            overflow: hidden;
-            border: 1px solid #d9c77d;
-            border-radius: 24px;
-            background: #fffdf7;
-            box-shadow: 0 24px 70px rgba(15, 27, 48, .34);
-        }
+       #hero-profile-editor-overlay .hpe-dialog {
+    display: flex;
+    flex-direction: column;
+    width: min(960px, 96vw);
+    height: min(850px, 94vh);
+    max-height: min(850px, 94vh);
+    overflow: hidden;
+    border: 1px solid #d9c77d;
+    border-radius: 24px;
+    background: #fffdf7;
+    box-shadow: 0 24px 70px rgba(15, 27, 48, .34);
+}
         #hero-profile-editor-overlay .hpe-head {
             display: flex;
             align-items: center;
@@ -211,10 +214,13 @@ function ensureHeroProfileEditorStyle() {
             cursor: pointer;
         }
         #hero-profile-editor-overlay .hpe-body {
-            display: grid;
-            grid-template-columns: 300px minmax(0, 1fr);
-            max-height: calc(94vh - 76px);
-        }
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    min-height: 0;
+    max-height: calc(94vh - 76px);
+    overflow: hidden;
+}
         #hero-profile-editor-overlay .hpe-preview {
             display: flex;
             flex-direction: column;
@@ -259,10 +265,12 @@ function ensureHeroProfileEditorStyle() {
             font-weight: 850;
         }
         #hero-profile-editor-overlay .hpe-selectors {
-            min-width: 0;
-            overflow-y: auto;
-            padding: 26px 26px 20px;
-        }
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 26px 26px 20px;
+}
         #hero-profile-editor-overlay .hpe-section + .hpe-section {
             margin-top: 28px;
         }
@@ -392,12 +400,12 @@ function ensureHeroProfileEditorStyle() {
             font-weight: 900;
         }
         @media (max-width: 720px) {
-            #hero-profile-editor-overlay { padding: 8px; }
-            #hero-profile-editor-overlay .hpe-dialog {
-                width: 100%;
-                max-height: 96vh;
-                border-radius: 18px;
-            }
+    #hero-profile-editor-overlay .hpe-dialog {
+        width: 100%;
+        height: 96vh;
+        max-height: 96vh;
+        border-radius: 18px;
+    }
             #hero-profile-editor-overlay .hpe-body {
                 display: block;
                 max-height: calc(96vh - 70px);
@@ -489,9 +497,13 @@ function showHeroProfileEditor(user, userKey) {
                     <div class="hpe-avatar-stage" data-profile-preview>
                         ${getAvatar(level, selectedAnimal, 148)}
                     </div>
-                    <h3>${heroEscape(user.name || window.myName || "용사")}</h3>
-                    <p class="hpe-preview-title" data-title-preview>${heroEscape(selectedTitle)}</p>
-                    <span class="hpe-level">Lv.${level}</span>
+                    <p class="hpe-preview-title" data-title-preview>
+    ${heroEscape(selectedTitle)}
+</p>
+
+<h3>${heroEscape(user.name || window.myName || "용사")}</h3>
+
+<span class="hpe-level">Lv.${level}</span>
                 </aside>
                 <main class="hpe-selectors">
                     <section class="hpe-section">
@@ -558,21 +570,39 @@ function showHeroProfileEditor(user, userKey) {
         button.textContent = "저장 중...";
 
         try {
-            await db.ref(`users/${userKey}`).update({
-                selectedAnimal:selectedAnimal,
-                animal:selectedAnimal,
-                selectedTitle:selectedTitle,
-                title:selectedTitle
-            });
+    const savedProfile = {
+        selectedAnimal: selectedAnimal,
+        animal: selectedAnimal,
+        selectedTitle: selectedTitle,
+        title: selectedTitle
+    };
 
-            window.closeHeroProfileEditor();
-            window.renderHeroes();
-        } catch (error) {
-            console.error("용사 모습 저장 오류:", error);
-            alert("저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
-            button.disabled = false;
-            button.textContent = "선택한 모습 저장";
+    await db.ref(`users/${userKey}`).update(savedProfile);
+
+    if (Array.isArray(window.currentUsers)) {
+        const savedUser = window.currentUsers.find(item =>
+            item && (
+                item.__firebaseKey === userKey ||
+                heroNormalizeName(item.name) ===
+                    heroNormalizeName(user.name || window.myName)
+            )
+        );
+
+        if (savedUser) {
+            Object.assign(savedUser, savedProfile);
         }
+    }
+
+    window.closeHeroProfileEditor();
+    window.renderHeroes(window.currentUsers);
+
+} catch (error) {
+    console.error("용사 모습 저장 오류:", error);
+    alert("저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+
+        button.disabled = false;
+    button.textContent = "선택한 모습 저장";
+}
     });
 }
 
@@ -783,10 +813,11 @@ function drawHeroes(usersArray) {
             user.role ||
             (user.isHelper ? "상점" : "일반");
 
-        const heroTitle =
-            user.selectedTitle ||
-            user.title ||
-            "모험가";
+       const heroTitle = String(
+    user.selectedTitle ||
+    user.title ||
+    ""
+).trim();
 
 
         const isMySelf =
@@ -912,25 +943,29 @@ const clickAction =
                     user.animal,
                     88
                 )}
+                ${heroTitle ? `
+    <p class="hero-card-title" style="
+        margin:8px 0 0;
+        color:#8a6a12;
+        font-size:0.9rem;
+        font-weight:800;
+    ">
+        ${heroEscape(heroTitle)}
+    </p>
+` : ""}
 
-                <h3 style="
-                    margin-top:10px;
-                    color:var(--dark,#2c3e50);
-                ">
-                    ${number ? number + ". " : ""}${name}
-                </h3>
+               <h3 style="
+    margin-top:6px;
+    color:var(--dark,#2c3e50);
+">
+    ${number ? number + ". " : ""}${name}
+</h3>
 
                 ${pointsHtml}
 
                 ${expHtml}
 
-                <p style="
-                    font-size:0.9rem;
-                    color:#666;
-                    margin-bottom:0;
-                ">
-                    ${heroTitle}
-                </p>
+        
 
             </div>
         `;

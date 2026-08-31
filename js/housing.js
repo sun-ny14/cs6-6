@@ -1,12 +1,62 @@
 // js/housing.js - 용사의 방 렌더링, 가구 배치, 크기/반전 편집, 하우징 상점 및 친구 방 방문/방명록 통합 관리
 
 // 1. 관리자용 하우징 시스템 ON/OFF 토글
-window.toggleHousing = function() {
-    if (!isAdmin) return;
+window.refreshHousingAdminControl = function() {
+    const control =
+        document.getElementById("admin-housing-control");
+
+    const status =
+        document.getElementById("housing-current-status");
+
+    const button =
+        document.getElementById("housing-toggle-btn");
+
+    const admin = window.isAdmin === true;
+
+    if (control) {
+        control.style.display = admin ? "block" : "none";
+    }
+
+    if (!admin) return;
+
+    if (status) {
+        status.textContent = window.isHousingEnabled
+            ? "🟢 이용 가능"
+            : "🔴 이용 중지";
+    }
+
+    if (button) {
+        button.textContent = window.isHousingEnabled
+            ? "용사의 방 닫기"
+            : "용사의 방 열기";
+
+        button.style.backgroundColor =
+            window.isHousingEnabled
+                ? "#e74c3c"
+                : "#27ae60";
+    }
+};
+
+window.toggleHousing = async function() {
+    if (window.isAdmin !== true) return;
+
     const newState = !window.isHousingEnabled;
-    db.ref('settings/housingEnabled').set(newState).then(() => {
-        alert(newState ? "🟢 용사의 방 시스템이 [켜짐] 상태가 되었습니다." : "🔴 용사의 방 시스템이 [꺼짐] 상태가 되었습니다.");
-    });
+
+    try {
+        await db.ref("settings/housingEnabled").set(newState);
+
+        window.isHousingEnabled = newState;
+        window.refreshHousingAdminControl();
+
+        alert(
+            newState
+                ? "용사의 방을 열었습니다."
+                : "용사의 방을 닫았습니다."
+        );
+    } catch (error) {
+        console.error("용사의 방 상태 변경 오류:", error);
+        alert("용사의 방 상태를 변경하지 못했습니다.");
+    }
 };
 
 // 2. 하우징 탭 열기 및 활성화 검증
@@ -263,8 +313,37 @@ window.loadHousingShop = function(filterCat) {
     db.ref('housingShop').once('value', snap => {
         let html = ""; let hasItems = false;
         snap.forEach(child => {
-            const k = child.key; const item = child.val();
-            if (filterCat !== '전체' && item.category !== filterCat) return;
+           const k = child.key;
+const item = child.val() || {};
+
+const rawCategory = String(
+    item.category ||
+    item.cat ||
+    item.type ||
+    ""
+).trim();
+
+let normalizedCategory = rawCategory;
+
+if (rawCategory.includes("가구")) {
+    normalizedCategory = "가구";
+} else if (rawCategory.includes("인물")) {
+    normalizedCategory = "인물";
+} else if (rawCategory.includes("배경")) {
+    normalizedCategory = "배경";
+} else if (!rawCategory) {
+    // 카테고리가 없는 예전 상품은 가구로 처리
+    normalizedCategory = "가구";
+}
+
+item.category = normalizedCategory;
+
+if (
+    filterCat !== "전체" &&
+    normalizedCategory !== filterCat
+) {
+    return;
+}
             hasItems = true;
             html += `
                 <div style="border:1px solid #ddd; padding:10px; border-radius:12px; text-align:center; background:white;">
@@ -295,7 +374,6 @@ window.openAddHousingShopPopup = function(itemKey = null, itemData = {}) {
         <select id="hs-cat" style="width:100%; padding:8px; margin-top:5px; box-sizing:border-box;">
             <option value="배경">🖼️ 배경</option>
             <option value="가구">🪑 가구</option>
-            <option value="인물">👤 인물</option>
         </select>
         <label style="font-weight:bold; display:block; margin-top:10px;">이미지 첨부:</label>
         <input type="file" id="hs-file" accept="image/*" style="width:100%; margin-top:5px;">
@@ -562,89 +640,53 @@ window.sendRoomReaction = function(targetUser, type) {
        코인 초기화 및 레벨업 보상
        ===================================================== */
 
-    window.syncHousingRewards=async function(userName){
+   window.syncHousingRewards = async function(userName) {
+    if (!userName) return null;
 
-        if(!userName){
-            return null;
-        }
+    const ref = db.ref(`users/${userName}`);
+    const snapshot = await ref.once("value");
+    const user = snapshot.val();
 
-        const ref=
-            db.ref(`users/${userName}`);
+    if (!user) return null;
 
-        const result=
-            await ref.transaction(user=>{
+    const currentLevel = roomLevel(user);
+    const savedCoins = parseInt(user.roomCoins, 10);
+    const savedRewardedLevel =
+        parseInt(user.roomRewardedLevel, 10);
 
-                if(!user){
-                    return user;
-                }
+    let nextCoins = Number.isFinite(savedCoins)
+        ? savedCoins
+        : START_COINS;
 
-                const currentLevel=
-                    roomLevel(user);
+    let nextRewardedLevel =
+        Number.isFinite(savedRewardedLevel)
+            ? savedRewardedLevel
+            : currentLevel;
 
-                const currentCoins=
-                    parseInt(
-                        user.roomCoins,
-                        10
-                    );
+    if (
+        Number.isFinite(savedCoins) &&
+        Number.isFinite(savedRewardedLevel) &&
+        currentLevel > savedRewardedLevel
+    ) {
+        nextCoins +=
+            (currentLevel - savedRewardedLevel) *
+            LEVEL_REWARD;
 
-                /*
-                 * 기존 학생 첫 적용
-                 * 현재 레벨까지 소급 지급하지 않고
-                 * 기본 10코인만 지급
-                 */
-                if(!Number.isFinite(currentCoins)){
+        nextRewardedLevel = currentLevel;
+    }
 
-                    user.roomCoins=
-                        START_COINS;
-
-                    user.roomRewardedLevel=
-                        currentLevel;
-
-                    return user;
-                }
-
-                const rewardedLevel=
-                    parseInt(
-                        user.roomRewardedLevel,
-                        10
-                    );
-
-                if(!Number.isFinite(rewardedLevel)){
-
-                    user.roomRewardedLevel=
-                        currentLevel;
-
-                    return user;
-                }
-
-                /*
-                 * 오른 레벨 수 × 5코인
-                 */
-                if(currentLevel>rewardedLevel){
-
-                    user.roomCoins=
-                        currentCoins+
-                        (
-                            currentLevel-
-                            rewardedLevel
-                        )*
-                        LEVEL_REWARD;
-
-                    user.roomRewardedLevel=
-                        currentLevel;
-                }
-
-                return user;
-            });
-
-        return (
-            result.committed&&
-            result.snapshot
-        )
-            ?result.snapshot.val()
-            :null;
+    const updates = {
+        roomCoins: nextCoins,
+        roomRewardedLevel: nextRewardedLevel
     };
 
+    await ref.update(updates);
+
+    return {
+        ...user,
+        ...updates
+    };
+};
 
     /* =====================================================
        정상등교 코인 지급·회수
@@ -1191,11 +1233,25 @@ window.sendRoomReaction = function(targetUser, type) {
     window.openHousingShopPopup=
     async function(){
 
-        const user=
-            await window
-                .syncHousingRewards(
-                    window.myName
-                )||{};
+       let user = {};
+
+try {
+    user =
+        await window.syncHousingRewards(
+            window.myName
+        ) || {};
+} catch (error) {
+    console.error(
+        "방꾸미기 코인 동기화 오류:",
+        error
+    );
+
+    const snapshot = await db
+        .ref(`users/${window.myName}`)
+        .once("value");
+
+    user = snapshot.val() || {};
+}
 
         const coins=
             parseInt(
@@ -1249,11 +1305,7 @@ window.sendRoomReaction = function(targetUser, type) {
                     🪑 가구
                 </button>
 
-                <button
-                    onclick="loadHousingShop('인물')"
-                >
-                    👤 인물
-                </button>
+            
             </div>
 
             <p style="

@@ -453,16 +453,22 @@ function startApp(){
         }
 
 
-        window.currentDefaultBg=
-            s.defaultBg||'';
+        window.currentDefaultBg =
+    s.defaultBg || '';
 
-        window.isHousingEnabled=
-            s.housingEnabled!==false;
+window.isHousingEnabled =
+    s.housingEnabled !== false;
 
+if (
+    typeof window.refreshHousingAdminControl ===
+    'function'
+) {
+    window.refreshHousingAdminControl();
+}
 
-        if(typeof refreshCheckinGuide==='function'){
-            refreshCheckinGuide(s);
-        }
+if (typeof refreshCheckinGuide === 'function') {
+    refreshCheckinGuide(s);
+}
     });
 
 

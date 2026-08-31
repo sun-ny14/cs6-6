@@ -527,6 +527,11 @@ body #common-overlay:has(#pop-content button) > .popup-box > #pop-close-btn {
     display: none !important;
 }
 
+body #common-overlay:has(#housing-shop-items)
+> .popup-box > #pop-close-btn {
+    display: block !important;
+}
+
 body #pop-close-btn,
 body #point-apply-btn {
     margin-top: 18px;
