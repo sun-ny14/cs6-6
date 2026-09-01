@@ -93,6 +93,19 @@ function applyAccessControl(){
         admin
     );
 
+    setMenuVisible(
+        'sub-btn-checkin-main',
+        !admin,
+        'block'
+    );
+
+    const checkinButton=document.getElementById('btn-checkin');
+    if(checkinButton){
+        checkinButton.textContent=admin
+            ?'🗓️ 등교로그 및 좌석'
+            :'⚔️ 등교';
+    }
+
     // 청소 메뉴는 관리자 또는 청소 역할 학생만
     setMenuVisible(
         'btn-cleaning',

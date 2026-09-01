@@ -433,6 +433,10 @@ function toggleSidebar(){
             ⚔️ 등교
         </button>
 
+        <button id="btn-assignments" onclick="showTab('assignments');initAssignmentsTab();" style="background:#eef2ff !important;color:#4f46e5 !important;border-left:6px solid #6366f1 !important;">
+            📝 과제
+        </button>
+
         <button id="btn-points" onclick="showTab('points')" style="background:#f4ecf7 !important;color:#8e44ad !important;border-left:6px solid #9b59b6 !important;">
             💰 포인트·도감
         </button>
@@ -569,6 +573,11 @@ function toggleSidebar(){
 
             </div>
 
+        </section>
+
+        <!-- 학생 과제 안내 -->
+        <section id="tab-assignments" class="tab-content" style="display:none;">
+            <div id="assignments-tab-container">과제를 불러오는 중...</div>
         </section>
 
         <!-- 4. 포인트 -->
@@ -844,15 +853,16 @@ function toggleSidebar(){
 </div>
 
 <script src="js/firebase-config.js?v=20260827-2"></script>
-<script src="js/global.js?v=20260901-1"></script>
-<script src="js/auth.js?v=20260831-2"></script>
+<script src="js/global.js?v=20260901-3"></script>
+<script src="js/auth.js?v=20260901-1"></script>
 <script src="js/checkin-seat.js?v=20260828-2"></script>
 <script src="js/hero-mgr.js?v=20260901-1"></script>
 <script src="js/point-shop.js?v=20260831-2"></script>
 <script src="js/point-guide.js?v=20260831-2"></script>
-<script src="js/housing.js?v=20260831-1"></script>
+<script src="js/housing.js?v=20260901-1"></script>
 <script src="js/admin-grades.js?v=20260827-2"></script>
-<script src="js/blackboard-admin.js?v=20260901-4"></script>
+<script src="js/blackboard-admin.js?v=20260901-5"></script>
+<script src="js/assignments.js?v=20260901-2"></script>
 <script src="js/settings.js?v=20260827-2"></script>
 <script src="js/cleaning.js?v=20260831-2"></script>
     

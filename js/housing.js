@@ -560,6 +560,28 @@ window.sendRoomReaction = function(targetUser, type) {
     const LEVEL_REWARD=5;
     const CHECKIN_REWARD=1;
 
+    // 저장소에 포함된 기본 가구입니다. Firebase 상점 등록 여부와 관계없이 항상 표시합니다.
+    const DEFAULT_FURNITURE={
+        'builtin-bed':{name:'포근한 침대',category:'가구',img:'assets/housing/furniture/bed.png',price:8},
+        'builtin-bookshelf':{name:'용사의 책장',category:'가구',img:'assets/housing/furniture/bookshelf.png',price:6},
+        'builtin-chair':{name:'나무 의자',category:'가구',img:'assets/housing/furniture/chair.png',price:3},
+        'builtin-clock':{name:'벽시계',category:'가구',img:'assets/housing/furniture/clock.png',price:4},
+        'builtin-desk':{name:'공부 책상',category:'가구',img:'assets/housing/furniture/desk.png',price:7},
+        'builtin-lamp':{name:'스탠드 조명',category:'가구',img:'assets/housing/furniture/lamp.png',price:4},
+        'builtin-picture':{name:'모험 그림',category:'가구',img:'assets/housing/furniture/picture.png',price:4},
+        'builtin-plant':{name:'초록 화분',category:'가구',img:'assets/housing/furniture/plant.png',price:3},
+        'builtin-rug':{name:'포근한 러그',category:'가구',img:'assets/housing/furniture/rug.png',price:5},
+        'builtin-toy-box':{name:'장난감 상자',category:'가구',img:'assets/housing/furniture/toy-box.png',price:5}
+    };
+
+    function normalizeFurnitureItem(item){
+        const value={...(item||{})};
+        const rawCategory=String(value.category||value.cat||value.type||'').trim();
+        value.category=rawCategory.includes('배경')?'배경':rawCategory.includes('인물')?'인물':'가구';
+        value.img=value.img||value.url||'';
+        return value;
+    }
+
     const LEVEL_BACKGROUNDS=[
         {
             level:1,
@@ -1386,36 +1408,14 @@ try {
             return;
         }
 
-        db.ref('housingShop')
-        .once('value')
-        .then(snapshot=>{
+        db.ref('housingShop').once('value').then(snapshot=>{
+            const items=[];
+            snapshot.forEach(child=>items.push({key:child.key,item:normalizeFurnitureItem(child.val())}));
+            const savedImages=new Set(items.map(entry=>entry.item.img).filter(Boolean));
+            Object.entries(DEFAULT_FURNITURE).forEach(([key,item])=>{if(!savedImages.has(item.img))items.push({key,item});});
 
-            let html='';
-            let count=0;
-
-            snapshot.forEach(child=>{
-
-                const item=
-                    child.val()||{};
-
-                /*
-                 * 기존 배경 상품은 숨김
-                 */
-                if(item.category==='배경'){
-                    return;
-                }
-
-                if(
-                    filterCategory!=='전체'&&
-                    item.category!==
-                    filterCategory
-                ){
-                    return;
-                }
-
-                count++;
-
-                html+=`
+            const visible=items.filter(({item})=>item.category!=='배경'&&(filterCategory==='전체'||item.category===filterCategory));
+            const html=visible.map(({key,item})=>`
                     <div style="
                         padding:12px;
                         text-align:center;
@@ -1477,7 +1477,7 @@ try {
                         <button
                             onclick="
                                 buyHousingItem(
-                                    '${child.key}'
+                                    '${key}'
                                 )
                             "
                             style="
@@ -1494,12 +1494,12 @@ try {
                         </button>
 
                         ${
-                            roomIsAdmin()
+                            roomIsAdmin()&&!DEFAULT_FURNITURE[key]
                                 ?`
                                     <button
                                         onclick="
                                             deleteHousingShopItem(
-                                                '${child.key}'
+                                                '${key}'
                                             )
                                         "
                                         style="
@@ -1520,11 +1520,10 @@ try {
                         }
 
                     </div>
-                `;
-            });
+                `).join('');
 
             container.innerHTML=
-                count
+                visible.length
                     ?html
                     :`
                         <p style="
@@ -1535,21 +1534,16 @@ try {
                             등록된 아이템이 없습니다.
                         </p>
                     `;
-        });
+        }).catch(error=>{console.error('하우징 가구 불러오기 오류:',error);container.innerHTML='<p style="grid-column:1/-1;text-align:center;color:#c0392b;">가구를 불러오지 못했습니다.</p>';});
     };
 
 
     window.buyHousingItem=
     async function(itemKey){
 
-        const itemSnapshot=
-            await db.ref(
-                `housingShop/${itemKey}`
-            )
-            .once('value');
-
-        const item=
-            itemSnapshot.val();
+        let item=DEFAULT_FURNITURE[itemKey]||null;
+        if(!item){const itemSnapshot=await db.ref(`housingShop/${itemKey}`).once('value');item=itemSnapshot.val();}
+        item=item?normalizeFurnitureItem(item):null;
 
         if(!item){
 

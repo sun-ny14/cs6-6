@@ -2,7 +2,7 @@
 (function () {
     'use strict';
 
-    const PERIODS = ['아침','1교시','2교시','3교시','4교시','점심시간','청소시간','5교시','6교시'];
+    const PERIODS = ['아침','1교시','2교시','3교시','4교시','점심시간','청소시간','5교시','6교시','하교'];
     const DEFAULTS = {
         '아침':{startTime:'08:00',endTime:'09:00',subject:'아침'},
         '1교시':{startTime:'09:00',endTime:'09:40',subject:'1교시'},
@@ -12,12 +12,14 @@
         '점심시간':{startTime:'12:10',endTime:'13:00',subject:'점심시간'},
         '청소시간':{startTime:'13:00',endTime:'13:20',subject:'청소시간'},
         '5교시':{startTime:'13:20',endTime:'14:00',subject:'5교시'},
-        '6교시':{startTime:'14:10',endTime:'14:50',subject:'6교시'}
+        '6교시':{startTime:'14:10',endTime:'14:50',subject:'6교시'},
+        '하교':{startTime:'14:50',endTime:'18:00',subject:'하교'}
     };
     const state = {
         legacySchedule:{}, legacyNotice:'', periodTimes:{}, baseSchedule:{},
         weeklySchedules:{}, notices:{}, users:{}, checkins:{}, seatData:{},
-        cleaningRoot:{}, manualPeriodName:'', authUser:null, canEdit:false, memoTimers:{}
+        cleaningRoot:{}, assignments:{}, assignmentCompletions:{}, dismissalNotes:{},
+        manualPeriodName:'', authUser:null, canEdit:false, memoTimers:{}
     };
 
     function escapeHtml(value) {
@@ -141,6 +143,21 @@
         return { rows, cols, seats };
     }
 
+    function getStudentNumber(name) {
+        const users=state.users||{};
+        const direct=users[name]||{};
+        const matched=direct?.name?direct:Object.values(users).find(user=>String(user?.name||'').trim()===name)||{};
+        const number=Number(matched.number||matched.no||matched.studentNo);
+        return Number.isFinite(number)&&number>0?number:null;
+    }
+
+    function getRoster() {
+        const names=new Set();
+        getSeats().seats.forEach(seat=>{if(seat.name)names.add(seat.name);});
+        Object.entries(state.users||{}).forEach(([key,user])=>{const name=String(user?.name||key||'').trim();if(name&&name!=='총사령관'&&!name.includes('관리자')&&!name.includes('선생님'))names.add(name);});
+        return Array.from(names).map(name=>({name,number:getStudentNumber(name)})).filter(student=>student.number!==null).sort((a,b)=>a.number-b.number);
+    }
+
     function renderTimeline(activeName, schedule) {
         document.getElementById('timeline').innerHTML = PERIODS.map(name => {
             const data = schedule[name];
@@ -170,7 +187,7 @@
         notice.querySelector('span').textContent = text;
     }
 
-    function renderSeatGrid(mode, today) {
+    function renderSeatGrid(mode, today, item) {
         const seatInfo = getSeats();
         const checked = getCheckedNames(today);
         const cleaning = state.cleaningRoot?.[today] || {};
@@ -196,7 +213,8 @@
         const badCount = Math.max(0, occupied - goodCount);
         const title = mode === 'morning' ? '아침 등교 확인' : '청소 확인';
         const guide = mode === 'morning' ? '자기 이름이 초록색인지 확인하세요.' : '자리 청소가 확인되면 초록색으로 바뀝니다.';
-        return `<div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2><div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-grid" style="--seat-cols:${seatInfo.cols}">${cards}</div>`;
+        const action=String(item?.action||'').trim();
+        return `<div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2>${action?`<div class="action">${escapeHtml(action)}</div>`:''}<div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-grid" style="--seat-cols:${seatInfo.cols}">${cards}</div>`;
     }
 
     function renderLesson(item) {
@@ -237,7 +255,35 @@
     function renderSimplePeriod(item) {
         const action = String(item.action || '').trim();
         const icon = item.name === '점심시간' ? '🍱' : '☀️';
-        return `<div class="state-kicker">${escapeHtml(item.name)}</div><h2 class="state-title">${icon} ${escapeHtml(item.subject || item.name)}</h2>${action ? `<p class="state-subtitle">${escapeHtml(action)}</p>` : ''}`;
+        return `<div class="state-kicker">${escapeHtml(item.name)}</div><h2 class="state-title">${icon} ${escapeHtml(item.subject || item.name)}</h2>${action ? `<p class="state-subtitle simple-action">${escapeHtml(action)}</p>` : ''}`;
+    }
+
+    function numbersHtml(students) {
+        if(!students.length)return '<div class="number-list all-done">없음 🎉</div>';
+        return `<div class="number-list">${students.map(student=>`${student.number}번`).join(', ')}</div>`;
+    }
+
+    function renderDismissal(today) {
+        const roster=getRoster();
+        const cleaning=state.cleaningRoot?.[today]||{};
+        const cleaningIncomplete=roster.filter(student=>!Boolean(cleaning[student.name]?.cleanDone));
+        const dueAssignments=Object.entries(state.assignments||{}).map(([id,item])=>{const completed=state.assignmentCompletions?.[id]||{};const incomplete=roster.filter(student=>!completed[student.name]);return {id,item,incomplete};}).filter(entry=>entry.item&&entry.item.active!==false&&entry.item.required!==false&&entry.item.dueDate<=today&&entry.incomplete.length>0);
+        const assignmentHtml=dueAssignments.length?dueAssignments.map(({item,incomplete})=>{
+            return `<div class="task-due-item"><div class="task-due-title">${escapeHtml(item.title||'제목 없는 과제')} · 마감 ${escapeHtml(item.dueDate||'')}</div><div class="task-due-numbers">${incomplete.map(student=>`${student.number}번`).join(', ')}</div></div>`;
+        }).join(''):'<div class="number-list all-done" style="font-size:32px">미완료 과제 없음</div>';
+        const manual=String(state.dismissalNotes?.[today]?.teacherMessage||state.dismissalNotes?.[today]?.manualIncomplete||'');
+        const manualBody=state.canEdit?`<textarea class="dismissal-input" data-dismissal-note placeholder="하교 전 학생들에게 전달할 내용을 적으세요.">${escapeHtml(manual)}</textarea><div class="dismissal-status" data-dismissal-status>입력을 멈추면 자동 저장됩니다.</div>`:`<div class="dismissal-view">${manual?escapeHtml(manual):'전달사항 없음'}</div>`;
+        return `<div class="dismissal-board"><div class="state-kicker">6교시 이후</div><h2 class="state-title">🏠 하교합니다</h2><p class="state-subtitle">아래 번호의 학생은 할 일을 마치고 하교하세요.</p><div class="dismissal-grid"><section class="dismissal-card clean"><h3>🧹 오늘 청소 미완료</h3>${numbersHtml(cleaningIncomplete)}</section><section class="dismissal-card task"><h3>📝 필수 과제 미완료</h3>${assignmentHtml}</section><section class="dismissal-card manual"><h3>📣 교사 전달사항</h3>${manualBody}</section></div></div>`;
+    }
+
+    async function saveDismissalNote(textarea) {
+        if(!state.canEdit||!textarea?.isConnected)return;
+        const today=koreanNow().date;const teacherMessage=String(textarea.value||'').trim();
+        const status=textarea.closest('.dismissal-card')?.querySelector('[data-dismissal-status]');
+        state.dismissalNotes[today]={...(state.dismissalNotes[today]||{}),teacherMessage};
+        if(status)status.textContent='저장 중...';
+        try{await db.ref(`blackboard/dismissalNotes/${today}/teacherMessage`).set(teacherMessage||null);if(status?.isConnected)status.textContent='Firebase에 저장됨';}
+        catch(error){console.error('하교 미완료 메모 저장 실패:',error);if(status?.isConnected)status.textContent='저장 실패 · 로그인 상태 확인';}
     }
 
     function renderBreak(mode, timeText) {
@@ -256,8 +302,9 @@
     }
 
     function periodHtml(item, now) {
-        if (item.name === '아침') return renderSeatGrid('morning', now.date);
-        if (item.name === '청소시간') return renderSeatGrid('cleaning', now.date);
+        if (item.name === '아침') return renderSeatGrid('morning', now.date, item);
+        if (item.name === '청소시간') return renderSeatGrid('cleaning', now.date, item);
+        if (item.name === '하교') return renderDismissal(now.date);
         if (isClassPeriod(item.name)) return renderLesson(item);
         return renderSimplePeriod(item);
     }
@@ -280,7 +327,7 @@
         renderTimeline(activeName, schedule);
         renderViewerControls(autoActiveName);
         const stage = document.getElementById('stage');
-        const editingMemo = document.activeElement?.matches?.('[data-inline-learning-note]');
+        const editingMemo = document.activeElement?.matches?.('[data-inline-learning-note],[data-dismissal-note]');
 
         if (editingMemo) {
             return;
@@ -292,7 +339,7 @@
         } else if (mode.type === 'break') {
             stage.innerHTML = renderBreak(mode, timeText);
         } else {
-            stage.innerHTML = '<div class="empty-message">오늘의 학교 일정이 끝났습니다.</div>';
+            stage.innerHTML = renderDismissal(now.date);
         }
     }
 
@@ -317,6 +364,8 @@
         render();
     });
     document.getElementById('stage').addEventListener('input', event => {
+        const dismissal=event.target.closest('[data-dismissal-note]');
+        if(dismissal){const status=dismissal.closest('.dismissal-card')?.querySelector('[data-dismissal-status]');if(status)status.textContent='저장 대기 중...';clearTimeout(state.memoTimers.dismissal);state.memoTimers.dismissal=setTimeout(()=>saveDismissalNote(dismissal),800);return;}
         const textarea = event.target.closest('[data-inline-learning-note]');
         if (!textarea) return;
         const key = textarea.dataset.inlineLearningNote;
@@ -326,6 +375,8 @@
         state.memoTimers[key] = setTimeout(() => saveInlineMemo(textarea), 800);
     });
     document.getElementById('stage').addEventListener('focusout', event => {
+        const dismissal=event.target.closest('[data-dismissal-note]');
+        if(dismissal){clearTimeout(state.memoTimers.dismissal);saveDismissalNote(dismissal);return;}
         const textarea = event.target.closest('[data-inline-learning-note]');
         if (!textarea) return;
         const key = textarea.dataset.inlineLearningNote;
@@ -343,6 +394,9 @@
     listen('checkins', 'checkins', {});
     listen('seatLayoutData', 'seatData', {});
     listen('classManagement/cleaningStatus', 'cleaningRoot', {});
+    listen('blackboard/assignments', 'assignments', {});
+    listen('blackboard/assignmentCompletions', 'assignmentCompletions', {});
+    listen('blackboard/dismissalNotes', 'dismissalNotes', {});
     if (typeof auth !== 'undefined' && auth?.onAuthStateChanged) {
         auth.onAuthStateChanged(user => {
             state.authUser = user || null;

@@ -160,7 +160,11 @@ if(typeof renderHeroes==='function'){
 
     if(t==='checkin'){
         if(typeof switchCheckinSub==='function'){
-            switchCheckinSub('checkin-main');
+            switchCheckinSub(
+                isCheckinAdminUser()
+                    ?'checkin-logs'
+                    :'checkin-main'
+            );
         }
 
         const adminBtn=
@@ -196,6 +200,10 @@ if(typeof renderHeroes==='function'){
         if(typeof initPointsTabListeners==='function'){
             initPointsTabListeners();
         }
+    }
+
+    if(t==='assignments'&&typeof initAssignmentsTab==='function'){
+        initAssignmentsTab();
     }
 
 
@@ -245,6 +253,8 @@ function isCheckinAdminUser(){
    ========================================================= */
 
 function switchCheckinSub(subId){
+    const adminView=isCheckinAdminUser();
+    if(adminView)subId='checkin-logs';
     const main=
         document.getElementById('sub-checkin-main');
 
@@ -277,6 +287,10 @@ function switchCheckinSub(subId){
             isCheckinAdminUser()
                 ?'block'
                 :'none';
+    }
+
+    if(btnMain){
+        btnMain.style.display=adminView?'none':'block';
     }
 
 
@@ -370,6 +384,9 @@ function startApp(){
 
     if(checkinBtn){
         checkinBtn.style.display='block';
+        checkinBtn.textContent=admin
+            ?'🗓️ 등교로그 및 좌석'
+            :'⚔️ 등교';
     }
 
 

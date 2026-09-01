@@ -2,7 +2,7 @@
 (function () {
     'use strict';
 
-    const PERIODS = ['아침','1교시','2교시','3교시','4교시','점심시간','청소시간','5교시','6교시'];
+    const PERIODS = ['아침','1교시','2교시','3교시','4교시','점심시간','청소시간','5교시','6교시','하교'];
     const WEEKDAYS = [
         {key:'1',label:'월'},{key:'2',label:'화'},{key:'3',label:'수'},
         {key:'4',label:'목'},{key:'5',label:'금'}
@@ -16,7 +16,8 @@
         '점심시간':{startTime:'12:10',endTime:'13:00',subject:'점심시간'},
         '청소시간':{startTime:'13:00',endTime:'13:20',subject:'청소시간'},
         '5교시':{startTime:'13:20',endTime:'14:00',subject:'5교시'},
-        '6교시':{startTime:'14:10',endTime:'14:50',subject:'6교시'}
+        '6교시':{startTime:'14:10',endTime:'14:50',subject:'6교시'},
+        '하교':{startTime:'14:50',endTime:'18:00',subject:'하교'}
     };
     const state = {
         legacySchedule:{}, periodTimes:{}, baseSchedule:{}, notices:{}, week:{},
@@ -66,6 +67,7 @@
         style.id = 'bb-admin-v2-style';
         style.textContent = `
             .bb-admin-grid{display:grid;gap:20px}.bb-panel{padding:22px;border:1px solid #dfe5ed;border-radius:16px;background:#fff}.bb-panel h3{margin:0 0 16px;color:#22324a}.bb-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.bb-btn{padding:11px 16px;border:0;border-radius:9px;font-weight:900;cursor:pointer}.bb-btn.primary{background:#3498db;color:#fff}.bb-btn.green{background:#27ae60;color:#fff}.bb-btn.dark{background:#263b63;color:#fff}.bb-btn.light{background:#edf1f6;color:#263b63}.bb-btn.red{background:#e74c3c;color:#fff}.bb-date-strip,.bb-day-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.bb-date-btn,.bb-day-btn{padding:10px 13px;border:2px solid #dce3ec;border-radius:10px;background:#fff;font-weight:850;cursor:pointer}.bb-date-btn.active,.bb-day-btn.active{border-color:#3498db;background:#eaf4fc;color:#17679f}.bb-editor{display:grid;gap:10px;margin-top:14px}.bb-period-row{display:grid;grid-template-columns:95px minmax(130px,1fr) auto;gap:10px;align-items:center;padding:12px;border:1px solid #e1e6ed;border-radius:12px;background:#f8fafc}.bb-period-row input[type=text],.bb-period-row textarea,.bb-panel input[type=date],.bb-panel textarea{padding:10px;border:1px solid #bec8d5;border-radius:8px;font:inherit;box-sizing:border-box}.bb-period-extra{grid-column:2/-1;display:grid;grid-template-columns:1fr;gap:9px}.bb-period-extra textarea{width:100%;resize:vertical}.bb-check{display:flex;align-items:center;gap:6px;font-weight:850;white-space:nowrap}.bb-modal{position:fixed;inset:0;z-index:1000000;display:grid;place-items:center;padding:18px;background:rgba(15,23,42,.62)}.bb-modal[hidden]{display:none}.bb-modal-dialog{width:min(1100px,96vw);max-height:94vh;overflow:auto;padding:25px;border-radius:20px;background:#fff;box-shadow:0 25px 70px rgba(0,0,0,.3)}.bb-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.bb-modal-head h2{margin:0}.bb-time-grid{display:grid;grid-template-columns:repeat(2,minmax(320px,1fr));gap:12px;margin:18px 0 24px}.bb-time-row{padding:14px;border-radius:10px;background:#f3f6fa}.bb-time-row strong{display:block;margin-bottom:8px}.bb-time-row div{display:grid;grid-template-columns:minmax(145px,1fr) auto minmax(145px,1fr);align-items:center;gap:8px}.bb-time-row input[type=time]{width:100%;min-width:0;padding:10px 12px;box-sizing:border-box;font:inherit}.bb-notebook-grid{display:grid;grid-template-columns:repeat(5,minmax(180px,1fr));gap:12px;margin-top:20px}.bb-notebook-day{padding:14px;border-radius:14px;background:#f5f7fb;border:1px solid #dce3ec}.bb-notebook-day h3{margin:0 0 12px;color:#263b63}.bb-notebook-item{padding:12px;margin-top:9px;border-radius:10px;background:#fff;border-left:5px solid #8e44ad}.bb-notebook-item strong,.bb-notebook-item span{display:block}.bb-notebook-item p{margin:7px 0 0;white-space:pre-wrap;line-height:1.45}.bb-status{color:#667085;font-weight:800}.bb-empty{padding:28px;border:1px dashed #bbc5d2;border-radius:12px;text-align:center;color:#667085;font-weight:800}
+            .bb-assignment-form{display:grid;grid-template-columns:1.2fr 1fr auto auto;gap:10px;align-items:center}.bb-assignment-form input{padding:11px;border:1px solid #bec8d5;border-radius:8px}.bb-assignment-form textarea{grid-column:1/-1}.bb-required-check{display:flex;gap:7px;align-items:center;padding:10px;border-radius:8px;background:#feecec;color:#a22b2b;font-weight:900;white-space:nowrap}.bb-assignment-list{display:grid;gap:10px;margin-top:16px}.bb-assignment-row{display:grid;grid-template-columns:1fr auto;gap:12px;padding:15px;border:1px solid #dfe5ed;border-radius:12px;background:#f8fafc}.bb-assignment-row strong,.bb-assignment-row span{display:block}.bb-assignment-row p{margin:8px 0 0;white-space:pre-wrap}.bb-student-checks{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.bb-student-check{min-width:58px;padding:9px;border:2px solid #e1a047;border-radius:9px;background:#fff7e8;color:#8b4d00;font-weight:900;cursor:pointer}.bb-student-check.is-done{border-color:#36a666;background:#eaf9f0;color:#176b3a;text-decoration:line-through}
             @media(max-width:1000px){.bb-notebook-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.bb-period-row{grid-template-columns:1fr}.bb-period-extra{grid-column:1;grid-template-columns:1fr}.bb-time-grid,.bb-notebook-grid{grid-template-columns:1fr}}
         `;
         document.head.appendChild(style);
