@@ -1,0 +1,355 @@
+// js/blackboard-display.js - 전자칠판 표시 화면
+(function () {
+    'use strict';
+
+    const PERIODS = ['아침','1교시','2교시','3교시','4교시','점심시간','청소시간','5교시','6교시'];
+    const DEFAULTS = {
+        '아침':{startTime:'08:00',endTime:'09:00',subject:'아침'},
+        '1교시':{startTime:'09:00',endTime:'09:40',subject:'1교시'},
+        '2교시':{startTime:'09:50',endTime:'10:30',subject:'2교시'},
+        '3교시':{startTime:'10:40',endTime:'11:20',subject:'3교시'},
+        '4교시':{startTime:'11:30',endTime:'12:10',subject:'4교시'},
+        '점심시간':{startTime:'12:10',endTime:'13:00',subject:'점심시간'},
+        '청소시간':{startTime:'13:00',endTime:'13:20',subject:'청소시간'},
+        '5교시':{startTime:'13:20',endTime:'14:00',subject:'5교시'},
+        '6교시':{startTime:'14:10',endTime:'14:50',subject:'6교시'}
+    };
+    const state = {
+        legacySchedule:{}, legacyNotice:'', periodTimes:{}, baseSchedule:{},
+        weeklySchedules:{}, notices:{}, users:{}, checkins:{}, seatData:{},
+        cleaningRoot:{}, manualPeriodName:'', authUser:null, canEdit:false, memoTimers:{}
+    };
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function addDays(dateString, amount) {
+        const date = new Date(`${dateString}T00:00:00Z`);
+        date.setUTCDate(date.getUTCDate() + amount);
+        return date.toISOString().slice(0, 10);
+    }
+
+    function mondayOf(dateString) {
+        const day = new Date(`${dateString}T00:00:00Z`).getUTCDay();
+        return addDays(dateString, day === 0 ? -6 : 1 - day);
+    }
+
+    function toMinutes(value) {
+        const [hour, minute] = String(value || '').split(':').map(Number);
+        return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : null;
+    }
+
+    function koreanNow() {
+        const shifted = new Date(Date.now() + 9 * 60 * 60 * 1000);
+        return {
+            date:shifted.toISOString().slice(0,10),
+            hour:shifted.getUTCHours(), minute:shifted.getUTCMinutes(),
+            second:shifted.getUTCSeconds(), day:shifted.getUTCDay()
+        };
+    }
+
+    function pad(value) { return String(value).padStart(2, '0'); }
+    function isClassPeriod(name) { return /^\d교시$/.test(name); }
+
+    function updateEditPermission() {
+        const authUser = state.authUser;
+        const savedAdminEmail = typeof adminEmail !== 'undefined'
+            ? String(adminEmail || '').trim().toLowerCase()
+            : '';
+        const loginEmail = String(authUser?.email || '').trim().toLowerCase();
+        const matchedUser = Object.values(state.users || {}).find(user =>
+            String(user?.email || '').trim().toLowerCase() === loginEmail
+        ) || {};
+        const name = String(matchedUser.name || '').trim();
+        const role = String(matchedUser.role || '').trim();
+        state.canEdit = Boolean(authUser && (
+            (savedAdminEmail && loginEmail === savedAdminEmail) ||
+            matchedUser.isAdmin === true ||
+            name === '총사령관' ||
+            name.includes('선생님') ||
+            role === '관리자' ||
+            role === '교사'
+        ));
+    }
+
+    function getSchedule(now) {
+        const weekStart = mondayOf(now.date);
+        const weekly = state.weeklySchedules?.[weekStart]?.[now.date] || {};
+        const base = state.baseSchedule?.[String(now.day)] || {};
+        const schedule = {};
+        PERIODS.forEach(name => {
+            const times = state.periodTimes[name] || {};
+            schedule[name] = {
+                ...DEFAULTS[name],
+                ...(state.legacySchedule[name] || {}),
+                ...(base[name] || {}),
+                ...(weekly[name] || {}),
+                startTime:times.startTime || state.legacySchedule[name]?.startTime || DEFAULTS[name].startTime,
+                endTime:times.endTime || state.legacySchedule[name]?.endTime || DEFAULTS[name].endTime
+            };
+        });
+        return schedule;
+    }
+
+    function getTimeline(schedule) {
+        return PERIODS.map(name => {
+            const data = schedule[name];
+            return { name, ...data, start:toMinutes(data.startTime), end:toMinutes(data.endTime) };
+        }).filter(item => item.start !== null && item.end !== null && item.end > item.start);
+    }
+
+    function getMode(nowMinutes, schedule) {
+        const timeline = getTimeline(schedule);
+        const active = timeline.find(item => nowMinutes >= item.start && nowMinutes < item.end);
+        if (active) return { type:'period', active, timeline };
+        const next = timeline.find(item => item.start > nowMinutes);
+        if (next) return { type:'break', next, minutesUntil:next.start - nowMinutes, timeline };
+        return { type:'finished', timeline };
+    }
+
+    function getCheckedNames(today) {
+        const checked = new Set();
+        Object.values(state.checkins || {}).forEach(value => {
+            const item = value || {};
+            const date = String(item.date || item.checkinDate || '').slice(0,10);
+            const name = String(item.name || item.user || item.userName || '').trim();
+            if (date === today && name) checked.add(name);
+        });
+        return checked;
+    }
+
+    function getSeats() {
+        const data = state.seatData || {};
+        const config = data.config || {};
+        const layout = data.layout || {};
+        const rows = Number(config.rows || data.rows) || 6;
+        const cols = Number(config.cols || data.cols) || 5;
+        const seats = [];
+        for (let row = 0; row < rows; row += 1) {
+            for (let col = 0; col < cols; col += 1) {
+                const key = `${row}-${col}`;
+                const raw = layout[key] || layout[`seat-${row}-${col}`];
+                const name = typeof raw === 'string'
+                    ? raw.trim()
+                    : String(raw && (raw.name || raw.studentName) || '').trim();
+                seats.push({ row, col, key, name });
+            }
+        }
+        return { rows, cols, seats };
+    }
+
+    function renderTimeline(activeName, schedule) {
+        document.getElementById('timeline').innerHTML = PERIODS.map(name => {
+            const data = schedule[name];
+            const manual = name === state.manualPeriodName;
+            return `<button type="button" class="period-chip${name === activeName ? ' is-active' : ''}${manual ? ' is-manual' : ''}" data-period-name="${name}" title="클릭하여 ${name} 화면 보기"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(data.startTime || '--:--')} · ${escapeHtml(data.subject || name)}</span></button>`;
+        }).join('');
+    }
+
+    function renderViewerControls(autoActiveName) {
+        const controls = document.getElementById('viewer-controls');
+        if (state.manualPeriodName) {
+            controls.innerHTML = `<strong>교사 수동 보기 · ${escapeHtml(state.manualPeriodName)}</strong><button type="button" id="bb-return-auto">현재 시간 화면으로 돌아가기</button>`;
+            controls.classList.add('manual');
+        } else {
+            controls.innerHTML = `<span>자동 전환 중${autoActiveName ? ` · 현재 ${escapeHtml(autoActiveName)}` : ''}</span><span>위 시간표를 클릭하면 점심·청소·수업 화면을 미리 볼 수 있습니다.</span>`;
+            controls.classList.remove('manual');
+        }
+    }
+
+    function renderNotice(today) {
+        const notice = document.getElementById('notice-display');
+        const hasDatedNotices = Object.keys(state.notices || {}).length > 0;
+        const text = String(
+            hasDatedNotices ? (state.notices[today] || '') : (state.legacyNotice || '')
+        ).trim();
+        notice.classList.toggle('is-visible', Boolean(text));
+        notice.querySelector('span').textContent = text;
+    }
+
+    function renderSeatGrid(mode, today) {
+        const seatInfo = getSeats();
+        const checked = getCheckedNames(today);
+        const cleaning = state.cleaningRoot?.[today] || {};
+        let completed = 0;
+        const cards = seatInfo.seats.map(seat => {
+            if (!seat.name) return `<div class="seat empty"><span class="seat-number">${seat.row+1}-${seat.col+1}</span><span class="seat-name">빈자리</span></div>`;
+            let good = false;
+            let label = '';
+            if (mode === 'morning') {
+                good = checked.has(seat.name);
+                label = good ? '등교 완료' : '미등교';
+            } else {
+                good = Boolean(cleaning[seat.name] && cleaning[seat.name].cleanDone);
+                if (good) completed += 1;
+                label = good ? '청소 확인 완료' : '확인 전';
+            }
+            return `<article class="seat ${good ? 'good' : mode === 'morning' ? 'bad' : 'wait'}"><span class="seat-number">${seat.row+1}-${seat.col+1}</span><strong class="seat-name">${escapeHtml(seat.name)}</strong><span class="seat-state">${label}</span></article>`;
+        }).join('');
+        const occupied = seatInfo.seats.filter(seat => seat.name).length;
+        const goodCount = mode === 'morning'
+            ? seatInfo.seats.filter(seat => seat.name && checked.has(seat.name)).length
+            : completed;
+        const badCount = Math.max(0, occupied - goodCount);
+        const title = mode === 'morning' ? '아침 등교 확인' : '청소 확인';
+        const guide = mode === 'morning' ? '자기 이름이 초록색인지 확인하세요.' : '자리 청소가 확인되면 초록색으로 바뀝니다.';
+        return `<div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2><div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-grid" style="--seat-cols:${seatInfo.cols}">${cards}</div>`;
+    }
+
+    function renderLesson(item) {
+        const subject = String(item.subject || item.name).trim();
+        const action = String(item.action || '').trim();
+        const note = String(item.learningNote || '').trim();
+        const memoBody = state.canEdit
+            ? `<textarea class="inline-memo-input" data-inline-learning-note="${escapeHtml(item.name)}" placeholder="여기에 바로 입력하세요. 입력을 멈추면 자동 저장됩니다.">${escapeHtml(note)}</textarea>`
+            : `<div class="inline-memo-view${note ? '' : ' inline-memo-empty'}">${note ? escapeHtml(note) : '아직 작성된 배움공책 & 메모가 없습니다.'}</div>`;
+        return `<div class="state-kicker">${escapeHtml(item.name)} 수업 중</div><h2 class="state-title">${escapeHtml(subject)}</h2>${action ? `<div class="action">${escapeHtml(action)}</div>` : ''}<section class="inline-memo-card"><div class="inline-memo-head"><span>📖 배움공책 &amp; 메모</span>${state.canEdit ? '<span class="inline-memo-status" data-memo-status>입력하면 자동 저장됩니다.</span>' : ''}</div>${memoBody}</section>`;
+    }
+
+    async function saveInlineMemo(textarea) {
+        if (!state.canEdit || !textarea?.isConnected) return;
+        const periodName = textarea.dataset.inlineLearningNote || '';
+        const now = koreanNow();
+        const weekStart = mondayOf(now.date);
+        const learningNote = String(textarea.value || '').trim();
+        const status = textarea.closest('.inline-memo-card')?.querySelector('[data-memo-status]');
+        state.weeklySchedules[weekStart] ||= {};
+        state.weeklySchedules[weekStart][now.date] ||= {};
+        state.weeklySchedules[weekStart][now.date][periodName] ||= {};
+        Object.assign(state.weeklySchedules[weekStart][now.date][periodName], {
+            learningNote,
+            showLearningNote:Boolean(learningNote)
+        });
+        if (status) status.textContent = '저장 중...';
+        try {
+            const path = `blackboard/weeklySchedules/${weekStart}/${now.date}/${periodName}`;
+            await db.ref(path).update({ learningNote, showLearningNote:Boolean(learningNote) });
+            if (status?.isConnected) status.textContent = 'Firebase에 저장됨';
+        } catch (error) {
+            console.error('배움공책 & 메모 자동 저장 실패:', error);
+            if (status?.isConnected) status.textContent = '저장 실패 · 로그인 상태 확인';
+        }
+    }
+
+    function renderSimplePeriod(item) {
+        const action = String(item.action || '').trim();
+        const icon = item.name === '점심시간' ? '🍱' : '☀️';
+        return `<div class="state-kicker">${escapeHtml(item.name)}</div><h2 class="state-title">${icon} ${escapeHtml(item.subject || item.name)}</h2>${action ? `<p class="state-subtitle">${escapeHtml(action)}</p>` : ''}`;
+    }
+
+    function renderBreak(mode, timeText) {
+        const next = mode.next;
+        const moving = isClassPeriod(next.name) && Boolean(next.isMovingClass);
+        let message = '쉬는 시간입니다.';
+        let tone = '';
+        if (moving && mode.minutesUntil <= 5) {
+            message = '이동수업입니다. 줄 서세요.';
+            tone = 'move';
+        } else if (isClassPeriod(next.name) && mode.minutesUntil <= 2) {
+            message = '수업 준비하세요.';
+            tone = 'prepare';
+        }
+        return `<div class="break-clock">${timeText.slice(0,5)}</div><div class="break-message ${tone}">${message}</div><div class="next-class">다음 시간 · ${escapeHtml(next.name)} ${escapeHtml(next.subject || next.name)} · ${escapeHtml(next.startTime)}</div>`;
+    }
+
+    function periodHtml(item, now) {
+        if (item.name === '아침') return renderSeatGrid('morning', now.date);
+        if (item.name === '청소시간') return renderSeatGrid('cleaning', now.date);
+        if (isClassPeriod(item.name)) return renderLesson(item);
+        return renderSimplePeriod(item);
+    }
+
+    function render() {
+        const now = koreanNow();
+        const schedule = getSchedule(now);
+        const currentMinutes = now.hour * 60 + now.minute;
+        const timeText = `${pad(now.hour)}:${pad(now.minute)}:${pad(now.second)}`;
+        const dateText = new Intl.DateTimeFormat('ko-KR', {
+            timeZone:'Asia/Seoul', year:'numeric', month:'long', day:'numeric', weekday:'long'
+        }).format(new Date());
+        document.getElementById('clock-display').textContent = timeText;
+        document.getElementById('date-display').textContent = dateText;
+        renderNotice(now.date);
+
+        const mode = getMode(currentMinutes, schedule);
+        const autoActiveName = mode.type === 'period' ? mode.active.name : '';
+        const activeName = state.manualPeriodName || autoActiveName;
+        renderTimeline(activeName, schedule);
+        renderViewerControls(autoActiveName);
+        const stage = document.getElementById('stage');
+        const editingMemo = document.activeElement?.matches?.('[data-inline-learning-note]');
+
+        if (editingMemo) {
+            return;
+        } else if (state.manualPeriodName) {
+            const manual = getTimeline(schedule).find(item => item.name === state.manualPeriodName);
+            stage.innerHTML = manual ? periodHtml(manual, now) : '<div class="empty-message">선택한 화면을 찾을 수 없습니다.</div>';
+        } else if (mode.type === 'period') {
+            stage.innerHTML = periodHtml(mode.active, now);
+        } else if (mode.type === 'break') {
+            stage.innerHTML = renderBreak(mode, timeText);
+        } else {
+            stage.innerHTML = '<div class="empty-message">오늘의 학교 일정이 끝났습니다.</div>';
+        }
+    }
+
+    function listen(path, key, emptyValue) {
+        db.ref(path).on('value', snapshot => {
+            const value = snapshot.val();
+            state[key] = value == null ? emptyValue : value;
+            if (key === 'users') updateEditPermission();
+            render();
+        }, error => console.error(`${path} 불러오기 실패:`, error));
+    }
+
+    document.getElementById('timeline').addEventListener('click', event => {
+        const button = event.target.closest('[data-period-name]');
+        if (!button) return;
+        state.manualPeriodName = button.dataset.periodName;
+        render();
+    });
+    document.getElementById('viewer-controls').addEventListener('click', event => {
+        if (!event.target.closest('#bb-return-auto')) return;
+        state.manualPeriodName = '';
+        render();
+    });
+    document.getElementById('stage').addEventListener('input', event => {
+        const textarea = event.target.closest('[data-inline-learning-note]');
+        if (!textarea) return;
+        const key = textarea.dataset.inlineLearningNote;
+        const status = textarea.closest('.inline-memo-card')?.querySelector('[data-memo-status]');
+        if (status) status.textContent = '저장 대기 중...';
+        clearTimeout(state.memoTimers[key]);
+        state.memoTimers[key] = setTimeout(() => saveInlineMemo(textarea), 800);
+    });
+    document.getElementById('stage').addEventListener('focusout', event => {
+        const textarea = event.target.closest('[data-inline-learning-note]');
+        if (!textarea) return;
+        const key = textarea.dataset.inlineLearningNote;
+        clearTimeout(state.memoTimers[key]);
+        saveInlineMemo(textarea);
+    });
+
+    listen('blackboard/schedule', 'legacySchedule', {});
+    listen('blackboard/notice', 'legacyNotice', '');
+    listen('blackboard/periodTimes', 'periodTimes', {});
+    listen('blackboard/baseSchedule', 'baseSchedule', {});
+    listen('blackboard/weeklySchedules', 'weeklySchedules', {});
+    listen('blackboard/notices', 'notices', {});
+    listen('users', 'users', {});
+    listen('checkins', 'checkins', {});
+    listen('seatLayoutData', 'seatData', {});
+    listen('classManagement/cleaningStatus', 'cleaningRoot', {});
+    if (typeof auth !== 'undefined' && auth?.onAuthStateChanged) {
+        auth.onAuthStateChanged(user => {
+            state.authUser = user || null;
+            updateEditPermission();
+            render();
+        });
+    }
+    render();
+    setInterval(render, 1000);
+})();

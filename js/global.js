@@ -1374,37 +1374,208 @@ window.closePointPopup=function(){
         return result;
     }
 
-    async function loadHistory(name) {
-        if (typeof db === 'undefined' || !db?.ref || !name) return [];
+    function snapshotValues(snapshot) {
+    const result = [];
 
-        const normalizeName = value => String(value ?? '')
+    if (!snapshot?.forEach) return result;
+
+    snapshot.forEach(child => {
+        result.push({
+            key: child.key,
+            ...(child.val() || {})
+        });
+    });
+
+    return result;
+}
+
+function historyAmount(item) {
+    return Number(first(
+        item,
+        [
+            'pChange',
+            'change',
+            'pAmt',
+            'amount',
+            'p',
+            'pointDelta'
+        ],
+        0
+    )) || 0;
+}
+
+function historyFingerprint(item) {
+    const timestamp = historyTime(item);
+
+    const timeKey = timestamp
+        ? Math.floor(timestamp / 2000)
+        : `${item.date || ''} ${item.time || ''}`.trim();
+
+    return [
+        timeKey,
+        first(item, ['reason', 'title', 'memo'], ''),
+        historyAmount(item),
+        Number(
+            first(
+                item,
+                ['expChange', 'eAmt', 'expAmt'],
+                0
+            )
+        ) || 0
+    ].join('|');
+}
+
+async function loadHistory(name, firebaseKey) {
+    if (
+        typeof db === 'undefined' ||
+        !db?.ref ||
+        !name
+    ) {
+        return [];
+    }
+
+    const normalizeName = value =>
+        String(value ?? '')
             .normalize('NFC')
             .replace(/\s+/g, '')
             .trim();
-        const targetName = normalizeName(name);
+
+    const targetName = normalizeName(name);
+
+    /*
+     * 학생 이름과 Firebase 사용자 키가 다를 수 있으므로
+     * 두 경로를 모두 조회합니다.
+     */
+    const historyKeys = [
+        ...new Set(
+            [firebaseKey, name]
+                .map(value => String(value || '').trim())
+                .filter(Boolean)
+        )
+    ];
+
+    /*
+     * 학생별 포인트 기록을 우선 조회합니다.
+     *
+     * pointHistory/{학생키}
+     */
+    const directResults = await Promise.all(
+        historyKeys.map(key =>
+            db.ref(`pointHistory/${key}`)
+                .limitToLast(100)
+                .once('value')
+                .then(snapshotValues)
+                .catch(error => {
+                    console.warn(
+                        `학생별 포인트 내역 조회 실패 (${key}):`,
+                        error
+                    );
+
+                    return [];
+                })
+        )
+    );
+
+    /*
+     * pointLogs에만 저장된 기존 기록도 조회합니다.
+     */
+    let oldHistory = [];
+
+    try {
         const snapshot = await db.ref('pointLogs')
-            .limitToLast(1000)
+            .orderByChild('name')
+            .equalTo(name)
+            .limitToLast(100)
             .once('value');
 
-        return snapshotValues(snapshot)
-            .filter(item => normalizeName(first(
-                item,
-                ['name', 'user', 'userName', 'studentName', 'targetName'],
-                ''
-            )) === targetName)
-            .sort((a, b) => {
-                const timeDiff = historyTime(b) - historyTime(a);
-                if (timeDiff) return timeDiff;
-                return String(b.key || '').localeCompare(String(a.key || ''));
-            })
-            .slice(0, 50);
+        oldHistory = snapshotValues(snapshot);
+
+    } catch (error) {
+        console.warn(
+            '이름별 포인트 로그 조회 실패, 최근 로그로 재시도:',
+            error
+        );
+
+        /*
+         * 이름별 쿼리가 Firebase 규칙이나 인덱스 문제로 실패하면
+         * 최근 전체 로그에서 학생 이름을 찾아냅니다.
+         */
+        try {
+            const snapshot = await db.ref('pointLogs')
+                .limitToLast(2000)
+                .once('value');
+
+            oldHistory = snapshotValues(snapshot)
+                .filter(item =>
+                    normalizeName(
+                        first(
+                            item,
+                            [
+                                'name',
+                                'user',
+                                'userName',
+                                'studentName',
+                                'targetName'
+                            ],
+                            ''
+                        )
+                    ) === targetName
+                );
+
+        } catch (fallbackError) {
+            console.warn(
+                '최근 포인트 로그 조회 실패:',
+                fallbackError
+            );
+        }
     }
+
+    /*
+     * pointHistory와 pointLogs를 합치고
+     * 중복 기록 제거 → 최신순 정렬 → 최근 50건 표시
+     */
+    const seen = new Set();
+
+    return [
+        ...directResults.flat(),
+        ...oldHistory
+    ]
+        .sort((a, b) => {
+            const timeDiff =
+                historyTime(b) - historyTime(a);
+
+            if (timeDiff) return timeDiff;
+
+            return String(b.key || '')
+                .localeCompare(String(a.key || ''));
+        })
+        .filter(item => {
+            const fingerprint =
+                historyFingerprint(item);
+
+            if (seen.has(fingerprint)) {
+                return false;
+            }
+
+            seen.add(fingerprint);
+            return true;
+        })
+        .slice(0, 50);
+}
 
     function renderHistory(items) {
         if (!items.length) return '<div class="hd-empty">아직 포인트 증감 내역이 없습니다.</div>';
 
         return items.map(item => {
-            const amount = Number(first(item, ['pAmt', 'amount', 'p'], 0)) || 0;
+            const amount = Number(
+    item.pChange ??
+    item.change ??
+    item.pAmt ??
+    item.amount ??
+    item.p ??
+    item.pointDelta ??
+    0
+) || 0;
             const expAmount = Number(first(item, ['eAmt', 'expAmt', 'expChange'], 0)) || 0;
             const reason = first(item, ['reason', 'title', 'memo'], '포인트 변경');
             const time = [item.date, item.time].filter(Boolean).join(' ') ||
@@ -1493,7 +1664,10 @@ window.closePointPopup=function(){
         overlay.hidden = false;
         document.body.style.overflow = 'hidden';
 
-        const items = await loadHistory(String(name));
+       const items = await loadHistory(
+    String(name),
+    first(user, ['__firebaseKey', 'firebaseKey', 'userKey'], name)
+);
         if (requestId !== activeRequest || overlay.hidden) return;
         const list = overlay.querySelector('.hd-log-list');
         if (list) list.innerHTML = renderHistory(items);
