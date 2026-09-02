@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>학급 앱 연결 확인</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#f5f7fa;color:#172b4d;margin:0;padding:24px}main{max-width:760px;margin:auto;background:white;border:1px solid #dce3ed;border-radius:16px;padding:24px}h1{font-size:25px}p{line-height:1.6}dl{display:grid;grid-template-columns:170px 1fr;gap:0;margin:24px 0}dt,dd{margin:0;padding:14px 8px;border-bottom:1px solid #dce3ed;overflow-wrap:anywhere}dt{font-weight:700}button,a{display:inline-block;font:inherit;padding:10px 16px}#summary{background:#eef3ff;padding:16px;border-radius:8px}@media(max-width:540px){body{padding:12px}main{padding:16px}dl{grid-template-columns:1fr}dt{padding-bottom:0;border-bottom:0}dd{padding-top:6px}}
+</style>
+<script defer src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+<script defer src="js/firebase-config.js?v=20260827-2"></script>
+<script defer src="js/connection-check.js?v=20260902-1"></script>
+</head>
+<body><main>
+<h1>학급 앱 연결 확인</h1>
+<p>교사 창에서 이 페이지를 열고 약 15초 기다린 뒤 결과를 확인해 주세요. 이름·이메일·인증 토큰은 표시하지 않습니다.</p>
+<dl>
+<dt>확인 화면 버전</dt><dd>20260902-connect-1</dd>
+<dt>현재 사이트</dt><dd id="check-origin">확인 중</dd>
+<dt>브라우저 온라인 표시</dt><dd id="check-online">확인 중</dd>
+<dt>Firebase 프로그램</dt><dd id="check-sdk">불러오는 중 — 오래 유지되면 프로그램 파일을 받지 못한 상태입니다.</dd>
+<dt>서버 HTTPS 응답</dt><dd id="check-https">확인 대기</dd>
+<dt>실시간 DB 연결</dt><dd id="check-realtime">확인 대기</dd>
+<dt>이 창의 로그인</dt><dd id="check-auth">확인 대기</dd>
+<dt>로그인 후 설정 읽기</dt><dd id="check-read">확인 대기</dd>
+</dl>
+<p id="summary" role="status">연결 상태를 확인하고 있습니다.</p>
+<button type="button" onclick="location.reload()">다시 확인</button>
+<a href="index.html">학급 화면으로 돌아가기</a>
+<p>결과 화면을 캡처해서 보내주세요. 이 검사는 데이터베이스를 변경하지 않습니다.</p>
+</main></body></html>

@@ -1075,14 +1075,234 @@ function createFloatingPointButton() {
 
 window.openStudentProfile = async function(userName) {
     if (!heroIsAdmin()) return;
+
+    const escapeHtml = value =>
+        String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+
     try {
-        const snapshot = await db.ref(`users/${userName}`).once('value');
-        if (!snapshot.exists()) return alert('학생 정보를 찾을 수 없습니다.');
-        const user = snapshot.val();
-        return await window.openHeroDetail({ ...user, name: user.name || userName, __firebaseKey: userName });
+        const [userSnap, historySnap] = await Promise.all([
+            db.ref(`users/${userName}`).once("value"),
+            db.ref("pointLogs")
+                .limitToLast(1000)
+                .once("value")
+        ]);
+
+        if (!userSnap.exists()) {
+            alert("학생 정보를 찾을 수 없습니다.");
+            return;
+        }
+
+        const targetUser = userSnap.val() || {};
+        const level =
+            parseInt(targetUser.level || targetUser.lv) || 1;
+
+        const animal =
+            targetUser.selectedAnimal ||
+            targetUser.animal;
+
+        const history = [];
+
+        const normalizedUserName = String(userName)
+            .normalize("NFC")
+            .replace(/\s+/g, "");
+
+        historySnap.forEach(child => {
+            const item = child.val() || {};
+            const itemName = String(
+                item.name ||
+                item.user ||
+                item.userName ||
+                item.studentName ||
+                item.targetName ||
+                ""
+            ).normalize("NFC").replace(/\s+/g, "");
+
+            if (itemName === normalizedUserName) {
+                history.push({
+                    ...item,
+                    __key:child.key
+                });
+            }
+        });
+
+        history.sort((a, b) => {
+            const aTime = Number(a.timestamp || a.createdAt || 0);
+            const bTime = Number(b.timestamp || b.createdAt || 0);
+            if (aTime !== bTime) return bTime - aTime;
+            return String(b.__key || "")
+                .localeCompare(String(a.__key || ""));
+        });
+
+        history.splice(20);
+
+        const historyHtml = history.map(item => {
+            const pointChange = Number(
+                item.pAmt !== undefined
+                    ? item.pAmt
+                    : (item.amount !== undefined ? item.amount : item.p)
+            ) || 0;
+
+            const expChange =
+                Number(
+                    item.eAmt !== undefined
+                        ? item.eAmt
+                        : (item.expAmt !== undefined ? item.expAmt : item.expChange)
+                ) || 0;
+
+            const badges = [];
+
+            if (pointChange !== 0) {
+                badges.push(`
+                    <span class="
+                        profile-history-badge
+                        ${pointChange > 0 ? "plus" : "minus"}
+                    ">
+                        ${pointChange > 0 ? "+" : ""}
+                        ${pointChange}P
+                    </span>
+                `);
+            }
+
+            if (expChange !== 0) {
+                badges.push(`
+                    <span class="
+                        profile-history-badge exp
+                    ">
+                        ${expChange > 0 ? "+" : ""}
+                        ${expChange}EXP
+                    </span>
+                `);
+            }
+
+            return `
+                <div class="profile-history-item">
+
+                    <div class="profile-history-top">
+                        <span>
+                            ${escapeHtml(item.date || "")}
+                        </span>
+
+                        <span>
+                            ${escapeHtml(item.time || "")}
+                        </span>
+                    </div>
+
+                    <div class="profile-history-reason">
+                        ${escapeHtml(
+                            item.reason || "점수 변경"
+                        )}
+                    </div>
+
+                    <div class="profile-history-badges">
+                        ${
+                            badges.join("") ||
+                            `
+                                <span class="
+                                    profile-history-empty-change
+                                ">
+                                    변경 내역 없음
+                                </span>
+                            `
+                        }
+                    </div>
+
+                </div>
+            `;
+        }).join("");
+
+        if (typeof closePointPopup === "function") {
+            closePointPopup();
+        }
+
+        openPopup(
+            `🛡️ ${userName} 용사 정보`,
+            `
+                <div class="student-profile-layout">
+
+                    <section class="student-profile-summary">
+
+                        <div class="student-profile-avatar">
+                            ${getAvatar(level, animal)}
+                        </div>
+
+                        <h2>
+                            ${escapeHtml(userName)}
+                        </h2>
+
+                        <div class="student-profile-level">
+                            Lv.${level}
+                        </div>
+
+                        <div class="student-profile-stats">
+
+                            <div class="
+                                student-profile-stat point
+                            ">
+                                <span>🪙 포인트</span>
+
+                                <strong>
+                                    ${parseInt(targetUser.points) || 0} P
+                                </strong>
+                            </div>
+
+                            <div class="
+                                student-profile-stat exp
+                            ">
+                                <span>✨ 경험치</span>
+
+                                <strong>
+                                    ${parseInt(targetUser.exp) || 0} EXP
+                                </strong>
+                            </div>
+
+                        </div>
+
+                    </section>
+
+                    <section class="student-profile-history">
+
+                        <div class="
+                            student-profile-history-title
+                        ">
+                            <h3>최근 증감 내역</h3>
+                            <span>최근 20건</span>
+                        </div>
+
+                        <div class="
+                            student-profile-history-list
+                        ">
+                            ${
+                                historyHtml ||
+                                `
+                                    <div class="
+                                        student-profile-no-history
+                                    ">
+                                        아직 증감 내역이 없습니다.
+                                    </div>
+                                `
+                            }
+                        </div>
+
+                    </section>
+
+                </div>
+            `
+        );
+
     } catch (error) {
-        console.error('학생 상세정보 로딩 오류:', error);
-        alert('학생 상세정보를 불러오지 못했습니다.');
+        console.error(
+            "학생 상세정보 로딩 오류:",
+            error
+        );
+
+        alert(
+            "학생 상세정보를 불러오지 못했습니다."
+        );
     }
 };
 

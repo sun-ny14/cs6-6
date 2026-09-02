@@ -1341,7 +1341,7 @@ window.closePointPopup=function(){
             const directSnapshot = await db.ref(`users/${firebaseKey}`).once('value');
             if (directSnapshot.exists()) {
                 const saved = directSnapshot.val() || {};
-                return { ...localUser, ...saved, __firebaseKey: firebaseKey, name: saved.name || name || firebaseKey };
+                return { ...localUser, ...saved, name: saved.name || name || firebaseKey };
             }
 
             // 카드의 key와 학생 이름이 다른 경우 name 필드로 한 번 더 찾습니다.
@@ -1622,22 +1622,21 @@ async function loadHistory(name, firebaseKey) {
         style.textContent = `
             #${OVERLAY_ID}{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.62);backdrop-filter:blur(5px);box-sizing:border-box}
             #${OVERLAY_ID}[hidden]{display:none!important}#${OVERLAY_ID} *{box-sizing:border-box}
-            #${OVERLAY_ID} .hd-dialog{position:relative;display:grid;grid-template-columns:310px minmax(0,1fr);grid-template-rows:minmax(0,1fr);width:min(1000px,96vw);height:min(680px,90vh);overflow:hidden;background:#fff;border:1px solid #d9dee8;border-top:8px solid #263b63;border-radius:24px;box-shadow:0 28px 75px rgba(0,0,0,.3)}
+            #${OVERLAY_ID} .hd-dialog{position:relative;display:grid;grid-template-columns:310px minmax(0,1fr);width:min(1000px,96vw);height:min(680px,90vh);overflow:hidden;background:#fff;border:1px solid #d9dee8;border-top:8px solid #263b63;border-radius:24px;box-shadow:0 28px 75px rgba(0,0,0,.3)}
             #${OVERLAY_ID} .hd-close{position:absolute;top:14px;right:14px;z-index:2;width:46px;height:46px;padding:0;border:0;border-radius:14px;background:#eef1f5;color:#263b63;font-size:27px;font-weight:900;cursor:pointer}
-            #${OVERLAY_ID} .hd-profile{display:flex;min-height:0;overflow-y:auto;flex-direction:column;align-items:center;padding:42px 28px 30px;background:linear-gradient(155deg,#fff8dc,#f7edbd);border-right:1px solid #ded5ae;text-align:center}
-            #${OVERLAY_ID} .hd-avatar{display:grid;flex-shrink:0;place-items:center;width:170px;height:170px;margin:10px 0 22px;overflow:hidden;background:#fff;border:5px solid #e0bf48;border-radius:38px;box-shadow:0 14px 30px rgba(86,68,15,.16);font-size:78px}
+            #${OVERLAY_ID} .hd-profile{display:flex;flex-direction:column;align-items:center;padding:42px 28px 30px;background:linear-gradient(155deg,#fff8dc,#f7edbd);border-right:1px solid #ded5ae;text-align:center}
+            #${OVERLAY_ID} .hd-avatar{display:grid;place-items:center;width:170px;height:170px;margin:10px 0 22px;overflow:hidden;background:#fff;border:5px solid #e0bf48;border-radius:38px;box-shadow:0 14px 30px rgba(86,68,15,.16);font-size:78px}
             #${OVERLAY_ID} .hd-avatar img{width:100%;height:100%;object-fit:contain}.hd-kicker{margin:0 0 6px;color:#8a6a12;font-size:16px;font-weight:900}
             #${OVERLAY_ID} .hd-name{margin:0;color:#182844;font-size:34px;line-height:1.2;font-weight:950}#${OVERLAY_ID} .hd-role{margin:8px 0 4px;color:#566174;font-size:17px;font-weight:750}#${OVERLAY_ID} .hd-meta{margin:0 0 22px;color:#7a8495;font-size:15px;font-weight:800}
-            #${OVERLAY_ID} .hd-profile-stats{display:grid;flex-shrink:0;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:auto}#${OVERLAY_ID} .hd-profile-stat{padding:17px 9px;background:rgba(255,255,255,.86);border:1px solid #dccb85;border-radius:15px}
+            #${OVERLAY_ID} .hd-profile-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:auto}#${OVERLAY_ID} .hd-profile-stat{padding:17px 9px;background:rgba(255,255,255,.86);border:1px solid #dccb85;border-radius:15px}
             #${OVERLAY_ID} .hd-profile-stat span{display:block;color:#667085;font-size:15px;font-weight:800}#${OVERLAY_ID} .hd-profile-stat strong{display:block;margin-top:5px;color:#182844;font-size:22px;font-weight:950}
-            #${OVERLAY_ID} .hd-history{display:flex;min-width:0;min-height:0;flex-direction:column;padding:36px 32px 28px;background:#fbfcfe}#${OVERLAY_ID} .hd-history-head{flex-shrink:0;padding-right:48px;margin-bottom:18px}
+            #${OVERLAY_ID} .hd-history{display:flex;min-width:0;flex-direction:column;padding:36px 32px 28px;background:#fbfcfe}#${OVERLAY_ID} .hd-history-head{padding-right:48px;margin-bottom:18px}
             #${OVERLAY_ID} .hd-history-head h3{margin:0;color:#182844;font-size:27px;font-weight:950}#${OVERLAY_ID} .hd-history-head p{margin:7px 0 0;color:#667085;font-size:15px}
-            #${OVERLAY_ID} .hd-log-list{flex:1;min-height:0;overflow-y:auto;padding-right:5px}#${OVERLAY_ID} .hd-log-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;margin-bottom:10px;background:#fff;border:1px solid #e0e5ec;border-radius:14px}
+            #${OVERLAY_ID} .hd-log-list{min-height:0;overflow-y:auto;padding-right:5px}#${OVERLAY_ID} .hd-log-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;margin-bottom:10px;background:#fff;border:1px solid #e0e5ec;border-radius:14px}
             #${OVERLAY_ID} .hd-log-copy{min-width:0}#${OVERLAY_ID} .hd-log-copy>strong{display:block;overflow:hidden;color:#263b63;font-size:17px;text-overflow:ellipsis;white-space:nowrap}#${OVERLAY_ID} .hd-log-copy time{display:block;margin:5px 0;color:#7a8495;font-size:14px}
             #${OVERLAY_ID} .hd-exp-change,#${OVERLAY_ID} .hd-result{display:inline-block;margin-right:10px;color:#667085;font-size:13px;font-weight:750}#${OVERLAY_ID} .hd-change{flex:0 0 auto;font-size:22px;font-weight:950}
             #${OVERLAY_ID} .hd-change.plus{color:#16a05d}#${OVERLAY_ID} .hd-change.minus{color:#e34444}#${OVERLAY_ID} .hd-change.zero{color:#667085}#${OVERLAY_ID} .hd-empty,#${OVERLAY_ID} .hd-loading{display:grid;place-items:center;min-height:260px;color:#7a8495;background:#fff;border:1px dashed #cbd2dc;border-radius:16px;font-size:16px;text-align:center}
-            #${OVERLAY_ID} .hd-room-button{flex-shrink:0;width:100%;margin-top:16px;padding:13px;border:0;border-radius:12px;background:#263b63;color:#fff;font-size:17px;font-weight:800;cursor:pointer}
-            @media(max-width:720px){#${OVERLAY_ID}{padding:8px}#${OVERLAY_ID} .hd-dialog{display:block;height:min(92vh,760px);overflow-y:auto}#${OVERLAY_ID} .hd-profile{min-height:370px;overflow:visible;padding:28px 18px 20px;border-right:0;border-bottom:1px solid #ded5ae}#${OVERLAY_ID} .hd-avatar{width:125px;height:125px;margin:4px 0 14px;border-radius:28px;font-size:58px}#${OVERLAY_ID} .hd-name{font-size:28px}#${OVERLAY_ID} .hd-role{margin-bottom:15px}#${OVERLAY_ID} .hd-history{padding:24px 16px}#${OVERLAY_ID} .hd-history-head h3{font-size:23px}#${OVERLAY_ID} .hd-log-list{overflow:visible}}
+            @media(max-width:720px){#${OVERLAY_ID}{padding:8px}#${OVERLAY_ID} .hd-dialog{display:block;height:min(92vh,760px);overflow-y:auto}#${OVERLAY_ID} .hd-profile{min-height:370px;padding:28px 18px 20px;border-right:0;border-bottom:1px solid #ded5ae}#${OVERLAY_ID} .hd-avatar{width:125px;height:125px;margin:4px 0 14px;border-radius:28px;font-size:58px}#${OVERLAY_ID} .hd-name{font-size:28px}#${OVERLAY_ID} .hd-role{margin-bottom:15px}#${OVERLAY_ID} .hd-history{padding:24px 16px}#${OVERLAY_ID} .hd-history-head h3{font-size:23px}#${OVERLAY_ID} .hd-log-list{overflow:visible}}
         `;
         document.head.appendChild(style);
     }
@@ -1681,15 +1680,9 @@ async function loadHistory(name, firebaseKey) {
             <button type="button" class="hd-close" data-hd-close aria-label="닫기">×</button>
             <aside class="hd-profile"><div class="hd-avatar">${avatarHtml(user, name)}</div><p class="hd-kicker">⚔ 용사 프로필</p><h2 class="hd-name">${esc(name)}</h2><p class="hd-role">${esc(title)} · ${esc(role)}</p><p class="hd-meta">Lv.${esc(level)} · ${esc(number)}번</p>
                 <div class="hd-profile-stats"><div class="hd-profile-stat"><span>포인트</span><strong>${points.toLocaleString('ko-KR')} P</strong></div><div class="hd-profile-stat"><span>경험치</span><strong>${exp.toLocaleString('ko-KR')} EXP</strong></div></div>
-                <button type="button" class="hd-room-button" data-hd-room>🏠 학생 방 방문하기</button>
             </aside>
             <main class="hd-history"><header class="hd-history-head"><h3>포인트 증감 내역</h3><p>최근 기록부터 표시됩니다.</p></header><div class="hd-log-list"><div class="hd-loading">내역을 불러오는 중입니다.</div></div></main>
         </section>`;
-        overlay.querySelector('[data-hd-room]').onclick = () => {
-            const owner = String(first(user, ['__firebaseKey', 'firebaseKey', 'userKey'], name));
-            closeDetail();
-            window.openFriendRoom(owner);
-        };
         overlay.hidden = false;
         document.body.style.overflow = 'hidden';
 

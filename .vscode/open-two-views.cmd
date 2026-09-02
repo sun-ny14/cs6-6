@@ -1,32 +1,31 @@
 @echo off
-setlocal
+setlocal DisableDelayedExpansion
 
-set "TARGET_URL=%~1"
+rem Keep the existing teacher profile; isolate the student browser session.
+set "CS6_TEACHER_PROFILE=Profile 5"
+set "CS6_STUDENT_DATA=%LOCALAPPDATA%\CS6-Classroom\StudentBrowser"
+set "CS6_WINDOW_MODE=%~2"
+set "CS6_LAUNCH_URL=%~1"
+if not defined CS6_LAUNCH_URL set "CS6_LAUNCH_URL=http://127.0.0.1:5500/index.html"
 
-if "%TARGET_URL%"=="" (
-    set "TARGET_URL=http://127.0.0.1:5500"
-)
+rem Preserve Live Server's actual host/port; always open the classroom entry page.
+for /f "tokens=1,2 delims=/" %%A in ("%CS6_LAUNCH_URL%") do set "CS6_LAUNCH_URL=%%A//%%B/index.html"
 
-set "CHROME=C:\Program Files\Google\Chrome\Application\chrome.exe"
-
-if not exist "%CHROME%" (
-    set "CHROME=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
-)
-
-if not exist "%CHROME%" (
-    echo Chrome executable not found.
+set "CS6_CHROME_EXE=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+if not exist "%CS6_CHROME_EXE%" set "CS6_CHROME_EXE=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+if not exist "%CS6_CHROME_EXE%" set "CS6_CHROME_EXE=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
+if not exist "%CS6_CHROME_EXE%" (
+    echo Google Chrome was not found. Please install Chrome, then try again.
     pause
     exit /b 1
 )
 
-rem 교사용 Profile 5를 새 창으로 실행
-start "" "%CHROME%" --profile-directory="Profile 5" --new-window "%TARGET_URL%"
+if /i "%CS6_WINDOW_MODE%"=="student" goto student
+start "" "%CS6_CHROME_EXE%" --profile-directory="%CS6_TEACHER_PROFILE%" --new-window "%CS6_LAUNCH_URL%"
 
-rem Chrome이 첫 번째 프로필을 여는 동안 잠깐 대기
-timeout /t 2 /nobreak >nul
-
-rem 학생용 Default를 새 창으로 실행
-start "" "%CHROME%" --profile-directory="Default" --new-window "%TARGET_URL%"
+:student
+rem A separate user-data directory keeps the student's login independent.
+start "" "%CS6_CHROME_EXE%" --user-data-dir="%CS6_STUDENT_DATA%" --profile-directory="Default" --no-first-run --no-default-browser-check --new-window "%CS6_LAUNCH_URL%"
 
 endlocal
 exit /b 0
