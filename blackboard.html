@@ -35,6 +35,8 @@
         .dismissal-board{max-width:1350px;margin:0 auto}.dismissal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:26px}.dismissal-card{padding:24px;border-radius:22px;border:3px solid #dfe5ed;background:#f8fafc}.dismissal-card.clean{border-color:#48b879;background:#effbf4}.dismissal-card.task{border-color:#f0a84a;background:#fff7e8}.dismissal-card.manual{grid-column:1/-1;border-color:#9b7ae5;background:#f6f1ff}.dismissal-card h3{margin:0 0 14px;font-size:clamp(23px,2.3vw,36px)}.number-list{font-size:clamp(34px,5vw,74px);font-weight:950;line-height:1.25;color:#b43d31;word-break:keep-all}.number-list.all-done{color:#18864b}.task-due-item{padding:13px 0;border-top:2px dashed #e4c189}.task-due-item:first-of-type{border-top:0}.task-due-title{font-size:clamp(21px,2vw,31px);font-weight:950}.task-due-numbers{margin-top:7px;font-size:clamp(27px,3vw,48px);font-weight:950;color:#b43d31}.dismissal-input{width:100%;min-height:95px;padding:16px;border:2px solid #a98de7;border-radius:13px;background:white;font-size:clamp(25px,3vw,44px);font-weight:900;resize:vertical}.dismissal-status{margin-top:8px;color:#66548b;font-weight:800}.dismissal-view{min-height:70px;font-size:clamp(30px,4vw,58px);font-weight:950;color:#b43d31;white-space:pre-wrap}
         @media(max-width:1100px){#bb-app{padding:16px}.board-layout{grid-template-columns:205px minmax(0,1fr)}.period-chip strong{display:block}.period-chip span{display:block;margin-top:3px}.stage{min-height:650px;padding:22px}.seat-grid{grid-template-columns:repeat(var(--seat-cols),minmax(95px,1fr))}.dismissal-grid{grid-template-columns:1fr}.dismissal-card.manual{grid-column:auto}}
         @media(max-width:760px){.board-layout{grid-template-columns:1fr}.schedule-rail{position:static}.timeline{grid-template-columns:repeat(2,1fr)}.notice.is-visible{grid-template-columns:1fr}.notice b{justify-self:start}}
+        .morning-password{display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;margin:24px auto;padding:18px 28px;background:#fff5cb;border:3px solid #e1b83f;border-radius:20px;color:#263b63}.morning-password>span{font-size:clamp(22px,2.6vw,38px);font-weight:900}.morning-password strong{font-size:clamp(56px,7vw,108px);font-weight:950;letter-spacing:.16em;font-variant-numeric:tabular-nums;line-height:1.1}.morning-password p{font-size:24px;font-weight:800;margin:0}
+        .dismissal-card.tomorrow-notice{grid-column:1/-1;border-color:#e0b92f;background:#fff9df}.tomorrow-notice h3 small{display:inline-block;font-size:.65em;color:#756327}.tomorrow-notice-text{font-size:clamp(26px,3vw,44px);font-weight:850;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;color:#263b63}
     </style>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
@@ -61,6 +63,8 @@
     </main>
 
     <script src="js/firebase-config.js?v=20260831-3"></script>
+<script src="functions/checkin-password-core.js?v=20260903-1"></script>
+<script src="js/checkin-password.js?v=20260903-1"></script>
     <script type="text/plain" id="legacy-blackboard-script">
         (function(){
             'use strict';
@@ -108,7 +112,7 @@
             setInterval(render,1000);
         })();
     </script>
-    <script src="js/blackboard-share.js?v=20260902-share-1"></script>
-    <script src="js/blackboard-display.js?v=20260902-share-1"></script>
+    <script src="js/blackboard-share.js?v=20260903-1"></script>
+    <script src="js/blackboard-display.js?v=20260903-1"></script>
 </body>
 </html>

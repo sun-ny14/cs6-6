@@ -1523,8 +1523,7 @@ window.submitCheckIn=async function(){
     if(button)button.disabled=true;
 
     try{
-        const snap=await db.ref('settings').once('value');
-        const settings=snap.val()||{};
+        const settings=await window.CheckinPassword.ensureCurrent();
 
         if(String(settings.password||'')!==password){
             alert('등교 암호가 맞지 않습니다.');

@@ -54,6 +54,7 @@ function board(time = '2026-09-02T09:39:59+09:00', signedIn = true) {
         addEventListener: (type, listener) => windowListeners[type] = listener
     });
     context.window = context;
+    context.CheckinPasswordCore = require('../functions/checkin-password-core');
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/blackboard-display.js'), 'utf8'), context);
     function tick(time) { if (time) clock.now = Date.parse(time); intervals.forEach(callback => callback()); }
     function select(name) {
@@ -202,4 +203,41 @@ test('server clock correction keeps devices on the same scheduled lesson', () =>
     app.emit('.info/serverTimeOffset', 120000);
     assert.match(app.stage(), /2교시 수업 중/);
     assert.equal(app.nodes.get('clock-display').textContent, '09:51:00');
+});
+
+
+test('morning shows today password and hides yesterday password and non-morning fields', () => {
+    const app = board('2026-09-03T08:30:00+09:00');
+    app.emit('settings', { password:'0123', passwordDate:'2026-09-03', passwordRevision:2 });
+    assert.match(app.stage(), /오늘의 등교 암호/);
+    assert.match(app.stage(), /<strong>0123<\/strong>/);
+    app.emit('settings', { password:'9876', passwordDate:'2026-09-02' });
+    assert.doesNotMatch(app.stage(), /9876/);
+    assert.match(app.stage(), /암호를 준비/);
+    app.tick('2026-09-03T09:00:00+09:00');
+    assert.doesNotMatch(app.stage(), /morning-password/);
+    app.select('청소시간'); assert.doesNotMatch(app.stage(), /morning-password/);
+});
+
+test('anonymous board receives live manual password changes from public sibling', () => {
+    const app = board('2026-09-03T08:30:00+09:00', false);
+    const payload = { schemaVersion:1, data:{}, checkinPassword:{password:'1357',date:'2026-09-03',revision:1} };
+    app.emit('blackboardDisplay', payload); assert.match(app.stage(), /1357/);
+    payload.checkinPassword = { password:'2468', date:'2026-09-03', revision:2 };
+    app.emit('blackboardDisplay', payload); assert.match(app.stage(), /2468/);
+    assert.doesNotMatch(app.stage(), /1357/);
+    assert.equal(app.subscriptions.settings, undefined);
+});
+
+test('dismissal shows literal tomorrow across year and month boundaries without a legacy fallback', () => {
+    const app = board('2026-12-31T15:00:00+09:00');
+    app.emit('blackboard/notices', {'2027-01-01':'내일 준비물 <책>\n물통', '2026-12-31':'오늘 공지'});
+    assert.match(app.stage(), /내일 공지/);
+    assert.match(app.stage(), /2027-01-01/);
+    assert.match(app.stage(), /내일 준비물 &lt;책&gt;\n물통/);
+    app.tick('2027-01-31T15:00:00+09:00');
+    app.emit('blackboard/notice', '공통 공지');
+    assert.match(app.stage(), /2027-02-01/);
+    assert.match(app.stage(), /등록된 내일 공지가 없습니다/);
+    assert.doesNotMatch(app.stage(), /공통 공지/);
 });

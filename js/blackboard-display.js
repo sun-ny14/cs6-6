@@ -20,7 +20,7 @@
         weeklySchedules:{}, notices:{}, users:{}, checkins:{}, seatData:{},
         cleaningRoot:{}, assignments:{}, assignmentCompletions:{}, dismissalNotes:{},
         manualPeriodName:'', manualModeKey:'', authUser:null, canEdit:false, memoTimers:{},
-        dataReady:false, syncMessage:'전자칠판 자료를 연결하고 있습니다…', serverOffset:0
+        checkinPassword:null, dataReady:false, syncMessage:'전자칠판 자료를 연결하고 있습니다…', serverOffset:0
     };
 
     function escapeHtml(value) {
@@ -220,7 +220,11 @@
         const title = mode === 'morning' ? '아침 등교 확인' : '청소 확인';
         const guide = mode === 'morning' ? '자기 이름이 초록색인지 확인하세요.' : '자리 청소가 확인되면 초록색으로 바뀝니다.';
         const action=String(item?.action||'').trim();
-        return `<div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2>${action?`<div class="action">${escapeHtml(action)}</div>`:''}<div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-grid" style="--seat-cols:${seatInfo.cols}">${cards}</div>`;
+        const code = state.checkinPassword;
+        const currentCode = code?.date === today && /^\d{4}$/.test(String(code.password || ''));
+        const passwordCard = mode === 'morning'
+            ? `<section class="morning-password" aria-label="오늘의 등교 암호"><span>오늘의 등교 암호</span>${currentCode ? `<strong>${escapeHtml(code.password)}</strong>` : '<p>오늘의 암호를 준비하고 있습니다.</p>'}</section>` : '';
+        return `<div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2>${passwordCard}${action?`<div class="action">${escapeHtml(action)}</div>`:''}<div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-grid" style="--seat-cols:${seatInfo.cols}">${cards}</div>`;
     }
 
     function renderLesson(item, today) {
@@ -277,9 +281,12 @@
         const assignmentHtml=dueAssignments.length?dueAssignments.map(({item,incomplete})=>{
             return `<div class="task-due-item"><div class="task-due-title">${escapeHtml(item.title||'제목 없는 과제')} · 마감 ${escapeHtml(item.dueDate||'')}</div><div class="task-due-numbers">${incomplete.map(student=>`${student.number}번`).join(', ')}</div></div>`;
         }).join(''):'<div class="number-list all-done" style="font-size:32px">미완료 과제 없음</div>';
+        const tomorrow = addDays(today, 1);
+        const tomorrowText = String(state.notices?.[tomorrow] || '').trim();
+        const tomorrowCard = `<section class="dismissal-card tomorrow-notice"><h3>📅 내일 공지 <small>${escapeHtml(tomorrow)}</small></h3><div class="tomorrow-notice-text">${tomorrowText ? escapeHtml(tomorrowText) : '등록된 내일 공지가 없습니다.'}</div></section>`;
         const manual=String(state.dismissalNotes?.[today]?.teacherMessage||state.dismissalNotes?.[today]?.manualIncomplete||'');
         const manualBody=state.canEdit?`<textarea class="dismissal-input" data-dismissal-note data-note-date="${today}" placeholder="하교 전 학생들에게 전달할 내용을 적으세요.">${escapeHtml(manual)}</textarea><div class="dismissal-status" data-dismissal-status>입력을 멈추면 자동 저장됩니다.</div>`:`<div class="dismissal-view">${manual?escapeHtml(manual):'전달사항 없음'}</div>`;
-        return `<div class="dismissal-board"><div class="state-kicker">6교시 이후</div><h2 class="state-title">🏠 하교합니다</h2><p class="state-subtitle">아래 번호의 학생은 할 일을 마치고 하교하세요.</p><div class="dismissal-grid"><section class="dismissal-card clean"><h3>🧹 오늘 청소 미완료</h3>${numbersHtml(cleaningIncomplete)}</section><section class="dismissal-card task"><h3>📝 필수 과제 미완료</h3>${assignmentHtml}</section><section class="dismissal-card manual"><h3>📣 교사 전달사항</h3>${manualBody}</section></div></div>`;
+        return `<div class="dismissal-board"><div class="state-kicker">6교시 이후</div><h2 class="state-title">🏠 하교합니다</h2><p class="state-subtitle">아래 번호의 학생은 할 일을 마치고 하교하세요.</p><div class="dismissal-grid">${tomorrowCard}<section class="dismissal-card clean"><h3>🧹 오늘 청소 미완료</h3>${numbersHtml(cleaningIncomplete)}</section><section class="dismissal-card task"><h3>📝 필수 과제 미완료</h3>${assignmentHtml}</section><section class="dismissal-card manual"><h3>📣 교사 전달사항</h3>${manualBody}</section></div></div>`;
     }
 
     async function saveDismissalNote(textarea) {
@@ -382,7 +389,7 @@
         legacySchedule:'blackboard/schedule', legacyNotice:'blackboard/notice',
         periodTimes:'blackboard/periodTimes', baseSchedule:'blackboard/baseSchedule',
         weeklySchedules:'blackboard/weeklySchedules', notices:'blackboard/notices',
-        users:'users', checkins:'checkins', seatData:'seatLayoutData',
+        users:'users', checkins:'checkins', seatData:'seatLayoutData', checkinPassword:'settings',
         cleaningRoot:'classManagement/cleaningStatus', assignments:'blackboard/assignments',
         assignmentCompletions:'blackboard/assignmentCompletions', dismissalNotes:'blackboard/dismissalNotes'
     };
@@ -412,7 +419,8 @@
         if (user) {
             const waiting = new Set(Object.keys(sourcePaths));
             Object.entries(sourcePaths).forEach(([key, path]) => subscribe(path, snapshot => {
-                state[key] = snapshot.val() ?? (key === 'legacyNotice' ? '' : {});
+                state[key] = key === 'checkinPassword' ? window.CheckinPasswordCore.forDisplay(snapshot.val())
+                    : snapshot.val() ?? (key === 'legacyNotice' ? '' : {});
                 waiting.delete(key);
                 state.dataReady = waiting.size === 0;
                 if (state.dataReady) state.syncMessage = '';
@@ -428,7 +436,8 @@
                     state.dataReady = false;
                     state.syncMessage = '공유 자료가 아직 없습니다. 관리자 PC에서 새 버전의 학급 앱에 한 번 로그인해 주세요.';
                 } else {
-                    Object.keys(sourcePaths).forEach(key => state[key] = shared.data[key] ?? (key === 'legacyNotice' ? '' : {}));
+                    Object.keys(sourcePaths).forEach(key => state[key] = key === 'checkinPassword'
+                        ? shared.checkinPassword || null : shared.data[key] ?? (key === 'legacyNotice' ? '' : {}));
                     state.dataReady = true;
                     state.syncMessage = '';
                 }

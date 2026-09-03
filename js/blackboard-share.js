@@ -115,7 +115,7 @@
                 writing = true;
                 dirty = false;
                 try {
-                    await database.ref('blackboardDisplay').set({ schemaVersion: 1,
+                    await database.ref('blackboardDisplay').update({ schemaVersion: 1,
                         publishedAt: stamp, publishedDate: day, data });
                     if (!active) return;
                     lastSent = fingerprint;

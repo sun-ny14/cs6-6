@@ -580,29 +580,42 @@ window.confirmDeleteStudent = function(userName) {
 
 // 시스템 설정
 window.saveSettings = async function() {
-    const password =
-        document.getElementById('conf-pass').value;
-
-    const lateTime =
-        document.getElementById('conf-late').value;
-
-    const closeTime =
-        document.getElementById('conf-close').value;
-
-    const routineEl =
-        document.getElementById('conf-routine');
-
-    const routineText =
-        routineEl ? routineEl.value : "";
-
-    await db.ref('settings').update({
-        password,
-        lateTime,
-        closeTime,
-        routineText
-    });
-
-    alert("💾 시스템 설정이 영구 저장되었습니다!");
+    const passInput = document.getElementById('conf-pass');
+    const password = passInput.value.trim();
+    if (!window.CheckinPasswordCore.valid(password)) {
+        alert('등교 암호는 숫자 4자리로 입력해 주세요.');
+        return;
+    }
+    // An unchanged, stale settings form must not restore yesterday's password.
+    const passwordEdited = password !== passInput.dataset.savedPassword;
+    const otherSettings = {
+        lateTime: document.getElementById('conf-late').value,
+        closeTime: document.getElementById('conf-close').value,
+        routineText: document.getElementById('conf-routine')?.value || ''
+    };
+    try {
+        await window.CheckinPassword.ensureCurrent();
+        const result = await db.ref('settings').transaction(current => {
+            const settings = passwordEdited
+                ? window.CheckinPasswordCore.manual(current, password, window.CheckinPassword.now())
+                : (window.CheckinPasswordCore.rotate(current, window.CheckinPassword.now(), window.CheckinPassword.randomInt) || current);
+            return { ...settings, ...otherSettings };
+        }, undefined, false);
+        const saved = result.snapshot.val();
+        passInput.value = String(saved.password);
+        passInput.dataset.savedPassword = String(saved.password);
+        try {
+            await window.CheckinPassword.publish(saved);
+        } catch (error) {
+            console.error('전자칠판 암호 공유 재시도 대기:', error);
+            alert('설정은 저장되었습니다. 전자칠판 암호 공유는 연결 후 다시 시도됩니다.');
+            return;
+        }
+        alert('💾 시스템 설정이 영구 저장되었습니다!');
+    } catch (error) {
+        console.error('시스템 설정 저장 실패:', error);
+        alert(error.message || '설정을 저장하지 못했습니다. 연결 후 다시 시도해 주세요.');
+    }
 };
 
 window.loadSystemSettings = async function() {
@@ -625,7 +638,10 @@ window.loadSystemSettings = async function() {
     const routineEl =
         document.getElementById('conf-routine');
 
-    if (passEl) passEl.value = data.password || '';
+    if (passEl) {
+        passEl.value = String(data.password || '');
+        passEl.dataset.savedPassword = passEl.value;
+    }
     if (lateEl) lateEl.value = data.lateTime || '';
     if (closeEl) closeEl.value = data.closeTime || '';
     if (routineEl) {
@@ -634,9 +650,9 @@ window.loadSystemSettings = async function() {
 };
 
 window.generateRandomPassword = function() {
-    const randomPw =
-        Math.floor(1000 + Math.random() * 9000)
-            .toString();
+    const randomPw = window.CheckinPasswordCore.generate(
+        document.getElementById('conf-pass')?.value, window.CheckinPassword.randomInt
+    );
 
     const passInput =
         document.getElementById('conf-pass');

@@ -806,13 +806,15 @@ function toggleSidebar(){
 
                     암호:
 
-                    <input type="text" id="conf-pass" style="flex:1;padding:12px;font-size:1.3rem;">
+                    <input type="text" id="conf-pass" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="flex:1;padding:12px;font-size:1.3rem;">
 
                     <button onclick="generateRandomPassword()" style="background:#ff9800;color:white;width:auto;padding:14px 22px;font-weight:bold;border-radius:10px;border:none;cursor:pointer;font-size:1.2rem;">
                         🎲 난수 비번 생성
                     </button>
 
                 </div>
+
+                <p id="checkin-password-status" style="color:#64748b;font-size:15px;line-height:1.5;">매일 자정(한국시간)에 자동 변경 · 수동 변경은 시스템 저장 후 적용됩니다.</p>
 
                 <div class="horizontal-box" style="margin-bottom:18px;">
 
@@ -868,18 +870,20 @@ function toggleSidebar(){
 </div>
 
 <script src="js/firebase-config.js?v=20260827-2"></script>
-<script src="js/blackboard-share.js?v=20260902-share-1"></script>
-<script src="js/global.js?v=20260902-purchase-profile-1"></script>
+<script src="functions/checkin-password-core.js?v=20260903-1"></script>
+<script src="js/checkin-password.js?v=20260903-1"></script>
+<script src="js/blackboard-share.js?v=20260903-1"></script>
+<script src="js/global.js?v=20260903-1"></script>
 <script src="js/auth.js?v=20260901-1"></script>
-<script src="js/checkin-seat.js?v=20260828-2"></script>
+<script src="js/checkin-seat.js?v=20260903-1"></script>
 <script src="js/hero-mgr.js?v=20260902-purchase-profile-1"></script>
 <script src="js/point-shop.js?v=20260831-2"></script>
 <script src="js/point-guide.js?v=20260831-2"></script>
 <script src="js/housing.js?v=20260902-reconnect-1"></script>
 <script src="js/admin-grades.js?v=20260827-2"></script>
-<script src="js/blackboard-admin.js?v=20260901-5"></script>
+<script src="js/blackboard-admin.js?v=20260903-1"></script>
 <script src="js/assignments.js?v=20260901-2"></script>
-<script src="js/settings.js?v=20260827-2"></script>
+<script src="js/settings.js?v=20260903-1"></script>
 <script src="js/cleaning.js?v=20260831-2"></script>
     
 </body>

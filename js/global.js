@@ -453,7 +453,8 @@ function startApp(){
                 document.getElementById('conf-gifts');
 
 
-            if(pass)pass.value=s.password||'';
+            if (window.CheckinPassword) window.CheckinPassword.updateInput(s);
+            else if (pass) pass.value = s.password || '';
 
             if(late)late.value=s.lateTime||'08:40';
 
@@ -1813,6 +1814,7 @@ async function loadHistory(name, firebaseKey) {
             body .batch-card-modal-v6 .batch-student-grid {
                 display: grid !important;
                 grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                grid-auto-rows: max-content !important;
                 align-items: stretch !important;
                 gap: 16px !important;
                 width: 100% !important;
@@ -1922,9 +1924,9 @@ async function loadHistory(name, firebaseKey) {
                 display: block !important;
                 width: 100% !important;
                 min-width: 0 !important;
-                min-height: 52px !important;
-                margin: 6px 0 0 !important;
-                padding: 10px 8px !important;
+                min-height: 42px !important;
+                margin: 0 !important;
+                padding: 8px !important;
                 color: #172033 !important;
                 background: #ffffff !important;
                 border: 1px solid #cbd3df !important;
@@ -2028,15 +2030,13 @@ async function loadHistory(name, firebaseKey) {
                             <span class="batch-card-current-point">${points.toLocaleString('ko-KR')}P</span>
                         </label>
 
-                      <label class="batch-card-field">
-    <span>P:</span>
-    <input type="number" class="batch-p-input" placeholder="0" inputmode="numeric">
-</label>
+                        <div class="batch-card-field">
+                            <input type="number" class="batch-p-input" placeholder="포인트" aria-label="${safeName} 포인트" title="포인트" inputmode="numeric">
+                        </div>
 
-<label class="batch-card-field">
-    <span>EXP:</span>
-    <input type="number" class="batch-exp-input" placeholder="0" inputmode="numeric">
-</label>
+                        <div class="batch-card-field">
+                            <input type="number" class="batch-exp-input" placeholder="경험치" aria-label="${safeName} 경험치" title="경험치" inputmode="numeric">
+                        </div>
                     </article>
                 `;
             })

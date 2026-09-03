@@ -48,7 +48,7 @@ function harness() {
     const db = { fail: false, ref(key) { return {
         on(_event, callback) { listeners.set(key, callback); },
         off() { listeners.delete(key); },
-        async set(value) { if (db.fail) throw Error('Permission denied'); writes.push(JSON.parse(JSON.stringify(value))); }
+        async update(value) { if (db.fail) throw Error('Permission denied'); writes.push(JSON.parse(JSON.stringify(value))); }
     }; } };
     const stop = startPublisher(db, { onAuthStateChanged(callback) { authCallback = callback; callback(null); } }, {
         now: () => clock.now,

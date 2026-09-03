@@ -650,7 +650,13 @@ window.sendRoomReaction = async function(targetUser, type) {
         'builtin-picture':{name:'모험 그림',category:'가구',img:'assets/housing/furniture/picture.png',price:4},
         'builtin-plant':{name:'초록 화분',category:'가구',img:'assets/housing/furniture/plant.png',price:3},
         'builtin-rug':{name:'포근한 러그',category:'가구',img:'assets/housing/furniture/rug.png',price:5},
-        'builtin-toy-box':{name:'장난감 상자',category:'가구',img:'assets/housing/furniture/toy-box.png',price:5}
+        'builtin-toy-box':{name:'장난감 상자',category:'가구',img:'assets/housing/furniture/toy-box.png',price:5},
+        'builtin-forest-sofa':{name:'숲속 독서 소파',category:'가구',img:'assets/housing/furniture/forest-sofa.png',price:6,requiredLevel:3},
+        'builtin-potion-table':{name:'마법 물약 테이블',category:'가구',img:'assets/housing/furniture/potion-table.png',price:8,requiredLevel:5},
+        'builtin-knight-stand':{name:'기사단 방패 장식',category:'가구',img:'assets/housing/furniture/knight-stand.png',price:10,requiredLevel:8},
+        'builtin-star-telescope':{name:'별빛 망원경',category:'가구',img:'assets/housing/furniture/star-telescope.png',price:12,requiredLevel:12},
+        'builtin-royal-chair':{name:'왕실 벨벳 의자',category:'가구',img:'assets/housing/furniture/royal-chair.png',price:15,requiredLevel:16},
+        'builtin-sky-aquarium':{name:'구름섬 수족관',category:'가구',img:'assets/housing/furniture/sky-aquarium.png',price:18,requiredLevel:20}
     };
 
     function normalizeFurnitureItem(item){
@@ -658,6 +664,8 @@ window.sendRoomReaction = async function(targetUser, type) {
         const rawCategory=String(value.category||value.cat||value.type||'').trim();
         value.category=rawCategory.includes('배경')?'배경':rawCategory.includes('인물')?'인물':'가구';
         value.img=value.img||value.url||'';
+        const builtin=Object.values(DEFAULT_FURNITURE).find(entry=>entry.img===value.img);
+        value.requiredLevel=Math.max(1,parseInt(value.requiredLevel,10)||1,builtin?.requiredLevel||1);
         return value;
     }
 
@@ -691,6 +699,11 @@ window.sendRoomReaction = async function(targetUser, type) {
             level:16,
             name:'왕실 용사의 방',
             img:'assets/housing/backgrounds/level-16.png'
+        },
+        {
+            level:20,
+            name:'구름 위 하늘 궁전',
+            img:'assets/housing/backgrounds/level-20.png'
         }
     ];
 
@@ -1270,6 +1283,9 @@ window.sendRoomReaction = async function(targetUser, type) {
     ){
         if (!window.canManageHousing()) return;
         const { owner, version } = window.housingView;
+        const background=LEVEL_BACKGROUNDS.find(entry=>entry.img===image);
+        if (!background) return alert('배경 목록에서 선택해 주세요.');
+        requiredLevel=background.level;
 
         const snapshot=
             await db.ref(
@@ -1469,14 +1485,20 @@ try {
             return;
         }
 
-        db.ref('housingShop').once('value').then(snapshot=>{
+        const {owner,version}=window.housingView;
+        return Promise.all([db.ref('housingShop').once('value'),db.ref(`users/${owner}/level`).once('value'),db.ref(`users/${owner}/lv`).once('value')]).then(([snapshot,levelSnapshot,legacyLevelSnapshot])=>{
+            if (!window.canManageHousing() || !window.isCurrentHousingView(owner,version)) return;
+            const level=roomLevel({level:levelSnapshot.val(),lv:legacyLevelSnapshot.val()});
             const items=[];
             snapshot.forEach(child=>items.push({key:child.key,item:normalizeFurnitureItem(child.val())}));
             const savedImages=new Set(items.map(entry=>entry.item.img).filter(Boolean));
             Object.entries(DEFAULT_FURNITURE).forEach(([key,item])=>{if(!savedImages.has(item.img))items.push({key,item});});
 
             const visible=items.filter(({item})=>item.category!=='배경'&&(filterCategory==='전체'||item.category===filterCategory));
-            const html=visible.map(({key,item})=>`
+            const html=visible.map(({key,item})=>{
+                const requiredLevel=Math.max(1,item.requiredLevel||1);
+                const unlocked=roomIsAdmin()||level>=requiredLevel;
+                return `
                     <div style="
                         padding:12px;
                         text-align:center;
@@ -1496,7 +1518,7 @@ try {
                             }
                         </div>
 
-                        <img
+                        <img loading="lazy" alt="${roomEscape(item.name)}"
                             src="${
                                 roomEscape(
                                     item.img||
@@ -1535,7 +1557,9 @@ try {
                             }C
                         </div>
 
+                        ${requiredLevel>1?`<div style="margin:6px 0;font-size:.85rem;font-weight:800;color:${unlocked?'#24713f':'#9a5b25'};">${unlocked?`Lv.${requiredLevel} 해금 완료`:`🔒 Lv.${requiredLevel}부터 구매 가능`}</div>`:''}
                         <button
+                            ${unlocked?'':'disabled'}
                             onclick="
                                 buyHousingItem(
                                     '${key}'
@@ -1544,14 +1568,14 @@ try {
                             style="
                                 width:100%;
                                 padding:8px;
-                                background:#f4c542;
+                                background:${unlocked?'#f4c542':'#e4e7ec'};
                                 border:0;
                                 border-radius:7px;
                                 font-weight:900;
-                                cursor:pointer;
+                                cursor:${unlocked?'pointer':'not-allowed'};
                             "
                         >
-                            구매하기
+                            ${unlocked?'구매하기':`Lv.${requiredLevel} 해금`}
                         </button>
 
                         ${
@@ -1581,7 +1605,7 @@ try {
                         }
 
                     </div>
-                `).join('');
+                `;}).join('');
 
             container.innerHTML=
                 visible.length
@@ -1700,12 +1724,14 @@ try {
             });
             const purchaseId = request.id;
             const timestamp = firebase.database.ServerValue.TIMESTAMP;
-            let insufficient = false;
+            let insufficient = false, levelLocked = false;
+            const requiredLevel = Math.max(1,item.requiredLevel||1);
             const result = await commitHousingPurchase(db.ref(`users/${owner}`), current => {
-                insufficient = false;
+                insufficient = false; levelLocked = false;
                 if (!current && !createAdmin) return current;
                 const user = applyHousingRewards(current || { name: owner });
                 if (user.housingPurchases?.[purchaseId]) return;
+                if (!createAdmin && roomLevel(user)<requiredLevel) { levelLocked=true; return; }
                 if (charge > 0 && user.roomCoins < charge) { insufficient = true; return; }
                 user.roomCoins -= charge;
                 user.housingInventory ||= {};
@@ -1725,7 +1751,7 @@ try {
             if (!saved?.housingPurchases?.[purchaseId] || !saved?.housingInventory?.[purchaseId]) {
                 purchaseRequest(owner, null);
                 status('구매가 완료되지 않았습니다.');
-                return alert(insufficient ? '방꾸미기 코인이 부족합니다.' :
+                return alert(levelLocked ? `Lv.${requiredLevel}부터 구매할 수 있는 가구입니다.` : insufficient ? '방꾸미기 코인이 부족합니다.' :
                     '구매를 저장하지 못했습니다. 로그인 상태를 확인하고 다시 시도해 주세요.');
             }
             purchaseRequest(owner, null);
