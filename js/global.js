@@ -225,31 +225,7 @@ if(typeof renderHeroes==='function'){
    ========================================================= */
 
 function isCheckinAdminUser(){
-    const admin=
-        (typeof isAdmin!=='undefined'&&!!isAdmin)||
-        !!window.isAdmin;
-
-    const helper=
-        (typeof isHelper!=='undefined'&&!!isHelper)||
-        !!window.isHelper;
-
-    const name=
-        typeof myName!=='undefined'
-            ?myName
-            :window.myName;
-
-    const role=
-        typeof currentUser!=='undefined'&&currentUser
-            ?currentUser.role
-            :'';
-
-    return(
-        admin||
-        helper||
-        name==='총사령관'||
-        role==='관리자'||
-        role==='도우미'
-    );
+    return window.isAdmin === true;
 }
 
 
