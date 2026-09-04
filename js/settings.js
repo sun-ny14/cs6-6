@@ -364,10 +364,13 @@ window.loadStudentAdminList = function() {
         const usersArr = [];
 
         snap.forEach(c => {
-            usersArr.push({
+            const user = {
                 name: c.key,
                 ...c.val()
-            });
+            };
+
+            if (user.name === '총사령관') return;
+            usersArr.push(user);
         });
 
         usersArr.sort(
@@ -399,7 +402,16 @@ window.renderAdminList = function() {
             : [];
 
     targetArr.forEach(u => {
-        if (u.name === "총사령관") return;
+        if (
+            u.name === '총사령관' ||
+            u.isAdmin === true ||
+            String(u.role || '').trim() === '관리자' ||
+            (
+                typeof adminEmail !== 'undefined' &&
+                String(u.email || '').trim().toLowerCase() ===
+                    String(adminEmail || '').trim().toLowerCase()
+            )
+        ) return;
 
         const currentRole =
             u.role ||
@@ -475,21 +487,21 @@ text-align:center;
                         value="일반"
                         ${currentRole === '일반' ? 'selected' : ''}
                     >
-                        일반
+                        &#128100; 일반
                     </option>
 
                     <option
                         value="상점"
                         ${currentRole === '상점' ? 'selected' : ''}
                     >
-                        상점
+                        &#128722; 상점
                     </option>
 
                     <option
                         value="청소"
                         ${currentRole === '청소' ? 'selected' : ''}
                     >
-                        청소
+                        &#129529; 청소
                     </option>
                 </select>
 
@@ -586,32 +598,40 @@ window.saveSettings = async function() {
         alert('등교 암호는 숫자 4자리로 입력해 주세요.');
         return;
     }
-    // An unchanged, stale settings form must not restore yesterday's password.
-    const passwordEdited = password !== passInput.dataset.savedPassword;
     const otherSettings = {
         lateTime: document.getElementById('conf-late').value,
         closeTime: document.getElementById('conf-close').value,
         routineText: document.getElementById('conf-routine')?.value || ''
     };
     try {
-        await window.CheckinPassword.ensureCurrent();
-        const result = await db.ref('settings').transaction(current => {
-            const settings = passwordEdited
-                ? window.CheckinPasswordCore.manual(current, password, window.CheckinPassword.now())
-                : (window.CheckinPasswordCore.rotate(current, window.CheckinPassword.now(), window.CheckinPassword.randomInt) || current);
-            return { ...settings, ...otherSettings };
-        }, undefined, false);
-        const saved = result.snapshot.val();
+        const currentSnapshot = await db.ref('settings').once('value');
+        const current = currentSnapshot.val() || {};
+        const saved = window.CheckinPasswordCore.manual(
+            {
+                password: current.password,
+                passwordDate: current.passwordDate,
+                passwordRevision: current.passwordRevision,
+                passwordUpdatedAt: current.passwordUpdatedAt
+            },
+            password,
+            window.CheckinPassword.now()
+        );
+        const display = window.CheckinPasswordCore.forDisplay(saved);
+
+        await db.ref().update({
+            'settings/password': saved.password,
+            'settings/passwordDate': saved.passwordDate,
+            'settings/passwordRevision': saved.passwordRevision,
+            'settings/passwordUpdatedAt': saved.passwordUpdatedAt,
+            'settings/lateTime': otherSettings.lateTime,
+            'settings/closeTime': otherSettings.closeTime,
+            'settings/routineText': otherSettings.routineText,
+            'blackboardDisplay/checkinPassword': display
+        });
+
         passInput.value = String(saved.password);
         passInput.dataset.savedPassword = String(saved.password);
-        try {
-            await window.CheckinPassword.publish(saved);
-        } catch (error) {
-            console.error('전자칠판 암호 공유 재시도 대기:', error);
-            alert('설정은 저장되었습니다. 전자칠판 암호 공유는 연결 후 다시 시도됩니다.');
-            return;
-        }
-        alert('💾 시스템 설정이 영구 저장되었습니다!');
+        alert('💾 시스템 설정과 전자칠판 암호가 저장되었습니다!');
     } catch (error) {
         console.error('시스템 설정 저장 실패:', error);
         alert(error.message || '설정을 저장하지 못했습니다. 연결 후 다시 시도해 주세요.');

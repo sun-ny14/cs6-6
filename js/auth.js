@@ -5,7 +5,11 @@ const DEV_MODE=false;
 function handleLogin(){
     const provider=new firebase.auth.GoogleAuthProvider();
 
-    auth.signInWithPopup(provider).catch(error=>{
+    auth.setPersistence(
+        firebase.auth.Auth.Persistence.LOCAL
+    ).then(()=>{
+        return auth.signInWithPopup(provider);
+    }).catch(error=>{
         console.error('로그인 오류:',error);
         alert('로그인에 실패했습니다.');
     });

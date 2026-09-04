@@ -738,26 +738,15 @@ function drawHeroes(usersArray) {
             const name =
                 user.name || "";
 
-            const isCurrentStudentAccount =
-                !isAdminUser &&
-                loginName &&
-                heroNormalizeName(name) === loginName;
-
-            /*
-             * 총사령관 / 선생님 계정은 학생 용사 목록에서 제외
-             */
-            if (name === "총사령관") return false;
             if (
-                name.includes("선생님") &&
-                !isCurrentStudentAccount
-            ) {
-                return false;
-            }
-
-            if (
-                typeof adminEmail !== "undefined" &&
-                user.email === adminEmail &&
-                !isCurrentStudentAccount
+                name === "총사령관" ||
+                user.isAdmin === true ||
+                String(user.role || "").trim() === "관리자" ||
+                (
+                    typeof adminEmail !== "undefined" &&
+                    String(user.email || "").trim().toLowerCase() ===
+                        String(adminEmail || "").trim().toLowerCase()
+                )
             ) {
                 return false;
             }

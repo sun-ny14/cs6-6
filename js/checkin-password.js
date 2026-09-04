@@ -2,6 +2,7 @@
 (function (root) {
     'use strict';
     const core = root.CheckinPasswordCore;
+    const AUTO_ROTATION_ENABLED = false;
     const STABLE_MS = 3000;
     let offset = 0, connected = false, signedIn = false, writer = false, offsetReady = false;
     let connectedAt = 0, retryAt = 0, failures = 0, blocked = false, generation = 0;
@@ -61,6 +62,7 @@
         await core.publish(db, settings, () => session === generation && canWrite());
     }
     function refresh() {
+        if (!AUTO_ROTATION_ENABLED) return Promise.resolve();
         if (!available() || !writer || blocked) return Promise.resolve();
         if (pending) return pending;
         if (Date.now() < Math.max(connectedAt + STABLE_MS, retryAt)) { schedule(); return Promise.resolve(); }
@@ -96,14 +98,15 @@
         }
         if (lastError) return;
         status(settings.passwordDate === core.today(now())
-            ? '매일 자정(한국시간)에 자동 변경 · 수동 변경은 시스템 저장 후 적용됩니다.'
-            : writer ? '오늘의 등교 암호를 준비하고 있습니다…' : '선생님이 오늘의 등교 암호를 준비하고 있습니다.');
+            ? '수동 갱신 모드 · 시스템 저장을 누르면 전자칠판에도 적용됩니다.'
+            : writer ? '오늘의 등교 암호를 입력하고 시스템 저장을 눌러주세요.' : '선생님이 오늘의 등교 암호를 준비하고 있습니다.');
     }
     root.CheckinPassword = { now, randomInt, ensureCurrent, refresh, updateInput, publish };
     db.ref('.info/serverTimeOffset').on('value', snapshot => {
         offset = Number(snapshot.val()) || 0; offsetReady = true; refresh();
     });
     db.ref('.info/connected').on('value', snapshot => {
+        if (!AUTO_ROTATION_ENABLED) return;
         const next = snapshot.val() === true;
         if (next && !connected) connectedAt = Date.now();
         connected = next;
@@ -127,7 +130,9 @@
             latestSettings = snapshot.val() || {};
             updateInput(latestSettings); refresh();
         };
-        ref.on('value', receive, error => { if (session === generation) recordFailure(error); });
+        ref.on('value', receive, error => {
+            if (session === generation && AUTO_ROTATION_ENABLED) recordFailure(error);
+        });
         stopSettings = () => ref.off('value', receive);
         refresh();
     });

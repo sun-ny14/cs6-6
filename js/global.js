@@ -225,31 +225,7 @@ if(typeof renderHeroes==='function'){
    ========================================================= */
 
 function isCheckinAdminUser(){
-    const admin=
-        (typeof isAdmin!=='undefined'&&!!isAdmin)||
-        !!window.isAdmin;
-
-    const helper=
-        (typeof isHelper!=='undefined'&&!!isHelper)||
-        !!window.isHelper;
-
-    const name=
-        typeof myName!=='undefined'
-            ?myName
-            :window.myName;
-
-    const role=
-        typeof currentUser!=='undefined'&&currentUser
-            ?currentUser.role
-            :'';
-
-    return(
-        admin||
-        helper||
-        name==='총사령관'||
-        role==='관리자'||
-        role==='도우미'
-    );
+    return window.isAdmin===true;
 }
 
 
@@ -509,6 +485,24 @@ if (typeof refreshCheckinGuide === 'function') {
 
             if(!u.name){
                 u.name=child.key;
+            }
+
+            const role=String(u.role||'').trim();
+            const userEmail=String(u.email||'').trim().toLowerCase();
+            const administratorEmail=String(
+                typeof adminEmail!=='undefined' ? adminEmail : ''
+            ).trim().toLowerCase();
+            if(
+                u.name==='총사령관'||
+                u.isAdmin===true||
+                role==='관리자'||
+                (
+                    userEmail&&
+                    administratorEmail&&
+                    userEmail===administratorEmail
+                )
+            ){
+                return;
             }
 
             users.push(u);

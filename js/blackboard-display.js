@@ -35,6 +35,14 @@
         return date.toISOString().slice(0, 10);
     }
 
+    function nextSchoolDay(dateString) {
+        let next = addDays(dateString, 1);
+        while ([0, 6].includes(new Date(`${next}T00:00:00Z`).getUTCDay())) {
+            next = addDays(next, 1);
+        }
+        return next;
+    }
+
     function mondayOf(dateString) {
         const day = new Date(`${dateString}T00:00:00Z`).getUTCDay();
         return addDays(dateString, day === 0 ? -6 : 1 - day);
@@ -262,6 +270,12 @@
         }
     }
 
+    function resizeInlineMemo(textarea) {
+        if (!textarea?.style) return;
+        textarea.style.height = 'auto';
+        textarea.style.height = `${Math.max(235, textarea.scrollHeight)}px`;
+    }
+
     function renderSimplePeriod(item) {
         const action = String(item.action || '').trim();
         const icon = item.name === '점심시간' ? '🍱' : '☀️';
@@ -281,7 +295,7 @@
         const assignmentHtml=dueAssignments.length?dueAssignments.map(({item,incomplete})=>{
             return `<div class="task-due-item"><div class="task-due-title">${escapeHtml(item.title||'제목 없는 과제')} · 마감 ${escapeHtml(item.dueDate||'')}</div><div class="task-due-numbers">${incomplete.map(student=>`${student.number}번`).join(', ')}</div></div>`;
         }).join(''):'<div class="number-list all-done" style="font-size:32px">미완료 과제 없음</div>';
-        const tomorrow = addDays(today, 1);
+        const tomorrow = nextSchoolDay(today);
         const tomorrowText = String(state.notices?.[tomorrow] || '').trim();
         const tomorrowCard = `<section class="dismissal-card tomorrow-notice"><h3>📅 내일 공지 <small>${escapeHtml(tomorrow)}</small></h3><div class="tomorrow-notice-text">${tomorrowText ? escapeHtml(tomorrowText) : '등록된 내일 공지가 없습니다.'}</div></section>`;
         const manual=String(state.dismissalNotes?.[today]?.teacherMessage||state.dismissalNotes?.[today]?.manualIncomplete||'');
@@ -383,6 +397,7 @@
         } else {
             stage.innerHTML = renderDismissal(now.date);
         }
+        resizeInlineMemo(stage.querySelector('[data-inline-learning-note]'));
     }
 
     const sourcePaths = {
@@ -466,6 +481,7 @@
         if(dismissal){const status=dismissal.closest('.dismissal-card')?.querySelector('[data-dismissal-status]');if(status)status.textContent='저장 대기 중...';clearTimeout(state.memoTimers.dismissal);state.memoTimers.dismissal=setTimeout(()=>saveDismissalNote(dismissal),800);return;}
         const textarea = event.target.closest('[data-inline-learning-note]');
         if (!textarea) return;
+        resizeInlineMemo(textarea);
         const key = textarea.dataset.inlineLearningNote;
         const status = textarea.closest('.inline-memo-card')?.querySelector('[data-memo-status]');
         if (status) status.textContent = '저장 대기 중...';

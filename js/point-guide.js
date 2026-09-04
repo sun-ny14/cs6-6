@@ -927,6 +927,8 @@ window.openBulkPointPopup = async function(
         const val = c.val();
 
         if (
+            c.key !== '총사령관' &&
+            val.name !== '총사령관' &&
             val.role !== '총관리자1' &&
             val.role !== '총관리자2' &&
             val.name !== '선생님'
