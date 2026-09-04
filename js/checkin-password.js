@@ -33,10 +33,16 @@
     function recordFailure(error) {
         const code = String(error?.code || error?.message || 'unknown');
         failures += 1;
-        retryAt = Date.now() + Math.min(60000 * (2 ** Math.min(failures - 1, 3)), 300000);
+        retryAt = Date.now() + Math.min(
+    3000 * (2 ** Math.min(failures - 1, 3)),
+    30000
+);
         blocked = /permission|denied|unauthorized/i.test(code);
-        status(blocked ? '암호 갱신 권한을 확인하지 못했습니다. 관리자 로그인과 Firebase 연결을 확인해 주세요.'
-            : '연결 문제로 자동 갱신을 잠시 멈췄습니다. 연결이 안정되면 간격을 두고 다시 시도합니다.');
+        status(
+    blocked
+        ? '암호 저장 권한이 없습니다. 관리자 계정으로 다시 로그인해 주세요.'
+        : '암호 동기화를 다시 시도하고 있습니다…'
+);
         // Report a changed failure once; don't print the same stack on every reconnect.
         if (lastError !== code) console.warn('등교 암호 갱신 대기:', code);
         lastError = code;
