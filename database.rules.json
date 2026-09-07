@@ -1,12 +1,71 @@
 {
   "rules": {
     ".read": "auth != null",
-    ".write": "auth != null",
+    ".write": false,
+    "settings": {
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+    },
+    "userEmails": {
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+    },
+    "seatLayoutData": {
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+    },
+    "blackboard": {
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+    },
+    "grades": {
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+    },
+    "budgetRecords": {
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+    },
+    "pointGuide": {
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+    },
+    "housingShop": {
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+    },
+    "users": {
+      "$userName": {
+        ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || (data.exists() && data.child('email').val() == auth.token.email && newData.child('email').val() == data.child('email').val()))"
+      }
+    },
+    "checkins": {
+      ".write": "auth != null"
+    },
+    "checkinLogs": {
+      ".write": "auth != null"
+    },
+    "classManagement": {
+      "cleaningStatus": {
+        ".write": "auth != null"
+      }
+    },
+    "orders": {
+      ".write": "auth != null"
+    },
+    "shop": {
+      ".write": "auth != null"
+    },
     "pointLogs": {
+      ".write": "auth != null",
       ".indexOn": ["name"]
     },
+    "pointHistory": {
+      ".write": "auth != null"
+    },
     "blackboardDisplay": {
-      ".read": true
+      ".read": true,
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      "data": {
+        "checkins": {
+          ".write": "auth != null"
+        },
+        "cleaningRoot": {
+          ".write": "auth != null"
+        }
+      }
     }
   }
 }

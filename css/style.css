@@ -2174,6 +2174,19 @@ body #seat-map-container
     color: #b42318 !important;
 }
 
+/* 출결 좌석 상태를 문자열 스타일 판별 없이 확실하게 구분 */
+body #seat-map-container > div.attendance-late {
+    background: #fed7aa !important;
+    border: 3px solid #f59e0b !important;
+    color: #7c2d12 !important;
+}
+
+body #seat-map-container > div.attendance-absent {
+    background: #fff1f0 !important;
+    border: 3px solid #ef4444 !important;
+    color: #7f1d1d !important;
+}
+
 
 /* 조퇴 */
 
@@ -3254,4 +3267,81 @@ body :is(#common-overlay, #checkin-independent-popup)
     padding: 8px !important;
     font-size: 16px !important;
     box-sizing: border-box !important;
+}
+
+/* 포인트 일괄 지급: 학생 목록만 스크롤하고 하단 버튼은 항상 표시 */
+#point-popup.point-bulk-overlay {
+    box-sizing: border-box !important;
+    padding: clamp(10px, 2vh, 24px) !important;
+    overflow: hidden !important;
+}
+
+#point-popup .point-bulk-dialog {
+    box-sizing: border-box !important;
+    width: min(1280px, 96vw) !important;
+    max-width: 96vw !important;
+    height: min(820px, calc(100dvh - 20px)) !important;
+    max-height: calc(100dvh - 20px) !important;
+    min-height: 0 !important;
+    padding: clamp(16px, 2.5vw, 30px) !important;
+    overflow: hidden !important;
+}
+
+#point-popup #point-pop-title,
+#point-popup .point-bulk-description,
+#point-popup .point-bulk-toolbar,
+#point-popup .point-bulk-actions {
+    flex: 0 0 auto !important;
+}
+
+#point-popup #point-pop-title {
+    margin-bottom: 10px !important;
+    font-size: clamp(1.35rem, 2.4vw, 2rem) !important;
+}
+
+#point-popup .point-bulk-description {
+    margin-top: 0 !important;
+}
+
+#point-popup #point-pop-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    margin-bottom: 14px !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+}
+
+#point-popup .point-bulk-student-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+#point-popup .point-bulk-actions {
+    position: relative !important;
+    z-index: 1 !important;
+    background: white !important;
+}
+
+@media (max-width: 900px) {
+    #point-popup .point-bulk-student-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 560px) {
+    #point-popup .point-bulk-dialog {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: calc(100dvh - 12px) !important;
+        max-height: calc(100dvh - 12px) !important;
+    }
+
+    #point-popup .point-bulk-student-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    #point-popup .point-bulk-description {
+        display: none !important;
+    }
 }

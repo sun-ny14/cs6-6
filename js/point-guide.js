@@ -12,6 +12,15 @@ function formatDateTime(timestamp) {
     return `${y}-${m}-${day} ${h}:${min}`;
 }
 
+function pointGuideEscapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 window.isPointsListenerAttached = false;
 window.isPointGuideListenerAttached = false;
 
@@ -973,12 +982,10 @@ window.openBulkPointPopup = async function(
         </div>
 
 
-        <div style="
+        <div class="point-bulk-student-grid" style="
             display:grid;
             grid-template-columns:repeat(5,1fr);
             gap:10px;
-            max-height:400px;
-            overflow-y:auto;
             padding:5px;
         ">
     `;
@@ -1010,8 +1017,8 @@ window.openBulkPointPopup = async function(
                 <input
                     type="checkbox"
                     class="student-checkbox"
-                    value="${u.key}"
-                    data-name="${u.name}"
+                    value="${pointGuideEscapeHtml(u.key)}"
+                    data-name="${pointGuideEscapeHtml(u.name)}"
                     style="
                         position:absolute;
                         top:8px;
@@ -1028,7 +1035,7 @@ window.openBulkPointPopup = async function(
                     margin-bottom:4px;
                     margin-top:4px;
                 ">
-                    ${studentNo}
+                    ${pointGuideEscapeHtml(studentNo)}
                 </div>
 
                 <div style="
@@ -1036,7 +1043,7 @@ window.openBulkPointPopup = async function(
                     font-weight:bold;
                     color:#2c3e50;
                 ">
-                    ${u.name}
+                    ${pointGuideEscapeHtml(u.name)}
                 </div>
 
             </label>
@@ -1167,6 +1174,17 @@ window.toggleSelectAllStudents =
                         masterCb.checked
             );
     };
+
+window.setBulkPointSelection = function(checked) {
+    document
+        .querySelectorAll('#point-popup .student-checkbox, #point-popup .point-pop-chk')
+        .forEach(cb => {
+            cb.checked = Boolean(checked);
+            if (typeof window.togglePointPopInputs === 'function') {
+                window.togglePointPopInputs(cb);
+            }
+        });
+};
 
 
 window.closePointPopup =

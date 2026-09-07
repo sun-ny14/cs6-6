@@ -132,7 +132,14 @@
             const item = value || {};
             const date = String(item.date || item.checkinDate || '').slice(0,10);
             const name = String(item.name || item.user || item.userName || '').trim();
-            if (date === today && name) checked.add(name);
+            const category=String(item.category||item.status||'').trim();
+            const result=String(item.result||item.reason||'').trim();
+            const attended=typeof item.attended==='boolean'
+                ?item.attended
+                :category==='정상'||category==='지각'||result==='등교'||
+                    result.includes('정상')||result.includes('지각')||
+                    (!category&&!result);
+            if (date === today && name && attended) checked.add(name);
         });
         return checked;
     }

@@ -5,11 +5,7 @@ const DEV_MODE=false;
 function handleLogin(){
     const provider=new firebase.auth.GoogleAuthProvider();
 
-    auth.setPersistence(
-        firebase.auth.Auth.Persistence.LOCAL
-    ).then(()=>{
-        return auth.signInWithPopup(provider);
-    }).catch(error=>{
+    auth.signInWithPopup(provider).catch(error=>{
         console.error('로그인 오류:',error);
         alert('로그인에 실패했습니다.');
     });
@@ -85,13 +81,13 @@ function applyAccessControl(){
         setMenuVisible(id,admin);
     });
 
-    // 상점 주문 관리
+    // 상점 역할 학생 또는 관리자
     setMenuVisible(
         'admin-order-mgr',
         window.canManageShopRequests()
     );
 
-    // 등교로그 및 좌석
+    // 관리자 전용 등교로그 및 좌석
     setMenuVisible(
         'sub-btn-checkin-logs',
         admin
@@ -130,8 +126,8 @@ auth.onAuthStateChanged(async user=>{
     const loadingScreen=document.getElementById('loading-screen');
     const mainApp=document.getElementById('main-app');
     const sidebarToggleBtn=document.getElementById(
-        'sidebar-toggle-btn'
-    );
+            'sidebar-toggle-btn'
+        );
 
     if(DEV_MODE)return;
 
@@ -229,7 +225,6 @@ auth.onAuthStateChanged(async user=>{
             name:userData.name||studentName
         };
 
-        // 로그인할 때마다 권한 다시 적용
         applyAccessControl();
 
         if(loginScreen){
@@ -268,7 +263,6 @@ auth.onAuthStateChanged(async user=>{
             startApp();
         }
 
-        // startApp 실행 후 다시 한번 권한 적용
         applyAccessControl();
 
         if(typeof showTab==='function'){
@@ -276,8 +270,14 @@ auth.onAuthStateChanged(async user=>{
         }
 
     }catch(error){
-        console.error('로그인 정보 처리 오류:',error);
-        alert('로그인 정보를 불러오지 못했습니다.');
+        console.error(
+            '로그인 정보 처리 오류:',
+            error
+        );
+
+        alert(
+            '로그인 정보를 불러오지 못했습니다.'
+        );
     }
 });
 

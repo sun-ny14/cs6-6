@@ -16,8 +16,9 @@ const adminEmail = "ksosuny@cberi.go.kr";
 // Firebase 초기화
 firebase.initializeApp(firebaseConfig); 
 const db = firebase.database(); 
-const auth = firebase.auth(); 
-const provider = new firebase.auth.GoogleAuthProvider();
+// 전자칠판처럼 공개 읽기 전용 페이지는 Auth SDK를 불러오지 않습니다.
+const auth = typeof firebase.auth === 'function' ? firebase.auth() : null;
+const provider = auth ? new firebase.auth.GoogleAuthProvider() : null;
 
 // 앱 전체가 같은 상태를 보도록 window 한 곳에서만 관리합니다.
 // top-level let과 window.*를 섞으면 서로 다른 값이 생길 수 있습니다.

@@ -52,7 +52,13 @@
         entries(raw.checkins).forEach(([, record], index) => {
             const date = text(record?.date || record?.checkinDate).slice(0, 10);
             const name = text(record?.name || record?.user || record?.userName).trim();
-            if (date === today && visibleNames.has(name)) checkins[`entry-${index}`] = { name, date };
+            const category = text(record?.category || record?.status).trim();
+            const result = text(record?.result || record?.reason).trim();
+            const attended = category === '정상' || category === '지각' ||
+                result === '등교' || result.includes('정상') || result.includes('지각');
+            if (date === today && visibleNames.has(name)) {
+                checkins[`entry-${index}`] = { name, date, attended };
+            }
         });
         const seat = raw.seatData || {};
         const layout = Object.fromEntries(entries(seat.layout).filter(([key]) => /^(seat-)?\d+-\d+$/.test(key))
@@ -88,10 +94,12 @@
         const clock = options.now || Date.now;
         const stamp = options.timestamp || { '.sv': 'timestamp' };
         const report = options.report || (() => {});
+        const teacherEmail = String(options.adminEmail || '').trim().toLowerCase();
         let stopSession = () => {};
         const stopAuth = authentication.onAuthStateChanged(user => {
             stopSession();
-            if (!user) return;
+            const loginEmail = String(user?.email || '').trim().toLowerCase();
+            if (!user || !teacherEmail || loginEmail !== teacherEmail) return;
             let active = true, connected = false, offset = 0, timer, writing = false;
             let lastSent = '', lastDay = '', dirty = false;
             const raw = {}, loaded = new Set(), failed = new Set(), subscriptions = [];
@@ -161,7 +169,7 @@
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     if (root) root.BlackboardShare = api;
     if (root && typeof db !== 'undefined' && typeof auth !== 'undefined') {
-        startPublisher(db, auth, { report(message, error) {
+        startPublisher(db, auth, { adminEmail: typeof adminEmail === 'string' ? adminEmail : '', report(message, error) {
             const status = document.getElementById('bb-share-status');
             if (status) status.textContent = message;
             if (error) console.error(message, error);

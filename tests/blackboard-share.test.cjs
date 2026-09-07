@@ -51,6 +51,7 @@ function harness() {
         async update(value) { if (db.fail) throw Error('Permission denied'); writes.push(JSON.parse(JSON.stringify(value))); }
     }; } };
     const stop = startPublisher(db, { onAuthStateChanged(callback) { authCallback = callback; callback(null); } }, {
+        adminEmail: 'teacher@example.com',
         now: () => clock.now,
         setTimeout(callback) { timers.set(++id, callback); return id; },
         clearTimeout(key) { timers.delete(key); },
@@ -64,13 +65,21 @@ function harness() {
         for (const callback of callbacks) await callback();
     }
     return { db, writes, messages, timers, intervals, listeners, clock, stop, emit, flush,
-        login: () => authCallback({ uid: 'test-user' }), logout: () => authCallback(null),
+        login: () => authCallback({ uid: 'test-user', email: 'teacher@example.com' }),
+        loginAsStudent: () => authCallback({ uid: 'student-user', email: 'student@example.com' }),
+        logout: () => authCallback(null),
         load: () => Object.values(sources).forEach(key => emit(key, null))
     };
 }
 
 test('signed-out devices never start private listeners or publish', async () => {
     const app = harness(); await app.flush();
+    assert.equal(app.listeners.size, 0); assert.equal(app.writes.length, 0);
+    app.stop();
+});
+
+test('student accounts never start the public-board publisher', async () => {
+    const app = harness(); app.loginAsStudent(); await app.flush();
     assert.equal(app.listeners.size, 0); assert.equal(app.writes.length, 0);
     app.stop();
 });
@@ -123,11 +132,12 @@ test('Korean midnight refreshes only the current-day attendance projection', asy
     app.stop();
 });
 
-test('rules grant anonymous read only to the display path, preserving existing login checks', () => {
+test('rules grant anonymous read only to the display path and protect administrative writes', () => {
     const { rules } = JSON.parse(fs.readFileSync(path.join(__dirname, '../database.rules.json'), 'utf8'));
     assert.equal(rules['.read'], 'auth != null');
-    assert.equal(rules['.write'], 'auth != null');
-    assert.deepEqual(rules.blackboardDisplay, { '.read': true });
-    assert.deepEqual(rules.pointLogs, { '.indexOn': ['name'] });
-    assert.deepEqual(Object.keys(rules).filter(key => !key.startsWith('.')).sort(), ['blackboardDisplay', 'pointLogs']);
+    assert.equal(rules['.write'], false);
+    assert.equal(rules.blackboardDisplay['.read'], true);
+    assert.match(rules.blackboardDisplay['.write'], /auth\.token\.email/);
+    assert.match(rules.settings['.write'], /auth\.token\.email/);
+    assert.deepEqual(rules.pointLogs['.indexOn'], ['name']);
 });

@@ -941,11 +941,16 @@
                     ? firebase.database.ServerValue.TIMESTAMP
                     : Date.now();
 
-            await db.ref(`${STATUS_ROOT}/${today}/${name}`).update({
-                [field]:Boolean(newStatus),
-                [`${field}At`]:serverTimestamp,
-                [`${field}By`]:loginName
-            });
+            const statusPath=`${STATUS_ROOT}/${today}/${name}`;
+            const updates={
+                [`${statusPath}/${field}`]:Boolean(newStatus),
+                [`${statusPath}/${field}At`]:serverTimestamp,
+                [`${statusPath}/${field}By`]:loginName
+            };
+            if(field==='cleanDone'){
+                updates[`blackboardDisplay/data/cleaningRoot/${today}/${name}/cleanDone`]=Boolean(newStatus);
+            }
+            await db.ref().update(updates);
 
             window.renderRoleCleaning();
         } catch (error) {

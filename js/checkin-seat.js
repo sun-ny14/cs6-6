@@ -7,6 +7,19 @@ function checkinGetToday(){
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
+function checkinIsFixedExcluded(fixedExclusions,date,userName){
+    const weekDays=['일','월','화','수','목','금','토'];
+    const day=weekDays[new Date(`${date}T12:00:00`).getDay()];
+    const names=Array.isArray(fixedExclusions?.[day])
+        ?fixedExclusions[day]
+        :[];
+    return names.includes(userName);
+}
+
+function checkinIsAttendedCategory(category){
+    return category==='정상'||category==='지각';
+}
+
 function checkinGetRowsCols(){
     const rowsEl=document.getElementById('seat-rows');
     const colsEl=document.getElementById('seat-cols');
@@ -621,7 +634,8 @@ window.submitCheckin=async function(
 
         const [
             checkinsSnap,
-            userSnap
+            userSnap,
+            exclusionsSnap
         ]=await Promise.all([
 
             db.ref(
@@ -630,9 +644,23 @@ window.submitCheckin=async function(
 
             db.ref(
                 `users/${user}`
+            ).once('value'),
+
+            db.ref(
+                'settings/fixedExclusions'
             ).once('value')
 
         ]);
+
+        const isFixedExcluded=checkinIsFixedExcluded(
+            exclusionsSnap.val()||{},
+            today,
+            user
+        );
+
+        if(isFixedExcluded){
+            desiredPenalty=0;
+        }
 
 
         let existingKey=null;
@@ -759,6 +787,15 @@ window.submitCheckin=async function(
         updates[
             `checkins/${recordKey}`
         ]=data;
+
+        // 공개 전자칠판에는 출결 사유·포인트 없이 표시에 필요한 값만 함께 반영합니다.
+        updates[
+            `blackboardDisplay/data/checkins/${recordKey}`
+        ]={
+            name:user,
+            date:today,
+            attended:checkinIsAttendedCategory(category)
+        };
 
 
         let newPoints=null;
@@ -1065,6 +1102,7 @@ window.renderSeatMap=function(rows,cols){
                 let bgColor='#eee';
                 let statusText='미등교';
                 let textColor='#000';
+                let attendanceClass='';
 
                 const log=name?logs[name]:null;
 
@@ -1089,12 +1127,16 @@ window.renderSeatMap=function(rows,cols){
                         }else if(
                             statusText.includes('지각')
                         ){
-                            bgColor='#ffcccc';
+                            bgColor='#fed7aa';
+                            textColor='#7c2d12';
+                            attendanceClass='attendance-late';
 
                         }else if(
                             statusText.includes('결석')
                         ){
-                            bgColor='#ffd6d6';
+                            bgColor='#fff1f0';
+                            textColor='#7f1d1d';
+                            attendanceClass='attendance-absent';
 
                         }else if(
                             statusText.includes('조퇴')
@@ -1122,6 +1164,10 @@ window.renderSeatMap=function(rows,cols){
                         bgColor='#ffff00';
                         statusText='미등교';
                     }
+                }
+
+                if(attendanceClass){
+                    cell.classList.add(attendanceClass);
                 }
 
                 cell.style.cssText=`
@@ -2045,7 +2091,8 @@ window.saveDetailLog=async function(
         const [
             checkinsSnap,
             logsSnap,
-            userSnap
+            userSnap,
+            exclusionsSnap
         ]=await Promise.all([
 
             db.ref(
@@ -2058,9 +2105,19 @@ window.saveDetailLog=async function(
 
             db.ref(
                 `users/${name}`
+            ).once('value'),
+
+            db.ref(
+                'settings/fixedExclusions'
             ).once('value')
 
         ]);
+
+        const isFixedExcluded=checkinIsFixedExcluded(
+            exclusionsSnap.val()||{},
+            date,
+            name
+        );
 
 
         let checkinsKey=null;
@@ -2146,13 +2203,15 @@ window.saveDetailLog=async function(
         // ======================================
         // 담임 직접 지각
         //
-        // 지각 = 무조건 총 -9P
+        // 지각 + 사유 구분 없음(-) = 총 -9P
         //
-        // 다른 상태 = 지각 패널티 0P
+        // 질병·인정·미인정·기타 = 지각 패널티 0P
         // ======================================
 
         const desiredPenalty=
-            category==='지각'
+            category==='지각'&&
+            subCategory==='해당없음'&&
+            !isFixedExcluded
                 ?-9
                 :0;
 
@@ -2263,7 +2322,7 @@ window.saveDetailLog=async function(
                 desiredPenalty,
 
             penaltySource:
-                category==='지각'
+                desiredPenalty<0
                     ?'teacher'
                     :'none',
 
@@ -2279,6 +2338,8 @@ window.saveDetailLog=async function(
         // checkins 갱신
         // ======================================
 
+        let publicCheckinKey=checkinsKey;
+
         if(checkinsKey){
 
             updates[
@@ -2292,11 +2353,21 @@ window.saveDetailLog=async function(
                     'checkins'
                 ).push().key;
 
+            publicCheckinKey=newKey;
+
 
             updates[
                 `checkins/${newKey}`
             ]=data;
         }
+
+        updates[
+            `blackboardDisplay/data/checkins/${publicCheckinKey}`
+        ]={
+            name:name,
+            date:date,
+            attended:checkinIsAttendedCategory(category)
+        };
 
 
         // ======================================
@@ -2482,7 +2553,24 @@ window.saveDetailLog=async function(
         // 완료 메시지
         // ======================================
 
-        if(category==='지각'){
+        if(category==='지각'&&desiredPenalty===0){
+
+            if(pointDelta>0){
+
+                alert(
+                    `✅ 지각 사유 반영 완료\n`+
+                    `${subCategory} 사유이므로 기존 차감 ${pointDelta}포인트가 복구되었습니다.`
+                );
+
+            }else{
+
+                alert(
+                    `✅ 지각 사유 반영 완료\n`+
+                    `${subCategory} 사유는 포인트가 차감되지 않습니다.`
+                );
+            }
+
+        }else if(category==='지각'){
 
             if(pointDelta<0){
 
