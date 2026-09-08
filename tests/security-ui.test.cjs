@@ -36,11 +36,33 @@ test('firebase config includes the hardened realtime database rules file', () =>
     assert.equal(config.database.rules, 'database.rules.json');
 });
 
+test('sensitive writes and student reads are denied at the database root', () => {
+    const { rules } = JSON.parse(read('database.rules.json'));
+    assert.equal(rules['.read'], false);
+    assert.equal(rules['.write'], false);
+    assert.match(rules.settings['.read'], /ksosuny@cberi\.go\.kr/);
+    assert.match(rules.shop['.write'], /ksosuny@cberi\.go\.kr/);
+    assert.equal(rules.publicProfiles['.write'], false);
+});
+
+test('point and housing purchases use callable server functions', () => {
+    const shop = read('js/point-shop.js');
+    const housing = read('js/housing.js');
+    const functions = read('functions/index.js');
+    assert.match(shop, /callSecure\('purchasePointShop'/);
+    assert.match(housing, /callSecure\('purchaseHousingItem'/);
+    assert.match(functions, /exports\.purchasePointShop/);
+    assert.match(functions, /exports\.purchaseHousingItem/);
+    assert.match(functions, /database\.ref\(\)\.transaction/);
+});
+
 test('attendance and cleaning writes mirror only display-safe realtime fields', () => {
     const checkin = read('js/checkin-seat.js');
     const cleaning = read('js/cleaning.js');
-    assert.match(checkin, /blackboardDisplay\/data\/checkins\/\$\{recordKey\}/);
-    assert.match(checkin, /\{name:user,date:today\}/);
+    const functions = read('functions/index.js');
+    assert.match(checkin, /callSecure\('submitStudentCheckin'/);
+    assert.match(functions, /blackboardDisplay\.data\.checkins/);
+    assert.match(functions, /\{name:current\.name,date,attended:true\}/);
     assert.match(cleaning, /blackboardDisplay\/data\/cleaningRoot\/\$\{today\}\/\$\{name\}\/cleanDone/);
     assert.match(cleaning, /await db\.ref\(\)\.update\(updates\)/);
 });

@@ -483,7 +483,7 @@ window.loadCheckinState=async function(){
 window.refreshCheckinGuide=async function(settings){
     let currentSettings=settings;
     if(!currentSettings){
-        const snap=await db.ref('settings').once('value');
+        const snap=await db.ref(window.isAdmin===true?'settings':'publicSettings').once('value');
         currentSettings=snap.val()||{};
     }
 
@@ -647,7 +647,7 @@ window.submitCheckin=async function(
             ).once('value'),
 
             db.ref(
-                'settings/fixedExclusions'
+                window.isAdmin===true?'settings/fixedExclusions':'publicSettings/fixedExclusions'
             ).once('value')
 
         ]);
@@ -1569,88 +1569,9 @@ window.submitCheckIn=async function(){
     if(button)button.disabled=true;
 
     try{
-        // 학생 등교는 교사용 자동 암호 갱신 상태에 의존하지 않고
-        // Firebase에 저장된 오늘의 암호를 직접 확인한다.
-        const settingsSnapshot=
-            await db.ref('settings').once('value');
-
-        const settings=
-            settingsSnapshot.val()||{};
-
-        if(
-            !window.CheckinPasswordCore.valid(settings.password)||
-            settings.passwordDate!==
-                window.CheckinPasswordCore.today(Date.now())
-        ){
-            alert('오늘의 등교 암호가 아직 설정되지 않았습니다.');
-            return;
-        }
-
-        if(String(settings.password||'')!==password){
-            alert('등교 암호가 맞지 않습니다.');
-            return;
-        }
-
-        const toMinutes=value=>{
-            const parts=String(value||'').split(':').map(Number);
-
-            return parts.length===2&&parts.every(Number.isFinite)
-                ?parts[0]*60+parts[1]
-                :null;
-        };
-
-        const now=new Date();
-
-        const currentMinutes=
-            now.getHours()*60+
-            now.getMinutes();
-
-        const lateMinutes=
-            toMinutes(
-                settings.lateTime||'08:40'
-            );
-
-        const closeMinutes=
-            toMinutes(
-                settings.closeTime||'09:00'
-            );
-
-        if(
-            closeMinutes!==null&&
-            currentMinutes>closeMinutes
-        ){
-            alert(
-                `등교 확인 시간이 마감되었습니다. `+
-                `(${settings.closeTime||'09:00'})`
-            );
-
-            return;
-        }
-
-        // 지각 기준시간보다 몇 분 늦었는지 계산
-        const lateBy=
-            lateMinutes!==null
-                ?Math.max(
-                    0,
-                    currentMinutes-lateMinutes
-                )
-                :0;
-
-        const reason=
-            lateBy>0
-                ?'지각 등교'
-                :'정상 등교';
-
-        // QR/암호 직접 등교임을 명확하게 전달
-        const saveResult=
-            await submitCheckin(
-                window.myName,
-                reason,
-                {
-                    source:'qr',
-                    lateMinutes:lateBy
-                }
-            );
+        // 암호 검증, 시간 판정, 포인트 및 코인 반영을 서버 트랜잭션에서 한 번에 처리한다.
+        const saveResult=await window.callSecure('submitStudentCheckin',{password});
+        const lateBy=Number(saveResult.lateBy)||0;
 
         if(passInput){
             passInput.value='';

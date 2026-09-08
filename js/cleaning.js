@@ -7,6 +7,7 @@
 
     const STATUS_ROOT = 'classManagement/cleaningStatus';
     const SETTINGS_ROOT = 'settings';
+    const readableSettingsRoot = () => isCleaningAdmin() ? SETTINGS_ROOT : 'cleaningSettings';
 
     window.cleaningSubTab =
         window.cleaningSubTab ||
@@ -813,7 +814,7 @@
         const today = getTodayKey();
 
         Promise.all([
-            db.ref(SETTINGS_ROOT).once('value'),
+            db.ref(readableSettingsRoot()).once('value'),
             db.ref(`${STATUS_ROOT}/${today}`).once('value')
         ]).then(([settingsSnapshot, statusSnapshot]) => {
             const settings = settingsSnapshot.val() || {};
@@ -914,7 +915,7 @@
         }
 
         try {
-            const settingsSnapshot = await db.ref(SETTINGS_ROOT).once('value');
+            const settingsSnapshot = await db.ref(readableSettingsRoot()).once('value');
             const settings = settingsSnapshot.val() || {};
             const role = readRole((settings.studentRoles || {})[name]);
             const cleaner = isCleaningStudent(

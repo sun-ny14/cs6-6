@@ -236,7 +236,8 @@
         const guide = mode === 'morning' ? '자기 이름이 초록색인지 확인하세요.' : '자리 청소가 확인되면 초록색으로 바뀝니다.';
         const action=String(item?.action||'').trim();
         const code = state.checkinPassword;
-        const currentCode = code?.date === today && /^\d{4}$/.test(String(code.password || ''));
+        // 수동 암호는 자정이 지나도 교사가 다시 변경할 때까지 표시한다.
+        const currentCode = /^\d{4}$/.test(String(code?.password || ''));
         const passwordCard = mode === 'morning'
             ? `<section class="morning-password" aria-label="오늘의 등교 암호"><span>오늘의 등교 암호</span>${currentCode ? `<strong>${escapeHtml(code.password)}</strong>` : '<p>오늘의 암호를 준비하고 있습니다.</p>'}</section>` : '';
         return `<div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2>${passwordCard}${action?`<div class="action">${escapeHtml(action)}</div>`:''}<div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-grid" style="--seat-cols:${seatInfo.cols}">${cards}</div>`;

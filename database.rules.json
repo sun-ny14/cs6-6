@@ -1,69 +1,131 @@
 {
   "rules": {
-    ".read": "auth != null",
+    ".read": false,
     ".write": false,
+    "access": {
+      ".indexOn": ["name"],
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'ksosuny@cberi.go.kr')",
+        ".write": false
+      }
+    },
+    "publicSettings": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "publicProfiles": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "cleaningSettings": {
+      ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소')",
+      ".write": false
+    },
     "settings": {
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "userEmails": {
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "seatLayoutData": {
+      ".read": "auth != null",
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "blackboard": {
+      ".read": "auth != null",
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "grades": {
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "budgetRecords": {
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "pointGuide": {
+      ".read": "auth != null",
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "housingShop": {
+      ".read": "auth != null",
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "users": {
       "$userName": {
-        ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || (data.exists() && data.child('email').val() == auth.token.email && newData.child('email').val() == data.child('email').val()))"
+        ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('name').val() == $userName)",
+        ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('name').val() == $userName)",
+        ".validate": "auth.token.email == 'ksosuny@cberi.go.kr' || (newData.exists() && newData.child('email').val() == data.child('email').val() && newData.child('name').val() == data.child('name').val() && newData.child('no').val() == data.child('no').val() && newData.child('role').val() == data.child('role').val() && newData.child('isHelper').val() == data.child('isHelper').val() && newData.child('points').val() == data.child('points').val() && newData.child('exp').val() == data.child('exp').val() && newData.child('level').val() == data.child('level').val() && newData.child('lv').val() == data.child('lv').val() && newData.child('roomCoins').val() == data.child('roomCoins').val() && newData.child('roomRewardedLevel').val() == data.child('roomRewardedLevel').val() && newData.child('roomCoinRewards').val() == data.child('roomCoinRewards').val() && newData.child('housingInventory').val() == data.child('housingInventory').val() && newData.child('housingPurchases').val() == data.child('housingPurchases').val())"
       }
     },
     "checkins": {
-      ".write": "auth != null"
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      "$record": {
+        ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+      }
     },
     "checkinLogs": {
-      ".write": "auth != null"
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      "$record": {
+        ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+      }
     },
     "classManagement": {
       "cleaningStatus": {
-        ".write": "auth != null"
+        ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소')",
+        "$date": {
+          "$userName": {
+        ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소')"
+          }
+        }
       }
     },
     "orders": {
-      ".write": "auth != null"
+      ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '상점')",
+      "$order": {
+        ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+      }
+    },
+    "ordersByUser": {
+      "$userName": {
+        ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '상점' || root.child('access').child(auth.uid).child('name').val() == $userName)",
+        ".write": false
+      }
     },
     "shop": {
-      ".write": "auth != null"
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "pointLogs": {
-      ".write": "auth != null",
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      "$log": {
+        ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+      },
       ".indexOn": ["name"]
     },
     "pointHistory": {
-      ".write": "auth != null"
+      "$userName": {
+        ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('name').val() == $userName)",
+        ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+      }
     },
     "blackboardDisplay": {
       ".read": true,
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
       "data": {
         "checkins": {
-          ".write": "auth != null"
+          "$record": {
+            ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+          }
         },
         "cleaningRoot": {
-          ".write": "auth != null"
+          "$date": {
+            "$userName": {
+            ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소')"
+            }
+          }
         }
       }
     }

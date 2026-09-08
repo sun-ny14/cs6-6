@@ -416,7 +416,7 @@ function startApp(){
     }
 
 
-    db.ref('settings').on('value',snap=>{
+    db.ref(admin?'settings':'publicSettings').on('value',snap=>{
 
         const s=snap.val()||{};
 
@@ -497,7 +497,7 @@ if (typeof refreshCheckinGuide === 'function') {
     });
 
 
-    db.ref('users').on('value',snap=>{
+    db.ref(admin?'users':'publicProfiles').on('value',snap=>{
 
         const users=[];
 
@@ -557,7 +557,7 @@ if (typeof refreshCheckinGuide === 'function') {
         );
 
         if(loggedInUser){
-            window.currentUser={...loggedInUser};
+            window.currentUser={...(window.currentUser||{}),...loggedInUser};
             window.isHelper=
                 loggedInUser.isHelper===true||
                 loggedInUser.isHelper==='true';

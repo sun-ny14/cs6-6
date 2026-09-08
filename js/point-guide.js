@@ -39,7 +39,9 @@ window.initPointsTabListeners = function() {
     if (window.isPointsListenerAttached) return;
     window.isPointsListenerAttached = true;
 
-    db.ref('orders').on('value', snap => {
+    const ordersPath=window.canManageShopRequests&&window.canManageShopRequests()
+        ?'orders':`ordersByUser/${window.myName}`;
+    db.ref(ordersPath).on('value', snap => {
         let uHtml = "";
         let wHtml = "";
         let adminOrderHtml = "";

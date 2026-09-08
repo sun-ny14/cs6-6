@@ -206,14 +206,13 @@ test('server clock correction keeps devices on the same scheduled lesson', () =>
 });
 
 
-test('morning shows today password and hides yesterday password and non-morning fields', () => {
+test('morning keeps showing the last manually saved password after midnight', () => {
     const app = board('2026-09-03T08:30:00+09:00');
     app.emit('settings', { password:'0123', passwordDate:'2026-09-03', passwordRevision:2 });
     assert.match(app.stage(), /오늘의 등교 암호/);
     assert.match(app.stage(), /<strong>0123<\/strong>/);
     app.emit('settings', { password:'9876', passwordDate:'2026-09-02' });
-    assert.doesNotMatch(app.stage(), /9876/);
-    assert.match(app.stage(), /암호를 준비/);
+    assert.match(app.stage(), /<strong>9876<\/strong>/);
     app.tick('2026-09-03T09:00:00+09:00');
     assert.doesNotMatch(app.stage(), /morning-password/);
     app.select('청소시간'); assert.doesNotMatch(app.stage(), /morning-password/);

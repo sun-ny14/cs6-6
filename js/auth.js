@@ -1,14 +1,30 @@
 // js/auth.js
 
 const DEV_MODE=false;
+const ADMIN_INACTIVITY_MS=30*60*1000;
+const STUDENT_INACTIVITY_MS=2*60*60*1000;
+let inactivityTimer=null;
+let stopAccessListener=()=>{};
 
-function handleLogin(){
+function resetInactivityTimer(){
+    clearTimeout(inactivityTimer);
+    if(!auth.currentUser)return;
+    inactivityTimer=setTimeout(()=>auth.signOut(),window.isAdmin===true
+        ?ADMIN_INACTIVITY_MS:STUDENT_INACTIVITY_MS);
+}
+
+['pointerdown','keydown','touchstart'].forEach(eventName=>
+    window.addEventListener(eventName,resetInactivityTimer,{passive:true}));
+
+async function handleLogin(){
     const provider=new firebase.auth.GoogleAuthProvider();
-
-    auth.signInWithPopup(provider).catch(error=>{
+    try{
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        await auth.signInWithPopup(provider);
+    }catch(error){
         console.error('로그인 오류:',error);
         alert('로그인에 실패했습니다.');
-    });
+    }
 }
 
 function setMenuVisible(id,visible,displayType='block'){
@@ -122,6 +138,8 @@ function applyAccessControl(){
 window.applyAccessControl=applyAccessControl;
 
 auth.onAuthStateChanged(async user=>{
+    stopAccessListener();
+    stopAccessListener=()=>{};
     const loginScreen=document.getElementById('login-screen');
     const loadingScreen=document.getElementById('loading-screen');
     const mainApp=document.getElementById('main-app');
@@ -132,6 +150,7 @@ auth.onAuthStateChanged(async user=>{
     if(DEV_MODE)return;
 
     if(!user){
+        clearTimeout(inactivityTimer);
         window.myName='';
         window.isAdmin=false;
         window.isHelper=false;
@@ -187,31 +206,13 @@ auth.onAuthStateChanged(async user=>{
         const admin=
             loginEmail===savedAdminEmail;
 
-        const emailKey=
-            loginEmail.replace(/\./g,',');
-
-        const emailSnapshot=
-            await db.ref(
-                `userEmails/${emailKey}`
-            ).once('value');
-
-        if(!emailSnapshot.exists()&&!admin){
-            alert('미등록 용사입니다.');
-            await auth.signOut();
-            return;
+        // 등록 여부와 역할은 읽기 가능한 사용자 목록이 아니라 서버에서 검증한다.
+        const session=await window.callSecure('getSecureSession');
+        const studentName=String(session.name||'').trim();
+        if(!studentName||Boolean(session.teacher)!==admin){
+            throw new Error('로그인 권한 정보를 확인할 수 없습니다.');
         }
-
-        const studentName=
-            emailSnapshot.val()||
-            '총사령관';
-
-        const userSnapshot=
-            await db.ref(
-                `users/${studentName}`
-            ).once('value');
-
-        const userData=
-            userSnapshot.val()||{};
+        const userData=session.user||{};
 
         window.myName=studentName;
         window.isAdmin=admin;
@@ -224,6 +225,18 @@ auth.onAuthStateChanged(async user=>{
             ...userData,
             name:userData.name||studentName
         };
+
+        const accessRef=db.ref(`access/${user.uid}`);
+        const receiveAccess=snapshot=>{
+            const access=snapshot.val()||{};
+            if(window.currentUser)window.currentUser.role=String(access.role||window.currentUser.role||'');
+            window.isHelper=window.currentUser?.role==='상점';
+            applyAccessControl();
+        };
+        accessRef.on('value',receiveAccess);
+        stopAccessListener=()=>accessRef.off('value',receiveAccess);
+
+        resetInactivityTimer();
 
         applyAccessControl();
 

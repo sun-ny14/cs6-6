@@ -7,25 +7,21 @@ const at = value => Date.parse(value);
 const old = { password:'1234', passwordDate:'2026-09-02', passwordRevision:7,
     lateTime:'08:40', studentRoles:{student:'leader'} };
 
-test('Korean midnight rotates exactly once, never repeats yesterday, and preserves other settings', () => {
+test('Korean midnight keeps the manually saved password unchanged', () => {
     assert.equal(core.today(at('2026-09-02T14:59:59Z')), '2026-09-02');
     assert.equal(core.today(at('2026-09-02T15:00:00Z')), '2026-09-03');
     assert.equal(core.rotate(old, at('2026-09-02T14:59:59Z'), () => 234), undefined);
-    const next = core.rotate(old, at('2026-09-02T15:00:00Z'), () => 234);
-    assert.equal(next.password, '1235'); assert.equal(next.passwordRevision, 8);
-    assert.equal(next.lateTime, old.lateTime); assert.deepEqual(next.studentRoles, old.studentRoles);
-    assert.equal(core.rotate(next, at('2026-09-02T15:00:01Z'), () => 500), undefined);
+    assert.equal(core.rotate(old, at('2026-09-02T15:00:00Z'), () => 234), undefined);
+    assert.equal(old.password, '1234'); assert.equal(old.passwordRevision, 7);
     assert.equal(core.untilMidnight(at('2026-09-02T14:59:59Z')), 1000);
 });
 
-test('concurrent automatic transaction retries preserve the winning manual password until next midnight', () => {
+test('manual password remains authoritative after midnight until another manual save', () => {
     const now = at('2026-09-03T09:00:00+09:00');
-    const first = core.rotate(old, now, () => 0);
     const manual = core.manual(old, '0042', now);
     assert.equal(core.rotate(manual, now, () => 55), undefined);
-    assert.equal(core.newerDisplay(core.forDisplay(manual), core.forDisplay(first)), undefined);
-    const nextDay = core.rotate(manual, at('2026-09-04T00:00:00+09:00'), () => 55);
-    assert.notEqual(nextDay.password, '0042'); assert.equal(nextDay.passwordDate, '2026-09-04');
+    assert.equal(core.rotate(manual, at('2026-09-04T00:00:00+09:00'), () => 55), undefined);
+    assert.equal(manual.password, '0042');
     assert.throws(() => core.manual(old, '12x4', now), /4자리/);
 });
 
@@ -39,10 +35,10 @@ test('sequential manual saves produce ordered revisions; stale display publicati
     assert.deepEqual(Object.keys(core.forDisplay(second)).sort(), ['date','password','revision','updatedAt']);
 });
 
-test('missed days, initial migration, leading zeros and clock rollback are handled', () => {
+test('initial missing password generation, leading zeros and clock rollback are handled', () => {
     const now = at('2027-01-01T00:00:00+09:00');
-    assert.equal(core.rotate(old, now, () => 8998).passwordDate, '2027-01-01');
-    assert.equal(core.rotate({password:'9999',lateTime:'08:30'}, now, () => 0).password, '1000');
+    assert.equal(core.rotate(old, now, () => 8998), undefined);
+    assert.equal(core.rotate({password:'invalid',lateTime:'08:30'}, now, () => 0).password, '1000');
     assert.equal(core.manual(old, '0000', now).password, '0000');
     const future = core.manual(old, '4321', now);
     assert.equal(core.rotate(future, at('2026-12-31T23:59:59+09:00'), () => 1), undefined);
@@ -87,12 +83,12 @@ function runtime() {
     context.window=context;
     vm.runInNewContext(fs.readFileSync(require.resolve('../js/checkin-password.js'),'utf8'),context);
     return {context,counts,intervals,timers,events,
-        login:() => authCallback({uid:'student'}),
+        login:() => authCallback({uid:'teacher',email:'ksosuny@cberi.go.kr'}),
         emit:(path,value) => listeners.get(path)?.({val:() => value}),
         now:value => timestamp=at(value), settings:() => settings, published:() => published};
 }
 
-test('steady-state minute checks and wake-ups perform zero additional database reads or writes', async () => {
+test('steady-state and midnight checks never rotate a manual password', async () => {
     const app=runtime(); app.login(); app.emit('.info/serverTimeOffset',0); app.emit('.info/connected',true);
     await app.context.CheckinPassword.refresh();
     const before={...app.counts};
@@ -101,16 +97,16 @@ test('steady-state minute checks and wake-ups perform zero additional database r
     assert.deepEqual(app.counts,before);
     app.now('2026-09-04T00:00:00+09:00');
     await app.context.CheckinPassword.refresh();
-    assert.equal(app.settings().passwordDate,'2026-09-04');
-    assert.notEqual(app.settings().password,'2468');
-    assert.equal(app.published().password,app.settings().password);
-    assert.equal(app.counts.reads-before.reads,1);
+    assert.equal(app.settings().passwordDate,'2026-09-03');
+    assert.equal(app.settings().password,'2468');
+    assert.equal(app.counts.reads,before.reads);
 });
 
-test('server time offset drives rollover and an anonymous display never writes private settings', async () => {
+test('server time offset never rotates a manually saved password', async () => {
     const app=runtime(); app.emit('.info/serverTimeOffset',0); app.emit('.info/connected',true);
     await app.context.CheckinPassword.refresh(); assert.equal(app.counts.reads,0);assert.equal(app.counts.transactions,0);
     app.login(); await app.context.CheckinPassword.refresh();
     app.emit('.info/serverTimeOffset',86400000); await app.context.CheckinPassword.refresh();
-    assert.equal(app.settings().passwordDate,'2026-09-04');
+    assert.equal(app.settings().passwordDate,'2026-09-03');
+    assert.equal(app.settings().password,'2468');
 });

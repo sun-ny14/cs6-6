@@ -20,7 +20,7 @@ test('projection includes board fields while removing emails, points, attendance
     const output = JSON.stringify(shared);
     assert.doesNotMatch(output, /SECRET|privateUid|privateId|999|888|2026-09-01/);
     assert.deepEqual(Object.values(shared.users), [{ name: '학생', number: 7 }]);
-    assert.deepEqual(Object.values(shared.checkins), [{ name: '학생', date: '2026-09-02' }]);
+    assert.deepEqual(Object.values(shared.checkins), [{ name: '학생', date: '2026-09-02', attended:false }]);
     assert.deepEqual(shared.cleaningRoot, { '2026-09-02': { 학생: { cleanDone: true } } });
     assert.deepEqual(shared.assignmentCompletions, { a: { 학생: true } });
     assert.equal(shared.seatData.layout['0-0'], '학생');
@@ -134,7 +134,7 @@ test('Korean midnight refreshes only the current-day attendance projection', asy
 
 test('rules grant anonymous read only to the display path and protect administrative writes', () => {
     const { rules } = JSON.parse(fs.readFileSync(path.join(__dirname, '../database.rules.json'), 'utf8'));
-    assert.equal(rules['.read'], 'auth != null');
+    assert.equal(rules['.read'], false);
     assert.equal(rules['.write'], false);
     assert.equal(rules.blackboardDisplay['.read'], true);
     assert.match(rules.blackboardDisplay['.write'], /auth\.token\.email/);
