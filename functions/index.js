@@ -40,8 +40,12 @@ async function actor(request) {
     const emailKey = email.replace(/\./g, ',');
     const name = String((await getDatabase().ref(`userEmails/${emailKey}`).get()).val() || '').trim();
     if (!name) throw new HttpsError('permission-denied', '등록된 학생 계정이 아닙니다.');
-    const user = (await getDatabase().ref(`users/${name}`).get()).val() || {};
-    if (cleanEmail(user.email) !== email) throw new HttpsError('permission-denied', '학생 계정 연결 정보가 일치하지 않습니다.');
+    const userSnapshot = await getDatabase().ref(`users/${name}`).get();
+    if (!userSnapshot.exists()) throw new HttpsError('permission-denied', '등록된 학생 정보를 찾을 수 없습니다.');
+    // userEmails is teacher-managed and is the authoritative login mapping.
+    // Older student records may contain "미등록" or a stale email value, so requiring
+    // the duplicated users/{name}/email field to match would lock out valid students.
+    const user = userSnapshot.val() || {};
     return { uid:auth.uid, email, name, role:String(user.role || '').trim(), teacher:false, user };
 }
 

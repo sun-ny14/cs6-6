@@ -56,6 +56,13 @@ test('point and housing purchases use callable server functions', () => {
     assert.match(functions, /database\.ref\(\)\.transaction/);
 });
 
+test('teacher-managed email mapping remains authoritative for legacy student records', () => {
+    const functions = read('functions/index.js');
+    assert.match(functions, /userEmails\/\$\{emailKey\}/);
+    assert.match(functions, /userSnapshot\.exists\(\)/);
+    assert.doesNotMatch(functions, /cleanEmail\(user\.email\)\s*!==\s*email/);
+});
+
 test('attendance and cleaning writes mirror only display-safe realtime fields', () => {
     const checkin = read('js/checkin-seat.js');
     const cleaning = read('js/cleaning.js');
