@@ -254,15 +254,7 @@ auth.onAuthStateChanged(async user=>{
             name:userData.name||studentName
         };
 
-        // 보안 구조 첫 적용 시 기존 공개 프로필/방을 한 번만 분리한다.
-        if(admin&&typeof window.migratePublicDataOnce==='function'){
-            try{
-                await window.migratePublicDataOnce();
-            }catch(error){
-                console.error('공개 데이터 1회 분리 오류:',error);
-                alert('보안 데이터 분리를 완료하지 못했습니다. Functions 배포 상태를 확인해 주세요.');
-            }
-        }
+        
 
         startInactivityLogout();
 
