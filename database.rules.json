@@ -3,7 +3,7 @@
     ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && auth.token.email == 'ksosuny@cberi.go.kr'",
     ".write": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && auth.token.email == 'ksosuny@cberi.go.kr'",
     "userEmails": { "$email": { ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && $email == auth.token.email.replace('.', ',')" } },
-    "users": { "$userName": { ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && root.child('userEmails').child(auth.token.email.replace('.', ',')).val() == $userName && data.child('email').val() == auth.token.email" } },
+    "users": { "$userName": { ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && root.child('userEmails').child(auth.token.email.replace('.', ',')).val() == $userName" } },
     "publicStudents": { ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && root.child('userEmails').child(auth.token.email.replace('.', ',')).isString()" },
     "rooms": {
       ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && root.child('userEmails').child(auth.token.email.replace('.', ',')).isString()",
