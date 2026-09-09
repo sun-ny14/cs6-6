@@ -618,17 +618,17 @@ window.saveSettings = async function() {
         );
         const display = window.CheckinPasswordCore.forDisplay(saved);
 
-        await db.ref().update({
-            'settings/password': saved.password,
-            'settings/passwordDate': saved.passwordDate,
-            'settings/passwordRevision': saved.passwordRevision,
-            'settings/passwordUpdatedAt': saved.passwordUpdatedAt,
-            'settings/lateTime': otherSettings.lateTime,
-            'settings/closeTime': otherSettings.closeTime,
-            'settings/routineText': otherSettings.routineText,
-            'blackboardDisplay/checkinPassword': display
-        });
+       await db.ref('settings').update({
+    password: saved.password,
+    passwordDate: saved.passwordDate,
+    passwordRevision: saved.passwordRevision,
+    passwordUpdatedAt: saved.passwordUpdatedAt,
+    lateTime: otherSettings.lateTime,
+    closeTime: otherSettings.closeTime,
+    routineText: otherSettings.routineText
+});
 
+await db.ref('blackboardDisplay/checkinPassword').set(display);
         passInput.value = String(saved.password);
         passInput.dataset.savedPassword = String(saved.password);
         alert('💾 시스템 설정과 전자칠판 암호가 저장되었습니다!');
