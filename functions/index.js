@@ -6,7 +6,7 @@ const {initializeApp} = require('firebase-admin/app');
 const {getDatabase} = require('firebase-admin/database');
 const {apply, identity, ActionError, publicData} = require('./security-core');
 initializeApp();
-exports.studentAction = onCall({region:'asia-northeast3',memory:'1GiB',maxInstances:3,minInstances:0,timeoutSeconds:60}, async request => {
+exports.studentAction = onCall({region:'asia-northeast3',invoker:'public',cors:'https://sun-ny14.github.io',memory:'1GiB',maxInstances:3,minInstances:0,timeoutSeconds:60}, async request => {
     if (!request.auth) throw new HttpsError('unauthenticated','로그인이 필요합니다.');
     if (JSON.stringify(request.data || {}).length > 2048) throw new HttpsError('invalid-argument','요청이 너무 큽니다.');
     const ref = getDatabase().ref();
@@ -39,12 +39,22 @@ exports.migratePublicData = onCall({region:'asia-northeast3',memory:'1GiB',maxIn
     const db=getDatabase();
     const migrated=Number((await db.ref('securityMigrationVersion').get()).val())||0;
     if(migrated>=2)return {alreadyMigrated:true};
-    const users=(await db.ref('users').get()).val()||{};
-    const projection=publicData(users);
-    const updates={publicStudents:projection.publicStudents,securityMigrationVersion:2};
-    if(migrated<1)updates.rooms=projection.rooms;
-    await db.ref().update(updates);
-    return {students:Object.keys(projection.publicStudents).length,rooms:Object.keys(projection.rooms).length};
+    const mappings=(await db.ref('userEmails').get()).val()||{};
+    const names=[...new Set(Object.values(mappings).filter(name=>typeof name==='string'&&name))];
+    let students=0,rooms=0;
+    for(const name of names){
+        const user=(await db.ref(`users/${name}`).get()).val();
+        if(!user||typeof user!=='object')continue;
+        const projection=publicData({[name]:user});
+        await db.ref(`publicStudents/${name}`).set(projection.publicStudents[name]);
+        students+=1;
+        if(migrated<1&&projection.rooms[name]){
+            await db.ref(`rooms/${name}`).set(projection.rooms[name]);
+            rooms+=1;
+        }
+    }
+    await db.ref('securityMigrationVersion').set(2);
+    return {students,rooms};
 });
 
 // 학생 전체 데이터가 큰 경우 트리거 한도를 넘지 않도록 숫자 필드만 동기화함.

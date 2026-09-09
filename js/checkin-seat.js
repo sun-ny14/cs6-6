@@ -153,6 +153,7 @@ window.checkinNormalizeLog=
    ========================================================= */
 
 window.refreshCheckinManagement=async function(){
+    if(typeof window.isVerifiedAdmin==='function'&&!window.isVerifiedAdmin())return;
     const dateInput=
         document.getElementById('checkin-date-filter');
 

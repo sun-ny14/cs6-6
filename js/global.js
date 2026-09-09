@@ -1372,15 +1372,15 @@ window.closePointPopup=function(){
         if (typeof db === 'undefined' || !db?.ref) return localUser;
 
         try {
-            // 현재 앱은 users/{학생 이름} 경로에 학생 정보를 저장합니다.
-            const directSnapshot = await db.ref(`users/${firebaseKey}`).once('value');
+            // 다른 학생 카드는 개인정보가 제거된 공개 프로필만 읽습니다.
+            const directSnapshot = await db.ref(`publicStudents/${firebaseKey}`).once('value');
             if (directSnapshot.exists()) {
                 const saved = directSnapshot.val() || {};
                 return { ...localUser, ...saved, __firebaseKey: firebaseKey, name: saved.name || name || firebaseKey };
             }
 
             // 카드의 key와 학생 이름이 다른 경우 name 필드로 한 번 더 찾습니다.
-            const nameSnapshot = await db.ref('users').orderByChild('name').equalTo(name).once('value');
+            const nameSnapshot = await db.ref('publicStudents').orderByChild('name').equalTo(name).once('value');
             let found = null;
             nameSnapshot.forEach(child => {
                 if (!found) found = { ...(child.val() || {}), __firebaseKey: child.key };

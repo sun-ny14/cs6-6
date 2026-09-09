@@ -14,7 +14,7 @@ function identity(root, auth) {
     const email = String(auth.token.email || '').toLowerCase();
     const admin = email === ADMIN;
     const name = root.userEmails?.[email.replace(/\./g, ',')];
-    if (!key(name) || !root.users?.[name] || String(root.users[name].email || '').toLowerCase() !== email) {
+    if (!key(name) || !root.users?.[name]) {
         throw new ActionError('등록된 학생 계정을 확인할 수 없습니다.', 'permission-denied');
     }
     return { name, admin, user: root.users[name] };
