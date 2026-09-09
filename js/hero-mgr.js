@@ -136,7 +136,8 @@ function heroUnlockedTitles(user, level) {
 }
 
 function heroFindUser(userName) {
-    return db.ref("users").once("value").then(snapshot => {
+    const source=window.isVerifiedAdmin()?'users':'publicStudents';
+    return db.ref(source).once("value").then(snapshot => {
         let found = null;
 
         snapshot.forEach(child => {
@@ -577,7 +578,8 @@ function showHeroProfileEditor(user, userKey) {
         title: selectedTitle
     };
 
-    await db.ref(`users/${userKey}`).update(savedProfile);
+    if(window.isVerifiedAdmin()) await db.ref(`users/${userKey}`).update(savedProfile);
+    else await secureStudentAction('profile',{animal:selectedAnimal,title:selectedTitle});
 
     if (Array.isArray(window.currentUsers)) {
         const savedUser = window.currentUsers.find(item =>
@@ -697,7 +699,7 @@ window.renderHeroes = function(usersFromListener) {
      * 로그인 직후 currentUsers가 아직 없을 경우
      */
 
-    db.ref("users").once("value").then(snapshot => {
+    db.ref(window.isVerifiedAdmin()?'users':'publicStudents').once("value").then(snapshot => {
         const users = [];
 
         snapshot.forEach(child => {

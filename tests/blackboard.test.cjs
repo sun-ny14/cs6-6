@@ -76,6 +76,7 @@ function board(time = '2026-09-02T09:39:59+09:00', signedIn = true) {
     }
     return { tick, select, edit, nodes, writes, clock, document, listeners, windowListeners, timers, subscriptions,
         signOut: () => authCallback(null),
+        signIn: email => authCallback({email}),
         fail: key => errors[key]?.(new Error('Permission denied')),
         emit: (key, value) => subscriptions[key]({ val: () => value }),
         stage: () => nodes.get('stage').innerHTML,
@@ -206,10 +207,10 @@ test('server clock correction keeps devices on the same scheduled lesson', () =>
 });
 
 
-test('morning keeps showing the last manually saved password after midnight', () => {
+test('morning keeps the last valid password across midnight and hides it outside morning', () => {
     const app = board('2026-09-03T08:30:00+09:00');
     app.emit('settings', { password:'0123', passwordDate:'2026-09-03', passwordRevision:2 });
-    assert.match(app.stage(), /오늘의 등교 암호/);
+    assert.match(app.stage(), /등교 암호/);
     assert.match(app.stage(), /<strong>0123<\/strong>/);
     app.emit('settings', { password:'9876', passwordDate:'2026-09-02' });
     assert.match(app.stage(), /<strong>9876<\/strong>/);
@@ -228,6 +229,22 @@ test('anonymous board receives live manual password changes from public sibling'
     assert.equal(app.subscriptions.settings, undefined);
 });
 
+test('an absence record remains uncompleted on the public morning board', () => {
+    const app = board('2026-09-03T08:30:00+09:00', false);
+    app.emit('blackboardDisplay', {
+        schemaVersion:1,
+        data:{
+            seatData:{config:{rows:1,cols:2},layout:{'0-0':'결석학생','0-1':'지각학생'}},
+            checkins:{
+                absent:{name:'결석학생',date:'2026-09-03',attended:false},
+                late:{name:'지각학생',date:'2026-09-03',attended:true}
+            }
+        }
+    });
+    assert.match(app.stage(), /결석학생[\s\S]*미등교/);
+    assert.match(app.stage(), /지각학생[\s\S]*등교 완료/);
+});
+
 test('dismissal shows literal tomorrow across year and month boundaries without a legacy fallback', () => {
     const app = board('2026-12-31T15:00:00+09:00');
     app.emit('blackboard/notices', {'2027-01-01':'내일 준비물 <책>\n물통', '2026-12-31':'오늘 공지'});
@@ -239,4 +256,21 @@ test('dismissal shows literal tomorrow across year and month boundaries without 
     assert.match(app.stage(), /2027-02-01/);
     assert.match(app.stage(), /등록된 내일 공지가 없습니다/);
     assert.doesNotMatch(app.stage(), /공통 공지/);
+});
+
+
+test('teacher login restores memo editing; students retain public read-only mode', async () => {
+    const app = board('2026-09-02T09:30:00+09:00', false);
+    app.emit('blackboardDisplay', {schemaVersion:1, data:{}});
+    assert.doesNotMatch(app.stage(), /<textarea/);
+    app.signIn('teacher@example.test');
+    assert.match(app.stage(), /data-inline-learning-note/);
+    const textarea = app.edit();
+    app.nodes.get('stage').events.focusout({target:textarea});
+    await Promise.resolve();
+    assert.equal(app.writes[0].value.learningNote, '전환 전에 쓴 메모');
+    app.signIn('student@example.test');
+    app.emit('blackboardDisplay', {schemaVersion:1, data:{}});
+    assert.doesNotMatch(app.stage(), /<textarea/);
+    assert.equal(app.subscriptions.users, undefined);
 });

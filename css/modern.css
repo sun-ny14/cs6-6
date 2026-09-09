@@ -1,0 +1,196 @@
+/* Shared visual theme. Attendance state colors and popup scrolling stay intact. */
+:root {
+    --ui-bg: #f5f7fb;
+    --ui-text: #18243b;
+    --ui-muted: #627089;
+    --ui-line: #e2e7ef;
+    --ui-primary: #315ee8;
+    --ui-primary-dark: #244ac4;
+    --ui-text-size: 1rem;
+    --ui-small-size: .875rem;
+    --ui-button-size: 1rem;
+    --ui-title-size: clamp(1.75rem, 2.4vw, 2.3rem);
+    --ui-subtitle-size: clamp(1.4rem, 2vw, 1.8rem);
+    --ui-heading-size: 1.25rem;
+    --ui-shadow: 0 4px 18px #18243b06;
+}
+html { font-size: 16px !important; }
+body {
+    font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif !important;
+    background: #f5f7fb !important;
+    color: #18243b;
+    font-size: 1rem !important;
+    line-height: 1.6;
+    letter-spacing: -.02em;
+}
+body button, body input, body select, body textarea { font-family: inherit !important; }
+body button { font-size: 1rem !important; font-weight: 650 !important; border-radius: 10px !important; box-shadow: none !important; transition: background-color .15s, border-color .15s !important; }
+body button:disabled { opacity: .5; cursor: not-allowed !important; }
+body :is(button, a, input, select, textarea):focus-visible { outline: 3px solid #315ee8 !important; outline-offset: 3px; }
+body input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), body select, body textarea {
+    border: 1px solid #cbd5e3 !important; border-radius: 9px !important;
+    background-color: #fff; color: #18243b; box-shadow: none !important;
+    font-size: 1rem !important; min-height: 44px; padding: 10px 12px !important;
+}
+body input[type="checkbox"], body input[type="radio"] { accent-color: #315ee8; }
+body h1, body h2, body h3 { letter-spacing: -.035em; font-weight: 750 !important; }
+body p, body label, body li, body table td, body table th { font-size: 1rem !important; }
+body #main-app .sidebar-menu {
+    width: 248px !important; min-width: 248px !important; padding: 30px 16px !important;
+    gap: 6px !important; background: #fff !important; box-shadow: none !important;
+    border-right: 1px solid #e2e7ef !important;
+}
+body #sidebar-menu h2 { text-align: left !important; padding: 0 12px 24px !important; font-size: 1.35rem !important; border-bottom: 1px solid #e2e7ef; }
+body #sidebar-menu button {
+    min-height: 46px !important; padding: 12px 14px !important;
+    font-size: 1rem !important; font-weight: 600 !important;
+    background: transparent !important; color: #57647a !important;
+    border: 0 !important; transform: none !important; white-space: normal !important;
+}
+body #sidebar-menu button:hover { background: #f1f4f9 !important; color: #18243b !important; }
+body #sidebar-menu button.active { background: #eaf0ff !important; color: #244ac4 !important; box-shadow: inset 3px 0 #315ee8 !important; }
+body #sidebar-toggle-btn { left: 248px !important; top: 24px !important; width: 32px !important; min-width: 32px !important; height: 44px !important; background: #18243b !important; border-radius: 0 8px 8px 0 !important; font-size: .875rem !important; }
+body #sidebar-toggle-btn.collapsed { left: 0 !important; }
+body .main-content-area { padding: 36px 40px !important; }
+body .card, body .checkin-card { background: #fff !important; border: 1px solid #e2e7ef !important; border-radius: 16px !important; padding: clamp(20px, 2.3vw, 32px) !important; box-shadow: 0 4px 18px #18243b06 !important; }
+body .hero-card, body .hero-card-item { border: 1px solid #e2e7ef !important; border-radius: 16px !important; background: #fff !important; box-shadow: 0 3px 12px #18243b05 !important; transform: none !important; }
+body .hero-card:hover, body .hero-card-item:hover { border-color: #acbde8 !important; }
+body .hero-card::before, body .hero-card-item::before { background: #315ee8 !important; }
+body #guide-list.point-guide-grid > * { box-shadow: none !important; border-radius: 12px !important; }
+body #checkin-btn, body #point-apply-btn, body #pop-close-btn, body .login-box button { background: #315ee8 !important; color: #fff !important; box-shadow: none !important; }
+body #checkin-btn:hover, body #point-apply-btn:hover, body .login-box button:hover { background: #244ac4 !important; transform: none !important; }
+body .overlay { background: #14203966 !important; backdrop-filter: blur(5px) !important; }
+body .overlay > .popup-box { border: 1px solid #e2e7ef !important; border-radius: 18px !important; box-shadow: 0 24px 80px #14203930 !important; }
+body .overlay .popup-box h2, body #point-pop-title, body #pop-title { font-size: 1.5rem !important; text-align: left !important; }
+body .point-bulk-description { text-align: left !important; color: #627089 !important; }
+body .point-bulk-actions { border-top: 1px solid #e2e7ef; padding-top: 16px; }
+body .batch-student-grid .batch-student-row { background: #fff !important; border: 1px solid #e2e7ef !important; box-shadow: none !important; border-radius: 10px !important; }
+body .batch-student-grid .batch-student-row:has(input:checked) { background: #f2f6ff !important; border-color: #8ba6f1 !important; }
+body table th { background: #f5f7fb !important; color: #57647a !important; font-weight: 650 !important; }
+body table td, body table th { border-color: #e2e7ef !important; }
+body #login-screen { background: #f5f7fb !important; padding: 24px; overflow-y: auto; }
+body .login-box { border: 1px solid #e2e7ef !important; border-radius: 24px !important; padding: clamp(28px, 6vw, 64px) !important; box-shadow: 0 20px 70px #18243b0d !important; max-width: 100%; }
+body .login-box h1 { font-size: 2rem !important; margin-bottom: 32px !important; }
+body #loading-screen { background: #18243b !important; gap: 24px !important; }
+body #loading-screen .bouncing-text { font-size: clamp(1.2rem, 4vw, 2rem) !important; color: #fff !important; animation: none !important; }
+/* Blackboard keeps its large classroom typography. */
+body #bb-app { padding: 28px 32px; }
+body .brand-mark { background: #315ee8; border-radius: 16px; box-shadow: none; }
+body .brand h1 { font-size: clamp(30px, 3vw, 48px) !important; }
+body .date { font-size: 20px !important; font-weight: 600; }
+body .clock-small { color: #18243b; font-weight: 750; }
+body .stage { border: 1px solid #e2e7ef; border-radius: 20px; box-shadow: 0 4px 18px #18243b06; }
+body .period-chip { border: 1px solid #e2e7ef; box-shadow: none; transform: none !important; padding: 14px; }
+body .period-chip.is-active { background: #315ee8; border-color: #315ee8; }
+body .state-title { font-size: clamp(38px, 5vw, 78px) !important; }
+body .notice { border: 1px solid #e7c563; box-shadow: none; }
+body .inline-memo-card { border-width: 1px; border-radius: 16px; box-shadow: none; }
+body .inline-memo-input { font-size: clamp(24px, 2.8vw, 42px) !important; }
+body .morning-password { border: 1px solid #b4c5f6; background: #eef3ff; color: #244ac4; border-radius: 16px; }
+body .seat { border-radius: 12px; }
+body .dismissal-card { border-width: 1px; border-radius: 16px; }
+body .dismissal-input { font-size: clamp(25px, 3vw, 44px) !important; }
+@media (max-width: 900px) {
+    body #main-app .sidebar-menu { width: 210px !important; min-width: 210px !important; padding: 24px 12px !important; }
+    body #sidebar-toggle-btn { left: 210px !important; }
+    body #sidebar-toggle-btn.collapsed { left: 0 !important; }
+    body .main-content-area { padding: 28px 22px !important; }
+}
+@media (max-width: 600px) {
+    body #main-app .sidebar-menu { position: fixed !important; inset: 0 auto 0 0; height: 100dvh; overflow-y: auto; box-shadow: 12px 0 40px #18243b20 !important; }
+    body .main-content-area { padding: 76px 16px 24px !important; }
+    body #bb-app { padding: 16px; }
+    body .topbar { grid-template-columns: 1fr; gap: 12px; }
+    body .stage { padding: 18px; }
+    body #bb-app .seat-grid { grid-template-columns: repeat(var(--seat-cols), minmax(0, 1fr)); gap: 5px; }
+    body #bb-app .seat { padding: 8px 3px; min-width: 0; }
+    body #bb-app .seat-name { font-size: 16px; overflow-wrap: anywhere; }
+    body #bb-app .seat-state { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* 용사 목록: 파스텔 타일과 픽셀 게임 카드 */
+/* Override the older, more specific vertical label rule. */
+body .batch-card-modal-v6 .batch-student-grid .batch-student-row > label.batch-card-student:first-child {
+    display: grid !important;
+    grid-template-columns: 24px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    min-height: 44px !important;
+    gap: 10px !important;
+    margin: 0 !important;
+    text-align: left !important;
+}
+body .batch-card-modal-v6 .batch-student-grid .batch-card-student > input.batch-student-chk {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    margin: 0 !important;
+    justify-self: start !important;
+}
+body .batch-card-modal-v6 .batch-student-grid .batch-card-student > span.batch-card-name {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    text-align: left !important;
+    width: auto !important;
+}
+body .batch-card-modal-v6 .batch-student-grid .batch-card-student > span.batch-card-current-point {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+}
+body .main-content-area:has(#tab-main.active) {
+    background-color: #e4dcfa !important;
+    background-image: repeating-linear-gradient(0deg, transparent 0 31px, #b5a4d52b 31px 32px),
+        repeating-linear-gradient(90deg, transparent 0 31px, #b5a4d52b 31px 32px) !important;
+}
+body #tab-main #hero-grid { gap: 26px !important; padding: 8px 6px 14px !important; }
+body #tab-main #hero-grid > .hero-card-item {
+    --pixel-paper: #fff1cc;
+    --pixel-inset: #e7c994;
+    background: var(--pixel-paper) !important;
+    border: 3px solid #66517f !important;
+    border-top: 3px solid #66517f !important;
+    border-radius: 3px !important;
+    padding: 34px 20px 24px !important;
+    box-shadow: inset 0 0 0 3px #fff9e5, inset 0 -7px var(--pixel-inset), 5px 5px 0 #a99ac5 !important;
+    overflow: hidden !important;
+    transition: border-color .15s, box-shadow .15s !important;
+}
+body #tab-main #hero-grid > .hero-card-item:nth-child(3n + 2) {
+    --pixel-paper: #ddf4e8;
+    --pixel-inset: #acd8c3;
+}
+body #tab-main #hero-grid > .hero-card-item:nth-child(3n) {
+    --pixel-paper: #ffe4ec;
+    --pixel-inset: #eac0d0;
+}
+body #tab-main #hero-grid > .hero-card-item::before { content: none !important; }
+body #tab-main #hero-grid > .hero-card-item:hover {
+    border-color: #493564 !important;
+    box-shadow: inset 0 0 0 3px #fff9e5, inset 0 -7px var(--pixel-inset), 5px 5px 0 #796398 !important;
+    transform: none !important;
+}
+body #tab-main #hero-grid > .hero-card-self {
+    border-color: #6345af !important;
+    outline: 3px solid #c3abf1;
+    outline-offset: 3px;
+}
+body #tab-main .hero-self-badge {
+    background: #6345af !important; color: #fff !important;
+    border: 2px solid #493564 !important; border-radius: 2px !important;
+    box-shadow: 2px 2px 0 #b4a1cf !important;
+    font-size: 14px !important;
+}
+body #tab-main .hero-card-item > div[style*="position:absolute"] {
+    background: #66517f !important; color: #fff !important;
+    border-radius: 0 0 3px 0 !important; font-size: 14px !important;
+    font-variant-numeric: tabular-nums;
+}
+body #tab-main .hero-card-item img,
+body #tab-main .hero-card-item [style*="background-image"] { image-rendering: pixelated; }
+body #tab-main .hero-card-item h3 { color: #423253 !important; font-size: 1.3rem !important; }
+body #tab-main .hero-card-item p, body #tab-main .hero-card-item span { color: #574460 !important; }
+body #tab-main .hero-card-item .hero-card-title { color: #6d4777 !important; }
+@media (max-width: 600px) {
+    body #tab-main #hero-grid { gap: 20px !important; }
+}

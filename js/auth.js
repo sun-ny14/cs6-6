@@ -3,28 +3,63 @@
 const DEV_MODE=false;
 const ADMIN_INACTIVITY_MS=30*60*1000;
 const STUDENT_INACTIVITY_MS=2*60*60*1000;
+const INACTIVITY_EVENTS=['pointerdown','keydown','touchstart','scroll'];
 let inactivityTimer=null;
-let stopAccessListener=()=>{};
+let lastInactivityReset=0;
 
-function resetInactivityTimer(){
-    clearTimeout(inactivityTimer);
-    if(!auth.currentUser)return;
-    inactivityTimer=setTimeout(()=>auth.signOut(),window.isAdmin===true
-        ?ADMIN_INACTIVITY_MS:STUDENT_INACTIVITY_MS);
+function stopInactivityLogout(){
+    if(inactivityTimer){
+        clearTimeout(inactivityTimer);
+        inactivityTimer=null;
+    }
+    INACTIVITY_EVENTS.forEach(eventName=>{
+        window.removeEventListener(eventName,recordActivity,true);
+    });
 }
 
-['pointerdown','keydown','touchstart'].forEach(eventName=>
-    window.addEventListener(eventName,resetInactivityTimer,{passive:true}));
+function recordActivity(){
+    const now=Date.now();
+    if(now-lastInactivityReset<15000)return;
+    lastInactivityReset=now;
+    scheduleInactivityLogout();
+}
 
-async function handleLogin(){
+function scheduleInactivityLogout(){
+    if(!auth?.currentUser)return;
+    clearTimeout(inactivityTimer);
+    const limit=window.isAdmin===true
+        ?ADMIN_INACTIVITY_MS
+        :STUDENT_INACTIVITY_MS;
+    inactivityTimer=setTimeout(async()=>{
+        try{
+            await auth.signOut();
+            alert('장시간 사용하지 않아 안전하게 자동 로그아웃되었습니다.');
+        }catch(error){
+            console.error('자동 로그아웃 오류:',error);
+        }
+    },limit);
+}
+
+function startInactivityLogout(){
+    stopInactivityLogout();
+    lastInactivityReset=Date.now();
+    INACTIVITY_EVENTS.forEach(eventName=>{
+        window.addEventListener(eventName,recordActivity,true);
+    });
+    scheduleInactivityLogout();
+}
+
+function handleLogin(){
     const provider=new firebase.auth.GoogleAuthProvider();
-    try{
-        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-        await auth.signInWithPopup(provider);
-    }catch(error){
+
+    auth.setPersistence(
+        firebase.auth.Auth.Persistence.SESSION
+    ).then(()=>{
+        return auth.signInWithPopup(provider);
+    }).catch(error=>{
         console.error('로그인 오류:',error);
         alert('로그인에 실패했습니다.');
-    }
+    });
 }
 
 function setMenuVisible(id,visible,displayType='block'){
@@ -41,48 +76,25 @@ function setMenuVisible(id,visible,displayType='block'){
     );
 }
 
-window.canUseCleaningTab=function(){
-    if(window.isAdmin===true)return true;
-
-    if(window.canManageCleaningChecks())return true;
-
-    const name=String(window.myName||'').trim();
-    if(!name)return false;
-
-    const assignments=window.cleaningAssignments||{};
-    const saved=assignments[name];
-    const roleValue=(window.studentRoles||{})[name];
-    const role=typeof roleValue==='string'
-        ?roleValue.trim()
-        :String(
-            roleValue?.role||
-            roleValue?.name||
-            roleValue?.title||
-            ''
-        ).trim();
-
-    return saved===true||
-        saved==='true'||
-        (saved&&typeof saved==='object'&&saved.enabled===true)||
-        /청소|쓸기|닦기|분리수거|쓰레기|정리/.test(role);
-};
-
 window.canManageCleaningChecks=function(){
+    if(window.isVerifiedAdmin())return true;
+    const name=String(window.myName||'').trim();
     const role=String(window.currentUser?.role||'').trim();
-
-    return window.isAdmin===true||role==='청소';
+    const assigned=(window.cleaningAssignments||{})[name];
+    return role==='청소'||assigned===true||assigned==='true'||
+        (assigned&&typeof assigned==='object'&&assigned.enabled===true);
 };
-
+window.canUseCleaningTab=()=>window.canManageCleaningChecks();
 window.canManageShopRequests=function(){
-    const role=String(window.currentUser?.role||'').trim();
-
-    return window.isAdmin===true||
-        role==='상점'||
-        window.isHelper===true;
+    if(window.isVerifiedAdmin())return true;
+    const name=String(window.myName||'').trim();
+    return String(window.currentUser?.role||'').trim()==='상점'||
+        String((window.studentRoles||{})[name]||'').trim()==='상점'||
+        window.currentUser?.isHelper===true;
 };
 
 function applyAccessControl(){
-    const admin=window.isAdmin===true;
+    const admin=window.isVerifiedAdmin();
 
     // 관리자 전용 메뉴
     [
@@ -97,13 +109,13 @@ function applyAccessControl(){
         setMenuVisible(id,admin);
     });
 
-    // 상점 역할 학생 또는 관리자
+    // 상점 주문 관리
     setMenuVisible(
         'admin-order-mgr',
         window.canManageShopRequests()
     );
 
-    // 관리자 전용 등교로그 및 좌석
+    // 등교로그 및 좌석
     setMenuVisible(
         'sub-btn-checkin-logs',
         admin
@@ -138,19 +150,17 @@ function applyAccessControl(){
 window.applyAccessControl=applyAccessControl;
 
 auth.onAuthStateChanged(async user=>{
-    stopAccessListener();
-    stopAccessListener=()=>{};
     const loginScreen=document.getElementById('login-screen');
     const loadingScreen=document.getElementById('loading-screen');
     const mainApp=document.getElementById('main-app');
     const sidebarToggleBtn=document.getElementById(
-            'sidebar-toggle-btn'
-        );
+        'sidebar-toggle-btn'
+    );
 
     if(DEV_MODE)return;
 
     if(!user){
-        clearTimeout(inactivityTimer);
+        stopInactivityLogout();
         window.myName='';
         window.isAdmin=false;
         window.isHelper=false;
@@ -204,15 +214,33 @@ auth.onAuthStateChanged(async user=>{
             .toLowerCase();
 
         const admin=
-            loginEmail===savedAdminEmail;
+            loginEmail===savedAdminEmail && window.isVerifiedAdmin();
 
-        // 등록 여부와 역할은 읽기 가능한 사용자 목록이 아니라 서버에서 검증한다.
-        const session=await window.callSecure('getSecureSession');
-        const studentName=String(session.name||'').trim();
-        if(!studentName||Boolean(session.teacher)!==admin){
-            throw new Error('로그인 권한 정보를 확인할 수 없습니다.');
+        const emailKey=
+            loginEmail.replace(/\./g,',');
+
+        const emailSnapshot=
+            await db.ref(
+                `userEmails/${emailKey}`
+            ).once('value');
+
+        if(!emailSnapshot.exists()&&!admin){
+            alert('미등록 용사입니다.');
+            await auth.signOut();
+            return;
         }
-        const userData=session.user||{};
+
+        const studentName=
+            emailSnapshot.val()||
+            '총사령관';
+
+        const userSnapshot=
+            await db.ref(
+                `users/${studentName}`
+            ).once('value');
+
+        const userData=
+            userSnapshot.val()||{};
 
         window.myName=studentName;
         window.isAdmin=admin;
@@ -226,18 +254,19 @@ auth.onAuthStateChanged(async user=>{
             name:userData.name||studentName
         };
 
-        const accessRef=db.ref(`access/${user.uid}`);
-        const receiveAccess=snapshot=>{
-            const access=snapshot.val()||{};
-            if(window.currentUser)window.currentUser.role=String(access.role||window.currentUser.role||'');
-            window.isHelper=window.currentUser?.role==='상점';
-            applyAccessControl();
-        };
-        accessRef.on('value',receiveAccess);
-        stopAccessListener=()=>accessRef.off('value',receiveAccess);
+        // 보안 구조 첫 적용 시 기존 공개 프로필/방을 한 번만 분리한다.
+        if(admin&&typeof window.migratePublicDataOnce==='function'){
+            try{
+                await window.migratePublicDataOnce();
+            }catch(error){
+                console.error('공개 데이터 1회 분리 오류:',error);
+                alert('보안 데이터 분리를 완료하지 못했습니다. Functions 배포 상태를 확인해 주세요.');
+            }
+        }
 
-        resetInactivityTimer();
+        startInactivityLogout();
 
+        // 로그인할 때마다 권한 다시 적용
         applyAccessControl();
 
         if(loginScreen){
@@ -276,6 +305,7 @@ auth.onAuthStateChanged(async user=>{
             startApp();
         }
 
+        // startApp 실행 후 다시 한번 권한 적용
         applyAccessControl();
 
         if(typeof showTab==='function'){
@@ -283,14 +313,9 @@ auth.onAuthStateChanged(async user=>{
         }
 
     }catch(error){
-        console.error(
-            '로그인 정보 처리 오류:',
-            error
-        );
-
-        alert(
-            '로그인 정보를 불러오지 못했습니다.'
-        );
+        stopInactivityLogout();
+        console.error('로그인 정보 처리 오류:',error);
+        alert('로그인 정보를 불러오지 못했습니다.');
     }
 });
 

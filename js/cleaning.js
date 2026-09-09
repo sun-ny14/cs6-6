@@ -7,7 +7,6 @@
 
     const STATUS_ROOT = 'classManagement/cleaningStatus';
     const SETTINGS_ROOT = 'settings';
-    const readableSettingsRoot = () => isCleaningAdmin() ? SETTINGS_ROOT : 'cleaningSettings';
 
     window.cleaningSubTab =
         window.cleaningSubTab ||
@@ -50,6 +49,20 @@
         const now = new Date();
         const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
         return koreanTime.toISOString().slice(0, 10);
+    }
+
+    async function loadVisibleCleaningSettings(){
+        if(isCleaningAdmin()){
+            return (await db.ref(SETTINGS_ROOT).once('value')).val()||{};
+        }
+        const [roles,assignments]=await Promise.all([
+            db.ref(`${SETTINGS_ROOT}/studentRoles`).once('value'),
+            db.ref(`${SETTINGS_ROOT}/cleaningAssignments`).once('value')
+        ]);
+        return {
+            studentRoles:roles.val()||{},
+            cleaningAssignments:assignments.val()||{}
+        };
     }
 
     function escapeHtml(value) {
@@ -814,10 +827,9 @@
         const today = getTodayKey();
 
         Promise.all([
-            db.ref(readableSettingsRoot()).once('value'),
+            loadVisibleCleaningSettings(),
             db.ref(`${STATUS_ROOT}/${today}`).once('value')
-        ]).then(([settingsSnapshot, statusSnapshot]) => {
-            const settings = settingsSnapshot.val() || {};
+        ]).then(([settings, statusSnapshot]) => {
             const roles = settings.studentRoles || {};
             const cleaningAssignments = settings.cleaningAssignments || {};
             const statuses = statusSnapshot.val() || {};
@@ -915,8 +927,7 @@
         }
 
         try {
-            const settingsSnapshot = await db.ref(readableSettingsRoot()).once('value');
-            const settings = settingsSnapshot.val() || {};
+            const settings = await loadVisibleCleaningSettings();
             const role = readRole((settings.studentRoles || {})[name]);
             const cleaner = isCleaningStudent(
                 name,

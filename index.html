@@ -11,7 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-functions-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="css/style.css?v=20260907-attendance-colors-1">
+<link rel="stylesheet" href="css/style.css?v=20260908-security-3">
     
 <style>
 #loading-screen{
@@ -336,6 +336,7 @@ function toggleSidebar(){
     }
 }
 </script>
+<link rel="stylesheet" href="css/modern.css?v=20260908-security-3">
 </head>
 
 <body>
@@ -418,47 +419,47 @@ function toggleSidebar(){
 
     <nav id="sidebar-menu" class="sidebar-menu">
 
-        <h2 style="text-align:center;margin:0 0 15px 0;color:#2c3e50;">
+        <h2 style="text-align:center;margin:0 0 15px 0;">
             🏰 6-6 본부
         </h2>
 
-        <button id="btn-main" onclick="showTab('main')" style="background:#ebf5fb !important;color:#2980b9 !important;border-left:6px solid #3498db !important;">
+        <button id="btn-main" onclick="showTab('main')" style="">
             🤺 용사들
         </button>
 
-        <button id="btn-shop" onclick="showTab('shop');renderShop();" style="background:#fef9e7 !important;color:#d4ac0d !important;border-left:6px solid #f1c40f !important;">
+        <button id="btn-shop" onclick="showTab('shop');renderShop();" style="">
             🛍️ 상점
         </button>
 
-        <button id="btn-checkin" onclick="showTab('checkin')" style="background:#e8f8f5 !important;color:#16a085 !important;border-left:6px solid #1abc9c !important;">
+        <button id="btn-checkin" onclick="showTab('checkin')" style="">
             ⚔️ 등교
         </button>
 
-        <button id="btn-assignments" onclick="showTab('assignments');initAssignmentsTab();" style="background:#eef2ff !important;color:#4f46e5 !important;border-left:6px solid #6366f1 !important;">
+        <button id="btn-assignments" onclick="showTab('assignments');initAssignmentsTab();" style="">
             📝 과제
         </button>
 
-        <button id="btn-points" onclick="showTab('points')" style="background:#f4ecf7 !important;color:#8e44ad !important;border-left:6px solid #9b59b6 !important;">
+        <button id="btn-points" onclick="showTab('points')" style="">
             💰 포인트·도감
         </button>
 
-        <button id="btn-housing" onclick="showTab('housing');" style="background:#f5eecc !important;color:#b7950b !important;border-left:6px solid #f4d03f !important;">
+        <button id="btn-housing" onclick="showTab('housing');" style="">
             🏰 방
         </button>
 
-        <button id="btn-blackboard-admin" style="display:none;background:#fdf2e9 !important;color:#d35400 !important;border-left:6px solid #e67e22 !important;" onclick="showTab('blackboard-admin');initBlackboardAdmin();">
+        <button id="btn-blackboard-admin" style="display:none;" onclick="showTab('blackboard-admin');initBlackboardAdmin();">
             🏫 전자칠판 관리
         </button>
 
-        <button id="btn-management" style="display:none;background:#eaf2f8 !important;color:#2471a3 !important;border-left:6px solid #5499c7 !important;" onclick="showTab('management');renderManagementSub('grades');">
+        <button id="btn-management" style="display:none;" onclick="showTab('management');renderManagementSub('grades');">
             🛡️ 학급관리
         </button>
 
-        <button id="btn-cleaning" style="display:none;background:#e9f7ef !important;color:#27ae60 !important;border-left:6px solid #2ecc71 !important;" onclick="showTab('cleaning');renderRoleCleaning();">
+        <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning');renderRoleCleaning();">
             🧹 1인 1역·청소
         </button>
 
-        <button id="btn-admin" style="display:none;background:#ebedef !important;color:#5d6d7e !important;border-left:6px solid #85929e !important;" onclick="showTab('admin');initSettings();">
+        <button id="btn-admin" style="display:none;" onclick="showTab('admin');initSettings();">
             ⚙️ 설정
         </button>
 
@@ -512,7 +513,7 @@ function toggleSidebar(){
 
                     <div id="checkin-guide" style="font-weight:bold;margin-bottom:20px;color:#2c3e50;font-size:1.4rem;"></div>
 
-                    <input type="text" id="checkin-pass" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="오늘의 등교 암호 4자리 입력" style="text-align:center;padding:18px;width:100%;box-sizing:border-box;margin-bottom:20px;font-size:1.4rem;">
+                    <input type="text" id="checkin-pass" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="등교 암호 4자리 입력" style="text-align:center;padding:18px;width:100%;box-sizing:border-box;margin-bottom:20px;font-size:1.4rem;">
 
                     <button id="checkin-btn" onclick="submitCheckIn()" style="background:#3498db;color:white;border:none;border-radius:15px;padding:22px;width:100%;font-weight:bold;font-size:1.4rem;cursor:pointer;">
                         본부 소환!
@@ -815,7 +816,7 @@ function toggleSidebar(){
 
                 </div>
 
-                    <p id="checkin-password-status" style="color:#64748b;font-size:15px;line-height:1.5;">수동 갱신 모드 · 저장된 암호는 다시 변경할 때까지 유지됩니다.</p>
+                    <p id="checkin-password-status" style="color:#64748b;font-size:15px;line-height:1.5;">수동 갱신 모드 · 기존 암호는 새로 저장할 때까지 유지됩니다.</p>
 
                 <div class="horizontal-box" style="margin-bottom:18px;">
 
@@ -870,23 +871,24 @@ function toggleSidebar(){
     </main>
 </div>
 
-<script src="js/firebase-config.js?v=20260907-security-1"></script>
-<script src="js/secure-api.js?v=20260908-security-1"></script>
-<script src="functions/checkin-password-core.js?v=20260903-1"></script>
-<script src="js/checkin-password.js?v=20260908-security-password-1"></script>
-<script src="js/blackboard-share.js?v=20260907-attendance-state-1"></script>
-<script src="js/global.js?v=20260908-security-password-1"></script>
-<script src="js/auth.js?v=20260908-security-password-1"></script>
-<script src="js/checkin-seat.js?v=20260908-security-password-1"></script>
-<script src="js/hero-mgr.js?v=20260902-purchase-profile-1"></script>
-<script src="js/point-shop.js?v=20260908-security-password-1"></script>
-<script src="js/point-guide.js?v=20260908-security-password-1"></script>
-<script src="js/housing.js?v=20260908-security-password-1"></script>
-<script src="js/admin-grades.js?v=20260827-2"></script>
-<script src="js/blackboard-admin.js?v=20260904-1"></script>
-<script src="js/assignments.js?v=20260908-security-password-1"></script>
-<script src="js/settings.js?v=20260907-security-1"></script>
-<script src="js/cleaning.js?v=20260908-security-password-1"></script>
+<script src="js/firebase-config.js?v=20260908-security-3"></script>
+<script src="js/security-api.js?v=20260908-security-3"></script>
+<script src="functions/checkin-password-core.js?v=20260908-security-3"></script>
+<script src="js/checkin-password.js?v=20260908-security-3"></script>
+<script src="js/blackboard-share.js?v=20260908-security-3"></script>
+<script src="js/global.js?v=20260909-batch-row-1"></script>
+<script src="js/auth.js?v=20260908-security-3"></script>
+<script src="js/checkin-seat.js?v=20260908-security-3"></script>
+<script src="js/hero-mgr.js?v=20260908-security-3"></script>
+<script src="js/point-shop.js?v=20260908-security-3"></script>
+<script src="js/point-guide.js?v=20260908-security-3"></script>
+<script src="js/housing.js?v=20260908-security-3"></script>
+<script src="js/admin-grades.js?v=20260908-security-3"></script>
+<script src="js/blackboard-admin.js?v=20260908-security-3"></script>
+<script src="js/assignments.js?v=20260908-security-3"></script>
+<script src="js/settings.js?v=20260908-security-3"></script>
+<script src="js/cleaning.js?v=20260908-security-3"></script>
     
+<script src="js/security-actions.js?v=20260908-security-3"></script>
 </body>
 </html>

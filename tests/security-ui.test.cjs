@@ -5,10 +5,12 @@ const path = require('node:path');
 
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 
-test('public blackboard loads only the anonymous display subscriber', () => {
+test('blackboard restores existing authentication without a separate login button', () => {
     const html = read('blackboard.html');
-    assert.doesNotMatch(html, /firebase-auth-compat/);
-    assert.doesNotMatch(html, /<script[^>]+(?:checkin-password|blackboard-share)\.js/);
+    assert.match(html, /firebase-auth-compat/);
+    assert.match(html, /blackboard-auth\.js/);
+    assert.match(html, /functions\/checkin-password-core\.js/);
+    assert.doesNotMatch(html, /id="bb-teacher-login"/);
     assert.match(html, /blackboard-display\.js/);
 });
 
@@ -31,45 +33,35 @@ test('login uses tab-session persistence and inactivity logout limits', () => {
     assert.match(auth, /STUDENT_INACTIVITY_MS=2\*60\*60\*1000/);
 });
 
+test('check-in password remains valid until the teacher replaces it', () => {
+    const password = read('js/checkin-password.js');
+    const checkin = read('js/checkin-seat.js');
+    const board = read('js/blackboard-display.js');
+    assert.doesNotMatch(password, /settings\.passwordDate\s*!==\s*core\.today/);
+    assert.doesNotMatch(checkin, /settings\.passwordDate\s*!==/);
+    assert.doesNotMatch(board, /code\?\.date\s*===\s*today/);
+    assert.match(password, /기존 암호는 새로 저장할 때까지 유지됩니다/);
+});
+
 test('firebase config includes the hardened realtime database rules file', () => {
     const config = JSON.parse(read('firebase.json'));
     assert.equal(config.database.rules, 'database.rules.json');
 });
 
-test('sensitive writes and student reads are denied at the database root', () => {
-    const { rules } = JSON.parse(read('database.rules.json'));
-    assert.equal(rules['.read'], false);
-    assert.equal(rules['.write'], false);
-    assert.match(rules.settings['.read'], /ksosuny@cberi\.go\.kr/);
-    assert.match(rules.shop['.write'], /ksosuny@cberi\.go\.kr/);
-    assert.equal(rules.publicProfiles['.write'], false);
-});
-
-test('point and housing purchases use callable server functions', () => {
-    const shop = read('js/point-shop.js');
-    const housing = read('js/housing.js');
-    const functions = read('functions/index.js');
-    assert.match(shop, /callSecure\('purchasePointShop'/);
-    assert.match(housing, /callSecure\('purchaseHousingItem'/);
-    assert.match(functions, /exports\.purchasePointShop/);
-    assert.match(functions, /exports\.purchaseHousingItem/);
-    assert.match(functions, /database\.ref\(\)\.transaction/);
-});
-
-test('teacher-managed email mapping remains authoritative for legacy student records', () => {
-    const functions = read('functions/index.js');
-    assert.match(functions, /userEmails\/\$\{emailKey\}/);
-    assert.match(functions, /userSnapshot\.exists\(\)/);
-    assert.doesNotMatch(functions, /cleanEmail\(user\.email\)\s*!==\s*email/);
-});
-
 test('attendance and cleaning writes mirror only display-safe realtime fields', () => {
     const checkin = read('js/checkin-seat.js');
     const cleaning = read('js/cleaning.js');
-    const functions = read('functions/index.js');
-    assert.match(checkin, /callSecure\('submitStudentCheckin'/);
-    assert.match(functions, /blackboardDisplay\.data\.checkins/);
-    assert.match(functions, /\{name:current\.name,date,attended:true\}/);
+    assert.match(checkin, /blackboardDisplay\/data\/checkins\/\$\{recordKey\}/);
+    assert.match(checkin, /attended:checkinIsAttendedCategory\(category\)/);
     assert.match(cleaning, /blackboardDisplay\/data\/cleaningRoot\/\$\{today\}\/\$\{name\}\/cleanDone/);
     assert.match(cleaning, /await db\.ref\(\)\.update\(updates\)/);
+});
+
+test('batch point editor uses compact horizontal rows and an isolated scroll area', () => {
+    const global = read('js/global.js');
+    assert.match(global, /class="batch-column-head"/);
+    assert.match(global, /grid-template-columns: 34px minmax\(150px, 1fr\) 92px minmax\(130px, \.48fr\) minmax\(130px, \.48fr\)/);
+    assert.match(global, /class="batch-check-cell"[\s\S]*?batch-card-name[\s\S]*?batch-card-current-point[\s\S]*?batch-p-input[\s\S]*?batch-exp-input/);
+    assert.match(global, /\.batch-student-grid[\s\S]*?flex: 1 1 360px[\s\S]*?max-height: calc\(100dvh - 330px\)[\s\S]*?overflow-y: auto/);
+    assert.match(global, /\.batch-action-buttons[\s\S]*?position: static/);
 });

@@ -3,10 +3,6 @@
 if (typeof window.currentShopCat === 'undefined') window.currentShopCat = "전체";
 if (typeof window.shopData === 'undefined') window.shopData = [];
 
-const shopEscapeHtml = value => String(value ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
 window.changeShopCat = (cat) => { 
     window.currentShopCat = cat; 
     window.renderShop(); 
@@ -39,26 +35,26 @@ window.renderShop = function() {
             hasItems = true;
             
             const isSoldOut = item.isSoldOut === true || (item.stock !== null && item.stock <= 0 && item.stock !== -1);
-            let stockDisplay = (item.stock !== null && item.stock !== undefined && item.stock !== -1) ? `<div style="font-size:12px; color:#555; margin-bottom: 8px;">(남은 수량: ${shopEscapeHtml(item.stock)}개)</div>` : "";
+            let stockDisplay = (item.stock !== null && item.stock !== undefined && item.stock !== -1) ? `<div style="font-size:12px; color:#555; margin-bottom: 8px;">(남은 수량: ${item.stock}개)</div>` : "";
             if (isSoldOut) {
                 stockDisplay = `<div style="font-size:12px; color:red; margin-bottom: 8px; font-weight: bold;">🚫 품절된 상품입니다</div>`;
             }
 
             let btnHtml = isSoldOut 
                 ? `<button disabled style="background-color: #cccccc; color: #666666; cursor: not-allowed; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold;">품절 🚫</button>` 
-                : `<button onclick="buyItem('${shopEscapeHtml(k)}')" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
+                : `<button onclick="buyItem('${k}', '${item.name}', ${item.price}, ${item.limit || 0})" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">구매하기</button>`;
             
             let adminBtnHtml = (typeof isAdmin !== 'undefined' && isAdmin) 
                 ? `<button onclick="openEditShopPopup('${k}')" style="background-color: #ff9800; color: white; border: none; padding: 8px; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 8px;">⚙️ 수정/삭제</button>` : "";
 
-            let limitText = (item.limit > 0) ? `최대 ${shopEscapeHtml(item.limit)}회 구매` : '무제한 구매';
+            let limitText = (item.limit > 0) ? `최대 ${item.limit}회 구매` : '무제한 구매';
 
             html += `
                 <div class="shop-card" style="border: 1px solid #e0e0e0; padding: 15px; margin: 10px; border-radius: 10px; display: inline-block; width: 220px; vertical-align: top; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; background-color: #ffffff;">
-                    <div style="font-size:12px; color:#999; margin-bottom:5px;">${shopEscapeHtml(item.cat || '미분류')}</div>
-                    <h3 style="margin-top: 5px; margin-bottom: 5px; font-size: 18px; color: #333;">${shopEscapeHtml(item.name)}</h3>
+                    <div style="font-size:12px; color:#999; margin-bottom:5px;">${item.cat || '미분류'}</div>
+                    <h3 style="margin-top: 5px; margin-bottom: 5px; font-size: 18px; color: #333;">${item.name}</h3>
                     ${stockDisplay}
-                    <p style="font-size: 18px; font-weight: bold; color: #2196F3; margin: 10px 0;">💰 ${shopEscapeHtml(item.price)} P</p>
+                    <p style="font-size: 18px; font-weight: bold; color: #2196F3; margin: 10px 0;">💰 ${item.price} P</p>
                     <p style="font-size: 12px; color: #888; margin-bottom: 15px;">🔄 ${limitText}</p>
                     <div>
                         ${btnHtml}
@@ -75,13 +71,106 @@ window.renderShop = function() {
 };
 
 // 2. 물품 구매 로직
-window.buyItem = async function(k) {
+window.buyItem = async function(k, n, p, l) {
     try {
-        const result = await window.callSecure('purchasePointShop', { itemKey:k });
-        alert(`✅ [${result.name}] 구매 완료! 남은 포인트: ${result.points}P`);
+        const sn = await db.ref('users/' + myName).once('value');
+        if (!sn.exists()) return alert("사용자 정보를 찾을 수 없습니다.");
+        const myPoints = sn.val().points || 0;
+        
+        if (!isAdmin && myPoints < 0) {
+            return alert("현재 포인트가 마이너스 상태이므로 구매할 수 없습니다! 점수를 먼저 회복해 주세요. 😭");
+        }
+        if (!isAdmin && myPoints < p) {
+            return alert("포인트 부족!");
+        }
+
+        const itemSnap = await db.ref('shop/' + k).once('value');
+        const itemData = itemSnap.val();
+        
+        if (itemData && itemData.stock !== undefined && itemData.stock <= 0 && itemData.stock !== -1) {
+            return alert("앗! 품절된 상품입니다. 😭");
+        }
+
+        if (!isAdmin && l > 0) {
+            const ordersSnap = await (window.isVerifiedAdmin() ? db.ref('orders') : db.ref('orders').orderByChild('user').equalTo(window.myName)).once('value');
+            let count = 0;
+            ordersSnap.forEach(child => {
+                const o = child.val();
+                if (o.user === myName && o.item === n && (!o.item.includes('(한도리셋)'))) {
+                    count++;
+                }
+            });
+            if (count >= l) {
+                return alert(`이 상품은 최대 ${l}번까지만 구매할 수 있습니다!`);
+            }
+        }
+
+        const now = Date.now();
+const newPoints = myPoints - p;
+
+const orderKey =
+    db.ref('orders').push().key;
+
+const logKey =
+    db.ref('pointLogs').push().key;
+
+const historyKey =
+    db.ref(`pointHistory/${myName}`).push().key;
+
+const updates = {};
+
+updates[`users/${myName}/points`] =
+    newPoints;
+
+if (
+    itemData &&
+    itemData.stock !== undefined &&
+    itemData.stock > 0
+) {
+    updates[`shop/${k}/stock`] =
+        itemData.stock - 1;
+}
+
+updates[`orders/${orderKey}`] = {
+    user: myName,
+    item: n,
+    price: p,
+    time: now,
+    status: "요청"
+};
+
+updates[`pointLogs/${logKey}`] = {
+    name: myName,
+    pAmt: -p,
+    reason: `[상점 구매] ${n}`,
+    time: new Date(now).toLocaleString('ko-KR'),
+    timestamp: now
+};
+
+updates[
+    `pointHistory/${myName}/${historyKey}`
+] = {
+    date: new Date(now)
+        .toLocaleDateString('sv-SE'),
+
+    time: new Date(now)
+        .toLocaleTimeString('ko-KR'),
+
+    reason: `[상점 구매] ${n}`,
+    change: -p,
+    pChange: -p,
+    expChange: 0,
+    result: newPoints,
+    pointResult: newPoints,
+    timestamp: now
+};
+
+await db.ref().update(updates);
+
+        alert(`✅ [${n}] 구매 완료!`);
     } catch (err) {
         console.error("구매 처리 오류:", err);
-        alert(err?.message || "구매 중 오류가 발생했습니다.");
+        alert("구매 중 오류가 발생했습니다.");
     }
 };
 
@@ -133,16 +222,16 @@ window.openEditShopPopup = function(k) {
             <div style="display:flex; flex-direction:column; max-height:65vh;">
                 <div style="overflow-y:auto; padding-right:5px; flex:1; text-align:left;">
                     <label style="font-weight:bold; display:block; margin-bottom:5px;">상품명:</label>
-                    <input type="text" id="edit-shop-name" value="${shopEscapeHtml(i.name)}" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
+                    <input type="text" id="edit-shop-name" value="${i.name}" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
                     
                     <label style="font-weight:bold; display:block; margin-bottom:5px;">가격:</label>
-                    <input type="number" id="edit-shop-price" value="${shopEscapeHtml(i.price)}" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #3498db; border-radius:8px; box-sizing:border-box;">
+                    <input type="number" id="edit-shop-price" value="${i.price}" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #3498db; border-radius:8px; box-sizing:border-box;">
                     
                     <label style="font-weight:bold; display:block; margin-bottom:5px;">제한(1인당):</label>
-                    <input type="number" id="edit-shop-limit" value="${shopEscapeHtml(i.limit || 0)}" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
+                    <input type="number" id="edit-shop-limit" value="${i.limit || 0}" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
                     
                     <label style="font-weight:bold; display:block; margin-bottom:5px;">남은 재고:</label>
-                    <input type="number" id="edit-shop-stock" value="${shopEscapeHtml(stockVal)}" placeholder="빈칸이면 무제한" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
+                    <input type="number" id="edit-shop-stock" value="${stockVal}" placeholder="빈칸이면 무제한" style="width:100%; padding:10px; margin-bottom:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;">
                     
                     <label style="display:block; margin:10px 0; padding:12px; background:#fff5f5; border:1px solid #ffcccc; border-radius:8px; cursor:pointer;">
                         <input type="checkbox" id="edit-shop-soldout" ${i.isSoldOut ? 'checked' : ''} style="transform:scale(1.3); margin-right:10px;">
@@ -200,7 +289,7 @@ window.resetUserItemLimit = async function(userName) {
 
     if (!confirm(`${userName} 용사의 [${itemName}] 구매 기록을 초기화하시겠습니까?\n과거 구매 내역(연대기)은 보존되며, 상점에서 다시 구매할 수 있게 됩니다.`)) return;
 
-    const ordersSnap = await db.ref('orders').once('value');
+    const ordersSnap = await (window.isVerifiedAdmin() ? db.ref('orders') : db.ref('orders').orderByChild('user').equalTo(window.myName)).once('value');
     let resetCount = 0;
     const updates = {};
 
@@ -208,7 +297,6 @@ window.resetUserItemLimit = async function(userName) {
         const o = child.val();
         if (o.user === userName && o.item === itemName) {
             updates[`orders/${child.key}/item`] = `${itemName} (한도리셋)`;
-            updates[`orders/${child.key}/limitReset`] = true;
             resetCount++;
         }
     });
@@ -232,19 +320,42 @@ window.refundSoldOutItem = async function(orderKey, itemName, price) {
 };
 
 // 7. 관리자: 단일 주문 승인 (리셋 쿠폰 자동 처리 연동)
-window.approveSingleItem = async function(key) {
+window.approveSingleItem = async function(key, user, item) {
     if (typeof window.canManageShopRequests !== 'function' ||
         !window.canManageShopRequests()) {
         alert('상점 역할 학생과 선생님만 요청을 승인할 수 있습니다.');
         return;
     }
 
-    const order=(await db.ref('orders/'+key).once('value')).val();
-    if(!order)return alert('주문 정보를 찾을 수 없습니다.');
-    const user=String(order.user||''), item=String(order.item||'');
     if(confirm(`${user} 용사의 [${item}] 1개를 승인하시겠습니까?`)) {
-        await window.callSecure('manageShopOrder',{orderKey:key,action:'approve'});
-        alert("✅ 개별 승인 완료!");
+        const timeStr = new Date().toLocaleString();
+        
+        const resetMatch = item.match(/\(요청:\s*(.+)\)/);
+        if(resetMatch) {
+            const targetItem = resetMatch[1];
+            const ordersSnap = await (window.isVerifiedAdmin() ? db.ref('orders') : db.ref('orders').orderByChild('user').equalTo(window.myName)).once('value');
+            const updates = {};
+            ordersSnap.forEach(child => {
+                const o = child.val();
+                if (o.user === user && o.item === targetItem) {
+                    updates[`orders/${child.key}/item`] = `${targetItem} (한도리셋)`;
+                }
+            });
+            
+            const logRef = db.ref('pointLogs').push();
+            updates[`pointLogs/${logRef.key}`] = {
+                name: user,
+                reason: `📜 [리셋] 구매 수량 리셋 쿠폰 승인 완료! (대상: ${targetItem})`,
+                amount: 0,
+                time: timeStr
+            };
+            
+            await db.ref().update(updates);
+            alert(`✨ 자동 리셋 완료! ${user} 용사는 이제 [${targetItem}]을(를) 다시 살 수 있습니다.`);
+        }
+
+        db.ref('orders/' + key).update({ status: '완료' })
+          .then(() => { if(!resetMatch) alert("✅ 개별 승인 완료!"); });
     }
 };
 
@@ -257,8 +368,38 @@ window.approveUserAll = async function(keyStr, user) {
     }
 
     if(confirm(`${user} 용사의 모든 사용 요청을 승인하시겠습니까?`)) {
-        const keys = keyStr.split(',').filter(Boolean);
-        for (const key of keys) await window.callSecure('manageShopOrder',{orderKey:key,action:'approve'});
+        const keys = keyStr.split(',');
+        const updates = {};
+        const timeStr = new Date().toLocaleString();
+        
+        for (let k of keys) {
+            const snap = await db.ref('orders/' + k).once('value');
+            const o = snap.val();
+            if(o && o.item) {
+                const resetMatch = o.item.match(/\(요청:\s*(.+)\)/);
+                if(resetMatch) {
+                    const targetItem = resetMatch[1];
+                    const ordersSnap = await (window.isVerifiedAdmin() ? db.ref('orders') : db.ref('orders').orderByChild('user').equalTo(window.myName)).once('value');
+                    ordersSnap.forEach(child => {
+                        const pastOrder = child.val();
+                        if (pastOrder.user === user && pastOrder.item === targetItem) {
+                            updates[`orders/${child.key}/item`] = `${targetItem} (한도리셋)`;
+                        }
+                    });
+                    
+                    const logRef = db.ref('pointLogs').push();
+                    updates[`pointLogs/${logRef.key}`] = {
+                        name: user,
+                        reason: `📜 [리셋] 구매 수량 리셋 쿠폰 승인 완료! (대상: ${targetItem})`,
+                        amount: 0,
+                        time: timeStr
+                    };
+                }
+            }
+            updates['orders/' + k + '/status'] = '완료';
+        }
+        
+        await db.ref().update(updates);
         alert("✅ 일괄 승인 및 자동 리셋, 연대기 기록까지 완벽하게 처리되었습니다!");
     }
 };
@@ -266,7 +407,7 @@ window.approveUserAll = async function(keyStr, user) {
 // 9. 학생 인벤토리 아이템 사용 (리셋 쿠폰 팝업 분기 처리)
 window.useInventoryItem = function(orderKey, itemName) {
     if(itemName.includes('리셋') || itemName.includes('초기화')) {
-        db.ref('orders').once('value', snap => {
+        (window.isVerifiedAdmin() ? db.ref('orders') : db.ref('orders').orderByChild('user').equalTo(window.myName)).once('value', snap => {
             let boughtItems = new Set();
             snap.forEach(c => {
                 const o = c.val();
@@ -297,7 +438,7 @@ window.useInventoryItem = function(orderKey, itemName) {
         });
     } else {
         if(confirm(`[${itemName}] 아이템을 사용하시겠습니까?\n(선생님의 승인 후 최종 처리됩니다)`)) {
-            window.callSecure('requestOrderUse',{orderKey}).then(() => {
+            db.ref('orders/' + orderKey).update({ status: '사용요청' }).then(() => {
                 alert("사용 요청이 전송되었습니다!");
             });
         }
@@ -311,26 +452,41 @@ window.submitResetRequest = function(orderKey, couponName) {
     const target = targetEl.value;
     if(!target) return alert("상품을 선택해주세요!");
     
-    window.callSecure('requestOrderUse',{orderKey,resetTarget:target}).then(() => {
+    const newMemo = `${couponName} (요청: ${target})`;
+    
+    db.ref('orders/' + orderKey).update({
+        status: '사용요청',
+        item: newMemo 
+    }).then(() => {
         alert(`✅ [${target}] 리셋 요청 전송 완료!\n선생님 승인 즉시 다시 구매할 수 있게 됩니다.`);
         if (typeof closePopup === 'function') closePopup();
     });
 };
 
 // 11. 관리자: 단일 주문 거절 및 포인트 자동 환불
-window.rejectSingleItem = async function(key) {
+window.rejectSingleItem = function(key, user, item) {
     if (typeof window.canManageShopRequests !== 'function' ||
         !window.canManageShopRequests()) {
         alert('상점 역할 학생과 선생님만 요청을 거절할 수 있습니다.');
         return;
     }
 
-    const order=(await db.ref('orders/'+key).once('value')).val();
-    if(!order)return alert('주문 정보를 찾을 수 없습니다.');
-    const user=String(order.user||''), item=String(order.item||'');
     if(confirm(`${user} 용사의 [${item}] 요청을 거절하고 포인트를 환불하시겠습니까?`)) {
-        await window.callSecure('manageShopOrder',{orderKey:key,action:'reject'});
-        alert(`✅ 거절 및 환불 처리가 완료되었습니다.`);
+        let refundP = 0;
+        if(window.shopData) {
+            window.shopData.forEach(c => {
+                if(c.val().name === item) {
+                    refundP = c.val().price || 0;
+                }
+            });
+        }
+        
+        db.ref('orders/' + key).remove().then(() => {
+            if(refundP > 0 && typeof addScore === 'function') {
+                addScore(user, refundP, 0, `[환불] ${item} 승인 거절`);
+            }
+            alert(`✅ 환불 완료! ${user} 용사에게 ${refundP}P가 복구되었습니다.`);
+        });
     }
 };
 
@@ -412,7 +568,10 @@ auth.onAuthStateChanged(function(user) {
 });
 // 12. 관리자: 상점 주문 및 포인트 연대기(orders) 데이터 실시간 렌더링 함수
 window.loadOrderRecords = function() {
-    db.ref('orders').on('value', snap => {
+    const orderQuery=window.canManageShopRequests()
+        ?db.ref('orders')
+        :db.ref('orders').orderByChild('user').equalTo(window.myName);
+    orderQuery.on('value', snap => {
         const orderListEl = document.getElementById('admin-order-list'); // 👈 HTML 상의 주문 목록 테이블 tbody ID
         if (!orderListEl) return;
 
@@ -431,13 +590,13 @@ window.loadOrderRecords = function() {
 
             html += `
                 <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px; font-weight:bold;">${shopEscapeHtml(item.user || '')}</td>
-                    <td style="padding:10px;">${shopEscapeHtml(item.item || '')}</td>
-                    <td style="padding:10px; font-weight:bold; color:${statusColor};">${shopEscapeHtml(item.status || '대기중')}</td>
-                    <td style="padding:10px; color:#666; font-size:0.9rem;">${shopEscapeHtml(timeFormatted)}</td>
+                    <td style="padding:10px; font-weight:bold;">${item.user || ''}</td>
+                    <td style="padding:10px;">${item.item || ''}</td>
+                    <td style="padding:10px; font-weight:bold; color:${statusColor};">${item.status || '대기중'}</td>
+                    <td style="padding:10px; color:#666; font-size:0.9rem;">${timeFormatted}</td>
                     <td style="padding:10px;">
-                        <button onclick="approveSingleItem('${shopEscapeHtml(key)}')" style="padding:5px 10px; background:var(--primary, #3498db); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">승인</button>
-                        <button onclick="rejectSingleItem('${shopEscapeHtml(key)}')" style="padding:5px 10px; background:var(--red, #e74c3c); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">거절</button>
+                        <button onclick="approveSingleItem('${key}', '${item.user}', '${item.item}')" style="padding:5px 10px; background:var(--primary, #3498db); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">승인</button>
+                        <button onclick="rejectSingleItem('${key}', '${item.user}', '${item.item}')" style="padding:5px 10px; background:var(--red, #e74c3c); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">거절</button>
                     </td>
                 </tr>
             `;

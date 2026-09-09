@@ -18,9 +18,7 @@
     function rotate(current, timestamp, randomInt) {
         const settings = current || {};
         const day = today(timestamp);
-        // 수동으로 저장한 암호는 날짜가 바뀌어도 그대로 유지한다.
-        // rotate는 기존 데이터에 유효한 암호가 없을 때의 초기 생성에만 사용한다.
-        if (valid(settings.password)) return;
+        if (valid(settings.password) && /^\d{4}-\d{2}-\d{2}$/.test(settings.passwordDate || '') && settings.passwordDate >= day) return;
         return { ...settings, password: generate(settings.password, randomInt),
             passwordDate: day, passwordRevision: revision(settings.passwordRevision) + 1,
             passwordUpdatedAt: timestamp };
@@ -35,18 +33,15 @@
     }
 
     function forDisplay(settings) {
-        if (!valid(settings?.password)) return null;
-        const date = /^\d{4}-\d{2}-\d{2}$/.test(settings?.passwordDate || '')
-            ? settings.passwordDate : '';
-        return { password: String(settings.password), date,
+        if (!valid(settings?.password) || !/^\d{4}-\d{2}-\d{2}$/.test(settings?.passwordDate || '')) return null;
+        return { password: String(settings.password), date: settings.passwordDate,
             revision: revision(settings.passwordRevision), updatedAt: Number(settings.passwordUpdatedAt) || 0 };
     }
 
     function newerDisplay(current, incoming) {
         if (!incoming) return;
-        if (revision(current?.revision) > revision(incoming.revision)) return;
-        if (revision(current?.revision) === revision(incoming.revision) &&
-            Number(current?.updatedAt || 0) >= Number(incoming.updatedAt || 0)) return;
+        if (current?.date > incoming.date) return;
+        if (current?.date === incoming.date && revision(current.revision) >= incoming.revision) return;
         return incoming;
     }
 
@@ -65,13 +60,13 @@
         const ref = database.ref('settings');
         const snapshot = await ref.once('value');
         let settings = snapshot.val() || {};
-        if (valid(settings.password)) return settings;
+        if (valid(settings.password) && settings.passwordDate === today(now())) return settings;
         if (!canWrite()) throw new Error('checkin/unavailable');
         const result = await ref.transaction(current => canWrite() ? rotate(current, now(), randomInt) : undefined, undefined, false);
         if (!canWrite()) throw new Error('checkin/unavailable');
         settings = result.snapshot.val() || {};
-        if (!valid(settings.password)) {
-            throw new Error('등교 암호를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        if (!valid(settings.password) || settings.passwordDate !== today(now())) {
+            throw new Error('오늘의 등교 암호를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
         }
         return settings;
     }
