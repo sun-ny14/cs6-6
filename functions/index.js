@@ -6,7 +6,7 @@ const {initializeApp} = require('firebase-admin/app');
 const {getDatabase} = require('firebase-admin/database');
 const {apply, identity, ActionError, publicData} = require('./security-core');
 initializeApp();
-exports.studentAction = onCall({region:'asia-northeast3',maxInstances:3,minInstances:0,timeoutSeconds:30}, async request => {
+exports.studentAction = onCall({region:'asia-northeast3',memory:'1GiB',maxInstances:3,minInstances:0,timeoutSeconds:60}, async request => {
     if (!request.auth) throw new HttpsError('unauthenticated','로그인이 필요합니다.');
     if (JSON.stringify(request.data || {}).length > 2048) throw new HttpsError('invalid-argument','요청이 너무 큽니다.');
     const ref = getDatabase().ref();
@@ -32,12 +32,13 @@ exports.studentAction = onCall({region:'asia-northeast3',maxInstances:3,minInsta
         throw new HttpsError('unavailable','저장을 확인하지 못했습니다. 잠시 후 다시 시도하세요.');
     }
 });
-exports.migratePublicData = onCall({region:'asia-northeast3',maxInstances:1,minInstances:0,timeoutSeconds:60}, async request=>{
+exports.migratePublicData = onCall({region:'asia-northeast3',memory:'1GiB',maxInstances:1,minInstances:0,timeoutSeconds:120}, async request=>{
     if(request.auth?.token?.email!=='ksosuny@cberi.go.kr'||request.auth.token.email_verified!==true){
         throw new HttpsError('permission-denied','관리자만 실행할 수 있습니다.');
     }
     const db=getDatabase();
     const migrated=Number((await db.ref('securityMigrationVersion').get()).val())||0;
+    if(migrated>=2)return {alreadyMigrated:true};
     const users=(await db.ref('users').get()).val()||{};
     const projection=publicData(users);
     const updates={publicStudents:projection.publicStudents,securityMigrationVersion:2};
