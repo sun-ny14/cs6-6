@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "firebase emulators:exec --config ../firebase.security-test.json --only database --project demo-cs66-security \"node --test rules.test.cjs\""
+  },
+  "devDependencies": {
+    "firebase-tools": "15.29.0",
+    "@firebase/rules-unit-testing": "5.0.2",
+    "firebase": "12.18.0"
+  }
+}

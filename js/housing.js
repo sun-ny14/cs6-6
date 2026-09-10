@@ -118,9 +118,8 @@ window.renderMyRoom = function() {
     if (!container || !owner || !window.isCurrentHousingView(owner, version)) return;
     
     return Promise.all([
-        db.ref(window.isAdmin===true?'settings/defaultBg':'publicSettings/defaultBg').once('value'),
-        db.ref(owner===window.myName||window.isAdmin===true
-            ?`users/${owner}/myRoom`:`publicProfiles/${owner}/myRoom`).once('value')
+        db.ref('settings/defaultBg').once('value'),
+        db.ref(`rooms/${owner}`).once('value')
     ]).then(([defaultSnap, snap]) => {
             if (!window.isCurrentHousingView(owner, version)) return;
             const defaultBg = defaultSnap.val() || window.currentDefaultBg || 'assets/housing/backgrounds/level-1.png';
@@ -232,7 +231,7 @@ window.renderMyRoom = function() {
                             const finalX = parseInt(div.style.left);
                             const finalY = parseInt(div.style.top);
                             if (window.canManageHousing() && window.isCurrentHousingView(owner, version)) {
-                                db.ref(`users/${owner}/myRoom/objects/${key}`).update({x: finalX, y: finalY});
+                                db.ref(`rooms/${owner}/objects/${key}`).update({x: finalX, y: finalY});
                             }
                         };
 
@@ -278,7 +277,7 @@ window.openItemEditor = function(key, type, currentW, currentH, isFlipped) {
 
 window.toggleFlipRoomItem = function(key, currentFlipState) {
     if (!window.canManageHousing()) return;
-    db.ref(`users/${myName}/myRoom/objects/${key}`).update({
+    db.ref(`rooms/${myName}/objects/${key}`).update({
         flipX: !currentFlipState
     }).then(() => {
         renderMyRoom(); 
@@ -290,7 +289,7 @@ window.resizeRoomItem = function(key, newW, newH, limitW, limitH, dir) {
     if (!window.canManageHousing()) return;
     if (dir === 'up' && (newW > limitW || newH > limitH)) return alert("해당 아이템을 더 이상 크게 만들 수 없습니다!");
     if (dir === 'down' && (newW < limitW || newH < limitH)) return alert("해당 아이템을 더 이상 작게 만들 수 없습니다!");
-    db.ref(`users/${myName}/myRoom/objects/${key}`).update({w: Math.round(newW), h: Math.round(newH)}).then(() => {
+    db.ref(`rooms/${myName}/objects/${key}`).update({w: Math.round(newW), h: Math.round(newH)}).then(() => {
         renderMyRoom(); 
         if (typeof closePopup === 'function') closePopup(); 
     });
@@ -299,7 +298,7 @@ window.resizeRoomItem = function(key, newW, newH, limitW, limitH, dir) {
 window.deleteRoomItem = function(key) {
     if (!window.canManageHousing()) return;
     if (confirm("정말 방에서 이 아이템을 치우시겠습니까?")) {
-        db.ref(`users/${myName}/myRoom/objects/${key}`).remove().then(() => {
+        db.ref(`rooms/${myName}/objects/${key}`).remove().then(() => {
             renderMyRoom(); 
             if (typeof closePopup === 'function') closePopup();
         });
@@ -335,11 +334,11 @@ window.placeOrApplyHousingItem = function(img, category) {
     if (!window.canManageHousing()) return;
     if (category === '배경') {
         if (confirm("방 전체 배경을 이 이미지로 바꾸시겠습니까?")) {
-            db.ref(`users/${myName}/myRoom/background`).set(img).then(() => renderMyRoom());
+            db.ref(`rooms/${myName}/background`).set(img).then(() => renderMyRoom());
         }
     } else {
         const objId = Date.now();
-        db.ref(`users/${myName}/myRoom/objects/${objId}`).set({
+        db.ref(`rooms/${myName}/objects/${objId}`).set({
             img: img, type: category, x: 290, y: 210 
         }).then(() => renderMyRoom());
         alert("방 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
@@ -559,8 +558,7 @@ window.toggleRoomGuestbook = async function() {
     button.textContent = panel.hidden ? '📖 방명록 확인' : '📖 방명록 접기';
     if (panel.hidden) return;
     try {
-        const snapshot = await db.ref(owner===window.myName||window.isAdmin===true
-            ?`users/${owner}/myRoom`:`publicProfiles/${owner}/myRoom`).once('value');
+        const snapshot = await db.ref(`rooms/${owner}`).once('value');
         if (window.isCurrentHousingView(owner, version) && revision === (window.housingView.socialRevision || 0)) {
             window.renderRoomSocial(snapshot.val() || {});
         }
@@ -584,11 +582,31 @@ window.sendRoomReaction = async function(targetUser, type) {
     document.getElementById('housing-reactions').querySelectorAll('button').forEach(button => button.disabled = true);
     status.textContent = '반응을 남기는 중이에요…';
     try {
-        const result = await window.callSecure('addRoomReaction', { owner, type });
+        const offset = await db.ref('.info/serverTimeOffset').once('value');
+        window.housingServerTimeOffset = Number(offset.val()) || 0;
+        if (!window.isCurrentHousingView(owner, version) || window.myName !== visitor) return;
+        const day = housingToday(Date.now() + window.housingServerTimeOffset);
+        const entryKey = db.ref(`rooms/${owner}/guestbook`).push().key;
+        // 한 트랜잭션에서 일일 제한과 방명록을 함께 저장한다.
+        // 연속 클릭, 여러 탭, 서로 다른 이모지 요청이 겹쳐도 한 건만 기록된다.
+        const result = await db.ref(`rooms/${owner}`).transaction(current => {
+            const room = current || {};
+            if (hasHousingReaction(room, visitor, day)) return;
+            room.dailyReactions = room.dailyReactions || {};
+            room.dailyReactions[visitor] = room.dailyReactions[visitor] || {};
+            room.dailyReactions[visitor][day] = type;
+            room.guestbook = room.guestbook || {};
+            room.guestbook[entryKey] = {
+                user: visitor, type, day,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+            room[type] = (Number(room[type]) || 0) + 1;
+            return room;
+        }, undefined, false);
         housingPendingReactions.delete(pendingKey);
         if (!window.isCurrentHousingView(owner, version)) return;
         window.housingView.socialRevision = (window.housingView.socialRevision || 0) + 1;
-        window.renderRoomSocial(result.room || {});
+        window.renderRoomSocial(result.snapshot.val() || {});
         document.getElementById('housing-guestbook').hidden = false;
         const button = document.getElementById('housing-guestbook-button');
         button.setAttribute('aria-expanded', 'true');
@@ -752,8 +770,18 @@ window.sendRoomReaction = async function(targetUser, type) {
 
     window.syncHousingRewards = async function(userName) {
         if (!userName) return null;
-        if(userName!==window.myName)return null;
-        return window.callSecure('syncHousingRewards');
+        const createAdmin = userName === window.myName && roomIsAdmin();
+        const result = await db.ref(`users/${userName}`).transaction(current => {
+            // 관리자 계정에는 학생용 users 레코드가 없을 수 있다.
+            if (!current && !createAdmin) return current;
+            const user = current || { name: userName };
+            const coins = user.roomCoins;
+            const rewarded = user.roomRewardedLevel;
+            applyHousingRewards(user);
+            if (current && coins === user.roomCoins && rewarded === user.roomRewardedLevel) return;
+            return user;
+        }, undefined, false);
+        return result.snapshot.val();
     };
 
     /* =====================================================
@@ -770,14 +798,9 @@ window.sendRoomReaction = async function(targetUser, type) {
         isNormal
     ){
 
-        if(!userName||userName!==window.myName){
+        if(!userName){
             return false;
         }
-
-        const secureResult=await window.callSecure('setCheckinRoomReward',{date:String(date||'')});
-        return Boolean(secureResult&&secureResult.normal);
-
-        /* legacy client transaction retained below for reference; server return above is authoritative */
 
         const rewardDate=
             String(
@@ -1286,8 +1309,7 @@ window.sendRoomReaction = async function(targetUser, type) {
         }
 
         await db.ref(
-            `users/${window.myName}/`+
-            `myRoom/background`
+            `rooms/${window.myName}/background`
         )
         .set(image);
 
@@ -1700,16 +1722,41 @@ try {
                 id: db.ref(`users/${owner}/housingPurchases`).push().key, itemKey, name: item.name, item
             });
             const purchaseId = request.id;
+            const timestamp = firebase.database.ServerValue.TIMESTAMP;
+            let insufficient = false, levelLocked = false;
             const requiredLevel = Math.max(1,item.requiredLevel||1);
-            if (!createAdmin && roomLevel(window.currentUser || {}) < requiredLevel) {
-                return alert(`Lv.${requiredLevel}부터 구매할 수 있는 가구입니다.`);
+            const result = await commitHousingPurchase(db.ref(`users/${owner}`), current => {
+                insufficient = false; levelLocked = false;
+                if (!current && !createAdmin) return current;
+                const user = applyHousingRewards(current || { name: owner });
+                if (user.housingPurchases?.[purchaseId]) return;
+                if (!createAdmin && roomLevel(user)<requiredLevel) { levelLocked=true; return; }
+                if (charge > 0 && user.roomCoins < charge) { insufficient = true; return; }
+                user.roomCoins -= charge;
+                user.housingInventory ||= {};
+                user.housingInventory[purchaseId] = {
+                    shopKey: itemKey, name: item.name, category: item.category,
+                    img: item.img || item.url || '', purchasedAt: timestamp
+                };
+                user.housingPurchases ||= {};
+                user.housingPurchases[purchaseId] = {
+                    itemKey, name: item.name, price: charge, listPrice: price, teacherFree: createAdmin, currency: 'C',
+                    balanceAfter: user.roomCoins, inventoryKey: purchaseId, timestamp
+                };
+                return user;
+            }, owner, version, status);
+            const saved = result.snapshot.val();
+            // 같은 번호의 기존 구매가 있으면 transaction이 쓰기 없이 끝나도 구매 확인 성공이다.
+            if (!saved?.housingPurchases?.[purchaseId] || !saved?.housingInventory?.[purchaseId]) {
+                purchaseRequest(owner, null);
+                status('구매가 완료되지 않았습니다.');
+                return alert(levelLocked ? `Lv.${requiredLevel}부터 구매할 수 있는 가구입니다.` : insufficient ? '방꾸미기 코인이 부족합니다.' :
+                    '구매를 저장하지 못했습니다. 로그인 상태를 확인하고 다시 시도해 주세요.');
             }
-            status('서버에서 가격·레벨·잔액을 확인하고 있어요…');
-            const saved = await window.callSecure('purchaseHousingItem', { itemKey, purchaseId });
             purchaseRequest(owner, null);
             purchased = true;
             status('구매 내역과 보관함에 저장했습니다.');
-            const receipt = saved.receipt;
+            const receipt = saved.housingPurchases[purchaseId];
             alert(receipt.teacherFree ? '교사 무료 구매 완료! 보관함과 구매 내역에 저장했습니다.' :
                 `구매 완료! ${receipt.price}C를 사용했습니다. 남은 코인: ${saved.roomCoins}C`);
         } catch (error) {

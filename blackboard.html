@@ -40,6 +40,8 @@
     </style>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<link rel="stylesheet" href="css/modern.css?v=20260908-complete-2">
 </head>
 <body>
     <main id="bb-app">
@@ -56,12 +58,13 @@
             <aside class="schedule-rail">
                 <nav class="timeline" id="timeline" aria-label="오늘 시간표"></nav>
                 <section class="viewer-controls" id="viewer-controls"></section>
+
             </aside>
             <section class="stage" id="stage"><div class="empty-message">전자칠판 정보를 불러오는 중입니다.</div></section>
         </div>
     </main>
 
-    <script src="js/firebase-config.js?v=20260907-security-1"></script>
+    <script src="js/firebase-config.js?v=20260908-complete-2"></script>
     <script type="text/plain" id="legacy-blackboard-script">
         (function(){
             'use strict';
@@ -109,6 +112,9 @@
             setInterval(render,1000);
         })();
     </script>
-    <script src="js/blackboard-display.js?v=20260908-security-password-1"></script>
+    <script src="functions/checkin-password-core.js?v=20260908-complete-2"></script>
+    <script src="js/blackboard-auth.js?v=20260908-complete-2"></script>
+    <script src="js/blackboard-share.js?v=20260908-complete-2"></script>
+    <script src="js/blackboard-display.js?v=20260908-complete-2"></script>
 </body>
 </html>

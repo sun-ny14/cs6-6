@@ -618,16 +618,17 @@ window.saveSettings = async function() {
         );
         const display = window.CheckinPasswordCore.forDisplay(saved);
 
-        await db.ref().update({
-            'settings/password': saved.password,
-            'settings/passwordDate': saved.passwordDate,
-            'settings/passwordRevision': saved.passwordRevision,
-            'settings/passwordUpdatedAt': saved.passwordUpdatedAt,
-            'settings/lateTime': otherSettings.lateTime,
-            'settings/closeTime': otherSettings.closeTime,
-            'settings/routineText': otherSettings.routineText,
-            'blackboardDisplay/checkinPassword': display
+        await db.ref('settings').update({
+            password: saved.password,
+            passwordDate: saved.passwordDate,
+            passwordRevision: saved.passwordRevision,
+            passwordUpdatedAt: saved.passwordUpdatedAt,
+            lateTime: otherSettings.lateTime,
+            closeTime: otherSettings.closeTime,
+            routineText: otherSettings.routineText
         });
+
+        await db.ref('blackboardDisplay/checkinPassword').set(display);
 
         passInput.value = String(saved.password);
         passInput.dataset.savedPassword = String(saved.password);
@@ -744,6 +745,7 @@ window.bulkReg = function() {
 
     const lines = rawText.split('\n');
     const updates = {};
+    const emailUpdates = {};
     let count = 0;
 
     lines.forEach(line => {
@@ -769,13 +771,19 @@ window.bulkReg = function() {
                 no: count + 1
             };
 
+            if (email) {
+                emailUpdates[email.toLowerCase().replace(/\./g, ',')] = name;
+            }
+
             count++;
         }
     });
 
     if (count > 0) {
-        db.ref('users')
-            .update(updates)
+        Promise.all([
+            db.ref('users').update(updates),
+            db.ref('userEmails').update(emailUpdates)
+        ])
             .then(() => {
                 alert(
                     `✅ 총 ${count}명의 학생 명단` +

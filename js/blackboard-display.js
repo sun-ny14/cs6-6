@@ -71,19 +71,7 @@
             ? String(adminEmail || '').trim().toLowerCase()
             : '';
         const loginEmail = String(authUser?.email || '').trim().toLowerCase();
-        const matchedUser = Object.values(state.users || {}).find(user =>
-            String(user?.email || '').trim().toLowerCase() === loginEmail
-        ) || {};
-        const name = String(matchedUser.name || '').trim();
-        const role = String(matchedUser.role || '').trim();
-        state.canEdit = Boolean(authUser && (
-            (savedAdminEmail && loginEmail === savedAdminEmail) ||
-            matchedUser.isAdmin === true ||
-            name === '총사령관' ||
-            name.includes('선생님') ||
-            role === '관리자' ||
-            role === '교사'
-        ));
+        state.canEdit = Boolean(authUser && savedAdminEmail && loginEmail === savedAdminEmail);
     }
 
     function getSchedule(now) {
@@ -236,10 +224,9 @@
         const guide = mode === 'morning' ? '자기 이름이 초록색인지 확인하세요.' : '자리 청소가 확인되면 초록색으로 바뀝니다.';
         const action=String(item?.action||'').trim();
         const code = state.checkinPassword;
-        // 수동 암호는 자정이 지나도 교사가 다시 변경할 때까지 표시한다.
         const currentCode = /^\d{4}$/.test(String(code?.password || ''));
         const passwordCard = mode === 'morning'
-            ? `<section class="morning-password" aria-label="오늘의 등교 암호"><span>오늘의 등교 암호</span>${currentCode ? `<strong>${escapeHtml(code.password)}</strong>` : '<p>오늘의 암호를 준비하고 있습니다.</p>'}</section>` : '';
+            ? `<section class="morning-password" aria-label="등교 암호"><span>등교 암호</span>${currentCode ? `<strong>${escapeHtml(code.password)}</strong>` : '<p>등교 암호를 준비하고 있습니다.</p>'}</section>` : '';
         return `<div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2>${passwordCard}${action?`<div class="action">${escapeHtml(action)}</div>`:''}<div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-grid" style="--seat-cols:${seatInfo.cols}">${cards}</div>`;
     }
 
@@ -249,7 +236,7 @@
         const note = String(item.learningNote || '').trim();
         const memoBody = state.canEdit
             ? `<textarea class="inline-memo-input" data-inline-learning-note="${escapeHtml(item.name)}" data-note-date="${today}" placeholder="여기에 바로 입력하세요. 입력을 멈추면 자동 저장됩니다.">${escapeHtml(note)}</textarea>`
-            : `<div class="inline-memo-view${note ? '' : ' inline-memo-empty'}">${note ? escapeHtml(note) : '아직 작성된 배움공책 & 메모가 없습니다.'}</div>`;
+            : `<div class="inline-memo-view${note ? '' : ' inline-memo-empty'}">${note ? escapeHtml(note) : '작성된 메모가 없습니다. 편집하려면 홈페이지에서 교사 로그인 후 전자칠판을 열어주세요.'}</div>`;
         return `<div class="state-kicker">${escapeHtml(item.name)} 수업 중</div><h2 class="state-title">${escapeHtml(subject)}</h2>${action ? `<div class="action">${escapeHtml(action)}</div>` : ''}<section class="inline-memo-card"><div class="inline-memo-head"><span>📖 배움공책 &amp; 메모</span>${state.canEdit ? '<span class="inline-memo-status" data-memo-status>입력하면 자동 저장됩니다.</span>' : ''}</div>${memoBody}</section>`;
     }
 
@@ -514,7 +501,7 @@
         auth.onAuthStateChanged(user => {
             state.authUser = user || null;
             updateEditPermission();
-            connectSources(user);
+            connectSources(state.canEdit ? user : null);
         });
     } else connectSources(null);
     setInterval(render, 1000);

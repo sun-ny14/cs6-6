@@ -7,6 +7,56 @@ window.rIdx=window.rIdx||0;
 window.routineActive=false;
 window.routineItems=window.routineItems||[];
 
+let publicDirectoryFingerprint='';
+
+function syncPublicDirectoryFromUsers(snapshot){
+    if(!window.isVerifiedAdmin?.())return;
+
+    const publicStudents={};
+    const emailMappings={};
+    const publicFields=[
+        'no','number','points','exp','experience','level','lv',
+        'animal','selectedAnimal','title','selectedTitle'
+    ];
+
+    snapshot.forEach(child=>{
+        const user=child.val()||{};
+        const key=String(child.key||'').trim();
+        const name=String(user.name||key).trim();
+        const email=String(user.email||'').trim().toLowerCase();
+        const role=String(user.role||'').trim();
+
+        const administratorEmail=String(typeof adminEmail!=='undefined'?adminEmail:'').trim().toLowerCase();
+        if(!key||!name||name==='총사령관'||user.isAdmin===true||role==='관리자'||(email&&email===administratorEmail))return;
+
+        const visible={name};
+        publicFields.forEach(field=>{
+            const value=user[field];
+            if(['string','number','boolean'].includes(typeof value))visible[field]=value;
+        });
+        publicStudents[key]=visible;
+
+        const emailKey=email.replace(/\./g,',');
+        if(email&&email!=='미등록'&&!/[#$\[\]\/]/.test(emailKey))emailMappings[emailKey]=key;
+    });
+
+    const fingerprint=JSON.stringify({publicStudents,emailMappings});
+    if(fingerprint===publicDirectoryFingerprint)return;
+    publicDirectoryFingerprint=fingerprint;
+
+    const updates={publicStudents};
+    Object.entries(emailMappings).forEach(([emailKey,name])=>{
+        updates[`userEmails/${emailKey}`]=name;
+    });
+
+    db.ref().update(updates).then(()=>{
+        console.log('공개 학생 명단 복구 완료:',Object.keys(publicStudents).length);
+    }).catch(error=>{
+        publicDirectoryFingerprint='';
+        console.error('공개 학생 명단 복구 실패:',error);
+    });
+}
+
 function getTodayKST(){
     const now=new Date();
     const krTime=new Date(now.getTime()+9*60*60*1000);
@@ -371,7 +421,7 @@ function startApp(){
 
     if(blackboard){
         blackboard.style.display=
-            canManage?'block':'none';
+            admin?'block':'none';
     }
 
 
@@ -380,7 +430,7 @@ function startApp(){
 
     if(adminBtn){
         adminBtn.style.display=
-            canManage?'block':'none';
+            admin?'block':'none';
     }
 
 
@@ -400,7 +450,7 @@ function startApp(){
 
     if(checkinLogsBtn){
         checkinLogsBtn.style.display=
-            canManage?'block':'none';
+            admin?'block':'none';
     }
 
 
@@ -416,7 +466,7 @@ function startApp(){
     }
 
 
-    db.ref(admin?'settings':'publicSettings').on('value',snap=>{
+    const receiveSettings=snap=>{
 
         const s=snap.val()||{};
 
@@ -494,10 +544,21 @@ if (
 if (typeof refreshCheckinGuide === 'function') {
     refreshCheckinGuide(s);
 }
-    });
+    };
+    if(admin) db.ref('settings').on('value',receiveSettings);
+    else {
+        const publicSettings={};
+        ['lateTime','closeTime','routineText','giftList','defaultBg','housingEnabled','studentRoles','cleaningAssignments'].forEach(field=>{
+            db.ref(`settings/${field}`).on('value',snap=>{
+                publicSettings[field]=snap.val();
+                receiveSettings({val:()=>publicSettings});
+            });
+        });
+    }
 
+    db.ref(admin?'users':'publicStudents').on('value',snap=>{
 
-    db.ref(admin?'users':'publicProfiles').on('value',snap=>{
+        if(admin)syncPublicDirectoryFromUsers(snap);
 
         const users=[];
 
@@ -509,6 +570,13 @@ if (typeof refreshCheckinGuide === 'function') {
 
             if(!u.name){
                 u.name=child.key;
+            }
+
+            // 공개 명단에는 개인정보/포인트가 없으므로 본인 카드에만
+            // 이미 본인 전용 users 경로에서 읽은 값을 합친다.
+            const loginName=String(window.myName||'').trim();
+            if(!admin&&u.name===loginName&&window.currentUser){
+                Object.assign(u,window.currentUser,{name:u.name,__firebaseKey:child.key});
             }
 
             const role=String(u.role||'').trim();
@@ -559,8 +627,8 @@ if (typeof refreshCheckinGuide === 'function') {
         if(loggedInUser){
             window.currentUser={...(window.currentUser||{}),...loggedInUser};
             window.isHelper=
-                loggedInUser.isHelper===true||
-                loggedInUser.isHelper==='true';
+                window.currentUser.isHelper===true||
+                window.currentUser.isHelper==='true';
 
             if(typeof window.applyAccessControl==='function'){
                 window.applyAccessControl();
@@ -1356,15 +1424,15 @@ window.closePointPopup=function(){
         if (typeof db === 'undefined' || !db?.ref) return localUser;
 
         try {
-            // 현재 앱은 users/{학생 이름} 경로에 학생 정보를 저장합니다.
-            const directSnapshot = await db.ref(`users/${firebaseKey}`).once('value');
+            // 다른 학생 카드는 개인정보가 제거된 공개 프로필만 읽습니다.
+            const directSnapshot = await db.ref(`publicStudents/${firebaseKey}`).once('value');
             if (directSnapshot.exists()) {
                 const saved = directSnapshot.val() || {};
                 return { ...localUser, ...saved, __firebaseKey: firebaseKey, name: saved.name || name || firebaseKey };
             }
 
             // 카드의 key와 학생 이름이 다른 경우 name 필드로 한 번 더 찾습니다.
-            const nameSnapshot = await db.ref('users').orderByChild('name').equalTo(name).once('value');
+            const nameSnapshot = await db.ref('publicStudents').orderByChild('name').equalTo(name).once('value');
             let found = null;
             nameSnapshot.forEach(child => {
                 if (!found) found = { ...(child.val() || {}), __firebaseKey: child.key };
@@ -1791,9 +1859,27 @@ async function loadHistory(name, firebaseKey) {
         style.id = STYLE_ID;
         style.textContent = `
             body .batch-card-modal-v6 {
+                display: flex !important;
+                flex: 1 1 auto !important;
+                flex-direction: column !important;
                 width: 100% !important;
                 min-width: 0 !important;
+                min-height: 0 !important;
                 padding: 4px !important;
+            }
+
+            body #common-overlay:has(.batch-card-modal-v6) > .popup-box {
+                height: min(900px, calc(100dvh - 20px)) !important;
+                max-height: calc(100dvh - 20px) !important;
+                overflow: hidden !important;
+            }
+
+            body #common-overlay:has(.batch-card-modal-v6) #pop-content {
+                display: flex !important;
+                flex: 1 1 auto !important;
+                flex-direction: column !important;
+                min-height: 0 !important;
+                overflow: hidden !important;
             }
 
             body .batch-card-modal-v6 .batch-reason-input {
@@ -1830,66 +1916,76 @@ async function loadHistory(name, firebaseKey) {
             }
 
             body .batch-card-modal-v6 .batch-student-grid {
-                display: grid !important;
-                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-                grid-auto-rows: max-content !important;
-                align-items: stretch !important;
-                gap: 16px !important;
+                display: flex !important;
+                flex: 1 1 360px !important;
+                flex-direction: column !important;
+                gap: 8px !important;
                 width: 100% !important;
-                max-height: min(55vh, 610px) !important;
-                margin: 0 0 18px !important;
-                padding: 4px 10px 10px 2px !important;
+                min-height: 150px !important;
+                max-height: calc(100dvh - 330px) !important;
+                margin: 0 0 12px !important;
+                padding: 4px 10px 18px 2px !important;
                 overflow-x: hidden !important;
                 overflow-y: auto !important;
                 scrollbar-gutter: stable !important;
+                overscroll-behavior: contain !important;
+            }
+
+            body .batch-card-modal-v6 .batch-column-head {
+                display: grid !important;
+                grid-template-columns: 34px minmax(150px, 1fr) 92px minmax(130px, .48fr) minmax(130px, .48fr) !important;
+                gap: 10px !important;
+                padding: 0 14px 7px !important;
+                color: #566174 !important;
+                font-size: 14px !important;
+                font-weight: 850 !important;
+                text-align: center !important;
+            }
+
+            body .batch-card-modal-v6 .batch-column-head span:nth-child(2) {
+                text-align: left !important;
             }
 
             body .batch-card-modal-v6 .batch-student-row,
             body .batch-card-modal-v6 .batch-student-card {
                 display: grid !important;
-                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-                align-content: start !important;
+                grid-template-columns: 34px minmax(150px, 1fr) 92px minmax(130px, .48fr) minmax(130px, .48fr) !important;
                 align-items: center !important;
-                gap: 12px !important;
-                width: auto !important;
+                gap: 10px !important;
+                flex: 0 0 auto !important;
+                width: 100% !important;
                 min-width: 0 !important;
-                min-height: 174px !important;
+                min-height: 66px !important;
                 margin: 0 !important;
-                padding: 18px !important;
+                padding: 9px 14px !important;
                 color: #172033 !important;
-                background: linear-gradient(145deg, #ffffff 0%, #fffdf7 100%) !important;
-                border: 2px solid #d8dee8 !important;
-                border-top: 5px solid #263b63 !important;
-                border-radius: 17px !important;
-                box-shadow: 0 6px 16px rgba(24, 40, 68, 0.08) !important;
-                transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease !important;
+                background: #ffffff !important;
+                border: 1px solid #d8dee8 !important;
+                border-radius: 12px !important;
+                box-shadow: 0 2px 7px rgba(24, 40, 68, 0.06) !important;
+                box-sizing: border-box !important;
+                transition: border-color .15s ease, box-shadow .15s ease !important;
             }
 
             body .batch-card-modal-v6 .batch-student-row:hover {
-                transform: translateY(-2px) !important;
                 border-color: #b9a35f !important;
-                box-shadow: 0 10px 22px rgba(24, 40, 68, 0.13) !important;
+                box-shadow: 0 4px 12px rgba(24, 40, 68, 0.10) !important;
             }
 
             body .batch-card-modal-v6 .batch-student-row.is-selected,
             body .batch-card-modal-v6 .batch-student-row:has(.batch-student-chk:checked) {
                 background: linear-gradient(145deg, #fffdf7 0%, #fff3c4 100%) !important;
                 border-color: #e1b83f !important;
-                border-top-color: #d6a91d !important;
-                box-shadow: 0 0 0 3px rgba(229, 185, 76, .18), 0 10px 22px rgba(24, 40, 68, .12) !important;
+                box-shadow: 0 0 0 2px rgba(229, 185, 76, .16) !important;
             }
 
-            body .batch-card-modal-v6 .batch-student-row > .batch-card-student {
-                grid-column: 1 / -1 !important;
-                display: grid !important;
-                grid-template-columns: 27px minmax(0, 1fr) auto !important;
+            body .batch-card-modal-v6 .batch-check-cell {
+                display: flex !important;
                 align-items: center !important;
-                gap: 10px !important;
-                width: 100% !important;
-                min-width: 0 !important;
+                justify-content: center !important;
                 margin: 0 !important;
-                padding: 0 0 13px !important;
-                border-bottom: 1px solid #e4e7ec !important;
+                padding: 0 !important;
+                border: 0 !important;
                 cursor: pointer !important;
             }
 
@@ -1942,7 +2038,7 @@ async function loadHistory(name, firebaseKey) {
                 display: block !important;
                 width: 100% !important;
                 min-width: 0 !important;
-                min-height: 42px !important;
+                min-height: 44px !important;
                 margin: 0 !important;
                 padding: 8px !important;
                 color: #172033 !important;
@@ -1964,9 +2060,9 @@ async function loadHistory(name, firebaseKey) {
                 display: grid !important;
                 grid-template-columns: minmax(140px, 1fr) minmax(240px, 2fr) !important;
                 gap: 10px !important;
-                position: sticky !important;
-                bottom: 0 !important;
-                padding-top: 4px !important;
+                flex: 0 0 auto !important;
+                position: static !important;
+                padding-top: 8px !important;
                 background: #ffffff !important;
             }
 
@@ -1984,21 +2080,14 @@ async function loadHistory(name, firebaseKey) {
             body .batch-card-modal-v6 .batch-cancel-btn { background: #8e9da1 !important; }
             body .batch-card-modal-v6 .batch-submit-btn { background: #22a95b !important; }
 
-            @media (max-width: 980px) {
-                body .batch-card-modal-v6 .batch-student-grid {
-                    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            @media (max-width: 720px) {
+                body .batch-card-modal-v6 .batch-column-head {
+                    display: none !important;
                 }
-            }
-
-            @media (max-width: 620px) {
-                body .batch-card-modal-v6 .batch-student-grid {
-                    grid-template-columns: 1fr !important;
-                    gap: 12px !important;
-                }
-
                 body .batch-card-modal-v6 .batch-student-row {
-                    min-height: 168px !important;
-                    padding: 16px !important;
+                    grid-template-columns: 30px minmax(110px, 1fr) 76px minmax(105px, .7fr) minmax(105px, .7fr) !important;
+                    min-height: 62px !important;
+                    padding: 10px !important;
                 }
 
                 body .batch-card-modal-v6 .batch-action-buttons {
@@ -2042,11 +2131,11 @@ async function loadHistory(name, firebaseKey) {
 
                 return `
                     <article class="batch-student-row batch-student-card">
-                        <label class="batch-card-student">
+                        <label class="batch-check-cell" aria-label="${safeName} 선택">
                             <input type="checkbox" class="batch-student-chk" value="${safeName}">
-                            <span class="batch-card-name">${safeName}</span>
-                            <span class="batch-card-current-point">${points.toLocaleString('ko-KR')}P</span>
                         </label>
+                        <span class="batch-card-name">${safeName}</span>
+                        <span class="batch-card-current-point">${points.toLocaleString('ko-KR')}P</span>
 
                         <div class="batch-card-field">
                             <input type="number" class="batch-p-input" placeholder="포인트" aria-label="${safeName} 포인트" title="포인트" inputmode="numeric">
@@ -2072,6 +2161,14 @@ async function loadHistory(name, firebaseKey) {
                 <div class="batch-select-tools">
                     <button type="button" onclick="batchSelectAllCardsV6()">전체 선택</button>
                     <button type="button" onclick="batchClearAllCardsV6()">전체 해제</button>
+                </div>
+
+                <div class="batch-column-head" aria-hidden="true">
+                    <span>선택</span>
+                    <span>이름</span>
+                    <span>현재 포인트</span>
+                    <span>포인트</span>
+                    <span>경험치</span>
                 </div>
 
                 <section class="batch-student-grid">

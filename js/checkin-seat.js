@@ -153,6 +153,7 @@ window.checkinNormalizeLog=
    ========================================================= */
 
 window.refreshCheckinManagement=async function(){
+    if(typeof window.isVerifiedAdmin==='function'&&!window.isVerifiedAdmin())return;
     const dateInput=
         document.getElementById('checkin-date-filter');
 
@@ -483,8 +484,11 @@ window.loadCheckinState=async function(){
 window.refreshCheckinGuide=async function(settings){
     let currentSettings=settings;
     if(!currentSettings){
-        const snap=await db.ref(window.isAdmin===true?'settings':'publicSettings').once('value');
-        currentSettings=snap.val()||{};
+        const [lateSnap,closeSnap]=await Promise.all([
+            db.ref('settings/lateTime').once('value'),
+            db.ref('settings/closeTime').once('value')
+        ]);
+        currentSettings={lateTime:lateSnap.val(),closeTime:closeSnap.val()};
     }
 
     const guide=document.getElementById('checkin-guide');
@@ -647,7 +651,7 @@ window.submitCheckin=async function(
             ).once('value'),
 
             db.ref(
-                window.isAdmin===true?'settings/fixedExclusions':'publicSettings/fixedExclusions'
+                'settings/fixedExclusions'
             ).once('value')
 
         ]);
@@ -1556,7 +1560,7 @@ window.submitCheckIn=async function(){
     const password=passInput?passInput.value.trim():'';
 
     if(!/^\d{4}$/.test(password)){
-        return alert('오늘의 등교 암호 4자리를 입력해 주세요.');
+        return alert('등교 암호 4자리를 입력해 주세요.');
     }
 
     if(!window.myName){
@@ -1569,9 +1573,83 @@ window.submitCheckIn=async function(){
     if(button)button.disabled=true;
 
     try{
-        // 암호 검증, 시간 판정, 포인트 및 코인 반영을 서버 트랜잭션에서 한 번에 처리한다.
-        const saveResult=await window.callSecure('submitStudentCheckin',{password});
-        const lateBy=Number(saveResult.lateBy)||0;
+        // Firebase에 저장된 암호는 교사가 새로 저장할 때까지 유지한다.
+        const settingsSnapshot=
+            await db.ref('settings').once('value');
+
+        const settings=
+            settingsSnapshot.val()||{};
+
+        if(!window.CheckinPasswordCore.valid(settings.password)){
+            alert('등교 암호가 아직 설정되지 않았습니다.');
+            return;
+        }
+
+        if(String(settings.password||'')!==password){
+            alert('등교 암호가 맞지 않습니다.');
+            return;
+        }
+
+        const toMinutes=value=>{
+            const parts=String(value||'').split(':').map(Number);
+
+            return parts.length===2&&parts.every(Number.isFinite)
+                ?parts[0]*60+parts[1]
+                :null;
+        };
+
+        const now=new Date();
+
+        const currentMinutes=
+            now.getHours()*60+
+            now.getMinutes();
+
+        const lateMinutes=
+            toMinutes(
+                settings.lateTime||'08:40'
+            );
+
+        const closeMinutes=
+            toMinutes(
+                settings.closeTime||'09:00'
+            );
+
+        if(
+            closeMinutes!==null&&
+            currentMinutes>closeMinutes
+        ){
+            alert(
+                `등교 확인 시간이 마감되었습니다. `+
+                `(${settings.closeTime||'09:00'})`
+            );
+
+            return;
+        }
+
+        // 지각 기준시간보다 몇 분 늦었는지 계산
+        const lateBy=
+            lateMinutes!==null
+                ?Math.max(
+                    0,
+                    currentMinutes-lateMinutes
+                )
+                :0;
+
+        const reason=
+            lateBy>0
+                ?'지각 등교'
+                :'정상 등교';
+
+        // QR/암호 직접 등교임을 명확하게 전달
+        const saveResult=
+            await submitCheckin(
+                window.myName,
+                reason,
+                {
+                    source:'qr',
+                    lateMinutes:lateBy
+                }
+            );
 
         if(passInput){
             passInput.value='';

@@ -8,7 +8,7 @@ test('projection includes board fields while removing emails, points, attendance
     const shared = project({
         users: { privateUid: { name: '학생', no: 7, email: 'SECRET_EMAIL', points: 999, password: 'SECRET_PASSWORD', exp: 888, myRoom: { secret: 'SECRET_ROOM' } } },
         checkins: {
-            privateId: { name: '학생', date: '2026-09-02', reason: 'SECRET_HEALTH', pointPenalty: 200, time: 'SECRET_TIME' },
+            privateId: { name: '학생', date: '2026-09-02', category: '결석', reason: 'SECRET_HEALTH', pointPenalty: 200, time: 'SECRET_TIME' },
             old: { name: '학생', date: '2026-09-01' }
         },
         cleaningRoot: { '2026-09-02': { 학생: { cleanDone: true, checkedBy: 'SECRET_TEACHER' } }, '2026-09-01': { 학생: { cleanDone: true } } },
@@ -20,11 +20,30 @@ test('projection includes board fields while removing emails, points, attendance
     const output = JSON.stringify(shared);
     assert.doesNotMatch(output, /SECRET|privateUid|privateId|999|888|2026-09-01/);
     assert.deepEqual(Object.values(shared.users), [{ name: '학생', number: 7 }]);
-    assert.deepEqual(Object.values(shared.checkins), [{ name: '학생', date: '2026-09-02', attended:false }]);
+    assert.deepEqual(Object.values(shared.checkins), [{ name: '학생', date: '2026-09-02', attended: false }]);
     assert.deepEqual(shared.cleaningRoot, { '2026-09-02': { 학생: { cleanDone: true } } });
     assert.deepEqual(shared.assignmentCompletions, { a: { 학생: true } });
     assert.equal(shared.seatData.layout['0-0'], '학생');
     assert.equal(shared.dismissalNotes['2026-09-02'].teacherMessage, '준비물 챙기기');
+});
+
+test('projection marks only normal and late records as attended', () => {
+    const shared = project({
+        users: {
+            one: { name: '정상학생', no: 1 },
+            two: { name: '지각학생', no: 2 },
+            three: { name: '결석학생', no: 3 }
+        },
+        checkins: {
+            one: { name: '정상학생', date: '2026-09-02', category: '정상' },
+            two: { name: '지각학생', date: '2026-09-02', category: '지각' },
+            three: { name: '결석학생', date: '2026-09-02', category: '결석' }
+        }
+    }, '2026-09-02');
+    assert.deepEqual(
+        Object.values(shared.checkins).map(item => item.attended),
+        [true, true, false]
+    );
 });
 
 test('partial weekly overrides keep inheritance and only copy display fields', () => {
@@ -134,10 +153,10 @@ test('Korean midnight refreshes only the current-day attendance projection', asy
 
 test('rules grant anonymous read only to the display path and protect administrative writes', () => {
     const { rules } = JSON.parse(fs.readFileSync(path.join(__dirname, '../database.rules.json'), 'utf8'));
-    assert.equal(rules['.read'], false);
-    assert.equal(rules['.write'], false);
+    assert.match(rules['.read'], /ksosuny@cberi/);
+    assert.match(rules['.write'], /email_verified/);
     assert.equal(rules.blackboardDisplay['.read'], true);
-    assert.match(rules.blackboardDisplay['.write'], /auth\.token\.email/);
-    assert.match(rules.settings['.write'], /auth\.token\.email/);
+    assert.equal(rules.blackboardDisplay['.write'], undefined);
+    assert.equal(rules.settings['.write'], undefined);
     assert.deepEqual(rules.pointLogs['.indexOn'], ['name']);
 });
