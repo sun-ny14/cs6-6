@@ -306,6 +306,12 @@ auth.onAuthStateChanged(async user=>{
             startApp();
         }
 
+        // userEmails 연결이 끝난 뒤 권한이 필요한 실시간 구독을 다시 시작함.
+        // 인증 직후 먼저 실행된 상점 구독이 거부됐더라도 기존 상품을 다시 불러옴.
+        if(typeof window.startShopListener==='function'){
+            window.startShopListener();
+        }
+
         // startApp 실행 후 다시 한번 권한 적용
         applyAccessControl();
 

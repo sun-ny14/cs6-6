@@ -7,6 +7,56 @@ window.rIdx=window.rIdx||0;
 window.routineActive=false;
 window.routineItems=window.routineItems||[];
 
+let publicDirectoryFingerprint='';
+
+function syncPublicDirectoryFromUsers(snapshot){
+    if(!window.isVerifiedAdmin?.())return;
+
+    const publicStudents={};
+    const emailMappings={};
+    const publicFields=[
+        'no','number','points','exp','experience','level','lv',
+        'animal','selectedAnimal','title','selectedTitle'
+    ];
+
+    snapshot.forEach(child=>{
+        const user=child.val()||{};
+        const key=String(child.key||'').trim();
+        const name=String(user.name||key).trim();
+        const email=String(user.email||'').trim().toLowerCase();
+        const role=String(user.role||'').trim();
+
+        const administratorEmail=String(typeof adminEmail!=='undefined'?adminEmail:'').trim().toLowerCase();
+        if(!key||!name||name==='총사령관'||user.isAdmin===true||role==='관리자'||(email&&email===administratorEmail))return;
+
+        const visible={name};
+        publicFields.forEach(field=>{
+            const value=user[field];
+            if(['string','number','boolean'].includes(typeof value))visible[field]=value;
+        });
+        publicStudents[key]=visible;
+
+        const emailKey=email.replace(/\./g,',');
+        if(email&&email!=='미등록'&&!/[#$\[\]\/]/.test(emailKey))emailMappings[emailKey]=key;
+    });
+
+    const fingerprint=JSON.stringify({publicStudents,emailMappings});
+    if(fingerprint===publicDirectoryFingerprint)return;
+    publicDirectoryFingerprint=fingerprint;
+
+    const updates={publicStudents};
+    Object.entries(emailMappings).forEach(([emailKey,name])=>{
+        updates[`userEmails/${emailKey}`]=name;
+    });
+
+    db.ref().update(updates).then(()=>{
+        console.log('공개 학생 명단 복구 완료:',Object.keys(publicStudents).length);
+    }).catch(error=>{
+        publicDirectoryFingerprint='';
+        console.error('공개 학생 명단 복구 실패:',error);
+    });
+}
+
 function getTodayKST(){
     const now=new Date();
     const krTime=new Date(now.getTime()+9*60*60*1000);
@@ -507,6 +557,8 @@ if (typeof refreshCheckinGuide === 'function') {
     }
 
     db.ref(admin?'users':'publicStudents').on('value',snap=>{
+
+        if(admin)syncPublicDirectoryFromUsers(snap);
 
         const users=[];
 
