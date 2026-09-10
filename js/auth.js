@@ -3,63 +3,28 @@
 const DEV_MODE=false;
 const ADMIN_INACTIVITY_MS=30*60*1000;
 const STUDENT_INACTIVITY_MS=2*60*60*1000;
-const INACTIVITY_EVENTS=['pointerdown','keydown','touchstart','scroll'];
 let inactivityTimer=null;
-let lastInactivityReset=0;
+let stopAccessListener=()=>{};
 
-function stopInactivityLogout(){
-    if(inactivityTimer){
-        clearTimeout(inactivityTimer);
-        inactivityTimer=null;
-    }
-    INACTIVITY_EVENTS.forEach(eventName=>{
-        window.removeEventListener(eventName,recordActivity,true);
-    });
-}
-
-function recordActivity(){
-    const now=Date.now();
-    if(now-lastInactivityReset<15000)return;
-    lastInactivityReset=now;
-    scheduleInactivityLogout();
-}
-
-function scheduleInactivityLogout(){
-    if(!auth?.currentUser)return;
+function resetInactivityTimer(){
     clearTimeout(inactivityTimer);
-    const limit=window.isAdmin===true
-        ?ADMIN_INACTIVITY_MS
-        :STUDENT_INACTIVITY_MS;
-    inactivityTimer=setTimeout(async()=>{
-        try{
-            await auth.signOut();
-            alert('장시간 사용하지 않아 안전하게 자동 로그아웃되었습니다.');
-        }catch(error){
-            console.error('자동 로그아웃 오류:',error);
-        }
-    },limit);
+    if(!auth.currentUser)return;
+    inactivityTimer=setTimeout(()=>auth.signOut(),window.isAdmin===true
+        ?ADMIN_INACTIVITY_MS:STUDENT_INACTIVITY_MS);
 }
 
-function startInactivityLogout(){
-    stopInactivityLogout();
-    lastInactivityReset=Date.now();
-    INACTIVITY_EVENTS.forEach(eventName=>{
-        window.addEventListener(eventName,recordActivity,true);
-    });
-    scheduleInactivityLogout();
-}
+['pointerdown','keydown','touchstart'].forEach(eventName=>
+    window.addEventListener(eventName,resetInactivityTimer,{passive:true}));
 
-function handleLogin(){
+async function handleLogin(){
     const provider=new firebase.auth.GoogleAuthProvider();
-
-    auth.setPersistence(
-        firebase.auth.Auth.Persistence.SESSION
-    ).then(()=>{
-        return auth.signInWithPopup(provider);
-    }).catch(error=>{
+    try{
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        await auth.signInWithPopup(provider);
+    }catch(error){
         console.error('로그인 오류:',error);
         alert('로그인에 실패했습니다.');
-    });
+    }
 }
 
 function setMenuVisible(id,visible,displayType='block'){
@@ -76,25 +41,74 @@ function setMenuVisible(id,visible,displayType='block'){
     );
 }
 
-window.canManageCleaningChecks=function(){
-    if(window.isVerifiedAdmin())return true;
+window.canUseCleaningTab=function(){
+    if(window.isAdmin===true)return true;
+
+    if(window.canManageCleaningChecks())return true;
+
     const name=String(window.myName||'').trim();
-    const role=String(window.currentUser?.role||'').trim();
-    const assigned=(window.cleaningAssignments||{})[name];
-    return role==='청소'||assigned===true||assigned==='true'||
-        (assigned&&typeof assigned==='object'&&assigned.enabled===true);
-};
-window.canUseCleaningTab=()=>window.canManageCleaningChecks();
-window.canManageShopRequests=function(){
-    if(window.isVerifiedAdmin())return true;
-    const name=String(window.myName||'').trim();
-    return String(window.currentUser?.role||'').trim()==='상점'||
-        String((window.studentRoles||{})[name]||'').trim()==='상점'||
-        window.currentUser?.isHelper===true;
+    if(!name)return false;
+
+    const assignments=window.cleaningAssignments||{};
+    const saved=assignments[name];
+    const roleValue=(window.studentRoles||{})[name];
+    const role=typeof roleValue==='string'
+        ?roleValue.trim()
+        :String(
+            roleValue?.role||
+            roleValue?.name||
+            roleValue?.title||
+            ''
+        ).trim();
+
+    return saved===true||
+        saved==='true'||
+        (saved&&typeof saved==='object'&&saved.enabled===true)||
+        /청소|쓸기|닦기|분리수거|쓰레기|정리/.test(role);
 };
 
+window.canManageCleaningChecks=function(){
+    const role=String(window.currentUser?.role||'').trim();
+
+    return window.isAdmin===true||role==='청소';
+};
+
+window.canManageShopRequests=function(){
+    const role=String(window.currentUser?.role||'').trim();
+
+    return window.isAdmin===true||
+        role==='상점'||
+        window.isHelper===true;
+};
+
+// 교사와 학생은 같은 화면 구조에 다른 팔레트를 씁니다.
+// 색은 전부 css/style.css 의 body.role-teacher / body.role-student 토큰에서 나옵니다.
+function applyRoleTheme(){
+    const admin=window.isAdmin===true;
+    const signedIn=!!String(window.myName||'').trim();
+
+    document.body.classList.toggle('role-teacher',admin||!signedIn);
+    document.body.classList.toggle('role-student',signedIn&&!admin);
+
+    const roleLabel=document.getElementById('nav-role-label');
+    if(roleLabel){
+        roleLabel.textContent=admin
+            ?'학급 관리'
+            :signedIn
+                ?String(window.myName)+' 용사'
+                :'용사 관리 시스템';
+    }
+
+    const adminSection=document.getElementById('nav-admin-section');
+    if(adminSection)adminSection.hidden=!admin;
+}
+
+window.applyRoleTheme=applyRoleTheme;
+
 function applyAccessControl(){
-    const admin=window.isVerifiedAdmin();
+    const admin=window.isAdmin===true;
+
+    applyRoleTheme();
 
     // 관리자 전용 메뉴
     [
@@ -103,11 +117,16 @@ function applyAccessControl(){
         'btn-management',
         'btn-blackboard-admin',
         'btn-admin',
+        'btn-add-point-guide',
         'floating-point-btn',
         'floating-multi-btn'
     ].forEach(id=>{
         setMenuVisible(id,admin);
     });
+
+    // 포인트 화면은 학생도 사용하지만, 포인트 도감은 교사에게만 공개한다.
+    // 나의 인벤토리와 개인 포인트 내역은 아래에서 기존대로 표시된다.
+    setMenuVisible('point-guide-panel',admin);
 
     // 상점 주문 관리
     setMenuVisible(
@@ -150,6 +169,8 @@ function applyAccessControl(){
 window.applyAccessControl=applyAccessControl;
 
 auth.onAuthStateChanged(async user=>{
+    stopAccessListener();
+    stopAccessListener=()=>{};
     const loginScreen=document.getElementById('login-screen');
     const loadingScreen=document.getElementById('loading-screen');
     const mainApp=document.getElementById('main-app');
@@ -160,7 +181,7 @@ auth.onAuthStateChanged(async user=>{
     if(DEV_MODE)return;
 
     if(!user){
-        stopInactivityLogout();
+        clearTimeout(inactivityTimer);
         window.myName='';
         window.isAdmin=false;
         window.isHelper=false;
@@ -214,44 +235,15 @@ auth.onAuthStateChanged(async user=>{
             .toLowerCase();
 
         const admin=
-            loginEmail===savedAdminEmail && window.isVerifiedAdmin();
+            loginEmail===savedAdminEmail;
 
-        const emailKey=
-            loginEmail.replace(/\./g,',');
-
-        const emailSnapshot=
-            await db.ref(
-                `userEmails/${emailKey}`
-            ).once('value');
-
-        let studentName=String(emailSnapshot.val()||'').trim();
-        if(!studentName&&!admin){
-            const legacySnapshot=await db.ref('users')
-                .orderByChild('email')
-                .equalTo(loginEmail)
-                .limitToFirst(2)
-                .once('value');
-            const matches=[];
-            legacySnapshot.forEach(child=>matches.push(child.key));
-            if(matches.length===1){
-                studentName=matches[0];
-                await db.ref(`userEmails/${emailKey}`).set(studentName);
-            }
+        // 등록 여부와 역할은 읽기 가능한 사용자 목록이 아니라 서버에서 검증한다.
+        const session=await window.callSecure('getSecureSession');
+        const studentName=String(session.name||'').trim();
+        if(!studentName||Boolean(session.teacher)!==admin){
+            throw new Error('로그인 권한 정보를 확인할 수 없습니다.');
         }
-        if(!studentName&&!admin){
-            alert('미등록 용사입니다.');
-            await auth.signOut();
-            return;
-        }
-        studentName=studentName||'총사령관';
-
-        const userSnapshot=
-            await db.ref(
-                `users/${studentName}`
-            ).once('value');
-
-        const userData=
-            userSnapshot.val()||{};
+        const userData=session.user||{};
 
         window.myName=studentName;
         window.isAdmin=admin;
@@ -265,9 +257,17 @@ auth.onAuthStateChanged(async user=>{
             name:userData.name||studentName
         };
 
-        startInactivityLogout();
+        const accessRef=db.ref(`access/${user.uid}`);
+        const receiveAccess=snapshot=>{
+            const access=snapshot.val()||{};
+            if(window.currentUser)window.currentUser.role=String(access.role||window.currentUser.role||'');
+            window.isHelper=window.currentUser?.role==='상점';
+            applyAccessControl();
+        };
+        accessRef.on('value',receiveAccess);
+        stopAccessListener=()=>accessRef.off('value',receiveAccess);
 
-        // 로그인할 때마다 권한 다시 적용
+        resetInactivityTimer();
         applyAccessControl();
 
         if(loginScreen){
@@ -306,12 +306,6 @@ auth.onAuthStateChanged(async user=>{
             startApp();
         }
 
-        // userEmails 연결이 끝난 뒤 권한이 필요한 실시간 구독을 다시 시작함.
-        // 인증 직후 먼저 실행된 상점 구독이 거부됐더라도 기존 상품을 다시 불러옴.
-        if(typeof window.startShopListener==='function'){
-            window.startShopListener();
-        }
-
         // startApp 실행 후 다시 한번 권한 적용
         applyAccessControl();
 
@@ -320,7 +314,6 @@ auth.onAuthStateChanged(async user=>{
         }
 
     }catch(error){
-        stopInactivityLogout();
         console.error('로그인 정보 처리 오류:',error);
         alert('로그인 정보를 불러오지 못했습니다.');
     }

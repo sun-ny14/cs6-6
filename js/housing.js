@@ -57,10 +57,10 @@ window.refreshHousingAdminControl = function() {
             ? "용사의 방 닫기"
             : "용사의 방 열기";
 
-        button.style.backgroundColor =
-            window.isHousingEnabled
-                ? "#e74c3c"
-                : "#27ae60";
+        button.classList.remove("btn--warn", "btn--good", "btn--danger");
+        button.classList.add(
+            window.isHousingEnabled ? "btn--danger" : "btn--good"
+        );
     }
 };
 
@@ -118,8 +118,9 @@ window.renderMyRoom = function() {
     if (!container || !owner || !window.isCurrentHousingView(owner, version)) return;
     
     return Promise.all([
-        db.ref('settings/defaultBg').once('value'),
-        db.ref(`rooms/${owner}`).once('value')
+        db.ref(window.isAdmin===true?'settings/defaultBg':'publicSettings/defaultBg').once('value'),
+        db.ref(owner===window.myName||window.isAdmin===true
+            ?`users/${owner}/myRoom`:`publicProfiles/${owner}/myRoom`).once('value')
     ]).then(([defaultSnap, snap]) => {
             if (!window.isCurrentHousingView(owner, version)) return;
             const defaultBg = defaultSnap.val() || window.currentDefaultBg || 'assets/housing/backgrounds/level-1.png';
@@ -231,7 +232,7 @@ window.renderMyRoom = function() {
                             const finalX = parseInt(div.style.left);
                             const finalY = parseInt(div.style.top);
                             if (window.canManageHousing() && window.isCurrentHousingView(owner, version)) {
-                                db.ref(`rooms/${owner}/objects/${key}`).update({x: finalX, y: finalY});
+                                db.ref(`users/${owner}/myRoom/objects/${key}`).update({x: finalX, y: finalY});
                             }
                         };
 
@@ -261,15 +262,15 @@ window.openItemEditor = function(key, type, currentW, currentH, isFlipped) {
     const minW = baseW * 0.5, minH = baseH * 0.5;
 
     let h = `
-        <div style="text-align:center; padding: 10px;">
-            <h3 style="margin-top:0;">🛠️ ${type} 설정</h3>
-            <p style="color:#666; font-size:1.1rem;">현재 크기: ${Math.round(currentW)} x ${Math.round(currentH)}</p>
-            <div style="display:flex; justify-content:center; gap:10px; margin-bottom: 20px;">
-                <button onclick="resizeRoomItem('${key}', ${currentW*1.2}, ${currentH*1.2}, ${maxW}, ${maxH}, 'up')" style="flex:1; padding:15px; background:var(--green, #2ecc71); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer;">➕ 크게</button>
-                <button onclick="resizeRoomItem('${key}', ${currentW*0.8}, ${currentH*0.8}, ${minW}, ${minH}, 'down')" style="flex:1; padding:15px; background:var(--gold, #f1c40f); color:var(--dark, #333); border:none; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer;">➖ 작게</button>
-                <button onclick="toggleFlipRoomItem('${key}', ${isFlipped ? true : false})" style="flex:1; padding:15px; background:var(--primary, #3498db); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer;">↔️ 반전</button>
+        <div class="stack center">
+            <h3>🛠️ ${type} 설정</h3>
+            <p class="muted">현재 크기: ${Math.round(currentW)} x ${Math.round(currentH)}</p>
+            <div class="btn-row btn-row--fill">
+                <button class="btn btn--good btn--lg" onclick="resizeRoomItem('${key}', ${currentW*1.2}, ${currentH*1.2}, ${maxW}, ${maxH}, 'up')">➕ 크게</button>
+                <button class="btn btn--gold btn--lg" onclick="resizeRoomItem('${key}', ${currentW*0.8}, ${currentH*0.8}, ${minW}, ${minH}, 'down')">➖ 작게</button>
+                <button class="btn btn--primary btn--lg" onclick="toggleFlipRoomItem('${key}', ${isFlipped ? true : false})">↔️ 반전</button>
             </div>
-            <button onclick="deleteRoomItem('${key}')" style="padding:15px; width:100%; background:var(--red, #e74c3c); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem; cursor:pointer;">🗑️ 이 아이템 치우기</button>
+            <button class="btn btn--danger btn--lg btn--block" onclick="deleteRoomItem('${key}')">🗑️ 이 아이템 치우기</button>
         </div>
     `;
     if (typeof openPopup === 'function') openPopup("아이템 관리", h);
@@ -277,7 +278,7 @@ window.openItemEditor = function(key, type, currentW, currentH, isFlipped) {
 
 window.toggleFlipRoomItem = function(key, currentFlipState) {
     if (!window.canManageHousing()) return;
-    db.ref(`rooms/${myName}/objects/${key}`).update({
+    db.ref(`users/${myName}/myRoom/objects/${key}`).update({
         flipX: !currentFlipState
     }).then(() => {
         renderMyRoom(); 
@@ -289,7 +290,7 @@ window.resizeRoomItem = function(key, newW, newH, limitW, limitH, dir) {
     if (!window.canManageHousing()) return;
     if (dir === 'up' && (newW > limitW || newH > limitH)) return alert("해당 아이템을 더 이상 크게 만들 수 없습니다!");
     if (dir === 'down' && (newW < limitW || newH < limitH)) return alert("해당 아이템을 더 이상 작게 만들 수 없습니다!");
-    db.ref(`rooms/${myName}/objects/${key}`).update({w: Math.round(newW), h: Math.round(newH)}).then(() => {
+    db.ref(`users/${myName}/myRoom/objects/${key}`).update({w: Math.round(newW), h: Math.round(newH)}).then(() => {
         renderMyRoom(); 
         if (typeof closePopup === 'function') closePopup(); 
     });
@@ -298,7 +299,7 @@ window.resizeRoomItem = function(key, newW, newH, limitW, limitH, dir) {
 window.deleteRoomItem = function(key) {
     if (!window.canManageHousing()) return;
     if (confirm("정말 방에서 이 아이템을 치우시겠습니까?")) {
-        db.ref(`rooms/${myName}/objects/${key}`).remove().then(() => {
+        db.ref(`users/${myName}/myRoom/objects/${key}`).remove().then(() => {
             renderMyRoom(); 
             if (typeof closePopup === 'function') closePopup();
         });
@@ -319,14 +320,14 @@ window.renderHousingInventory = function() {
         let hasItems = false;
         for (let k in inv) {
             hasItems = true; const i = inv[k];
-            list.innerHTML += `<div style="border:1px solid #ccc; padding:10px; border-radius:8px; text-align:center; min-width:80px; background:#f8f9fa;">
-                <div style="font-size:0.75rem; color:#666; font-weight:bold;">${i.category}</div>
-                <img src="${i.img}" style="width:40px; height:40px; object-fit:contain; image-rendering:pixelated; margin:5px 0;">
-                <div style="font-size:0.85rem; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${i.name}</div>
-                <button onclick="placeOrApplyHousingItem('${i.img}', '${i.category}')" style="width:100%; padding:5px; margin-top:5px; background:var(--primary, #3498db); color:white; border:none; border-radius:4px; cursor:pointer;">${i.category==='배경'?'배경적용':'배치하기'}</button>
+            list.innerHTML += `<div class="shop-card">
+                <div class="tiny muted strong">${i.category}</div>
+                <img src="${i.img}" style="width:40px; height:40px; object-fit:contain; image-rendering:pixelated;">
+                <div class="small strong nowrap" style="overflow:hidden; text-overflow:ellipsis;">${i.name}</div>
+                <button class="btn btn--primary btn--sm btn--block" onclick="placeOrApplyHousingItem('${i.img}', '${i.category}')">${i.category==='배경'?'배경적용':'배치하기'}</button>
             </div>`;
         }
-        if (!hasItems) list.innerHTML = `<p style="color:#888; font-size:0.9rem; margin-top:10px;">아직 구매한 하우징 아이템이 없습니다.</p>`;
+        if (!hasItems) list.innerHTML = `<div class="empty"><strong>아직 구매한 하우징 아이템이 없습니다.</strong></div>`;
     });
 };
 
@@ -334,11 +335,11 @@ window.placeOrApplyHousingItem = function(img, category) {
     if (!window.canManageHousing()) return;
     if (category === '배경') {
         if (confirm("방 전체 배경을 이 이미지로 바꾸시겠습니까?")) {
-            db.ref(`rooms/${myName}/background`).set(img).then(() => renderMyRoom());
+            db.ref(`users/${myName}/myRoom/background`).set(img).then(() => renderMyRoom());
         }
     } else {
         const objId = Date.now();
-        db.ref(`rooms/${myName}/objects/${objId}`).set({
+        db.ref(`users/${myName}/myRoom/objects/${objId}`).set({
             img: img, type: category, x: 290, y: 210 
         }).then(() => renderMyRoom());
         alert("방 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
@@ -348,14 +349,16 @@ window.placeOrApplyHousingItem = function(img, category) {
 // 7. 하우징 상점 및 관리 로직
 window.openHousingShopPopup = function() {
     let h = `
-        <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:15px; text-align:center;">
-            <button onclick="loadHousingShop('전체')" style="padding:10px; margin:2px; cursor:pointer; font-weight:bold;">전체</button>
-            <button onclick="loadHousingShop('배경')" style="padding:10px; margin:2px; cursor:pointer; font-weight:bold;">🖼️ 배경</button>
-            <button onclick="loadHousingShop('가구')" style="padding:10px; margin:2px; cursor:pointer; font-weight:bold;">🪑 가구</button>
-            <button onclick="loadHousingShop('인물')" style="padding:10px; margin:2px; cursor:pointer; font-weight:bold;">👤 인물</button>
+        <div class="stack">
+            <div class="seg">
+                <button onclick="loadHousingShop('전체')">전체</button>
+                <button onclick="loadHousingShop('배경')">🖼️ 배경</button>
+                <button onclick="loadHousingShop('가구')">🪑 가구</button>
+                <button onclick="loadHousingShop('인물')">👤 인물</button>
+            </div>
+            ${isAdmin ? `<button class="btn btn--good btn--lg btn--block" onclick="openAddHousingShopPopup()">+ 새 아이템 직접 등록</button>` : ''}
+            <div id="housing-shop-items" class="grid grid--tight scroll-y" style="max-height:50vh;">로딩 중...</div>
         </div>
-        ${isAdmin ? `<button onclick="openAddHousingShopPopup()" style="background:var(--green, #2ecc71); color:white; font-weight:bold; margin-bottom:15px; width:100%; border:none; padding:15px; border-radius:10px; cursor:pointer;">+ 새 아이템 직접 등록</button>` : ''}
-        <div id="housing-shop-items" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:15px; max-height:50vh; overflow-y:auto; padding:5px;">로딩 중...</div>
     `;
     if (typeof openPopup === 'function') openPopup("🛒 하우징 상점", h);
     loadHousingShop('전체');
@@ -400,17 +403,17 @@ if (
 }
             hasItems = true;
             html += `
-                <div style="border:1px solid #ddd; padding:10px; border-radius:12px; text-align:center; background:white;">
-                    <div style="font-size:0.75rem; color:#888;">${item.category}</div>
-                    <img src="${item.img}" style="width:50px; height:50px; object-fit:contain; image-rendering:pixelated; margin:8px 0;">
-                    <div style="font-weight:bold;">${item.name}</div>
-                    <div style="color:var(--primary, #3498db); font-weight:bold; margin:5px 0;">${item.price}P</div>
-                    <button onclick="buyHousingItem('${k}')" style="width:100%; padding:6px; background:var(--gold, #f1c40f); font-weight:bold; border:none; border-radius:6px; cursor:pointer;">구매하기</button>
-                    ${isAdmin ? `<button onclick="deleteHousingShopItem('${k}')" style="width:100%; padding:4px; margin-top:5px; background:var(--red, #e74c3c); color:white; border:none; border-radius:6px; font-size:0.8rem; cursor:pointer;">삭제</button>` : ''}
+                <div class="shop-card">
+                    <div class="tiny muted">${item.category}</div>
+                    <img src="${item.img}" style="width:50px; height:50px; object-fit:contain; image-rendering:pixelated;">
+                    <div class="strong">${item.name}</div>
+                    <div class="shop-price">${item.price}P</div>
+                    <button class="btn btn--gold btn--sm btn--block" onclick="buyHousingItem('${k}')">구매하기</button>
+                    ${isAdmin ? `<button class="btn btn--danger btn--xs btn--block" onclick="deleteHousingShopItem('${k}')">삭제</button>` : ''}
                 </div>
             `;
         });
-        container.innerHTML = hasItems ? html : `<div style="grid-column:1/-1; text-align:center; color:#999;">등록된 아이템이 없습니다.</div>`;
+        container.innerHTML = hasItems ? html : `<div class="empty" style="grid-column:1/-1;"><strong>등록된 아이템이 없습니다.</strong></div>`;
     });
 };
 
@@ -422,16 +425,28 @@ window.deleteHousingShopItem = function(key) {
 
 window.openAddHousingShopPopup = function(itemKey = null, itemData = {}) {
     let h = `
-        <label style="font-weight:bold; display:block; margin-top:5px;">아이템명:</label><input type="text" id="hs-name" value="${itemData.name || ''}" style="width:100%; padding:8px; margin-top:5px; box-sizing:border-box;">
-        <label style="font-weight:bold; display:block; margin-top:10px;">가격(P):</label><input type="number" id="hs-price" value="${itemData.price || 0}" style="width:100%; padding:8px; margin-top:5px; box-sizing:border-box;">
-        <label style="font-weight:bold; display:block; margin-top:10px;">카테고리:</label>
-        <select id="hs-cat" style="width:100%; padding:8px; margin-top:5px; box-sizing:border-box;">
-            <option value="배경">🖼️ 배경</option>
-            <option value="가구">🪑 가구</option>
-        </select>
-        <label style="font-weight:bold; display:block; margin-top:10px;">이미지 첨부:</label>
-        <input type="file" id="hs-file" accept="image/*" style="width:100%; margin-top:5px;">
-        <button onclick="saveHousingItem('${itemKey}')" style="width:100%; padding:15px; background:var(--primary, #3498db); color:white; border:none; border-radius:8px; font-weight:bold; margin-top:15px; cursor:pointer;">저장하기</button>
+        <div class="stack">
+            <div class="field">
+                <label class="field-label">아이템명:</label>
+                <input type="text" id="hs-name" value="${itemData.name || ''}">
+            </div>
+            <div class="field">
+                <label class="field-label">가격(P):</label>
+                <input type="number" id="hs-price" value="${itemData.price || 0}">
+            </div>
+            <div class="field">
+                <label class="field-label">카테고리:</label>
+                <select id="hs-cat">
+                    <option value="배경">🖼️ 배경</option>
+                    <option value="가구">🪑 가구</option>
+                </select>
+            </div>
+            <div class="field">
+                <label class="field-label">이미지 첨부:</label>
+                <input type="file" id="hs-file" accept="image/*">
+            </div>
+            <button class="btn btn--primary btn--lg btn--block" onclick="saveHousingItem('${itemKey}')">저장하기</button>
+        </div>
     `;
     if (typeof openPopup === 'function') openPopup("아이템 직접 등록", h);
 };
@@ -462,9 +477,12 @@ window.saveHousingItem = function(key) {
     }
 };
 
+// 방은 가구를 옮기는 시점에 저장됩니다.
+// 이 함수는 호환을 위해 남겨 두었고, 호출되면 알림 없이 반환합니다.
 window.saveMyRoom = function() {
     if (!window.canManageHousing()) return;
-    alert("가구나 인물을 움직이면 실시간으로 자동 저장됩니다! 🏠✨");
+    const hint = document.getElementById('housing-room-status');
+    if (hint) hint.textContent = '가구를 옮기면 그 자리에서 바로 저장됩니다.';
 };
 
 // 8. 친구 방 방문 및 이모지 방명록
@@ -558,7 +576,8 @@ window.toggleRoomGuestbook = async function() {
     button.textContent = panel.hidden ? '📖 방명록 확인' : '📖 방명록 접기';
     if (panel.hidden) return;
     try {
-        const snapshot = await db.ref(`rooms/${owner}`).once('value');
+        const snapshot = await db.ref(owner===window.myName||window.isAdmin===true
+            ?`users/${owner}/myRoom`:`publicProfiles/${owner}/myRoom`).once('value');
         if (window.isCurrentHousingView(owner, version) && revision === (window.housingView.socialRevision || 0)) {
             window.renderRoomSocial(snapshot.val() || {});
         }
@@ -582,31 +601,11 @@ window.sendRoomReaction = async function(targetUser, type) {
     document.getElementById('housing-reactions').querySelectorAll('button').forEach(button => button.disabled = true);
     status.textContent = '반응을 남기는 중이에요…';
     try {
-        const offset = await db.ref('.info/serverTimeOffset').once('value');
-        window.housingServerTimeOffset = Number(offset.val()) || 0;
-        if (!window.isCurrentHousingView(owner, version) || window.myName !== visitor) return;
-        const day = housingToday(Date.now() + window.housingServerTimeOffset);
-        const entryKey = db.ref(`rooms/${owner}/guestbook`).push().key;
-        // 한 트랜잭션에서 일일 제한과 방명록을 함께 저장한다.
-        // 연속 클릭, 여러 탭, 서로 다른 이모지 요청이 겹쳐도 한 건만 기록된다.
-        const result = await db.ref(`rooms/${owner}`).transaction(current => {
-            const room = current || {};
-            if (hasHousingReaction(room, visitor, day)) return;
-            room.dailyReactions = room.dailyReactions || {};
-            room.dailyReactions[visitor] = room.dailyReactions[visitor] || {};
-            room.dailyReactions[visitor][day] = type;
-            room.guestbook = room.guestbook || {};
-            room.guestbook[entryKey] = {
-                user: visitor, type, day,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            };
-            room[type] = (Number(room[type]) || 0) + 1;
-            return room;
-        }, undefined, false);
+        const result = await window.callSecure('addRoomReaction', { owner, type });
         housingPendingReactions.delete(pendingKey);
         if (!window.isCurrentHousingView(owner, version)) return;
         window.housingView.socialRevision = (window.housingView.socialRevision || 0) + 1;
-        window.renderRoomSocial(result.snapshot.val() || {});
+        window.renderRoomSocial(result.room || {});
         document.getElementById('housing-guestbook').hidden = false;
         const button = document.getElementById('housing-guestbook-button');
         button.setAttribute('aria-expanded', 'true');
@@ -770,18 +769,8 @@ window.sendRoomReaction = async function(targetUser, type) {
 
     window.syncHousingRewards = async function(userName) {
         if (!userName) return null;
-        const createAdmin = userName === window.myName && roomIsAdmin();
-        const result = await db.ref(`users/${userName}`).transaction(current => {
-            // 관리자 계정에는 학생용 users 레코드가 없을 수 있다.
-            if (!current && !createAdmin) return current;
-            const user = current || { name: userName };
-            const coins = user.roomCoins;
-            const rewarded = user.roomRewardedLevel;
-            applyHousingRewards(user);
-            if (current && coins === user.roomCoins && rewarded === user.roomRewardedLevel) return;
-            return user;
-        }, undefined, false);
-        return result.snapshot.val();
+        if(userName!==window.myName)return null;
+        return window.callSecure('syncHousingRewards');
     };
 
     /* =====================================================
@@ -798,9 +787,14 @@ window.sendRoomReaction = async function(targetUser, type) {
         isNormal
     ){
 
-        if(!userName){
+        if(!userName||userName!==window.myName){
             return false;
         }
+
+        const secureResult=await window.callSecure('setCheckinRoomReward',{date:String(date||'')});
+        return Boolean(secureResult&&secureResult.normal);
+
+        /* legacy client transaction retained below for reference; server return above is authoritative */
 
         const rewardDate=
             String(
@@ -972,20 +966,11 @@ window.sendRoomReaction = async function(targetUser, type) {
             wallet.id=
                 'housing-wallet-bar';
 
+            wallet.className = 'housing-coin';
             wallet.style.cssText=`
-                display:flex;
-                justify-content:space-between;
-                align-items:center;
-                gap:12px;
                 width:100%;
                 max-width:640px;
                 margin:0 auto 16px;
-                padding:15px 18px;
-                background:#fff4bd;
-                border:2px solid #e7b625;
-                border-radius:14px;
-                color:#4b3a00;
-                font-weight:900;
                 box-sizing:border-box;
             `;
 
@@ -1010,14 +995,11 @@ window.sendRoomReaction = async function(targetUser, type) {
             backgroundPanel.id=
                 'housing-background-panel';
 
+            backgroundPanel.className = 'card card--soft';
             backgroundPanel.style.cssText=`
                 width:100%;
                 max-width:640px;
                 margin:18px auto 0;
-                padding:18px;
-                background:#f8fafc;
-                border:1px solid #dbe2ea;
-                border-radius:15px;
                 box-sizing:border-box;
             `;
 
@@ -1067,15 +1049,11 @@ window.sendRoomReaction = async function(targetUser, type) {
                     🪙 방꾸미기 코인
                 </span>
 
-                <strong style="
-                    font-size:1.35rem;
-                ">
+                <strong class="housing-coin-value">
                     ${coins.toLocaleString('ko-KR')} C
                 </strong>
 
-                <small style="
-                    color:#6b5a1c;
-                ">
+                <small class="muted">
                     Lv.${level}
                     · 레벨업 +${LEVEL_REWARD}C
                     · 정상등교 +${CHECKIN_REWARD}C
@@ -1086,116 +1064,64 @@ window.sendRoomReaction = async function(targetUser, type) {
         if(panel){
 
             panel.innerHTML=`
-                <h3 style="
-                    margin:0 0 12px;
-                    color:#263b63;
-                ">
-                    🖼️ 레벨 배경
-                </h3>
+                <div class="stack">
+                    <h3>🖼️ 레벨 배경</h3>
 
-                <div style="
-                    display:grid;
-                    grid-template-columns:
-                        repeat(
-                            auto-fit,
-                            minmax(145px,1fr)
-                        );
-                    gap:10px;
-                ">
+                    <div class="grid grid--tight">
 
-                    ${
-                        LEVEL_BACKGROUNDS
-                        .map(background=>{
+                        ${
+                            LEVEL_BACKGROUNDS
+                            .map(background=>{
 
-                            const unlocked=
-                                level>=
-                                background.level;
+                                const unlocked=
+                                    level>=
+                                    background.level;
 
-                            const selected=
-                                currentBackground===
-                                background.img;
+                                const selected=
+                                    currentBackground===
+                                    background.img;
 
-                            return `
-                                <button
-                                    type="button"
-                                    onclick="
-                                        applyUnlockedHousingBackground(
-                                            '${background.img}',
-                                            ${background.level}
-                                        )
-                                    "
-                                    ${unlocked?'':'disabled'}
-                                    style="
-                                        padding:10px;
-                                        text-align:left;
-                                        background:${
-                                            selected
-                                                ?'#e5f0ff'
-                                                :'#fff'
-                                        };
-                                        border:2px solid ${
-                                            selected
-                                                ?'#3975d5'
-                                                :'#d9e0e8'
-                                        };
-                                        border-radius:12px;
-                                        cursor:${
-                                            unlocked
-                                                ?'pointer'
-                                                :'not-allowed'
-                                        };
-                                        opacity:${
-                                            unlocked
-                                                ?'1'
-                                                :'.55'
-                                        };
-                                    "
-                                >
-
-                                    <div style="
-                                        height:78px;
-                                        margin-bottom:7px;
-                                        border-radius:8px;
-                                        background:
-                                            #e9edf3
-                                            url('${background.img}')
-                                            center/cover
-                                            no-repeat;
-                                    ">
-                                    </div>
-
-                                    <strong style="
-                                        display:block;
-                                        color:#263b63;
-                                    ">
-                                        ${
-                                            roomEscape(
-                                                background.name
+                                return `
+                                    <button
+                                        type="button"
+                                        class="pick-card${selected ? ' is-selected' : ''}${unlocked ? '' : ' is-locked'}"
+                                        onclick="
+                                            applyUnlockedHousingBackground(
+                                                '${background.img}',
+                                                ${background.level}
                                             )
-                                        }
-                                    </strong>
+                                        "
+                                        ${unlocked?'':'disabled'}
+                                    >
 
-                                    <small style="
-                                        color:${
-                                            unlocked
-                                                ?'#24713f'
-                                                :'#a33'
-                                        };
-                                        font-weight:800;
-                                    ">
-                                        ${
-                                            unlocked
-                                                ?'사용 가능'
-                                                :`Lv.${background.level} 해금`
-                                        }
-                                    </small>
+                                        <div class="pick-card-art" style="
+                                            background-image:url('${background.img}');
+                                        ">
+                                        </div>
 
-                                </button>
-                            `;
-                        })
-                        .join('')
-                    }
+                                        <span class="pick-card-body">
+                                            <span class="pick-card-title">${
+                                                roomEscape(
+                                                    background.name
+                                                )
+                                            }</span>
 
+                                            <span class="pick-card-note">${
+                                                selected
+                                                    ?'사용 중'
+                                                    :unlocked
+                                                        ?'사용 가능'
+                                                        :`Lv.${background.level} 해금`
+                                            }</span>
+                                        </span>
+
+                                    </button>
+                                `;
+                            })
+                            .join('')
+                        }
+
+                    </div>
                 </div>
             `;
         }
@@ -1309,7 +1235,8 @@ window.sendRoomReaction = async function(targetUser, type) {
         }
 
         await db.ref(
-            `rooms/${window.myName}/background`
+            `users/${window.myName}/`+
+            `myRoom/background`
         )
         .set(image);
 
@@ -1354,107 +1281,69 @@ try {
             )||0;
 
         const html=`
-            <div class="housing-shop-toolbar">
-                <button type="button" onclick="closePopup()" aria-label="하우징 상점 닫기">✕ 상점 닫기</button>
-            </div>
-            <p id="housing-purchase-status" role="status" aria-live="polite"></p>
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                align-items:center;
-                padding:14px 16px;
-                margin-bottom:12px;
-                background:#fff4bd;
-                border:2px solid #e7b625;
-                border-radius:13px;
-                color:#4b3a00;
-                font-weight:900;
-            ">
-                <span>
-                    🪙 내 방꾸미기 코인
-                </span>
+            <div class="stack">
+                <div class="housing-shop-toolbar">
+                    <button type="button" onclick="closePopup()" aria-label="하우징 상점 닫기">✕ 상점 닫기</button>
+                </div>
+                <p id="housing-purchase-status" role="status" aria-live="polite"></p>
+                <div class="housing-coin">
+                    <span>
+                        🪙 내 방꾸미기 코인
+                    </span>
 
-                <strong style="
-                    font-size:1.35rem;
-                ">
-                    ${coins.toLocaleString('ko-KR')} C
-                </strong>
-            </div>
+                    <strong class="housing-coin-value">
+                        ${coins.toLocaleString('ko-KR')} C
+                    </strong>
+                </div>
 
-            <div style="
-                display:flex;
-                justify-content:center;
-                gap:8px;
-                flex-wrap:wrap;
-                padding:12px;
-                margin-bottom:10px;
-                background:#f8f9fa;
-                border-radius:12px;
-            ">
-                <button
-                    onclick="loadHousingShop('전체')"
+                <div class="chip-group" id="housing-shop-cat-filter">
+                    <button
+                        type="button"
+                        class="chip-toggle active"
+                        data-housing-cat="전체"
+                        onclick="loadHousingShop('전체')"
+                    >
+                        전체
+                    </button>
+
+                    <button
+                        type="button"
+                        class="chip-toggle"
+                        data-housing-cat="가구"
+                        onclick="loadHousingShop('가구')"
+                    >
+                        🪑 가구
+                    </button>
+
+
+                </div>
+
+                <p class="muted center">
+                    배경은 구매하지 않고 레벨에 따라 해금됩니다.
+                </p>
+
+                ${
+                    roomIsAdmin()
+                        ?`
+                            <button
+                                class="btn btn--outline btn--lg btn--block"
+                                onclick="
+                                    openAddHousingShopPopup()
+                                "
+                            >
+                                + 새 가구 등록
+                            </button>
+                        `
+                        :''
+                }
+
+                <div
+                    id="housing-shop-items"
+                    class="grid grid--tight scroll-y"
+                    style="max-height:50vh;"
                 >
-                    전체
-                </button>
-
-                <button
-                    onclick="loadHousingShop('가구')"
-                >
-                    🪑 가구
-                </button>
-
-            
-            </div>
-
-            <p style="
-                margin:0 0 12px;
-                text-align:center;
-                color:#667085;
-            ">
-                배경은 구매하지 않고 레벨에 따라 해금됩니다.
-            </p>
-
-            ${
-                roomIsAdmin()
-                    ?`
-                        <button
-                            onclick="
-                                openAddHousingShopPopup()
-                            "
-                            style="
-                                width:100%;
-                                margin-bottom:12px;
-                                padding:13px;
-                                color:white;
-                                background:#2eaf62;
-                                border:0;
-                                border-radius:10px;
-                                font-weight:900;
-                                cursor:pointer;
-                            "
-                        >
-                            + 새 가구 등록
-                        </button>
-                    `
-                    :''
-            }
-
-            <div
-                id="housing-shop-items"
-                style="
-                    display:grid;
-                    grid-template-columns:
-                        repeat(
-                            auto-fill,
-                            minmax(140px,1fr)
-                        );
-                    gap:12px;
-                    max-height:50vh;
-                    padding:5px;
-                    overflow-y:auto;
-                "
-            >
-                불러오는 중...
+                    불러오는 중...
+                </div>
             </div>
         `;
 
@@ -1484,6 +1373,13 @@ try {
             return;
         }
 
+        const catFilter=document.getElementById('housing-shop-cat-filter');
+        if(catFilter){
+            catFilter.querySelectorAll('.chip-toggle').forEach(chip=>{
+                chip.classList.toggle('active',chip.dataset.housingCat===filterCategory);
+            });
+        }
+
         const {owner,version}=window.housingView;
         return Promise.all([db.ref('housingShop').once('value'),db.ref(`users/${owner}/level`).once('value'),db.ref(`users/${owner}/lv`).once('value')]).then(([snapshot,levelSnapshot,legacyLevelSnapshot])=>{
             if (!window.canManageHousing() || !window.isCurrentHousingView(owner,version)) return;
@@ -1498,18 +1394,9 @@ try {
                 const requiredLevel=Math.max(1,item.requiredLevel||1);
                 const unlocked=roomIsAdmin()||level>=requiredLevel;
                 return `
-                    <div style="
-                        padding:12px;
-                        text-align:center;
-                        background:white;
-                        border:1px solid #d9dee8;
-                        border-radius:12px;
-                    ">
+                    <div class="shop-card${unlocked ? '' : ' is-soldout'}">
 
-                        <div style="
-                            color:#667085;
-                            font-size:.78rem;
-                        ">
+                        <div class="tiny muted">
                             ${
                                 roomEscape(
                                     item.category
@@ -1528,14 +1415,11 @@ try {
                             style="
                                 width:70px;
                                 height:70px;
-                                margin:8px 0;
                                 object-fit:contain;
                             "
                         >
 
-                        <div style="
-                            font-weight:900;
-                        ">
+                        <div class="strong">
                             ${
                                 roomEscape(
                                     item.name
@@ -1543,11 +1427,7 @@ try {
                             }
                         </div>
 
-                        <div style="
-                            margin:6px 0;
-                            color:#946700;
-                            font-weight:900;
-                        ">
+                        <div class="shop-price">
                             ${
                                 parseInt(
                                     item.price,
@@ -1556,22 +1436,14 @@ try {
                             }C
                         </div>
 
-                        ${requiredLevel>1?`<div style="margin:6px 0;font-size:.85rem;font-weight:800;color:${unlocked?'#24713f':'#9a5b25'};">${unlocked?`Lv.${requiredLevel} 해금 완료`:`🔒 Lv.${requiredLevel}부터 구매 가능`}</div>`:''}
+                        ${requiredLevel>1?`<div class="badge ${unlocked?'badge--good':'badge--warn'}">${unlocked?`Lv.${requiredLevel} 해금 완료`:`🔒 Lv.${requiredLevel}부터 구매 가능`}</div>`:''}
                         <button
+                            class="btn btn--gold btn--sm btn--block"
                             ${unlocked?'':'disabled'}
                             onclick="
                                 buyHousingItem(
                                     '${key}'
                                 )
-                            "
-                            style="
-                                width:100%;
-                                padding:8px;
-                                background:${unlocked?'#f4c542':'#e4e7ec'};
-                                border:0;
-                                border-radius:7px;
-                                font-weight:900;
-                                cursor:${unlocked?'pointer':'not-allowed'};
                             "
                         >
                             ${unlocked?'구매하기':`Lv.${requiredLevel} 해금`}
@@ -1580,25 +1452,18 @@ try {
                         ${
                             roomIsAdmin()&&!DEFAULT_FURNITURE[key]
                                 ?`
-                                    <button
-                                        onclick="
-                                            deleteHousingShopItem(
-                                                '${key}'
-                                            )
-                                        "
-                                        style="
-                                            width:100%;
-                                            margin-top:5px;
-                                            padding:6px;
-                                            color:white;
-                                            background:#dc4c4c;
-                                            border:0;
-                                            border-radius:7px;
-                                            cursor:pointer;
-                                        "
-                                    >
-                                        삭제
-                                    </button>
+                                    <div class="row-actions">
+                                        <button
+                                            class="btn btn--xs btn--danger"
+                                            onclick="
+                                                deleteHousingShopItem(
+                                                    '${key}'
+                                                )
+                                            "
+                                        >
+                                            삭제
+                                        </button>
+                                    </div>
                                 `
                                 :''
                         }
@@ -1610,15 +1475,11 @@ try {
                 visible.length
                     ?html
                     :`
-                        <p style="
-                            grid-column:1/-1;
-                            text-align:center;
-                            color:#999;
-                        ">
-                            등록된 아이템이 없습니다.
-                        </p>
+                        <div class="empty" style="grid-column:1/-1;">
+                            <strong>등록된 아이템이 없습니다.</strong>
+                        </div>
                     `;
-        }).catch(error=>{console.error('하우징 가구 불러오기 오류:',error);container.innerHTML='<p style="grid-column:1/-1;text-align:center;color:#c0392b;">가구를 불러오지 못했습니다.</p>';});
+        }).catch(error=>{console.error('하우징 가구 불러오기 오류:',error);container.innerHTML='<div class="empty" style="grid-column:1/-1;"><strong>가구를 불러오지 못했습니다.</strong></div>';});
     };
 
 
@@ -1722,41 +1583,16 @@ try {
                 id: db.ref(`users/${owner}/housingPurchases`).push().key, itemKey, name: item.name, item
             });
             const purchaseId = request.id;
-            const timestamp = firebase.database.ServerValue.TIMESTAMP;
-            let insufficient = false, levelLocked = false;
             const requiredLevel = Math.max(1,item.requiredLevel||1);
-            const result = await commitHousingPurchase(db.ref(`users/${owner}`), current => {
-                insufficient = false; levelLocked = false;
-                if (!current && !createAdmin) return current;
-                const user = applyHousingRewards(current || { name: owner });
-                if (user.housingPurchases?.[purchaseId]) return;
-                if (!createAdmin && roomLevel(user)<requiredLevel) { levelLocked=true; return; }
-                if (charge > 0 && user.roomCoins < charge) { insufficient = true; return; }
-                user.roomCoins -= charge;
-                user.housingInventory ||= {};
-                user.housingInventory[purchaseId] = {
-                    shopKey: itemKey, name: item.name, category: item.category,
-                    img: item.img || item.url || '', purchasedAt: timestamp
-                };
-                user.housingPurchases ||= {};
-                user.housingPurchases[purchaseId] = {
-                    itemKey, name: item.name, price: charge, listPrice: price, teacherFree: createAdmin, currency: 'C',
-                    balanceAfter: user.roomCoins, inventoryKey: purchaseId, timestamp
-                };
-                return user;
-            }, owner, version, status);
-            const saved = result.snapshot.val();
-            // 같은 번호의 기존 구매가 있으면 transaction이 쓰기 없이 끝나도 구매 확인 성공이다.
-            if (!saved?.housingPurchases?.[purchaseId] || !saved?.housingInventory?.[purchaseId]) {
-                purchaseRequest(owner, null);
-                status('구매가 완료되지 않았습니다.');
-                return alert(levelLocked ? `Lv.${requiredLevel}부터 구매할 수 있는 가구입니다.` : insufficient ? '방꾸미기 코인이 부족합니다.' :
-                    '구매를 저장하지 못했습니다. 로그인 상태를 확인하고 다시 시도해 주세요.');
+            if (!createAdmin && roomLevel(window.currentUser || {}) < requiredLevel) {
+                return alert(`Lv.${requiredLevel}부터 구매할 수 있는 가구입니다.`);
             }
+            status('서버에서 가격·레벨·잔액을 확인하고 있어요…');
+            const saved = await window.callSecure('purchaseHousingItem', { itemKey, purchaseId });
             purchaseRequest(owner, null);
             purchased = true;
             status('구매 내역과 보관함에 저장했습니다.');
-            const receipt = saved.housingPurchases[purchaseId];
+            const receipt = saved.receipt;
             alert(receipt.teacherFree ? '교사 무료 구매 완료! 보관함과 구매 내역에 저장했습니다.' :
                 `구매 완료! ${receipt.price}C를 사용했습니다. 남은 코인: ${saved.roomCoins}C`);
         } catch (error) {
@@ -1792,14 +1628,14 @@ try {
             const snapshot = await db.ref(`users/${owner}/housingPurchases`).once('value');
             if (!window.canManageHousing() || !window.isCurrentHousingView(owner, version)) return;
             const records = Object.values(snapshot.val() || {}).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            const rows = records.map(record => `<li style="padding:12px 0;border-bottom:1px solid #ddd;">
+            const rows = records.map(record => `<li class="housing-guestbook-entry">
                 <strong>${roomEscape(record.name)}</strong> · ${record.teacherFree ? '교사 무료' : `${roomEscape(record.price)}C`}
                 <div>${roomEscape(new Date(record.timestamp).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }))}
                 · 구매 후 잔액 ${roomEscape(record.balanceAfter)}C</div></li>`).join('');
             openPopup('🧾 내 하우징 구매 내역', `<div id="housing-purchase-history">
                 <button type="button" onclick="closePopup()">✕ 닫기</button>
                 <p>학생은 방꾸미기 코인(C) 사용, 교사는 무료로 기록됩니다. 이전 버전의 물건은 보관함에서 확인하세요.</p>
-                ${rows ? `<ul style="padding-left:20px;max-height:55vh;overflow:auto;">${rows}</ul>` : '<p>아직 저장된 구매 내역이 없습니다.</p>'}
+                ${rows ? `<ul class="scroll-y" style="max-height:55vh;">${rows}</ul>` : '<p>아직 저장된 구매 내역이 없습니다.</p>'}
             </div>`);
         } catch (error) {
             console.error('하우징 구매 내역 조회 오류:', error);

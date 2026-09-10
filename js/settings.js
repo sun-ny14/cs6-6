@@ -44,12 +44,7 @@ window.generateSeatInputs = function() {
         const currentLayout = snap.val() || {};
 
         let html = `
-            <div style="
-                display:grid;
-                grid-template-columns:repeat(${cols},1fr);
-                gap:10px;
-                margin-top:15px;
-            ">
+            <div class="grid" style="grid-template-columns:repeat(${cols},1fr);">
         `;
 
         for (let r = 0; r < rows; r++) {
@@ -64,35 +59,17 @@ window.generateSeatInputs = function() {
                 const savedName = settingsCleanSeatName(rawName);
 
                 html += `
-                    <div style="
-                        background:#f8f9fa;
-                        border:1px solid #ccc;
-                        padding:8px;
-                        border-radius:8px;
-                        text-align:center;
-                    ">
-                        <small style="
-                            color:#666;
-                            display:block;
-                            margin-bottom:4px;
-                        ">
+                    <div class="well field center">
+                        <label class="field-label">
                             ${r + 1}행 ${c + 1}열
-                        </small>
+                        </label>
 
                         <input
                             type="text"
                             id="seat-input-${seatKey}"
                             value="${settingsEscape(savedName)}"
                             placeholder="이름 입력"
-                            style="
-                                width:100%;
-                                padding:8px;
-                                text-align:center;
-                                font-size:1.1rem;
-                                border:1px solid #ccc;
-                                border-radius:6px;
-                                box-sizing:border-box;
-                            "
+                            class="input--num"
                         >
                     </div>
                 `;
@@ -200,17 +177,11 @@ window.loadSeatSettings = async function() {
 
         if (container) {
             container.innerHTML = `
-                <div style="
-                    padding:20px;
-                    text-align:center;
-                    color:#888;
-                    font-size:1.2rem;
-                    background:#f8f9fa;
-                    border-radius:8px;
-                    margin-top:15px;
-                ">
-                    설정된 좌석 배치가 없습니다.
-                    크기 입력 후 '표 만들기'를 눌러주세요.
+                <div class="empty">
+                    <span>
+                        설정된 좌석 배치가 없습니다.
+                        크기 입력 후 '표 만들기'를 눌러주세요.
+                    </span>
                 </div>
             `;
         }
@@ -245,15 +216,12 @@ window.renderCurrentSeatingView = async function() {
 
     if (!seatSnap.exists()) {
         viewContainer.innerHTML = `
-            <p style="
-                color:#888;
-                text-align:center;
-                padding:20px;
-                font-size:1.2rem;
-            ">
-                설정된 좌석 배치가 없습니다.
-                아래 '표 만들기'를 통해 설정해 주세요.
-            </p>
+            <div class="empty">
+                <span>
+                    설정된 좌석 배치가 없습니다.
+                    아래 '표 만들기'를 통해 설정해 주세요.
+                </span>
+            </div>
         `;
         return;
     }
@@ -269,12 +237,7 @@ window.renderCurrentSeatingView = async function() {
     const layout = seatData.layout || {};
 
     let html = `
-        <div style="
-            display:grid;
-            grid-template-columns:repeat(${config.cols},1fr);
-            gap:12px;
-            margin-top:10px;
-        ">
+        <div class="grid" style="grid-template-columns:repeat(${config.cols},1fr);">
     `;
 
     for (let r = 0; r < config.rows; r++) {
@@ -288,47 +251,23 @@ window.renderCurrentSeatingView = async function() {
                 "";
 
             let studentDisplay = '';
-            let boxBg = "#f8f9fa";
-            let borderColor = "#cbd5e1";
+            let cellClass = 'seat-cell';
 
             if (rawStudentName) {
                 const studentName =
                     settingsCleanSeatName(rawStudentName);
 
                 studentDisplay = `
-                    <div style="
-                        width:100%;
-                        overflow:hidden;
-                        color:#2c3e50;
-                        font-size:clamp(1.45rem,2vw,2rem);
-                        font-weight:900;
-                        line-height:1.2;
-                        white-space:nowrap;
-                        word-break:keep-all;
-                        text-overflow:ellipsis;
-                    ">
+                    <div class="seat-name">
                         ${settingsEscape(studentName)}
                     </div>
                 `;
-
-                boxBg = "#ffffff";
-                borderColor = "#3498db";
+            } else {
+                cellClass += ' is-empty';
             }
 
             html += `
-                <div style="
-                    min-width:0;
-                    min-height:110px;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    background:${boxBg};
-                    border:2px solid ${borderColor};
-                    border-radius:12px;
-                    padding:12px;
-                    text-align:center;
-                    box-shadow:0 3px 8px rgba(0,0,0,0.04);
-                ">
+                <div class="${cellClass}">
                     ${studentDisplay}
                 </div>
             `;
@@ -349,13 +288,8 @@ window.loadStudentAdminList = function() {
 
         if (!snap.exists()) {
             listEl.innerHTML = `
-                <div style="
-                    text-align:center;
-                    padding:30px;
-                    color:#888;
-                    font-size:1.2rem;
-                ">
-                    등록된 용사가 없습니다.
+                <div class="empty">
+                    <span>등록된 용사가 없습니다.</span>
                 </div>
             `;
             return;
@@ -417,122 +351,83 @@ window.renderAdminList = function() {
             u.role ||
             (u.isHelper ? '상점' : '일반');
 
-        let roleColor = '#95a5a6';
-
-        if (currentRole === '상점') {
-            roleColor = '#3498db';
-        } else if (currentRole === '청소') {
-            roleColor = '#27ae60';
-        }
-
         h += `
-            <div
-                class="list-item"
-                style="
-                    padding:10px;
-                    border-bottom:1px solid #eee;
-                    display:flex;
-                    align-items:center;
-                    gap:10px;
-                    flex-wrap:nowrap;
-                "
-            >
-                <input
-                    type="number"
-                    value="${u.no || ''}"
-                    onchange="updateNo('${u.name}',this.value)"
-                    style="
-                        width:80px;
-                        height:55px;
-                        text-align:center;
-                        font-size:1.8rem;
-                        padding:0;
-                        border:2px solid var(--primary,#3498db);
-                        border-radius:8px;
-                        font-weight:bold;
-                        flex-shrink:0;
-                    "
-                >
+            <tr>
+                <td>
+                    <input
+                        type="number"
+                        class="input--num input--sm"
+                        value="${u.no || ''}"
+                        onchange="updateNo('${u.name}',this.value)"
+                    >
+                </td>
 
-                <strong style="
-                    font-size:1.6rem;
-                    flex:1;
-                    min-width:50px;
-                    white-space:nowrap;
-                    text-align:left;
-                ">
+                <td class="strong nowrap">
                     ${u.name}
-                </strong>
+                </td>
 
-                <select
-                    onchange="updateUserRole('${u.name}',this.value)"
-                    style="
-                        width:130px;
-min-width:130px;
-height:55px;
-padding:0 32px 0 14px;
-box-sizing:border-box;
-font-size:1.05rem;
-text-align:center;
-                        border-radius:8px;
-                        border:2px solid ${roleColor};
-                        background:${roleColor};
-                        color:white;
-                        font-weight:bold;
-                        cursor:pointer;
-                        flex-shrink:0;
-                    "
-                >
-                    <option
-                        value="일반"
-                        ${currentRole === '일반' ? 'selected' : ''}
+                <td>
+                    <select
+                        onchange="updateUserRole('${u.name}',this.value)"
                     >
-                        &#128100; 일반
-                    </option>
+                        <option
+                            value="일반"
+                            ${currentRole === '일반' ? 'selected' : ''}
+                        >
+                            &#128100; 일반
+                        </option>
 
-                    <option
-                        value="상점"
-                        ${currentRole === '상점' ? 'selected' : ''}
-                    >
-                        &#128722; 상점
-                    </option>
+                        <option
+                            value="상점"
+                            ${currentRole === '상점' ? 'selected' : ''}
+                        >
+                            &#128722; 상점
+                        </option>
 
-                    <option
-                        value="청소"
-                        ${currentRole === '청소' ? 'selected' : ''}
-                    >
-                        &#129529; 청소
-                    </option>
-                </select>
+                        <option
+                            value="청소"
+                            ${currentRole === '청소' ? 'selected' : ''}
+                        >
+                            &#129529; 청소
+                        </option>
+                    </select>
+                </td>
 
-                <button
-                    onclick="confirmDeleteStudent('${u.name}')"
-                    style="
-                        width:60px;
-                        height:55px;
-                        background:var(--red,#e74c3c);
-                        color:white;
-                        border-radius:8px;
-                        font-weight:bold;
-                        border:none;
-                        cursor:pointer;
-                        flex-shrink:0;
-                    "
-                >
-                    제거
-                </button>
-            </div>
+                <td>
+                    <div class="row-actions">
+                        <button
+                            class="btn btn--danger btn--xs"
+                            onclick="confirmDeleteStudent('${u.name}')"
+                        >
+                            제거
+                        </button>
+                    </div>
+                </td>
+            </tr>
         `;
     });
 
-    listEl.innerHTML =
-        h ||
+    listEl.innerHTML = h
+        ? `
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>번호</th>
+                            <th>이름</th>
+                            <th>역할</th>
+                            <th>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${h}
+                    </tbody>
+                </table>
+            </div>
         `
-            <div style="
-                text-align:center;
-                padding:20px;
-            ">
-                용사가 없습니다.
+        : `
+            <div class="empty">
+                <span>용사가 없습니다.</span>
             </div>
         `;
 };
@@ -543,28 +438,50 @@ window.updateNo = function(name, value) {
     });
 };
 
+// 학기 초에 여러 명의 역할을 연속으로 바꾸는 작업이라,
+// 한 명 바꿀 때마다 확인창을 띄우면 흐름이 끊깁니다.
+// 대신 직전 역할을 들고 되돌리기 바를 띄웁니다.
 window.updateUserRole = function(
     userName,
     newRole
 ) {
-    db.ref(`users/${userName}`)
-        .update({
-            role: newRole,
-            isHelper: newRole === '상점'
-        })
-        .then(() => {
-            const roleIcon =
-                newRole === '상점'
-                    ? '🛍️'
-                    : newRole === '청소'
-                    ? '🧹'
-                    : '👤';
+    db.ref(`users/${userName}`).once('value', snapshot => {
+        const before = snapshot.val() || {};
 
-            alert(
-                `${userName} 학생의 역할이 ` +
-                `[ ${roleIcon} ${newRole} ](으)로 변경되었습니다!`
-            );
-        });
+        const previous = {
+            role: before.role ?? null,
+            isHelper: before.isHelper ?? null
+        };
+
+        db.ref(`users/${userName}`)
+            .update({
+                role: newRole,
+                isHelper: newRole === '상점'
+            })
+            .then(() => {
+                const roleIcon =
+                    newRole === '상점'
+                        ? '🛍️'
+                        : newRole === '청소'
+                        ? '🧹'
+                        : '👤';
+
+                const message =
+                    `${userName} · ${roleIcon} ${newRole} 로 바꿨습니다.`;
+
+                if (typeof window.showUndoBar === 'function') {
+                    window.showUndoBar(message, async () => {
+                        await db.ref(`users/${userName}`).update(previous);
+
+                        if (typeof renderAdminList === 'function') {
+                            renderAdminList();
+                        }
+                    });
+                } else {
+                    alert(message);
+                }
+            });
+    });
 };
 
 window.confirmDeleteStudent = function(userName) {
@@ -604,31 +521,27 @@ window.saveSettings = async function() {
         routineText: document.getElementById('conf-routine')?.value || ''
     };
     try {
-        const currentSnapshot = await db.ref('settings').once('value');
-        const current = currentSnapshot.val() || {};
-        const saved = window.CheckinPasswordCore.manual(
-            {
-                password: current.password,
-                passwordDate: current.passwordDate,
-                passwordRevision: current.passwordRevision,
-                passwordUpdatedAt: current.passwordUpdatedAt
-            },
-            password,
-            window.CheckinPassword.now()
-        );
-        const display = window.CheckinPasswordCore.forDisplay(saved);
+        const baseline = String(passInput.dataset.savedPassword ?? '');
+        const passwordWasEdited = password !== baseline;
+        const now = window.CheckinPassword.now();
 
-        await db.ref('settings').update({
-            password: saved.password,
-            passwordDate: saved.passwordDate,
-            passwordRevision: saved.passwordRevision,
-            passwordUpdatedAt: saved.passwordUpdatedAt,
-            lateTime: otherSettings.lateTime,
-            closeTime: otherSettings.closeTime,
-            routineText: otherSettings.routineText
-        });
+        // 설정 화면을 오래 열어 둔 창이 다른 창의 최신 암호를 덮어쓰지 않도록
+        // 암호와 나머지 설정을 한 트랜잭션에서 병합한다.
+        const result = await db.ref('settings').transaction(currentValue => {
+            const current = currentValue || {};
+            const passwordSettings = passwordWasEdited ||
+                !window.CheckinPasswordCore.valid(current.password)
+                ? window.CheckinPasswordCore.manual(current, password, now)
+                : current;
 
-        await db.ref('blackboardDisplay/checkinPassword').set(display);
+            return {
+                ...passwordSettings,
+                ...otherSettings
+            };
+        }, undefined, false);
+
+        const saved = result.snapshot.val() || {};
+        await window.CheckinPassword.publish(saved);
 
         passInput.value = String(saved.password);
         passInput.dataset.savedPassword = String(saved.password);
@@ -744,60 +657,75 @@ window.bulkReg = function() {
     }
 
     const lines = rawText.split('\n');
-    const updates = {};
-    const emailUpdates = {};
-    let count = 0;
 
-    lines.forEach(line => {
-        const parts = line.split(',');
+    const parsed = lines
+        .map(line => {
+            const parts = line.split(',');
 
-        const name =
-            parts[0]
-                ? parts[0].trim()
-                : "";
-
-        const email =
-            parts[1]
-                ? parts[1].trim()
-                : "";
-
-        if (name) {
-            updates[name] = {
-                name: name,
-                email: email || "미등록",
-                points: 0,
-                exp: 0,
-                lv: 1,
-                no: count + 1
+            return {
+                name: parts[0] ? parts[0].trim() : "",
+                email: parts[1] ? parts[1].trim() : ""
             };
+        })
+        .filter(entry => entry.name);
 
-            if (email) {
-                emailUpdates[email.toLowerCase().replace(/\./g, ',')] = name;
-            }
-
-            count++;
-        }
-    });
+    const count = parsed.length;
 
     if (count > 0) {
-        Promise.all([
-            db.ref('users').update(updates),
-            db.ref('userEmails').update(emailUpdates)
-        ])
-            .then(() => {
-                alert(
-                    `✅ 총 ${count}명의 학생 명단` +
-                    `(이메일 포함)이 성공적으로 주입되었습니다!`
-                );
+        // 이미 있는 학생은 번호와 이메일만 갱신하고
+        // points / exp / lv 는 기존 값을 유지합니다.
+        db.ref('users').once('value', snapshot => {
+            const existing = snapshot.val() || {};
+            const updates = {};
 
-                document.getElementById('bulk-in').value = "";
+            let created = 0;
+            let updated = 0;
 
-                if (
-                    typeof renderAdminList === 'function'
-                ) {
-                    renderAdminList();
+            parsed.forEach((entry, index) => {
+                const no = index + 1;
+
+                if (existing[entry.name]) {
+                    updates[`${entry.name}/no`] = no;
+                    updates[`${entry.name}/name`] = entry.name;
+
+                    if (entry.email) {
+                        updates[`${entry.name}/email`] = entry.email;
+                    }
+
+                    updated++;
+                } else {
+                    updates[entry.name] = {
+                        name: entry.name,
+                        email: entry.email || "미등록",
+                        points: 0,
+                        exp: 0,
+                        lv: 1,
+                        no: no
+                    };
+
+                    created++;
                 }
             });
+
+            db.ref('users')
+                .update(updates)
+                .then(() => {
+                    alert(
+                        `✅ 명단을 반영했습니다.\n\n` +
+                        `· 새로 등록 ${created}명\n` +
+                        `· 이미 있던 학생 ${updated}명 — 번호와 이메일만 갱신했고 ` +
+                        `포인트·경험치·레벨은 그대로 두었습니다.`
+                    );
+
+                    document.getElementById('bulk-in').value = "";
+
+                    if (
+                        typeof renderAdminList === 'function'
+                    ) {
+                        renderAdminList();
+                    }
+                });
+        });
     } else {
         alert(
             "⚠️ 올바른 형식(이름,이메일)으로 입력해주세요."

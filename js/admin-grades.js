@@ -7,25 +7,17 @@ window.renderManagementSub = function(subType) {
 
     const gradesButton = document.getElementById('sub-btn-grades');
     const budgetButton = document.getElementById('sub-btn-budget');
-    if (gradesButton) {
-        gradesButton.style.background = subType === 'grades' ? 'var(--primary, #3498db)' : '#ddd';
-        gradesButton.style.color = subType === 'grades' ? 'white' : '#333';
-    }
-    if (budgetButton) {
-        budgetButton.style.background = subType === 'budget' ? 'var(--primary, #3498db)' : '#ddd';
-        budgetButton.style.color = subType === 'budget' ? 'white' : '#333';
-    }
+    if (gradesButton) gradesButton.classList.toggle('active', subType === 'grades');
+    if (budgetButton) budgetButton.classList.toggle('active', subType === 'budget');
 
     if (subType === 'grades') {
         subContentEl.innerHTML = `
-            <div class="card" style="margin-bottom: 20px;">
+            <div class="card stack">
                 <h2>📝 성적 및 평가 관리</h2>
                 <p>학생들의 성적과 수행평가 기록을 관리하는 공간입니다.</p>
-                <div style="text-align:center; margin:15px 0;">
-                    <div id="grades-subject-buttons" style="display:flex; flex-wrap:nowrap; overflow-x:auto; justify-content:center; gap:5px; padding: 6px; background: #f1f3f5; border-radius: 8px;">
-                    </div>
+                <div class="chip-group" id="grades-subject-buttons">
                 </div>
-                <div id="grades-content-area" style="margin-top:15px;"></div>
+                <div id="grades-content-area"></div>
             </div>
         `;
         if (typeof loadSubjectGrades === 'function') {
@@ -33,27 +25,29 @@ window.renderManagementSub = function(subType) {
         }
     } else {
         subContentEl.innerHTML = `
-            <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h2 style="margin:0;">💰 학급 운영비 및 예산 관리</h2>
-                    <button onclick="openAddBudgetPopup()" style="background:var(--primary, #3498db); color:white; padding:8px 15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">+ 내역 추가 / 예산 설정</button>
+            <div class="card stack">
+                <div class="panel-head">
+                    <h2>💰 학급 운영비 및 예산 관리</h2>
+                    <div class="panel-head-actions">
+                        <button class="btn btn--primary" onclick="openAddBudgetPopup()">+ 내역 추가 / 예산 설정</button>
+                    </div>
                 </div>
-                <div id="budget-summary" style="font-size:1.1rem; font-weight:bold; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:8px; border:1px solid #dee2e6;">
+                <div id="budget-summary" class="well strong">
                     예산 정보 불러오는 중...
                 </div>
-                <div style="overflow-x:auto;">
-                    <table style="width:100%; border-collapse:collapse; text-align:left;">
+                <div class="table-wrap">
+                    <table class="table table--num">
                         <thead>
-                            <tr style="background:#f1f3f5; border-bottom:2px solid #ccc;">
-                                <th style="padding:10px;">날짜</th>
-                                <th style="padding:10px;">쇼핑몰</th>
-                                <th style="padding:10px;">용도</th>
-                                <th style="padding:10px;">금액</th>
-                                <th style="padding:10px;">관리</th>
+                            <tr>
+                                <th>날짜</th>
+                                <th>쇼핑몰</th>
+                                <th>용도</th>
+                                <th>금액</th>
+                                <th>관리</th>
                             </tr>
                         </thead>
                         <tbody id="budget-list">
-                            <tr><td colspan='5' style='padding:20px; text-align:center; color:#888;'>내역을 불러오는 중입니다...</td></tr>
+                            <tr><td colspan='5' class="center muted">내역을 불러오는 중입니다...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -85,8 +79,8 @@ window.loadSubjectGrades = function(subject) {
     if (btnContainer) {
         let btnHtml = '';
         SUBJECTS.forEach(sub => {
-            const isActive = (sub === currentGradeSubject) ? 'background:var(--primary, #3498db); color:white; font-weight:bold;' : 'background:white; color:#333; border:1px solid #ccc;';
-            btnHtml += `<button onclick="loadSubjectGrades('${sub}')" style="padding:8px 14px; font-size:1.1rem; border:none; border-radius:6px; cursor:pointer; min-width:65px; font-weight:bold; transition:0.1s; ${isActive}">${sub}</button>`;
+            const activeClass = (sub === currentGradeSubject) ? ' active' : '';
+            btnHtml += `<button class="chip-toggle${activeClass}" onclick="loadSubjectGrades('${sub}')">${sub}</button>`;
         });
         btnContainer.innerHTML = btnHtml;
     }
@@ -96,30 +90,30 @@ window.loadSubjectGrades = function(subject) {
 
     db.ref('grades/' + subject).once('value', snap => {
         let html = `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #ccc; padding-bottom:10px;">
-                <h3 style="margin:0;">📘 ${subject} 평가 목록</h3>
-                <div>
-                    <button onclick="openNewGradePopup('${subject}', 'perf')" style="padding:6px 12px; font-size:0.88rem; background:#43a047; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px;">+ 수행평가 추가</button>
-                    <button onclick="openNewGradePopup('${subject}', 'score')" style="padding:6px 12px; font-size:0.88rem; background:#1e88e5; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">+ 일반평가 추가</button>
+            <div class="panel-head">
+                <h3>📘 ${subject} 평가 목록</h3>
+                <div class="panel-head-actions">
+                    <button class="btn btn--good btn--sm" onclick="openNewGradePopup('${subject}', 'perf')">+ 수행평가 추가</button>
+                    <button class="btn btn--outline btn--sm" onclick="openNewGradePopup('${subject}', 'score')">+ 일반평가 추가</button>
                 </div>
             </div>
-            <div style="display:grid; gap:10px;">
+            <div class="stack stack--sm">
         `;
 
         let assessments = [];
         snap.forEach(child => { assessments.push({ key: child.key, ...child.val() }); });
-        assessments.reverse(); 
+        assessments.reverse();
 
         if (assessments.length === 0) {
-            html += `<div style="text-align:center; color:#666; padding:25px; border:2px dashed #ccc; border-radius:10px; background:#f9f9f9; font-size:0.95rem;">등록된 평가가 없습니다. 오른쪽 위의 [+ 추가] 버튼을 이용해 주세요.</div>`;
+            html += `<div class="empty"><strong>등록된 평가가 없습니다.</strong><span>오른쪽 위의 [+ 추가] 버튼을 이용해 주세요.</span></div>`;
         } else {
             assessments.forEach(a => {
                 const typeIcon = a.type === 'perf' ? '📋 수행' : '💯 일반';
-                const typeColor = a.type === 'perf' ? '#43a047' : '#1e88e5';
+                const typeClass = a.type === 'perf' ? 'card--good' : 'card--accent';
                 html += `
-                    <div onclick="openGradeEditor('${subject}', '${a.key}')" style="padding:12px; background:white; border:1px solid #ddd; border-left:5px solid ${typeColor}; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-                        <span><strong style="color:${typeColor};">${typeIcon}</strong> &nbsp;|&nbsp; <b>${a.title}</b></span>
-                        <small style="color:#888;">${a.date}</small>
+                    <div onclick="openGradeEditor('${subject}', '${a.key}')" class="card ${typeClass} row row--between" style="cursor:pointer;">
+                        <span><strong>${typeIcon}</strong> &nbsp;|&nbsp; <b>${a.title}</b></span>
+                        <small class="muted">${a.date}</small>
                     </div>
                 `;
             });
@@ -152,22 +146,41 @@ window.openGradeEditor = function(subject, key) {
         if (!data) return;
         
         db.ref('users').once('value', userSnap => {
+            // 이름만 나열돼 종이 출석부와 눈으로 대조해야 했던 부분입니다.
+            // 번호를 함께 싣고 번호순으로 세우며, 선생님 계정은 학생 행에서 뺍니다.
             let users = [];
             userSnap.forEach(u => {
-                users.push(u.key); 
+                const value = u.val() || {};
+                const name = String(value.name || u.key || '').trim();
+
+                if (!name || name === '총사령관' || name.includes('선생님')) return;
+
+                const no = parseInt(value.no ?? value.number, 10);
+
+                users.push({
+                    key: u.key,
+                    no: Number.isFinite(no) && no > 0 ? no : null
+                });
             });
 
+            users.sort((a, b) =>
+                (a.no ?? 999) - (b.no ?? 999) ||
+                String(a.key).localeCompare(String(b.key), 'ko')
+            );
+
             let h = `
-                <div style="text-align:left;">
-                    <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px;">
-                        ${data.title} <small style="color:#666; font-size:0.9rem;">(${data.type === 'perf' ? '수행평가' : '일반평가'})</small>
+                <div class="stack">
+                    <h3>
+                        ${data.title} <small class="muted small">(${data.type === 'perf' ? '수행평가' : '일반평가'})</small>
                     </h3>
-                    <div style="max-height:400px; overflow-y:auto; padding-right:5px;">
-                        <table style="width:100%; border-collapse:collapse; text-align:center;">
-                            <thead style="background:#f1f3f5; position:sticky; top:0; z-index:2;">
+                    <div class="scroll-y" style="max-height:400px;">
+                        <div class="table-wrap">
+                        <table class="table center">
+                            <thead>
                                 <tr>
-                                    <th style="padding:10px; border:1px solid #ccc; width:40%;">이름</th>
-                                    <th style="padding:10px; border:1px solid #ccc;">${data.type === 'perf' ? '결과 <small>(더블클릭으로 변경)</small>' : '점수 입력'}</th>
+                                    <th style="width:14%;">번호</th>
+                                    <th style="width:34%;">이름</th>
+                                    <th>${data.type === 'perf' ? '결과 <small>(더블클릭으로 변경)</small>' : '점수 입력'}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -175,16 +188,19 @@ window.openGradeEditor = function(subject, key) {
 
             let scores = data.scores || {};
 
-            users.forEach((u, index) => {
+            users.forEach((student, index) => {
+                const u = student.key;
+                const no = student.no ?? '–';
                 let val = scores[u] || (data.type === 'perf' ? '매우잘함◎' : '');
-                
+
                 if (data.type === 'perf') {
-                    let color = val.includes('매우') ? 'var(--dark, #333)' : (val.includes('보통') ? '#e65100' : '#1976d2');
+                    let stateClass = val.includes('매우') ? 'btn--good' : (val.includes('보통') ? 'btn--warn' : 'btn--outline');
                     h += `
                         <tr>
-                            <td style="padding:10px; border:1px solid #ccc; font-weight:bold;">${u}</td>
-                            <td style="padding:0; border:1px solid #ccc; background:white;">
-                                <button id="grade-${u}" ondblclick="togglePerfGrade('${u}')" style="width:100%; height:100%; min-height:45px; padding:10px; background:transparent; border:none; font-size:1.1rem; cursor:pointer; font-weight:bold; color:${color}; transition:0.2s;">
+                            <td class="num muted">${no}</td>
+                            <td class="strong">${u}</td>
+                            <td>
+                                <button id="grade-${u}" class="btn btn--block ${stateClass}" ondblclick="togglePerfGrade('${u}')">
                                     ${val}
                                 </button>
                             </td>
@@ -193,25 +209,26 @@ window.openGradeEditor = function(subject, key) {
                 } else {
                     h += `
                         <tr>
-                            <td style="padding:10px; border:1px solid #ccc; font-weight:bold;">${u}</td>
-                            <td style="padding:10px; border:1px solid #ccc; background:white;">
-                                <input type="number" id="grade-${u}" class="score-input" value="${val}" tabindex="${index + 1}" oninput="calcAvg()" placeholder="점수" style="width:80%; padding:8px; border:1px solid #ccc; border-radius:5px; text-align:center; font-size:1.1rem;">
+                            <td class="num muted">${no}</td>
+                            <td class="strong">${u}</td>
+                            <td>
+                                <input type="number" id="grade-${u}" class="score-input input--num" value="${val}" tabindex="${index + 1}" oninput="calcAvg()" placeholder="점수">
                             </td>
                         </tr>
                     `;
                 }
             });
 
-            h += `</tbody></table></div>`;
-            
+            h += `</tbody></table></div></div>`;
+
             if (data.type === 'score') {
-                h += `<div style="text-align:right; margin-top:15px; padding-right:10px; font-weight:bold; font-size:1.2rem; background:#e3f2fd; padding:10px; border-radius:8px;">평균: <span id="score-average" style="color:#1e88e5;">0.0점</span></div>`;
+                h += `<div class="well row row--end strong">평균: <span id="score-average" class="num">0.0점</span></div>`;
             }
 
             h += `
-                <div style="margin-top:20px; display:flex; gap:10px;">
-                    <button onclick="saveGrades('${subject}', '${key}', '${data.type}')" style="flex:2; padding:15px; background:var(--primary, #3498db); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">💾 성적 저장하기</button>
-                    <button onclick="deleteGrade('${subject}', '${key}')" style="flex:1; padding:15px; background:var(--red, #e74c3c); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">🗑️ 삭제</button>
+                <div class="btn-row">
+                    <button class="btn btn--primary btn--lg" style="flex:2;" onclick="saveGrades('${subject}', '${key}', '${data.type}')">💾 성적 저장하기</button>
+                    <button class="btn btn--danger btn--lg" style="flex:1;" onclick="deleteGrade('${subject}', '${key}')">🗑️ 삭제</button>
                 </div>
             </div>`;
             
@@ -227,16 +244,17 @@ window.togglePerfGrade = function(u) {
     
     const el = document.getElementById(`grade-${u}`);
     if (!el) return;
-    
+
+    el.classList.remove('btn--good', 'btn--warn', 'btn--outline');
     if (el.innerText.includes('매우잘함')) {
         el.innerText = '잘함○';
-        el.style.color = '#1976d2'; 
+        el.classList.add('btn--outline');
     } else if (el.innerText.includes('잘함')) {
         el.innerText = '보통△';
-        el.style.color = '#e65100'; 
+        el.classList.add('btn--warn');
     } else {
         el.innerText = '매우잘함◎';
-        el.style.color = 'var(--dark, #333)'; 
+        el.classList.add('btn--good');
     }
 };
 
@@ -275,12 +293,28 @@ window.saveGrades = function(subject, key, type) {
 };
 
 // 평가 기록 삭제
+// 삭제 대상은 해당 평가의 전체 학생 점수입니다.
+// 삭제 전 값을 보관해 되돌리기로 복원합니다.
 window.deleteGrade = function(subject, key) {
-    if (!confirm("⚠️ 이 평가 기록을 완전히 삭제하시겠습니까? (복구 불가)")) return;
-    db.ref(`grades/${subject}/${key}`).remove().then(() => {
-        alert("삭제 완료되었습니다.");
-        if (typeof closePopup === 'function') closePopup();
-        loadSubjectGrades(subject);
+    db.ref(`grades/${subject}/${key}`).once('value', snap => {
+        const before = snap.val();
+        if (!before) return;
+
+        db.ref(`grades/${subject}/${key}`).remove().then(() => {
+            if (typeof closePopup === 'function') closePopup();
+            loadSubjectGrades(subject);
+
+            const message = `${String(before.title || '평가')} 기록을 삭제했습니다.`;
+
+            if (typeof window.showUndoBar === 'function') {
+                window.showUndoBar(message, async () => {
+                    await db.ref(`grades/${subject}/${key}`).set(before);
+                    loadSubjectGrades(subject);
+                }, 12);
+            } else {
+                alert(message);
+            }
+        });
     });
 };
 
@@ -307,20 +341,20 @@ window.initBudgetManager = function() {
         snap.forEach(child => {
             const item = child.val();
             totalSpent += parseInt(item.amount || 0);
-            h += `<tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px;">${item.date}</td>
-                    <td style="padding:10px;">${item.mall}</td>
-                    <td style="padding:10px;">${item.purpose}</td>
-                    <td style="padding:10px; font-weight:bold; color:var(--red, #e74c3c);">${parseInt(item.amount).toLocaleString()}원</td>
-                    <td style="padding:10px;"><button onclick="deleteBudget('${child.key}')" style="padding:5px 10px; font-size:0.8rem; background:#eee; border:none; border-radius:4px; cursor:pointer;">삭제</button></td>
+            h += `<tr>
+                    <td>${item.date}</td>
+                    <td>${item.mall}</td>
+                    <td>${item.purpose}</td>
+                    <td><span class="badge badge--bad">${parseInt(item.amount).toLocaleString()}원</span></td>
+                    <td><button class="btn btn--quiet btn--xs" onclick="deleteBudget('${child.key}')">삭제</button></td>
                   </tr>`;
         });
-        
+
         window.totalSpentCache = totalSpent;
         const budgetListEl = document.getElementById('budget-list');
 
         if (budgetListEl) {
-            budgetListEl.innerHTML = h || "<tr><td colspan='5' style='padding:20px; text-align:center; color:#888;'>내역이 없습니다.</td></tr>";
+            budgetListEl.innerHTML = h || "<tr><td colspan='5' class='center muted'>내역이 없습니다.</td></tr>";
         }
         updateBudgetSummaryUI();
     });
@@ -330,22 +364,24 @@ window.updateBudgetSummaryUI = function() {
     const budgetSummaryEl = document.getElementById('budget-summary');
     if (budgetSummaryEl) {
         const spent = window.totalSpentCache || 0;
-        budgetSummaryEl.innerHTML = `총 예산: ${(window.totalBudget || 0).toLocaleString()}원 | 사용액: ${spent.toLocaleString()}원 | <span style="color:var(--primary, #3498db)">현재 잔액: ${((window.totalBudget || 0) - spent).toLocaleString()}원</span>`;
+        budgetSummaryEl.innerHTML = `총 예산: ${(window.totalBudget || 0).toLocaleString()}원 | 사용액: ${spent.toLocaleString()}원 | <span class="badge badge--info">현재 잔액: ${((window.totalBudget || 0) - spent).toLocaleString()}원</span>`;
     }
 };
 
 window.openAddBudgetPopup = function() {
     let h = `<h3>🧾 운영비 내역 추가</h3>
-            날짜: <input type="date" id="bg-date" value="${new Date().toISOString().split('T')[0]}" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
-            쇼핑몰: <input type="text" id="bg-mall" placeholder="예: 쿠팡, 다이소" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
-            용도: <input type="text" id="bg-purpose" placeholder="예: 창의적 체험활동 재료" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
-            금액: <input type="number" id="bg-amount" placeholder="숫자만 입력" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
-            <button onclick="saveBudget()" style="background:var(--primary, #3498db); color:white; width:100%; margin-top:10px; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">저장하기</button>
-            <hr style="margin:20px 0; border:0; border-top:1px solid #ddd;">
-            <small style="font-weight:bold; color:#555;">총 예산 변경:</small><br>
-            <input type="number" id="bg-total-setting" value="${window.totalBudget}" style="width:100%; padding:8px; margin:5px 0 10px 0;"><br>
-            <button onclick="updateTotalBudget()" style="background:#333; color:white; width:100%; padding:10px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">총 예산 수정</button>`;
-    
+            <div class="stack stack--sm">
+            <div class="field"><span class="field-label">날짜</span><input type="date" id="bg-date" value="${new Date().toISOString().split('T')[0]}"></div>
+            <div class="field"><span class="field-label">쇼핑몰</span><input type="text" id="bg-mall" placeholder="예: 쿠팡, 다이소"></div>
+            <div class="field"><span class="field-label">용도</span><input type="text" id="bg-purpose" placeholder="예: 창의적 체험활동 재료"></div>
+            <div class="field"><span class="field-label">금액</span><input type="number" id="bg-amount" placeholder="숫자만 입력"></div>
+            <button class="btn btn--primary btn--block" onclick="saveBudget()">저장하기</button>
+            <hr class="divider">
+            <span class="small strong muted">총 예산 변경:</span>
+            <input type="number" id="bg-total-setting" value="${window.totalBudget}">
+            <button class="btn btn--block" onclick="updateTotalBudget()">총 예산 수정</button>
+            </div>`;
+
     if (typeof openPopup === 'function') {
         openPopup("운영비 등록", h);
     }

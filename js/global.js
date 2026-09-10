@@ -7,56 +7,6 @@ window.rIdx=window.rIdx||0;
 window.routineActive=false;
 window.routineItems=window.routineItems||[];
 
-let publicDirectoryFingerprint='';
-
-function syncPublicDirectoryFromUsers(snapshot){
-    if(!window.isVerifiedAdmin?.())return;
-
-    const publicStudents={};
-    const emailMappings={};
-    const publicFields=[
-        'no','number','points','exp','experience','level','lv',
-        'animal','selectedAnimal','title','selectedTitle'
-    ];
-
-    snapshot.forEach(child=>{
-        const user=child.val()||{};
-        const key=String(child.key||'').trim();
-        const name=String(user.name||key).trim();
-        const email=String(user.email||'').trim().toLowerCase();
-        const role=String(user.role||'').trim();
-
-        const administratorEmail=String(typeof adminEmail!=='undefined'?adminEmail:'').trim().toLowerCase();
-        if(!key||!name||name==='총사령관'||user.isAdmin===true||role==='관리자'||(email&&email===administratorEmail))return;
-
-        const visible={name};
-        publicFields.forEach(field=>{
-            const value=user[field];
-            if(['string','number','boolean'].includes(typeof value))visible[field]=value;
-        });
-        publicStudents[key]=visible;
-
-        const emailKey=email.replace(/\./g,',');
-        if(email&&email!=='미등록'&&!/[#$\[\]\/]/.test(emailKey))emailMappings[emailKey]=key;
-    });
-
-    const fingerprint=JSON.stringify({publicStudents,emailMappings});
-    if(fingerprint===publicDirectoryFingerprint)return;
-    publicDirectoryFingerprint=fingerprint;
-
-    const updates={publicStudents};
-    Object.entries(emailMappings).forEach(([emailKey,name])=>{
-        updates[`userEmails/${emailKey}`]=name;
-    });
-
-    db.ref().update(updates).then(()=>{
-        console.log('공개 학생 명단 복구 완료:',Object.keys(publicStudents).length);
-    }).catch(error=>{
-        publicDirectoryFingerprint='';
-        console.error('공개 학생 명단 복구 실패:',error);
-    });
-}
-
 function getTodayKST(){
     const now=new Date();
     const krTime=new Date(now.getTime()+9*60*60*1000);
@@ -127,6 +77,77 @@ window.closePopup=function(){
 
     window.rIdx=0;
     window.routineActive=false;
+};
+
+
+/* =========================================================
+   되돌리기 안내줄
+
+   실수는 한 번의 클릭인데 복구가 다섯 단계이던 문제를 줄인다.
+   확인창을 늘리면 정상 동작까지 두 배로 느려지므로,
+   먼저 실행하고 잠깐 되돌릴 기회를 준다.
+   ========================================================= */
+
+window.dismissUndoBar=function(){
+    const bar=document.getElementById('undo-bar');
+    if(!bar)return;
+
+    clearTimeout(window.undoBarTimer);
+    window.undoBarTimer=null;
+    bar.hidden=true;
+    bar.innerHTML='';
+};
+
+window.showUndoBar=function(message,onUndo,seconds){
+    let bar=document.getElementById('undo-bar');
+
+    if(!bar){
+        bar=document.createElement('div');
+        bar.id='undo-bar';
+        bar.setAttribute('role','status');
+        document.body.appendChild(bar);
+    }
+
+    clearTimeout(window.undoBarTimer);
+
+    const text=document.createElement('span');
+    text.className='undo-bar-text';
+    text.textContent=String(message||'');
+
+    const undoButton=document.createElement('button');
+    undoButton.type='button';
+    undoButton.className='undo-bar-action';
+    undoButton.textContent='되돌리기';
+
+    const closeButton=document.createElement('button');
+    closeButton.type='button';
+    closeButton.className='undo-bar-close';
+    closeButton.setAttribute('aria-label','닫기');
+    closeButton.textContent='✕';
+    closeButton.onclick=window.dismissUndoBar;
+
+    undoButton.onclick=async()=>{
+        undoButton.disabled=true;
+        undoButton.textContent='되돌리는 중…';
+
+        try{
+            await onUndo();
+            window.dismissUndoBar();
+        }catch(error){
+            console.error('되돌리기 실패:',error);
+            undoButton.disabled=false;
+            undoButton.textContent='되돌리기';
+            alert('되돌리지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        }
+    };
+
+    bar.replaceChildren(text,undoButton,closeButton);
+    bar.hidden=false;
+
+    window.undoBarTimer=setTimeout(
+        window.dismissUndoBar,
+        Math.max(3000,(Number(seconds)||7)*1000)
+    );
 };
 
 
@@ -348,30 +369,34 @@ function switchCheckinSub(subId){
         btnMain.style.display=adminView?'none':'block';
     }
 
+    // 버튼이 하나뿐이면 분절 컨트롤 자체가 의미 없으므로 감춥니다.
+    // (교사는 '등교로그' 하나, 학생은 '등교하기' 하나만 보입니다)
+    const subMenu=
+        document.getElementById('checkin-sub-menu-container');
+
+    if(subMenu){
+        const visibleTabs=[btnMain,btnLogs].filter(
+            button=>button&&button.style.display!=='none'
+        );
+
+        subMenu.style.display=
+            visibleTabs.length>1?'flex':'none';
+    }
+
 
     if(btnMain){
-        btnMain.style.background=
+        btnMain.classList.toggle(
+            'active',
             subId==='checkin-main'
-                ?'var(--dark,#2c3e50)'
-                :'#ddd';
-
-        btnMain.style.color=
-            subId==='checkin-main'
-                ?'white'
-                :'#333';
+        );
     }
 
 
     if(btnLogs){
-        btnLogs.style.background=
+        btnLogs.classList.toggle(
+            'active',
             subId==='checkin-logs'
-                ?'var(--dark,#2c3e50)'
-                :'#ddd';
-
-        btnLogs.style.color=
-            subId==='checkin-logs'
-                ?'white'
-                :'#333';
+        );
     }
 
 
@@ -421,7 +446,7 @@ function startApp(){
 
     if(blackboard){
         blackboard.style.display=
-            admin?'block':'none';
+            canManage?'block':'none';
     }
 
 
@@ -430,7 +455,7 @@ function startApp(){
 
     if(adminBtn){
         adminBtn.style.display=
-            admin?'block':'none';
+            canManage?'block':'none';
     }
 
 
@@ -450,7 +475,7 @@ function startApp(){
 
     if(checkinLogsBtn){
         checkinLogsBtn.style.display=
-            admin?'block':'none';
+            canManage?'block':'none';
     }
 
 
@@ -466,7 +491,7 @@ function startApp(){
     }
 
 
-    const receiveSettings=snap=>{
+    db.ref(admin?'settings':'publicSettings').on('value',snap=>{
 
         const s=snap.val()||{};
 
@@ -544,21 +569,10 @@ if (
 if (typeof refreshCheckinGuide === 'function') {
     refreshCheckinGuide(s);
 }
-    };
-    if(admin) db.ref('settings').on('value',receiveSettings);
-    else {
-        const publicSettings={};
-        ['lateTime','closeTime','routineText','giftList','defaultBg','housingEnabled','studentRoles','cleaningAssignments'].forEach(field=>{
-            db.ref(`settings/${field}`).on('value',snap=>{
-                publicSettings[field]=snap.val();
-                receiveSettings({val:()=>publicSettings});
-            });
-        });
-    }
+    });
 
-    db.ref(admin?'users':'publicStudents').on('value',snap=>{
 
-        if(admin)syncPublicDirectoryFromUsers(snap);
+    db.ref(admin?'users':'publicProfiles').on('value',snap=>{
 
         const users=[];
 
@@ -570,13 +584,6 @@ if (typeof refreshCheckinGuide === 'function') {
 
             if(!u.name){
                 u.name=child.key;
-            }
-
-            // 공개 명단에는 개인정보/포인트가 없으므로 본인 카드에만
-            // 이미 본인 전용 users 경로에서 읽은 값을 합친다.
-            const loginName=String(window.myName||'').trim();
-            if(!admin&&u.name===loginName&&window.currentUser){
-                Object.assign(u,window.currentUser,{name:u.name,__firebaseKey:child.key});
             }
 
             const role=String(u.role||'').trim();
@@ -627,8 +634,8 @@ if (typeof refreshCheckinGuide === 'function') {
         if(loggedInUser){
             window.currentUser={...(window.currentUser||{}),...loggedInUser};
             window.isHelper=
-                window.currentUser.isHelper===true||
-                window.currentUser.isHelper==='true';
+                loggedInUser.isHelper===true||
+                loggedInUser.isHelper==='true';
 
             if(typeof window.applyAccessControl==='function'){
                 window.applyAccessControl();
@@ -778,82 +785,81 @@ window.openBatchPointModal=function(){
 
 
         studentRows+=`
-            <div class="batch-student-row"
-                style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;">
+            <div class="batch-student-row">
 
-                <label style="display:flex;align-items:center;gap:8px;flex:2;cursor:pointer;font-weight:bold;">
+                <label class="row">
                     <input
                         type="checkbox"
                         class="batch-student-chk"
-                        value="${safe}"
-                        style="width:18px;height:18px;">
+                        value="${safe}">
 
-                    <span>${safe}</span>
+                    <span class="strong">${safe}</span>
 
-                    <span style="font-size:.85rem;color:#666;">
+                    <span class="muted small">
                         (${parseInt(u.points)||0}P)
                     </span>
                 </label>
 
-                <input
-                    type="number"
-                    class="batch-p-input"
-                    placeholder="포인트(P)"
-                    style="flex:1;padding:6px;text-align:center;border:1px solid #ccc;border-radius:6px;font-size:1rem;">
+                <div class="batch-card-field">
+                    <input
+                        type="number"
+                        class="batch-p-input"
+                        placeholder="포인트(P)">
+                </div>
 
-                <input
-                    type="number"
-                    class="batch-exp-input"
-                    placeholder="경험치(EXP)"
-                    style="flex:1;padding:6px;text-align:center;border:1px solid #ccc;border-radius:6px;font-size:1rem;">
+                <div class="batch-card-field">
+                    <input
+                        type="number"
+                        class="batch-exp-input"
+                        placeholder="경험치(EXP)">
+                </div>
             </div>
         `;
     });
 
 
     const html=`
-        <div style="padding:10px;">
+        <div class="stack">
 
-            <h3 style="margin-top:0;color:#2c3e50;text-align:center;">
+            <h3 class="center">
                 🎁 포인트 및 경험치 개별 차등 지급
             </h3>
 
             <input
                 type="text"
                 id="batch-reason"
-                placeholder="공통 사유 입력 (예: 모둠 활동 우수)"
-                style="width:100%;padding:12px;margin-bottom:12px;box-sizing:border-box;border-radius:8px;border:1px solid #ccc;font-size:1.1rem;">
+                placeholder="공통 사유 입력 (예: 모둠 활동 우수)">
 
-            <div style="display:flex;gap:10px;margin-bottom:10px;">
+            <div class="btn-row btn-row--fill">
 
                 <button
-                    onclick="document.querySelectorAll('.batch-student-chk').forEach(cb=>cb.checked=true)"
-                    style="padding:8px;cursor:pointer;background:#ecf0f1;border:none;border-radius:6px;font-weight:bold;flex:1;">
+                    class="btn"
+                    onclick="document.querySelectorAll('.batch-student-chk').forEach(cb=>cb.checked=true)">
                     전체 선택
                 </button>
 
                 <button
-                    onclick="document.querySelectorAll('.batch-student-chk').forEach(cb=>cb.checked=false)"
-                    style="padding:8px;cursor:pointer;background:#ecf0f1;border:none;border-radius:6px;font-weight:bold;flex:1;">
+                    class="btn"
+                    onclick="document.querySelectorAll('.batch-student-chk').forEach(cb=>cb.checked=false)">
                     전체 해제
                 </button>
 
             </div>
 
-            <div class="batch-student-grid">
-    ${studentRows||'<p style="text-align:center;color:#999;">학생이 없습니다.</p>'}
+            <div class="batch-card-modal-v6">
+    ${studentRows||'<div class="empty"><span>학생이 없습니다.</span></div>'}
 </div>
-            <div style="display:flex;gap:10px;">
+            <div class="btn-row btn-row--fill">
 
                 <button
-                    onclick="closePopup()"
-                    style="flex:1;padding:15px;background:#95a5a6;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">
+                    class="btn"
+                    onclick="closePopup()">
                     취소
                 </button>
 
                 <button
-                    onclick="submitBatchPoints()"
-                    style="flex:2;padding:15px;background:#27ae60;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">
+                    class="btn btn--good"
+                    onclick="submitBatchPoints()">
                     선택 학생 반영
                 </button>
 
@@ -961,7 +967,6 @@ window.submitBatchPoints=async function(){
 
     const updates={};
 
-
     try{
 
         for(const target of targets){
@@ -1003,7 +1008,6 @@ window.submitBatchPoints=async function(){
                 `users/${target.name}/exp`
             ]=newExp;
 
-
             if (target.p !== 0) {
     const logKey =
         db.ref("pointLogs").push().key;
@@ -1044,13 +1048,11 @@ if (target.p !== 0 || target.exp !== 0) {
 
         await db.ref().update(updates);
 
+        closePopup();
 
         alert(
             `✅ ${targets.length}명의 학생에게 포인트와 경험치를 반영했습니다.`
         );
-
-
-        closePopup();
 
     }catch(error){
 
@@ -1101,12 +1103,15 @@ window.closePointPopup=function(){
     const originalClosePopup = window.closePopup;
 
     function isCheckinPopup(title, content) {
-        const currentTab = String(window.currentTab || '');
         const text = `${title || ''} ${content || ''}`;
+
+        // 판정 기준은 현재 탭입니다.
+        // `sub-checkin-logs` 의 display 값은 탭을 이동해도 'block' 으로 유지되므로 사용하지 않습니다.
         const checkinTab = window.currentTab === 'checkin' ||
-            document.getElementById('tab-checkin')?.classList.contains('active') ||
-            document.getElementById('sub-checkin-logs')?.style.display === 'block';
+            document.getElementById('tab-checkin')?.classList.contains('active');
+
         const checkinContent = /등교|출석|출결|지각|결석|조퇴|학생 배치|요일별 등교제외/.test(text);
+
         return checkinTab || checkinContent;
     }
 
@@ -1117,25 +1122,25 @@ window.closePointPopup=function(){
         style.id = STYLE_ID;
         style.textContent = `
             #${OVERLAY_ID} {
-                position: fixed !important;
-                inset: 0 !important;
-                z-index: 2147483000 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                margin: 0 !important;
-                padding: 24px !important;
-                overflow: hidden !important;
-                background: rgba(15, 23, 42, 0.62) !important;
+                position: fixed;
+                inset: 0;
+                z-index: 2147483000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 100vw;
+                height: 100vh;
+                margin: 0;
+                padding: 24px;
+                overflow: hidden;
+                background: rgba(14, 24, 34, .55);
                 backdrop-filter: blur(5px);
                 -webkit-backdrop-filter: blur(5px);
-                box-sizing: border-box !important;
+                box-sizing: border-box;
             }
 
             #${OVERLAY_ID}[hidden] {
-                display: none !important;
+                display: none;
             }
 
             #${OVERLAY_ID} * {
@@ -1145,20 +1150,20 @@ window.closePointPopup=function(){
             #${OVERLAY_ID} .checkin-popup-dialog {
                 display: flex;
                 flex-direction: column;
-                width: min(1120px, 96vw) !important;
-                max-width: 1120px !important;
-                height: auto !important;
-                max-height: 90vh !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow: hidden !important;
-                color: #172033 !important;
-                background: #ffffff !important;
-                border: 1px solid #d9dee8 !important;
-                border-top: 7px solid #263b63 !important;
-                border-radius: 22px !important;
-                box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32) !important;
-                transform: none !important;
+                width: min(1120px, 96vw);
+                max-width: 1120px;
+                height: auto;
+                max-height: 90vh;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                color: var(--ui-text);
+                background: var(--ui-surface);
+                border: 1px solid var(--ui-line);
+                border-top: 7px solid var(--ui-accent);
+                border-radius: 22px;
+                box-shadow: var(--ui-shadow-lg);
+                transform: none;
             }
 
             #${OVERLAY_ID} .checkin-popup-header {
@@ -1169,16 +1174,17 @@ window.closePointPopup=function(){
                 gap: 16px;
                 min-height: 72px;
                 padding: 16px 20px 16px 26px;
-                background: #fffdf7;
-                border-bottom: 1px solid #e4e7ec;
+                background: var(--ui-surface-soft);
+                border-bottom: 1px solid var(--ui-line-soft);
             }
 
             #${OVERLAY_ID} .checkin-popup-title {
                 min-width: 0;
                 margin: 0;
                 overflow: hidden;
-                color: #182844;
-                font-size: 24px;
+                color: var(--ui-text);
+                font-family: var(--ui-font-display);
+                font-size: var(--ui-subtitle-size);
                 font-weight: 900;
                 line-height: 1.3;
                 text-overflow: ellipsis;
@@ -1192,11 +1198,11 @@ window.closePointPopup=function(){
                 min-height: 46px;
                 margin: 0;
                 padding: 0;
-                color: #263b63;
-                background: #eef1f5;
+                color: var(--ui-accent);
+                background: var(--ui-surface-soft);
                 border: 0;
                 border-radius: 13px;
-                font-size: 27px;
+                font-size: var(--ui-subtitle-size);
                 font-weight: 900;
                 line-height: 1;
                 cursor: pointer;
@@ -1209,8 +1215,9 @@ window.closePointPopup=function(){
                 padding: 24px 26px 28px;
                 overflow-x: auto;
                 overflow-y: auto;
-                background: #ffffff;
-                font-size: 16px;
+                background: var(--ui-surface);
+                font-family: var(--ui-font-body);
+                font-size: var(--ui-text-size);
                 line-height: 1.55;
             }
 
@@ -1218,7 +1225,7 @@ window.closePointPopup=function(){
             #${OVERLAY_ID} .checkin-popup-content select,
             #${OVERLAY_ID} .checkin-popup-content textarea,
             #${OVERLAY_ID} .checkin-popup-content button {
-                font-size: 16px;
+                font-size: var(--ui-text-size);
             }
 
             #${OVERLAY_ID} .checkin-popup-content table {
@@ -1227,14 +1234,14 @@ window.closePointPopup=function(){
 
             @media (max-width: 700px) {
                 #${OVERLAY_ID} {
-                    align-items: flex-start !important;
-                    padding: 10px !important;
+                    align-items: flex-start;
+                    padding: 10px;
                 }
 
                 #${OVERLAY_ID} .checkin-popup-dialog {
-                    width: 100% !important;
-                    max-height: calc(100vh - 20px) !important;
-                    border-radius: 16px !important;
+                    width: 100%;
+                    max-height: calc(100vh - 20px);
+                    border-radius: 16px;
                 }
 
                 #${OVERLAY_ID} .checkin-popup-header {
@@ -1243,7 +1250,7 @@ window.closePointPopup=function(){
                 }
 
                 #${OVERLAY_ID} .checkin-popup-title {
-                    font-size: 20px;
+                    font-size: var(--ui-heading-size);
                 }
 
                 #${OVERLAY_ID} .checkin-popup-content {
@@ -1373,7 +1380,8 @@ window.closePointPopup=function(){
     }
 
     function getCard(target) {
-        return target instanceof Element ? target.closest(CARD_SELECTOR) : null;
+        const card = target instanceof Element ? target.closest(CARD_SELECTOR) : null;
+        return card?.classList.contains('empty') ? null : card;
     }
 
     function getCardName(card) {
@@ -1416,6 +1424,8 @@ window.closePointPopup=function(){
 
     async function getFullUser(card) {
         const localUser = getUser(card);
+        if (window.isAdmin !== true) return localUser;
+
         const name = String(first(localUser, ['name', 'userName', 'username'], getCardName(card))).trim();
         const firebaseKey = String(
             card.dataset.firebaseKey || card.dataset.userKey || card.dataset.key || name
@@ -1424,15 +1434,15 @@ window.closePointPopup=function(){
         if (typeof db === 'undefined' || !db?.ref) return localUser;
 
         try {
-            // 다른 학생 카드는 개인정보가 제거된 공개 프로필만 읽습니다.
-            const directSnapshot = await db.ref(`publicStudents/${firebaseKey}`).once('value');
+            // 현재 앱은 users/{학생 이름} 경로에 학생 정보를 저장합니다.
+            const directSnapshot = await db.ref(`users/${firebaseKey}`).once('value');
             if (directSnapshot.exists()) {
                 const saved = directSnapshot.val() || {};
                 return { ...localUser, ...saved, __firebaseKey: firebaseKey, name: saved.name || name || firebaseKey };
             }
 
             // 카드의 key와 학생 이름이 다른 경우 name 필드로 한 번 더 찾습니다.
-            const nameSnapshot = await db.ref('publicStudents').orderByChild('name').equalTo(name).once('value');
+            const nameSnapshot = await db.ref('users').orderByChild('name').equalTo(name).once('value');
             let found = null;
             nameSnapshot.forEach(child => {
                 if (!found) found = { ...(child.val() || {}), __firebaseKey: child.key };
@@ -1707,24 +1717,24 @@ async function loadHistory(name, firebaseKey) {
         const style = document.createElement('style');
         style.id = STYLE_ID;
         style.textContent = `
-            #${OVERLAY_ID}{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.62);backdrop-filter:blur(5px);box-sizing:border-box}
-            #${OVERLAY_ID}[hidden]{display:none!important}#${OVERLAY_ID} *{box-sizing:border-box}
-            #${OVERLAY_ID} .hd-dialog{position:relative;display:grid;grid-template-columns:310px minmax(0,1fr);grid-template-rows:minmax(0,1fr);width:min(1000px,96vw);height:min(680px,90vh);overflow:hidden;background:#fff;border:1px solid #d9dee8;border-top:8px solid #263b63;border-radius:24px;box-shadow:0 28px 75px rgba(0,0,0,.3)}
-            #${OVERLAY_ID} .hd-close{position:absolute;top:14px;right:14px;z-index:2;width:46px;height:46px;padding:0;border:0;border-radius:14px;background:#eef1f5;color:#263b63;font-size:27px;font-weight:900;cursor:pointer}
-            #${OVERLAY_ID} .hd-profile{display:flex;min-height:0;overflow-y:auto;flex-direction:column;align-items:center;padding:42px 28px 30px;background:linear-gradient(155deg,#fff8dc,#f7edbd);border-right:1px solid #ded5ae;text-align:center}
-            #${OVERLAY_ID} .hd-avatar{display:grid;flex-shrink:0;place-items:center;width:170px;height:170px;margin:10px 0 22px;overflow:hidden;background:#fff;border:5px solid #e0bf48;border-radius:38px;box-shadow:0 14px 30px rgba(86,68,15,.16);font-size:78px}
-            #${OVERLAY_ID} .hd-avatar img{width:100%;height:100%;object-fit:contain}.hd-kicker{margin:0 0 6px;color:#8a6a12;font-size:16px;font-weight:900}
-            #${OVERLAY_ID} .hd-name{margin:0;color:#182844;font-size:34px;line-height:1.2;font-weight:950}#${OVERLAY_ID} .hd-role{margin:8px 0 4px;color:#566174;font-size:17px;font-weight:750}#${OVERLAY_ID} .hd-meta{margin:0 0 22px;color:#7a8495;font-size:15px;font-weight:800}
-            #${OVERLAY_ID} .hd-profile-stats{display:grid;flex-shrink:0;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:auto}#${OVERLAY_ID} .hd-profile-stat{padding:17px 9px;background:rgba(255,255,255,.86);border:1px solid #dccb85;border-radius:15px}
-            #${OVERLAY_ID} .hd-profile-stat span{display:block;color:#667085;font-size:15px;font-weight:800}#${OVERLAY_ID} .hd-profile-stat strong{display:block;margin-top:5px;color:#182844;font-size:22px;font-weight:950}
-            #${OVERLAY_ID} .hd-history{display:flex;min-width:0;min-height:0;flex-direction:column;padding:36px 32px 28px;background:#fbfcfe}#${OVERLAY_ID} .hd-history-head{flex-shrink:0;padding-right:48px;margin-bottom:18px}
-            #${OVERLAY_ID} .hd-history-head h3{margin:0;color:#182844;font-size:27px;font-weight:950}#${OVERLAY_ID} .hd-history-head p{margin:7px 0 0;color:#667085;font-size:15px}
-            #${OVERLAY_ID} .hd-log-list{flex:1;min-height:0;overflow-y:auto;padding-right:5px}#${OVERLAY_ID} .hd-log-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;margin-bottom:10px;background:#fff;border:1px solid #e0e5ec;border-radius:14px}
-            #${OVERLAY_ID} .hd-log-copy{min-width:0}#${OVERLAY_ID} .hd-log-copy>strong{display:block;overflow:hidden;color:#263b63;font-size:17px;text-overflow:ellipsis;white-space:nowrap}#${OVERLAY_ID} .hd-log-copy time{display:block;margin:5px 0;color:#7a8495;font-size:14px}
-            #${OVERLAY_ID} .hd-exp-change,#${OVERLAY_ID} .hd-result{display:inline-block;margin-right:10px;color:#667085;font-size:13px;font-weight:750}#${OVERLAY_ID} .hd-change{flex:0 0 auto;font-size:22px;font-weight:950}
-            #${OVERLAY_ID} .hd-change.plus{color:#16a05d}#${OVERLAY_ID} .hd-change.minus{color:#e34444}#${OVERLAY_ID} .hd-change.zero{color:#667085}#${OVERLAY_ID} .hd-empty,#${OVERLAY_ID} .hd-loading{display:grid;place-items:center;min-height:260px;color:#7a8495;background:#fff;border:1px dashed #cbd2dc;border-radius:16px;font-size:16px;text-align:center}
-            #${OVERLAY_ID} .hd-room-button{flex-shrink:0;width:100%;margin-top:16px;padding:13px;border:0;border-radius:12px;background:#263b63;color:#fff;font-size:17px;font-weight:800;cursor:pointer}
-            @media(max-width:720px){#${OVERLAY_ID}{padding:8px}#${OVERLAY_ID} .hd-dialog{display:block;height:min(92vh,760px);overflow-y:auto}#${OVERLAY_ID} .hd-profile{min-height:370px;overflow:visible;padding:28px 18px 20px;border-right:0;border-bottom:1px solid #ded5ae}#${OVERLAY_ID} .hd-avatar{width:125px;height:125px;margin:4px 0 14px;border-radius:28px;font-size:58px}#${OVERLAY_ID} .hd-name{font-size:28px}#${OVERLAY_ID} .hd-role{margin-bottom:15px}#${OVERLAY_ID} .hd-history{padding:24px 16px}#${OVERLAY_ID} .hd-history-head h3{font-size:23px}#${OVERLAY_ID} .hd-log-list{overflow:visible}}
+            #${OVERLAY_ID}{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(14,24,34,.55);backdrop-filter:blur(5px);box-sizing:border-box}
+            #${OVERLAY_ID}[hidden]{display:none}#${OVERLAY_ID} *{box-sizing:border-box}
+            #${OVERLAY_ID} .hd-dialog{position:relative;display:grid;grid-template-columns:310px minmax(0,1fr);grid-template-rows:minmax(0,1fr);width:min(1000px,96vw);height:min(680px,90vh);overflow:hidden;background:var(--ui-surface);border:1px solid var(--ui-line);border-top:8px solid var(--ui-accent);border-radius:24px;box-shadow:var(--ui-shadow-lg)}
+            #${OVERLAY_ID} .hd-close{position:absolute;top:14px;right:14px;z-index:2;width:46px;height:46px;padding:0;border:0;border-radius:14px;background:var(--ui-surface-soft);color:var(--ui-accent);font-size:var(--ui-subtitle-size);font-weight:900;cursor:pointer}
+            #${OVERLAY_ID} .hd-profile{display:flex;min-height:0;overflow-y:auto;flex-direction:column;align-items:center;padding:42px 28px 30px;background:linear-gradient(155deg,var(--ui-surface),var(--ui-gold-soft));border-right:1px solid var(--ui-gold-line);text-align:center}
+            #${OVERLAY_ID} .hd-avatar{display:grid;flex-shrink:0;place-items:center;width:170px;height:170px;margin:10px 0 22px;overflow:hidden;background:var(--ui-surface);border:5px solid var(--ui-gold-line);border-radius:38px;box-shadow:var(--ui-shadow);font-size:78px}
+            #${OVERLAY_ID} .hd-avatar img{width:100%;height:100%;object-fit:contain}#${OVERLAY_ID} .hd-kicker{margin:0 0 6px;color:var(--ui-gold);font-family:var(--ui-font-body);font-size:var(--ui-text-size);font-weight:900}
+            #${OVERLAY_ID} .hd-name{margin:0;color:var(--ui-text);font-family:var(--ui-font-display);font-size:var(--ui-title-size);line-height:1.2;font-weight:950}#${OVERLAY_ID} .hd-role{margin:8px 0 4px;color:var(--ui-muted);font-size:var(--ui-text-size);font-weight:750}#${OVERLAY_ID} .hd-meta{margin:0 0 22px;color:var(--ui-faint);font-size:var(--ui-small-size);font-weight:800}
+            #${OVERLAY_ID} .hd-profile-stats{display:grid;flex-shrink:0;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:auto}#${OVERLAY_ID} .hd-profile-stat{padding:17px 9px;background:var(--ui-surface);border:1px solid var(--ui-gold-line);border-radius:15px}
+            #${OVERLAY_ID} .hd-profile-stat span{display:block;color:var(--ui-muted);font-size:var(--ui-small-size);font-weight:800}#${OVERLAY_ID} .hd-profile-stat strong{display:block;margin-top:5px;color:var(--ui-text);font-size:var(--ui-heading-size);font-weight:950}
+            #${OVERLAY_ID} .hd-history{display:flex;min-width:0;min-height:0;flex-direction:column;padding:36px 32px 28px;background:var(--ui-surface-soft)}#${OVERLAY_ID} .hd-history-head{flex-shrink:0;padding-right:48px;margin-bottom:18px}
+            #${OVERLAY_ID} .hd-history-head h3{margin:0;color:var(--ui-text);font-family:var(--ui-font-display);font-size:var(--ui-subtitle-size);font-weight:950}#${OVERLAY_ID} .hd-history-head p{margin:7px 0 0;color:var(--ui-muted);font-size:var(--ui-small-size)}
+            #${OVERLAY_ID} .hd-log-list{flex:1;min-height:0;overflow-y:auto;padding-right:5px}#${OVERLAY_ID} .hd-log-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;margin-bottom:10px;background:var(--ui-surface);border:1px solid var(--ui-line);border-radius:14px}
+            #${OVERLAY_ID} .hd-log-copy{min-width:0}#${OVERLAY_ID} .hd-log-copy>strong{display:block;overflow:hidden;color:var(--ui-accent);font-size:var(--ui-text-size);text-overflow:ellipsis;white-space:nowrap}#${OVERLAY_ID} .hd-log-copy time{display:block;margin:5px 0;color:var(--ui-faint);font-size:var(--ui-small-size)}
+            #${OVERLAY_ID} .hd-exp-change,#${OVERLAY_ID} .hd-result{display:inline-block;margin-right:10px;color:var(--ui-muted);font-size:var(--ui-tiny-size);font-weight:750}#${OVERLAY_ID} .hd-change{flex:0 0 auto;font-size:var(--ui-heading-size);font-weight:950}
+            #${OVERLAY_ID} .hd-change.plus{color:var(--ui-good)}#${OVERLAY_ID} .hd-change.minus{color:var(--ui-bad)}#${OVERLAY_ID} .hd-change.zero{color:var(--ui-muted)}#${OVERLAY_ID} .hd-empty,#${OVERLAY_ID} .hd-loading{display:grid;place-items:center;min-height:260px;color:var(--ui-faint);background:var(--ui-surface);border:1px dashed var(--ui-line);border-radius:16px;font-size:var(--ui-text-size);text-align:center}
+            #${OVERLAY_ID} .hd-room-button{flex-shrink:0;width:100%;margin-top:16px;padding:13px;border:0;border-radius:12px;background:var(--ui-accent);color:var(--ui-on-accent);font-size:var(--ui-text-size);font-weight:800;cursor:pointer}
+            @media(max-width:720px){#${OVERLAY_ID}{padding:8px}#${OVERLAY_ID} .hd-dialog{display:block;height:min(92vh,760px);overflow-y:auto}#${OVERLAY_ID} .hd-profile{min-height:370px;overflow:visible;padding:28px 18px 20px;border-right:0;border-bottom:1px solid var(--ui-gold-line)}#${OVERLAY_ID} .hd-avatar{width:125px;height:125px;margin:4px 0 14px;border-radius:28px;font-size:58px}#${OVERLAY_ID} .hd-name{font-size:var(--ui-title-size)}#${OVERLAY_ID} .hd-role{margin-bottom:15px}#${OVERLAY_ID} .hd-history{padding:24px 16px}#${OVERLAY_ID} .hd-history-head h3{font-size:var(--ui-heading-size)}#${OVERLAY_ID} .hd-log-list{overflow:visible}}
         `;
         document.head.appendChild(style);
     }
@@ -1790,7 +1800,7 @@ async function loadHistory(name, firebaseKey) {
     }
 
     // window 캡처 단계에서 먼저 처리하여 이전 상세창 클릭 코드를 확실히 막습니다.
-    window.addEventListener('click', async event => {
+    if (typeof window.addEventListener === 'function') window.addEventListener('click', async event => {
         const card = getCard(event.target);
         if (!card) return;
         const control = event.target.closest('button,a,input,select,textarea,label');
@@ -1841,8 +1851,6 @@ async function loadHistory(name, firebaseKey) {
     if (window.__batchStudentCardV6Installed) return;
     window.__batchStudentCardV6Installed = true;
 
-    const STYLE_ID = 'batch-student-card-v6-style';
-
     function escapeHtml(value) {
         return String(value ?? '')
             .replace(/&/g, '&amp;')
@@ -1852,259 +1860,79 @@ async function loadHistory(name, firebaseKey) {
             .replace(/'/g, '&#39;');
     }
 
-    function installCardStyle() {
-        if (document.getElementById(STYLE_ID)) return;
+    // 카드 그리드는 css/style.css의 .batch-card-modal-v6 / .batch-student-row /
+    // .batch-card-field / .batch-p-input / .batch-exp-input 클래스를 그대로 씁니다.
 
-        const style = document.createElement('style');
-        style.id = STYLE_ID;
-        style.textContent = `
-            body .batch-card-modal-v6 {
-                display: flex !important;
-                flex: 1 1 auto !important;
-                flex-direction: column !important;
-                width: 100% !important;
-                min-width: 0 !important;
-                min-height: 0 !important;
-                padding: 4px !important;
-            }
-
-            body #common-overlay:has(.batch-card-modal-v6) > .popup-box {
-                height: min(900px, calc(100dvh - 20px)) !important;
-                max-height: calc(100dvh - 20px) !important;
-                overflow: hidden !important;
-            }
-
-            body #common-overlay:has(.batch-card-modal-v6) #pop-content {
-                display: flex !important;
-                flex: 1 1 auto !important;
-                flex-direction: column !important;
-                min-height: 0 !important;
-                overflow: hidden !important;
-            }
-
-            body .batch-card-modal-v6 .batch-reason-input {
-                width: 100% !important;
-                min-height: 52px !important;
-                margin: 0 0 16px !important;
-                padding: 12px 14px !important;
-                color: #172033 !important;
-                background: #ffffff !important;
-                border: 1px solid #cbd3df !important;
-                border-radius: 11px !important;
-                font-size: 17px !important;
-                font-weight: 650 !important;
-            }
-
-            body .batch-card-modal-v6 .batch-select-tools {
-                display: grid !important;
-                grid-template-columns: 1fr 1fr !important;
-                gap: 10px !important;
-                margin-bottom: 14px !important;
-            }
-
-            body .batch-card-modal-v6 .batch-select-tools button {
-                min-height: 48px !important;
-                margin: 0 !important;
-                padding: 10px 14px !important;
-                color: #263b63 !important;
-                background: #eef1f4 !important;
-                border: 1px solid #dce1e8 !important;
-                border-radius: 10px !important;
-                font-size: 16px !important;
-                font-weight: 850 !important;
-                cursor: pointer !important;
-            }
-
-            body .batch-card-modal-v6 .batch-student-grid {
-                display: flex !important;
-                flex: 1 1 360px !important;
-                flex-direction: column !important;
-                gap: 8px !important;
-                width: 100% !important;
-                min-height: 150px !important;
-                max-height: calc(100dvh - 330px) !important;
-                margin: 0 0 12px !important;
-                padding: 4px 10px 18px 2px !important;
-                overflow-x: hidden !important;
-                overflow-y: auto !important;
-                scrollbar-gutter: stable !important;
-                overscroll-behavior: contain !important;
-            }
-
-            body .batch-card-modal-v6 .batch-column-head {
-                display: grid !important;
-                grid-template-columns: 34px minmax(150px, 1fr) 92px minmax(130px, .48fr) minmax(130px, .48fr) !important;
-                gap: 10px !important;
-                padding: 0 14px 7px !important;
-                color: #566174 !important;
-                font-size: 14px !important;
-                font-weight: 850 !important;
-                text-align: center !important;
-            }
-
-            body .batch-card-modal-v6 .batch-column-head span:nth-child(2) {
-                text-align: left !important;
-            }
-
-            body .batch-card-modal-v6 .batch-student-row,
-            body .batch-card-modal-v6 .batch-student-card {
-                display: grid !important;
-                grid-template-columns: 34px minmax(150px, 1fr) 92px minmax(130px, .48fr) minmax(130px, .48fr) !important;
-                align-items: center !important;
-                gap: 10px !important;
-                flex: 0 0 auto !important;
-                width: 100% !important;
-                min-width: 0 !important;
-                min-height: 66px !important;
-                margin: 0 !important;
-                padding: 9px 14px !important;
-                color: #172033 !important;
-                background: #ffffff !important;
-                border: 1px solid #d8dee8 !important;
-                border-radius: 12px !important;
-                box-shadow: 0 2px 7px rgba(24, 40, 68, 0.06) !important;
-                box-sizing: border-box !important;
-                transition: border-color .15s ease, box-shadow .15s ease !important;
-            }
-
-            body .batch-card-modal-v6 .batch-student-row:hover {
-                border-color: #b9a35f !important;
-                box-shadow: 0 4px 12px rgba(24, 40, 68, 0.10) !important;
-            }
-
-            body .batch-card-modal-v6 .batch-student-row.is-selected,
-            body .batch-card-modal-v6 .batch-student-row:has(.batch-student-chk:checked) {
-                background: linear-gradient(145deg, #fffdf7 0%, #fff3c4 100%) !important;
-                border-color: #e1b83f !important;
-                box-shadow: 0 0 0 2px rgba(229, 185, 76, .16) !important;
-            }
-
-            body .batch-card-modal-v6 .batch-check-cell {
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                border: 0 !important;
-                cursor: pointer !important;
-            }
-
-            body .batch-card-modal-v6 .batch-student-chk {
-                width: 24px !important;
-                height: 24px !important;
-                min-height: 24px !important;
-                margin: 0 !important;
-                accent-color: #263b63 !important;
-                cursor: pointer !important;
-            }
-
-            body .batch-card-modal-v6 .batch-card-name {
-                min-width: 0 !important;
-                overflow: hidden !important;
-                color: #182844 !important;
-                font-size: 20px !important;
-                font-weight: 900 !important;
-                line-height: 1.3 !important;
-                text-overflow: ellipsis !important;
-                white-space: nowrap !important;
-            }
-
-            body .batch-card-modal-v6 .batch-card-current-point {
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                min-height: 30px !important;
-                padding: 4px 10px !important;
-                color: #765b0b !important;
-                background: #fff1b5 !important;
-                border: 1px solid #ecd26e !important;
-                border-radius: 999px !important;
-                font-size: 15px !important;
-                font-weight: 850 !important;
-                white-space: nowrap !important;
-            }
-
-            body .batch-card-modal-v6 .batch-card-field {
-                display: block !important;
-                min-width: 0 !important;
-                margin: 0 !important;
-                color: #566174 !important;
-                font-size: 14px !important;
-                font-weight: 800 !important;
-                line-height: 1.4 !important;
-            }
-
-            body .batch-card-modal-v6 .batch-card-field input {
-                display: block !important;
-                width: 100% !important;
-                min-width: 0 !important;
-                min-height: 44px !important;
-                margin: 0 !important;
-                padding: 8px !important;
-                color: #172033 !important;
-                background: #ffffff !important;
-                border: 1px solid #cbd3df !important;
-                border-radius: 10px !important;
-                font-size: 16px !important;
-                font-weight: 750 !important;
-                text-align: center !important;
-            }
-
-            body .batch-card-modal-v6 .batch-card-field input:focus {
-                border-color: #263b63 !important;
-                outline: none !important;
-                box-shadow: 0 0 0 3px rgba(38, 59, 99, .14) !important;
-            }
-
-            body .batch-card-modal-v6 .batch-action-buttons {
-                display: grid !important;
-                grid-template-columns: minmax(140px, 1fr) minmax(240px, 2fr) !important;
-                gap: 10px !important;
-                flex: 0 0 auto !important;
-                position: static !important;
-                padding-top: 8px !important;
-                background: #ffffff !important;
-            }
-
-            body .batch-card-modal-v6 .batch-action-buttons button {
-                min-height: 54px !important;
-                margin: 0 !important;
-                border: 0 !important;
-                border-radius: 11px !important;
-                color: #ffffff !important;
-                font-size: 17px !important;
-                font-weight: 900 !important;
-                cursor: pointer !important;
-            }
-
-            body .batch-card-modal-v6 .batch-cancel-btn { background: #8e9da1 !important; }
-            body .batch-card-modal-v6 .batch-submit-btn { background: #22a95b !important; }
-
-            @media (max-width: 720px) {
-                body .batch-card-modal-v6 .batch-column-head {
-                    display: none !important;
-                }
-                body .batch-card-modal-v6 .batch-student-row {
-                    grid-template-columns: 30px minmax(110px, 1fr) 76px minmax(105px, .7fr) minmax(105px, .7fr) !important;
-                    min-height: 62px !important;
-                    padding: 10px !important;
-                }
-
-                body .batch-card-modal-v6 .batch-action-buttons {
-                    grid-template-columns: 1fr !important;
-                }
-            }
-        `;
-
-        document.head.appendChild(style);
-    }
-
+    // 검색으로 걸러진 학생은 전체 선택에서도 빠집니다.
     function setAllCards(checked) {
-        document.querySelectorAll('.batch-card-modal-v6 .batch-student-chk').forEach(checkbox => {
+        document.querySelectorAll('.batch-card-modal-v6 .batch-student-row').forEach(row => {
+            if (row.hidden) return;
+
+            const checkbox = row.querySelector('.batch-student-chk');
+            if (!checkbox) return;
+
             checkbox.checked = checked;
-            checkbox.closest('.batch-student-row')?.classList.toggle('is-selected', checked);
+            row.classList.toggle('is-selected', checked);
         });
     }
+
+    function batchHint(message) {
+        const hint = document.getElementById('batch-hint');
+        if (hint) hint.textContent = String(message || '');
+    }
+
+    // 번호나 이름 일부로 즉시 좁힙니다. 25명이 넘어가면 눈으로 찾는 게 일이 됩니다.
+    window.batchFilterCardsV6 = function (value) {
+        const query = String(value || '').trim().toLowerCase();
+        let shown = 0;
+
+        document.querySelectorAll('.batch-card-modal-v6 .batch-student-row').forEach(row => {
+            const name = String(row.dataset.name || '').toLowerCase();
+            const no = String(row.dataset.no || '');
+            const match = !query || name.includes(query) || no.startsWith(query);
+
+            row.hidden = !match;
+            if (match) shown += 1;
+        });
+
+        batchHint(query ? `${shown}명 표시 중` : '');
+    };
+
+    // 반 전체에 +1P 같은 가장 흔한 작업을 위해, 선택한 학생 입력칸을 한 번에 채웁니다.
+    window.batchFillSelectedV6 = function () {
+        const pointValue = String(document.getElementById('batch-fill-p')?.value ?? '').trim();
+        const expValue = String(document.getElementById('batch-fill-exp')?.value ?? '').trim();
+
+        if (pointValue === '' && expValue === '') {
+            batchHint('채울 포인트나 경험치를 먼저 입력해 주세요.');
+            return;
+        }
+
+        let filled = 0;
+
+        document.querySelectorAll('.batch-card-modal-v6 .batch-student-row').forEach(row => {
+            const checkbox = row.querySelector('.batch-student-chk');
+            if (!checkbox || !checkbox.checked) return;
+
+            if (pointValue !== '') {
+                const input = row.querySelector('.batch-p-input');
+                if (input) input.value = pointValue;
+            }
+
+            if (expValue !== '') {
+                const input = row.querySelector('.batch-exp-input');
+                if (input) input.value = expValue;
+            }
+
+            filled += 1;
+        });
+
+        batchHint(
+            filled
+                ? `${filled}명의 입력칸을 채웠습니다. 값은 개별로 고쳐도 됩니다.`
+                : '선택된 학생이 없습니다. 먼저 학생을 고르세요.'
+        );
+    };
 
     window.batchSelectAllCardsV6 = function () {
         setAllCards(true);
@@ -2117,25 +1945,27 @@ async function loadHistory(name, firebaseKey) {
     window.openBatchPointModal = function () {
         if (typeof isCheckinAdminUser === 'function' && !isCheckinAdminUser()) return;
 
-        installCardStyle();
-
         const users = Array.isArray(window.currentUsers) ? window.currentUsers : [];
         const cards = users
             .filter(user => {
                 const name = user?.name || '';
                 return name && name !== '총사령관' && !name.includes('선생님');
             })
+            .sort((a, b) => (Number.parseInt(a.no, 10) || 99) - (Number.parseInt(b.no, 10) || 99))
             .map(user => {
                 const safeName = escapeHtml(user.name || '');
                 const points = Number.parseInt(user.points, 10) || 0;
+                const no = Number.parseInt(user.no, 10);
+                const label = Number.isFinite(no) && no > 0 ? String(no) : '–';
 
                 return `
-                    <article class="batch-student-row batch-student-card">
-                        <label class="batch-check-cell" aria-label="${safeName} 선택">
+                    <article class="batch-student-row" data-name="${safeName}" data-no="${escapeHtml(label)}">
+                        <label class="row">
                             <input type="checkbox" class="batch-student-chk" value="${safeName}">
+                            <span class="batch-no">${escapeHtml(label)}</span>
+                            <span class="strong">${safeName}</span>
+                            <span class="badge badge--gold">${points.toLocaleString('ko-KR')}P</span>
                         </label>
-                        <span class="batch-card-name">${safeName}</span>
-                        <span class="batch-card-current-point">${points.toLocaleString('ko-KR')}P</span>
 
                         <div class="batch-card-field">
                             <input type="number" class="batch-p-input" placeholder="포인트" aria-label="${safeName} 포인트" title="포인트" inputmode="numeric">
@@ -2150,34 +1980,41 @@ async function loadHistory(name, firebaseKey) {
             .join('');
 
         const html = `
-            <div class="batch-card-modal-v6">
+            <div class="stack">
                 <input
                     type="text"
                     id="batch-reason"
-                    class="batch-reason-input"
                     placeholder="공통 사유 입력 (예: 모둠 활동 우수)"
                 >
 
-                <div class="batch-select-tools">
-                    <button type="button" onclick="batchSelectAllCardsV6()">전체 선택</button>
-                    <button type="button" onclick="batchClearAllCardsV6()">전체 해제</button>
+                <input
+                    type="search"
+                    id="batch-search"
+                    placeholder="번호나 이름으로 찾기 (예: 7, 김)"
+                    oninput="batchFilterCardsV6(this.value)"
+                >
+
+                <div class="btn-row btn-row--fill">
+                    <button type="button" class="btn" onclick="batchSelectAllCardsV6()">전체 선택</button>
+                    <button type="button" class="btn" onclick="batchClearAllCardsV6()">전체 해제</button>
                 </div>
 
-                <div class="batch-column-head" aria-hidden="true">
-                    <span>선택</span>
-                    <span>이름</span>
-                    <span>현재 포인트</span>
-                    <span>포인트</span>
-                    <span>경험치</span>
+                <div class="batch-fill">
+                    <span class="batch-fill-label">선택 학생 한 번에</span>
+                    <input type="number" id="batch-fill-p" class="input--num" placeholder="P" inputmode="numeric" aria-label="일괄 포인트">
+                    <input type="number" id="batch-fill-exp" class="input--num" placeholder="EXP" inputmode="numeric" aria-label="일괄 경험치">
+                    <button type="button" class="btn btn--sm" onclick="batchFillSelectedV6()">채우기</button>
                 </div>
 
-                <section class="batch-student-grid">
-                    ${cards || '<p style="grid-column:1/-1;padding:40px;text-align:center;color:#7a8495;font-size:17px;">학생이 없습니다.</p>'}
+                <p id="batch-hint" class="muted small" role="status"></p>
+
+                <section class="batch-card-modal-v6">
+                    ${cards || '<div class="empty"><span>학생이 없습니다.</span></div>'}
                 </section>
 
-                <div class="batch-action-buttons">
-                    <button type="button" class="batch-cancel-btn" onclick="closePopup()">취소</button>
-                    <button type="button" class="batch-submit-btn" onclick="submitBatchPoints()">선택 학생 반영</button>
+                <div class="btn-row btn-row--fill">
+                    <button type="button" class="btn" onclick="closePopup()">취소</button>
+                    <button type="button" class="btn btn--good" onclick="submitBatchPoints()">선택 학생 반영</button>
                 </div>
             </div>
         `;

@@ -50,13 +50,17 @@
     async function ensureCurrent() {
         if (!available()) throw unavailable();
         const session = generation;
-        const snapshot = await db.ref('settings').once('value');
-        if (session !== generation || !available()) throw unavailable();
-        const settings = snapshot.val() || {};
-        if (!core.valid(settings.password)) {
-            throw unavailable('등교 암호가 아직 설정되지 않았습니다. 선생님께 확인해 주세요.');
+        if (!writer) {
+            const snapshot = await db.ref('settings').once('value');
+            if (session !== generation || !available()) throw unavailable();
+            const settings = snapshot.val() || {};
+            if (!core.valid(settings.password)) {
+                throw unavailable('등교 암호가 아직 준비되지 않았습니다. 선생님께 확인해 주세요.');
+            }
+            return settings;
         }
-        return settings;
+        if (!canWrite()) throw unavailable();
+        return core.ensureCurrent(db, now, randomInt, () => session === generation && canWrite());
     }
     async function publish(settings) {
         const session = generation;
@@ -69,7 +73,7 @@
         if (pending) return pending;
         if (Date.now() < Math.max(connectedAt + STABLE_MS, retryAt)) { schedule(); return Promise.resolve(); }
         const current = latestSettings;
-        const isCurrent = core.valid(current?.password) && current.passwordDate === core.today(now());
+        const isCurrent = core.valid(current?.password);
         if (isCurrent && fingerprint(current) === lastPublished) { schedule(); return Promise.resolve(); }
         const session = generation;
         const job = Promise.resolve().then(async () => {
@@ -100,7 +104,7 @@
         }
         if (lastError) return;
         status(core.valid(settings.password)
-            ? '수동 갱신 모드 · 기존 암호는 새로 저장할 때까지 유지됩니다.'
+            ? '수동 갱신 모드 · 저장된 암호는 다시 변경할 때까지 유지됩니다.'
             : writer ? '등교 암호를 입력하고 시스템 저장을 눌러주세요.' : '선생님이 등교 암호를 준비하고 있습니다.');
     }
     root.CheckinPassword = { now, randomInt, ensureCurrent, refresh, updateInput, publish };

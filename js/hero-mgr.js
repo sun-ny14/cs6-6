@@ -43,15 +43,6 @@ function getAvatar(lv, selectedAnimal, size) {
         <div class="hero-avatar-frame" style="
             width:${avatarSize}px;
             height:${avatarSize}px;
-            overflow:hidden;
-            border-radius:50%;
-            background:white;
-            margin:0 auto;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            position:relative;
-            box-shadow:0 2px 5px rgba(0,0,0,0.1);
         ">
             <div style="
                 width:100%;
@@ -136,8 +127,7 @@ function heroUnlockedTitles(user, level) {
 }
 
 function heroFindUser(userName) {
-    const source=window.isVerifiedAdmin()?'users':'publicStudents';
-    return db.ref(source).once("value").then(snapshot => {
+    return db.ref("users").once("value").then(snapshot => {
         let found = null;
 
         snapshot.forEach(child => {
@@ -169,7 +159,7 @@ function ensureHeroProfileEditorStyle() {
             display: grid;
             place-items: center;
             padding: 22px;
-            background: rgba(20, 31, 51, .64);
+            background: rgba(14, 24, 34, .55);
             backdrop-filter: blur(3px);
         }
         #hero-profile-editor-overlay * { box-sizing: border-box; }
@@ -180,10 +170,10 @@ function ensureHeroProfileEditorStyle() {
     height: min(850px, 94vh);
     max-height: min(850px, 94vh);
     overflow: hidden;
-    border: 1px solid #d9c77d;
+    border: 1px solid var(--ui-gold-line);
     border-radius: 24px;
-    background: #fffdf7;
-    box-shadow: 0 24px 70px rgba(15, 27, 48, .34);
+    background: var(--ui-surface);
+    box-shadow: var(--ui-shadow-lg);
 }
         #hero-profile-editor-overlay .hpe-head {
             display: flex;
@@ -192,13 +182,14 @@ function ensureHeroProfileEditorStyle() {
             gap: 16px;
             min-height: 76px;
             padding: 16px 22px;
-            color: #192a49;
-            background: #fff8d8;
-            border-bottom: 1px solid #e5d9a6;
+            color: var(--ui-text);
+            background: var(--ui-gold-soft);
+            border-bottom: 1px solid var(--ui-gold-line);
         }
         #hero-profile-editor-overlay .hpe-head h2 {
             margin: 0;
-            font-size: 26px;
+            font-family: var(--ui-font-display);
+            font-size: var(--ui-subtitle-size);
             font-weight: 900;
         }
         #hero-profile-editor-overlay .hpe-close {
@@ -206,11 +197,11 @@ function ensureHeroProfileEditorStyle() {
             min-width: 44px;
             min-height: 44px;
             padding: 0;
-            color: #35435b;
-            background: #fff;
-            border: 1px solid #d8dce3;
+            color: var(--ui-text);
+            background: var(--ui-surface);
+            border: 1px solid var(--ui-line);
             border-radius: 12px;
-            font-size: 26px;
+            font-size: var(--ui-subtitle-size);
             line-height: 1;
             cursor: pointer;
         }
@@ -228,8 +219,8 @@ function ensureHeroProfileEditorStyle() {
             align-items: center;
             padding: 34px 25px 28px;
             text-align: center;
-            background: linear-gradient(160deg, #fff8dc, #f4e9b6);
-            border-right: 1px solid #e0d4a1;
+            background: linear-gradient(160deg, var(--ui-surface), var(--ui-gold-soft));
+            border-right: 1px solid var(--ui-gold-line);
         }
         #hero-profile-editor-overlay .hpe-avatar-stage {
             display: grid;
@@ -237,21 +228,22 @@ function ensureHeroProfileEditorStyle() {
             width: 184px;
             height: 184px;
             margin-bottom: 20px;
-            background: #fff;
-            border: 5px solid #e3bf3e;
+            background: var(--ui-surface);
+            border: 5px solid var(--ui-gold);
             border-radius: 34px;
-            box-shadow: 0 10px 28px rgba(86, 67, 16, .13);
+            box-shadow: var(--ui-shadow);
         }
         #hero-profile-editor-overlay .hpe-preview h3 {
             margin: 0 0 8px;
-            color: #182844;
-            font-size: 28px;
+            color: var(--ui-text);
+            font-family: var(--ui-font-display);
+            font-size: var(--ui-title-size);
             font-weight: 900;
         }
         #hero-profile-editor-overlay .hpe-preview-title {
             margin: 0 0 18px;
-            color: #725b14;
-            font-size: 18px;
+            color: var(--ui-gold);
+            font-size: var(--ui-text-size);
             font-weight: 800;
         }
         #hero-profile-editor-overlay .hpe-level {
@@ -259,10 +251,10 @@ function ensureHeroProfileEditorStyle() {
             align-items: center;
             min-height: 38px;
             padding: 7px 14px;
-            color: #fff;
-            background: #243b64;
+            color: var(--ui-on-accent);
+            background: var(--ui-accent);
             border-radius: 999px;
-            font-size: 17px;
+            font-size: var(--ui-text-size);
             font-weight: 850;
         }
         #hero-profile-editor-overlay .hpe-selectors {
@@ -277,14 +269,15 @@ function ensureHeroProfileEditorStyle() {
         }
         #hero-profile-editor-overlay .hpe-section h3 {
             margin: 0 0 6px;
-            color: #182844;
-            font-size: 21px;
+            color: var(--ui-text);
+            font-family: var(--ui-font-display);
+            font-size: var(--ui-heading-size);
             font-weight: 900;
         }
         #hero-profile-editor-overlay .hpe-help {
             margin: 0 0 14px;
-            color: #687285;
-            font-size: 16px;
+            color: var(--ui-muted);
+            font-size: var(--ui-text-size);
             line-height: 1.55;
         }
         #hero-profile-editor-overlay .hpe-avatar-grid {
@@ -296,18 +289,18 @@ function ensureHeroProfileEditorStyle() {
             position: relative;
             min-height: 130px;
             padding: 12px 8px 10px;
-            color: #33415b;
-            background: #fff;
-            border: 2px solid #dfe3e9;
+            color: var(--ui-text);
+            background: var(--ui-surface);
+            border: 2px solid var(--ui-line);
             border-radius: 16px;
-            font-size: 15px;
+            font-size: var(--ui-small-size);
             font-weight: 800;
             cursor: pointer;
         }
         #hero-profile-editor-overlay .hpe-avatar-option.is-selected {
-            border-color: #e0b830;
-            background: #fff9df;
-            box-shadow: 0 0 0 3px rgba(224, 184, 48, .15);
+            border-color: var(--ui-gold);
+            background: var(--ui-gold-soft);
+            box-shadow: 0 0 0 3px var(--ui-gold-soft);
         }
         #hero-profile-editor-overlay .hpe-avatar-option:disabled {
             cursor: not-allowed;
@@ -323,10 +316,10 @@ function ensureHeroProfileEditorStyle() {
             top: 7px;
             right: 7px;
             padding: 3px 6px;
-            color: #fff;
-            background: #59657a;
+            color: var(--ui-on-accent);
+            background: var(--ui-muted);
             border-radius: 6px;
-            font-size: 12px;
+            font-size: var(--ui-tiny-size);
         }
         #hero-profile-editor-overlay .hpe-title-list {
             display: flex;
@@ -336,18 +329,18 @@ function ensureHeroProfileEditorStyle() {
         #hero-profile-editor-overlay .hpe-title-option {
             min-height: 44px;
             padding: 9px 15px;
-            color: #34415a;
-            background: #fff;
-            border: 2px solid #dfe3e9;
+            color: var(--ui-text);
+            background: var(--ui-surface);
+            border: 2px solid var(--ui-line);
             border-radius: 999px;
-            font-size: 16px;
+            font-size: var(--ui-text-size);
             font-weight: 850;
             cursor: pointer;
         }
         #hero-profile-editor-overlay .hpe-title-option.is-selected {
-            color: #17345e;
-            border-color: #e0b830;
-            background: #fff3bd;
+            color: var(--ui-accent-deep);
+            border-color: var(--ui-gold);
+            background: var(--ui-gold-soft);
         }
         #hero-profile-editor-overlay .hpe-actions {
             position: sticky;
@@ -357,47 +350,47 @@ function ensureHeroProfileEditorStyle() {
             gap: 12px;
             margin: 28px -26px -20px;
             padding: 16px 26px 20px;
-            background: rgba(255, 253, 247, .97);
-            border-top: 1px solid #e5e0d3;
+            background: var(--ui-surface);
+            border-top: 1px solid var(--ui-line-soft);
         }
         #hero-profile-editor-overlay .hpe-actions button {
             min-height: 52px;
             border: 0;
             border-radius: 13px;
-            font-size: 17px;
+            font-size: var(--ui-text-size);
             font-weight: 900;
             cursor: pointer;
         }
         #hero-profile-editor-overlay .hpe-cancel {
-            color: #34415a;
-            background: #e8ebef;
+            color: var(--ui-text);
+            background: var(--ui-surface-soft);
         }
         #hero-profile-editor-overlay .hpe-save {
-            color: #fff;
-            background: #274a7d;
+            color: var(--ui-on-accent);
+            background: var(--ui-accent);
         }
         #hero-profile-editor-overlay .hpe-save:disabled {
             cursor: wait;
             opacity: .6;
         }
-        body .hero-card-self,
-        body .hero-card-item.hero-card-self {
-            order: -999 !important;
-            background: linear-gradient(145deg, #fffdf2 0%, #fff2b8 100%) !important;
-            border-color: #d8b33a !important;
-            box-shadow: 0 10px 28px rgba(111, 83, 9, .14) !important;
+        #hero-grid .hero-card-self,
+        #hero-grid .hero-card-item.hero-card-self {
+            order: -999;
+            background: linear-gradient(145deg, var(--ui-surface) 0%, var(--ui-gold-soft) 100%);
+            border-color: var(--ui-gold);
+            box-shadow: var(--ui-shadow);
         }
-        body .hero-card-self .hero-self-badge {
+        #hero-grid .hero-card-self .hero-self-badge {
             position: absolute;
             top: 12px;
             right: 14px;
             z-index: 2;
             padding: 5px 10px;
-            color: #17345e !important;
-            background: #ffe88a;
-            border: 1px solid #dfbc3d;
+            color: var(--ui-accent-deep);
+            background: var(--ui-gold-soft);
+            border: 1px solid var(--ui-gold-line);
             border-radius: 999px;
-            font-size: 14px !important;
+            font-size: var(--ui-small-size);
             font-weight: 900;
         }
         @media (max-width: 720px) {
@@ -415,7 +408,7 @@ function ensureHeroProfileEditorStyle() {
             #hero-profile-editor-overlay .hpe-preview {
                 padding: 24px 18px;
                 border-right: 0;
-                border-bottom: 1px solid #e0d4a1;
+                border-bottom: 1px solid var(--ui-gold-line);
             }
             #hero-profile-editor-overlay .hpe-avatar-stage {
                 width: 164px;
@@ -578,8 +571,7 @@ function showHeroProfileEditor(user, userKey) {
         title: selectedTitle
     };
 
-    if(window.isVerifiedAdmin()) await db.ref(`users/${userKey}`).update(savedProfile);
-    else await secureStudentAction('profile',{animal:selectedAnimal,title:selectedTitle});
+    await db.ref(`users/${userKey}`).update(savedProfile);
 
     if (Array.isArray(window.currentUsers)) {
         const savedUser = window.currentUsers.find(item =>
@@ -699,7 +691,7 @@ window.renderHeroes = function(usersFromListener) {
      * 로그인 직후 currentUsers가 아직 없을 경우
      */
 
-    db.ref(window.isVerifiedAdmin()?'users':'publicStudents').once("value").then(snapshot => {
+    db.ref("users").once("value").then(snapshot => {
         const users = [];
 
         snapshot.forEach(child => {
@@ -788,7 +780,7 @@ function drawHeroes(usersArray) {
     let html = "";
 
 
-    filteredUsers.forEach(user => {
+    filteredUsers.forEach((user, index) => {
         const name =
             user.name || "용사";
 
@@ -854,17 +846,10 @@ const clickAction =
 
 
         if (isAdminUser || isMySelf) {
+            const heroPointsValue = user.points || 0;
             pointsHtml = `
-                <div style="
-                    display:inline-block;
-                    background:#444;
-                    color:#ffd700;
-                    border-radius:8px;
-                    padding:4px 10px;
-                    margin-top:8px;
-                    font-weight:bold;
-                ">
-                    🪙 ${user.points || 0} P
+                <div class="hero-points${heroPointsValue < 0 ? " is-negative" : ""}">
+                    🪙 ${heroPointsValue} P
                 </div>
             `;
         } else {
@@ -879,35 +864,39 @@ const clickAction =
          * 경험치 역시 관리자 또는 본인만 표시
          */
 
+        // 이 앱의 규칙: 100 EXP 마다 한 레벨 (global.js 의 레벨 환산과 동일)
+        const heroExp = parseInt(user.exp, 10) || 0;
+        const expIntoLevel = ((heroExp % 100) + 100) % 100;
+        const expToNext = 100 - expIntoLevel;
+
         let expHtml = "";
 
         if (isAdminUser || isMySelf) {
             expHtml = `
-                <div style="
-                    font-size:0.85rem;
-                    color:#666;
-                    margin-top:5px;
-                ">
-                    EXP ${user.exp || 0}
+                <div class="hero-exp-bar" role="img"
+                     aria-label="다음 레벨까지 ${expToNext} 경험치">
+                    <div class="hero-exp-fill" style="width:${expIntoLevel}%"></div>
+                </div>
+                <div class="hero-exp">
+                    EXP ${heroExp} · 다음 레벨까지 ${expToNext}
                 </div>
             `;
         }
 
+        // 레벨 구간에 따라 카드 테두리 등급이 달라진다.
+        const heroTier =
+            lv >= 15 ? 4 :
+            lv >= 10 ? 3 :
+            lv >= 5  ? 2 : 1;
+
 
         html += `
             <div
-                class="card hero-card-item${isMySelf ? " hero-card-self" : ""}"
+                class="hero-card${isMySelf ? " hero-card-self" : ""}"
                 data-name="${heroEscape(name)}"
                 data-firebase-key="${heroEscape(user.__firebaseKey || name)}"
-                style="
-                    text-align:center;
-                    cursor:pointer;
-                    background:white;
-                    border-radius:20px;
-                    padding:20px;
-                    box-shadow:0 4px 15px rgba(0,0,0,0.1);
-                    position:relative;
-                "
+                data-tier="${heroTier}"
+                style="--i:${index}"
                 onclick="${clickAction}"
             >
 
@@ -915,40 +904,25 @@ const clickAction =
                     <div class="hero-self-badge">내 용사</div>
                 ` : ""}
 
-                <div style="
-                    position:absolute;
-                    top:0;
-                    left:0;
-                    background:#bdc3c7;
-                    color:white;
-                    padding:4px 10px;
-                    border-radius:0 0 10px 0;
-                    font-weight:bold;
-                ">
+                <div class="hero-card-level">
                     Lv.${lv}
                 </div>
 
-                ${getAvatar(
-                    lv,
-                    user.selectedAnimal ||
-                    user.animal,
-                    88
-                )}
+                <div class="hero-ring" style="--ring:${expIntoLevel}">
+                    ${getAvatar(
+                        lv,
+                        user.selectedAnimal ||
+                        user.animal,
+                        88
+                    )}
+                </div>
                 ${heroTitle ? `
-    <p class="hero-card-title" style="
-        margin:8px 0 0;
-        color:#8a6a12;
-        font-size:0.9rem;
-        font-weight:800;
-    ">
+    <span class="hero-card-title badge badge--gold">
         ${heroEscape(heroTitle)}
-    </p>
+    </span>
 ` : ""}
 
-               <h3 style="
-    margin-top:6px;
-    color:var(--dark,#2c3e50);
-">
+               <h3 class="hero-name">
     ${number ? number + ". " : ""}${name}
 </h3>
 
@@ -956,7 +930,7 @@ const clickAction =
 
                 ${expHtml}
 
-        
+
 
             </div>
         `;
@@ -966,13 +940,9 @@ const clickAction =
     heroGrid.innerHTML =
         html ||
         `
-            <p style="
-                text-align:center;
-                color:#666;
-                padding:30px;
-            ">
-                등록된 용사가 없습니다.
-            </p>
+            <div class="empty">
+                <strong>등록된 용사가 없습니다.</strong>
+            </div>
         `;
 
 
@@ -1025,18 +995,8 @@ function createFloatingPointButton() {
     button.innerText =
         "P";
 
-    button.style.cssText = `
-        width:75px;
-        height:75px;
-        border-radius:50%;
-        border:none;
-        background:#8e44ad;
-        color:white;
-        font-weight:900;
-        font-size:2rem;
-        cursor:pointer;
-        box-shadow:0 6px 15px rgba(0,0,0,0.35);
-    `;
+    button.className =
+        "btn btn--primary btn--lg";
 
 
     button.onclick = function(e) {

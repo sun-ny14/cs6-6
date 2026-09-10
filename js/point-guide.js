@@ -12,17 +12,18 @@ function formatDateTime(timestamp) {
     return `${y}-${m}-${day} ${h}:${min}`;
 }
 
-function pointGuideEscapeHtml(value) {
-    return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
 window.isPointsListenerAttached = false;
 window.isPointGuideListenerAttached = false;
+
+function pointGuideEscapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, char => ({
+        '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;'
+    })[char]);
+}
+
+function pointGuideEncoded(value) {
+    return encodeURIComponent(String(value ?? '')).replace(/'/g, '%27');
+}
 
 function canManageItemUseRequests() {
     return typeof window.canManageShopRequests === 'function'
@@ -39,7 +40,9 @@ window.initPointsTabListeners = function() {
     if (window.isPointsListenerAttached) return;
     window.isPointsListenerAttached = true;
 
-    (window.isVerifiedAdmin() ? db.ref('orders') : db.ref('orders').orderByChild('user').equalTo(window.myName)).on('value', snap => {
+    const ordersPath=window.canManageShopRequests&&window.canManageShopRequests()
+        ?'orders':`ordersByUser/${window.myName}`;
+    db.ref(ordersPath).on('value', snap => {
         let uHtml = "";
         let wHtml = "";
         let adminOrderHtml = "";
@@ -62,42 +65,24 @@ window.initPointsTabListeners = function() {
             ) {
                 const refundTag =
                     o.status === '환불'
-                        ? '<span style="color:#e74c3c;font-size:.9rem;font-weight:bold;margin-left:10px;">(환불/반려됨)</span>'
+                        ? '<span class="list-item-sub badge badge--bad">환불/반려됨</span>'
                         : '';
 
                 uHtml += `
-                    <div style="
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                        padding:15px 20px;
-                        border-bottom:1px solid #eee;
-                        background:#fff;
-                    ">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <span style="font-size:1.4rem;">📦</span>
-                            <b style="font-size:1.2rem;color:#2c3e50;">
-                                ${o.item}
-                            </b>
+                    <div class="list-item">
+                        <div class="list-item-main">
+                            <span class="list-item-title">📦 ${pointGuideEscapeHtml(o.item)}</span>
                             ${refundTag}
                         </div>
 
-                        <button
-                            onclick="requestUseItem('${key}','${o.item}')"
-                            style="
-                                background:#3498db;
-                                color:white;
-                                padding:10px 20px;
-                                border:none;
-                                border-radius:8px;
-                                cursor:pointer;
-                                font-weight:bold;
-                                font-size:1.1rem;
-                                flex-shrink:0;
-                            "
-                        >
-                            사용하기
-                        </button>
+                        <div class="btn-row">
+                            <button
+                                onclick="requestUseItem(decodeURIComponent('${pointGuideEncoded(key)}'),decodeURIComponent('${pointGuideEncoded(o.item)}'))"
+                                class="btn btn--primary"
+                            >
+                                사용하기
+                            </button>
+                        </div>
                     </div>
                 `;
             }
@@ -107,14 +92,11 @@ window.initPointsTabListeners = function() {
                 o.status === '사용요청'
             ) {
                 wHtml += `
-                    <div style="
-                        padding:12px;
-                        border-bottom:1px solid #eee;
-                        color:#7f8c8d;
-                        font-size:1.1rem;
-                    ">
-                        ⏳ <b>${o.item}</b>
-                        (선생님 승인 대기중...)
+                    <div class="list-item">
+                        <span class="muted">
+                            ⏳ <b>${pointGuideEscapeHtml(o.item)}</b>
+                            (선생님 승인 대기중...)
+                        </span>
                     </div>
                 `;
             }
@@ -124,49 +106,23 @@ window.initPointsTabListeners = function() {
                 o.status === '사용요청'
             ) {
                 adminOrderHtml += `
-                    <div style="
-                        background:#f8f9fa;
-                        border:1px solid #ddd;
-                        padding:12px;
-                        border-radius:8px;
-                        margin-bottom:10px;
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                    ">
-                        <span style="font-size:1.1rem;">
-                            🧑‍🎓 <b>${o.user}</b> 용사 -
-                            <b>${o.item}</b> 사용 요청
+                    <div class="list-item">
+                        <span>
+                            🧑‍🎓 <b>${pointGuideEscapeHtml(o.user)}</b> 용사 -
+                            <b>${pointGuideEscapeHtml(o.item)}</b> 사용 요청
                         </span>
 
-                        <div>
+                        <div class="btn-row">
                             <button
-                                onclick="approveItem('${key}','${o.user}','${o.item}')"
-                                style="
-                                    background:#2ecc71;
-                                    color:white;
-                                    padding:8px 12px;
-                                    border:none;
-                                    border-radius:6px;
-                                    margin-right:5px;
-                                    cursor:pointer;
-                                    font-weight:bold;
-                                "
+                                onclick="approveItem(decodeURIComponent('${pointGuideEncoded(key)}'),decodeURIComponent('${pointGuideEncoded(o.user)}'),decodeURIComponent('${pointGuideEncoded(o.item)}'))"
+                                class="btn btn--sm btn--good"
                             >
                                 승인
                             </button>
 
                             <button
-                                onclick="rejectItemUseRequest('${key}','${o.user}','${o.item}')"
-                                style="
-                                    background:#e74c3c;
-                                    color:white;
-                                    padding:8px 12px;
-                                    border:none;
-                                    border-radius:6px;
-                                    cursor:pointer;
-                                    font-weight:bold;
-                                "
+                                onclick="rejectItemUseRequest(decodeURIComponent('${pointGuideEncoded(key)}'),decodeURIComponent('${pointGuideEncoded(o.user)}'),decodeURIComponent('${pointGuideEncoded(o.item)}'))"
+                                class="btn btn--sm btn--danger"
                             >
                                 환불(반려)
                             </button>
@@ -181,14 +137,9 @@ window.initPointsTabListeners = function() {
         if (uEl && uEl.querySelector('.list')) {
             const listContainer = uEl.querySelector('.list');
 
-            listContainer.style.display = 'block';
-            listContainer.style.background = '#fff';
-            listContainer.style.borderRadius = '10px';
-            listContainer.style.overflow = 'hidden';
-
             listContainer.innerHTML =
                 uHtml ||
-                "<p style='color:#999;padding:15px;font-size:1.1rem;'>보관함이 비어있습니다.</p>";
+                "<div class='empty'><strong>보관함이 비어있습니다.</strong></div>";
         }
 
         const wEl = document.getElementById('inv-waiting');
@@ -196,7 +147,7 @@ window.initPointsTabListeners = function() {
         if (wEl && wEl.querySelector('.list')) {
             wEl.querySelector('.list').innerHTML =
                 wHtml ||
-                "<p style='color:#999;padding:10px;'>대기 중인 항목이 없습니다.</p>";
+                "<div class='empty'><strong>대기 중인 항목이 없습니다.</strong></div>";
         }
 
         const adminOrderEl =
@@ -205,18 +156,15 @@ window.initPointsTabListeners = function() {
         if (adminOrderEl) {
             adminOrderEl.innerHTML =
                 adminOrderHtml ||
-                "<p style='color:#999;'>대기 중인 사용 요청이 없습니다.</p>";
+                "<div class='empty'><strong>대기 중인 사용 요청이 없습니다.</strong></div>";
         }
     });
 
 
     // 포인트 연대기
     const pointLogQuery = window.isAdmin === true
-    ? db.ref('pointLogs').limitToLast(50)
-    : db.ref('pointLogs')
-        .orderByChild('name')
-        .equalTo(window.myName)
-        .limitToLast(50);
+        ? db.ref('pointLogs').limitToLast(50)
+        : db.ref(`pointHistory/${window.myName}`).limitToLast(50);
 
 pointLogQuery.on('value', snap => {
         let historyArr = [];
@@ -233,12 +181,14 @@ pointLogQuery.on('value', snap => {
                             : (
                                 val.p !== undefined
                                     ? val.p
-                                    : 0
+                                    : (val.pChange !== undefined ? val.pChange : (val.change || 0))
                             )
                     );
 
             historyArr.push({
-                user: val.name || val.user || "알 수 없음",
+                user: window.isAdmin === true
+                    ? (val.name || val.user || "알 수 없음")
+                    : window.myName,
                 p: parseInt(pointVal) || 0,
                 reason: val.reason || "지급/차감",
                 timeStr:
@@ -260,10 +210,10 @@ pointLogQuery.on('value', snap => {
                 return;
             }
 
-            const pColor =
+            const pointClass =
                 h.p >= 0
-                    ? '#e74c3c'
-                    : '#3498db';
+                    ? 'plus'
+                    : 'minus';
 
             const sign =
                 h.p >= 0
@@ -271,28 +221,21 @@ pointLogQuery.on('value', snap => {
                     : '';
 
             historyHtml += `
-                <div style="
-                    padding:12px;
-                    border-bottom:1px solid #eee;
-                    display:flex;
-                    flex-direction:column;
-                    gap:4px;
-                ">
-                    <span style="font-size:.9rem;color:#7f8c8d;">
-                        🕒 ${h.timeStr}
-                    </span>
+                <div class="list-item">
+                    <div class="list-item-main">
+                        <span class="list-item-sub">
+                            🕒 ${pointGuideEscapeHtml(h.timeStr)}
+                        </span>
 
-                    <span style="font-size:1.1rem;color:#2c3e50;">
-                        <b>${h.user}</b>:
-                        ${h.reason}
+                        <span>
+                            <b>${pointGuideEscapeHtml(h.user)}</b>:
+                            ${pointGuideEscapeHtml(h.reason)}
 
-                        <b style="
-                            color:${pColor};
-                            margin-left:8px;
-                        ">
-                            (${sign}${h.p}P)
-                        </b>
-                    </span>
+                            <b class="point">
+                                <span class="${pointClass}">(${sign}${h.p}P)</span>
+                            </b>
+                        </span>
+                    </div>
                 </div>
             `;
         });
@@ -303,7 +246,7 @@ pointLogQuery.on('value', snap => {
         if (historyListEl) {
             historyListEl.innerHTML =
                 historyHtml ||
-                "<p style='color:#999;padding:10px;'>포인트 기록이 없습니다.</p>";
+                "<div class='empty'><strong>포인트 기록이 없습니다.</strong></div>";
         }
     });
 };
@@ -313,38 +256,43 @@ pointLogQuery.on('value', snap => {
 // 2. 인벤토리 액션
 // ============================================================
 
-window.requestUseItem = function(key, itemName) {
+window.requestUseItem = async function(key, itemName) {
     if (
         confirm(
             `[${itemName}] 물품을 사용하시겠습니까?\n` +
             `선생님께 사용 승인 요청이 전송됩니다.`
         )
     ) {
-        db.ref(`orders/${key}`).update({
-            status: '사용요청'
-        });
+        try {
+            await window.callSecure('requestOrderUse', {orderKey:key});
+            alert('사용 요청이 전송되었습니다.');
+        } catch (error) {
+            console.error('사용 요청 오류:', error);
+            alert(error?.message || '사용 요청을 처리하지 못했습니다.');
+        }
     }
 };
 
 
-window.approveItem = function(key, user, item) {
+window.approveItem = async function(key, user, item) {
     if (!canManageItemUseRequests()) {
         alert('상점 역할 학생과 선생님만 사용 요청을 승인할 수 있습니다.');
         return;
     }
 
-    if (
-        confirm(
-            `[${user}] 학생의 [${item}] 사용을 승인하시겠습니까?\n` +
-            `(승인 즉시 인벤토리에서 완전히 삭제됩니다)`
-        )
-    ) {
-        db.ref(`orders/${key}`).remove();
+    if (!confirm(`[${user}] 학생의 [${item}] 사용을 승인하시겠습니까?`)) return;
+
+    try {
+        await window.callSecure('manageShopOrder', {orderKey:key, action:'approve'});
+        alert(`${user} · ${item} 사용을 승인했습니다.`);
+    } catch (error) {
+        console.error('사용 승인 오류:', error);
+        alert(error?.message || '사용 승인을 처리하지 못했습니다.');
     }
 };
 
 
-window.rejectItemUseRequest = function(key, user, item) {
+window.rejectItemUseRequest = async function(key, user, item) {
     if (!canManageItemUseRequests()) {
         alert('상점 역할 학생과 선생님만 사용 요청을 반려할 수 있습니다.');
         return;
@@ -356,9 +304,13 @@ window.rejectItemUseRequest = function(key, user, item) {
             `(학생의 미사용 보관함으로 다시 돌아갑니다)`
         )
     ) {
-        db.ref(`orders/${key}`).update({
-            status: '환불'
-        });
+        try {
+            await window.callSecure('manageShopOrder', {orderKey:key, action:'reject'});
+            alert('반려 및 환불 처리가 완료되었습니다.');
+        } catch (error) {
+            console.error('사용 반려 오류:', error);
+            alert(error?.message || '사용 반려를 처리하지 못했습니다.');
+        }
     }
 };
 
@@ -368,6 +320,12 @@ window.rejectItemUseRequest = function(key, user, item) {
 // ============================================================
 
 window.renderPointGuide = function() {
+    if (window.isAdmin !== true) {
+        const guideListEl = document.getElementById('guide-list');
+        if (guideListEl) guideListEl.replaceChildren();
+        return;
+    }
+
     if (window.isPointGuideListenerAttached) return;
 
     window.isPointGuideListenerAttached = true;
@@ -380,23 +338,7 @@ window.renderPointGuide = function() {
 
         if (!guideListEl) return;
 
-        if (
-            typeof isAdmin === 'undefined' ||
-            !isAdmin
-        ) {
-            guideListEl.innerHTML = `
-                <div style="
-                    padding:20px;
-                    text-align:center;
-                    color:#888;
-                    font-size:1.2rem;
-                ">
-                    포인트 도감은 선생님만 조회할 수 있습니다.
-                </div>
-            `;
-
-            return;
-        }
+        const canEditGuide = true;
 
         let guides = [];
 
@@ -423,31 +365,14 @@ window.renderPointGuide = function() {
 
         let html = "";
 
-        // 새 항목 추가 버튼
-        html += `
-            <div style="
-                grid-column:1/-1;
-                margin-bottom:8px;
-            ">
-                <button
-                    onclick="openPointGuideModal()"
-                    style="
-                        width:100%;
-                        padding:14px;
-                        background:var(--gold,#f1c40f);
-                        color:#2c3e50;
-                        border:none;
-                        border-radius:10px;
-                        font-weight:bold;
-                        font-size:1.15rem;
-                        cursor:pointer;
-                        box-shadow:0 3px 5px rgba(0,0,0,.05);
-                    "
-                >
-                    + 새 포인트 항목 추가
-                </button>
-            </div>
-        `;
+        if (!guides.length) {
+            guideListEl.innerHTML = `
+                <div class="empty" style="grid-column:1/-1;">
+                    <strong>아직 등록된 포인트 항목이 없습니다.</strong>
+                    ${canEditGuide ? '<span>아래에서 첫 항목을 추가해 보세요.</span>' : ''}
+                </div>
+            `;
+        }
 
 
         /*
@@ -480,13 +405,11 @@ window.renderPointGuide = function() {
                     .replace(/'/g, "\\'");
 
 
-            const adminControls = `
-                <div style="
-                    margin-top:10px;
-                    display:flex;
-                    gap:6px;
-                "
-                onclick="event.stopPropagation();">
+            const adminControls = !canEditGuide ? '' : `
+                <div
+                    class="btn-row btn-row--end"
+                    onclick="event.stopPropagation();"
+                >
 
                     <button
                         onclick="
@@ -497,17 +420,7 @@ window.renderPointGuide = function() {
                                 '${safeDesc}'
                             )
                         "
-                        style="
-                            flex:1;
-                            background:#f39c12;
-                            color:white;
-                            border:none;
-                            padding:7px 4px;
-                            border-radius:7px;
-                            cursor:pointer;
-                            font-weight:bold;
-                            font-size:.9rem;
-                        "
+                        class="btn btn--xs"
                     >
                         수정
                     </button>
@@ -519,17 +432,7 @@ window.renderPointGuide = function() {
                                 '${safeTitle}'
                             )
                         "
-                        style="
-                            flex:1;
-                            background:#e74c3c;
-                            color:white;
-                            border:none;
-                            padding:7px 4px;
-                            border-radius:7px;
-                            cursor:pointer;
-                            font-weight:bold;
-                            font-size:.9rem;
-                        "
+                        class="btn btn--xs btn--danger"
                     >
                         삭제
                     </button>
@@ -545,19 +448,7 @@ window.renderPointGuide = function() {
             html += `
                 <div
                     ${onClickAction}
-                    style="
-                        background:#fff;
-                        border:2px solid #3498db;
-                        padding:13px;
-                        border-radius:10px;
-                        box-shadow:0 3px 5px rgba(0,0,0,.05);
-                        display:flex;
-                        flex-direction:column;
-                        justify-content:space-between;
-                        min-width:0;
-                        cursor:pointer;
-                        transition:transform .15s;
-                    "
+                    class="guide-card${g.points < 0 ? ' is-minus' : ''}"
                     onmouseover="
                         this.style.transform='translateY(-2px)'
                     "
@@ -568,44 +459,20 @@ window.renderPointGuide = function() {
 
                     <div>
 
-                        <div style="
-                            font-size:1rem;
-                            font-weight:bold;
-                            color:#2c3e50;
-                            margin-bottom:5px;
-                            white-space:nowrap;
-                            overflow:hidden;
-                            text-overflow:ellipsis;
-                        ">
+                        <div class="strong nowrap">
                             📜 ${g.title}
                         </div>
 
-                        <div style="
-                            font-size:1.25rem;
-                            font-weight:bold;
-                            color:${g.points >= 0 ? '#e74c3c' : '#3498db'};
-                            margin-bottom:5px;
-                        ">
+                        <div class="guide-value${g.points < 0 ? ' is-minus' : ''}">
                             ${g.points >= 0 ? '+' : ''}
                             ${g.points} P
                         </div>
 
-                        <div style="
-                            font-size:.88rem;
-                            color:#666;
-                            line-height:1.3;
-                            min-height:34px;
-                            overflow:hidden;
-                        ">
+                        <div class="small muted">
                             ${g.desc}
                         </div>
 
-                        <div style="
-                            font-size:.75rem;
-                            color:#2980b9;
-                            font-weight:bold;
-                            margin-top:6px;
-                        ">
+                        <div class="tiny exp">
                             👉 일괄 지급
                         </div>
 
@@ -658,24 +525,10 @@ window.openPointGuideModal = function(
         popTitle;
 
     document.getElementById('pop-content').innerHTML = `
-        <div style="
-            display:flex;
-            flex-direction:column;
-            gap:15px;
-            text-align:left;
-            margin-top:15px;
-            max-height:60vh;
-            overflow-y:auto;
-            padding:5px;
-        ">
+        <div class="stack">
 
-            <div>
-                <label style="
-                    font-size:1.1rem;
-                    font-weight:bold;
-                    display:block;
-                    margin-bottom:5px;
-                ">
+            <div class="field">
+                <label class="field-label">
                     항목 이름:
                 </label>
 
@@ -684,25 +537,12 @@ window.openPointGuideModal = function(
                     id="modal-guide-title"
                     value="${title}"
                     placeholder="예: 숙제 완료"
-                    style="
-                        width:100%;
-                        padding:12px;
-                        font-size:1.2rem;
-                        border:2px solid #ccc;
-                        border-radius:8px;
-                        box-sizing:border-box;
-                    "
                 >
             </div>
 
 
-            <div>
-                <label style="
-                    font-size:1.1rem;
-                    font-weight:bold;
-                    display:block;
-                    margin-bottom:5px;
-                ">
+            <div class="field">
+                <label class="field-label">
                     포인트 점수 (차감 시 마이너스):
                 </label>
 
@@ -710,25 +550,12 @@ window.openPointGuideModal = function(
                     type="number"
                     id="modal-guide-points"
                     value="${points}"
-                    style="
-                        width:100%;
-                        padding:12px;
-                        font-size:1.2rem;
-                        border:2px solid #3498db;
-                        border-radius:8px;
-                        box-sizing:border-box;
-                    "
                 >
             </div>
 
 
-            <div>
-                <label style="
-                    font-size:1.1rem;
-                    font-weight:bold;
-                    display:block;
-                    margin-bottom:5px;
-                ">
+            <div class="field">
+                <label class="field-label">
                     항목 설명:
                 </label>
 
@@ -737,56 +564,24 @@ window.openPointGuideModal = function(
                     id="modal-guide-desc"
                     value="${desc}"
                     placeholder="예: 오늘의 숙제를 완벽하게 해왔을 때"
-                    style="
-                        width:100%;
-                        padding:12px;
-                        font-size:1.2rem;
-                        border:2px solid #ccc;
-                        border-radius:8px;
-                        box-sizing:border-box;
-                    "
                 >
             </div>
 
         </div>
 
 
-        <div style="
-            display:flex;
-            gap:10px;
-            margin-top:25px;
-        ">
+        <div class="btn-row btn-row--fill">
 
             <button
                 onclick="savePointGuideModal('${key}')"
-                style="
-                    background:#3498db;
-                    color:white;
-                    border:none;
-                    padding:15px;
-                    border-radius:10px;
-                    font-size:1.2rem;
-                    font-weight:bold;
-                    flex:1;
-                    cursor:pointer;
-                "
+                class="btn btn--primary btn--lg"
             >
                 저장
             </button>
 
             <button
                 onclick="closePopup()"
-                style="
-                    background:#e74c3c;
-                    color:white;
-                    border:none;
-                    padding:15px;
-                    border-radius:10px;
-                    font-size:1.2rem;
-                    font-weight:bold;
-                    flex:1;
-                    cursor:pointer;
-                "
+                class="btn btn--danger btn--lg"
             >
                 취소
             </button>
@@ -957,37 +752,32 @@ window.openBulkPointPopup = async function(
     );
 
 
+    // 점수가 음수면 전원 미선택 상태로 엽니다. 양수는 전원 선택입니다.
+    const isPenalty = Number(points) < 0;
+    const defaultChecked = isPenalty ? '' : 'checked';
+
     let bodyHtml = `
-        <div style="
-            margin-bottom:15px;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-        ">
-            <label style="
-                font-weight:bold;
-                cursor:pointer;
-            ">
+        <div class="stack">
+            ${
+                isPenalty
+                    ? `<div class="card card--bad">
+                           <b>감점 항목입니다.</b>
+                           <span class="muted">받을 학생을 직접 골라 주세요. 처음에는 아무도 선택돼 있지 않습니다.</span>
+                       </div>`
+                    : ''
+            }
+
+            <label class="check-row">
                 <input
                     type="checkbox"
                     onclick="toggleSelectAllStudents(this)"
-                    style="
-                        transform:scale(1.3);
-                        margin-right:8px;
-                    "
-                    checked
+                    ${defaultChecked}
                 >
                 전체 선택
             </label>
-        </div>
 
 
-        <div class="point-bulk-student-grid" style="
-            display:grid;
-            grid-template-columns:repeat(5,1fr);
-            gap:10px;
-            padding:5px;
-        ">
+            <div class="point-bulk-student-grid">
     `;
 
 
@@ -1000,49 +790,21 @@ window.openBulkPointPopup = async function(
 
 
         bodyHtml += `
-            <label style="
-                display:flex;
-                flex-direction:column;
-                align-items:center;
-                justify-content:center;
-                background:#f8f9fa;
-                padding:12px 8px;
-                border-radius:10px;
-                border:2px solid #ddd;
-                cursor:pointer;
-                text-align:center;
-                position:relative;
-            ">
+            <label class="well stack stack--sm center">
 
                 <input
                     type="checkbox"
                     class="student-checkbox"
                     value="${pointGuideEscapeHtml(u.key)}"
                     data-name="${pointGuideEscapeHtml(u.name)}"
-                    style="
-                        position:absolute;
-                        top:8px;
-                        left:8px;
-                        transform:scale(1.2);
-                    "
-                    checked
+                    ${defaultChecked}
                 >
 
-                <div style="
-                    font-size:.9rem;
-                    color:#7f8c8d;
-                    font-weight:bold;
-                    margin-bottom:4px;
-                    margin-top:4px;
-                ">
+                <div class="tiny muted">
                     ${pointGuideEscapeHtml(studentNo)}
                 </div>
 
-                <div style="
-                    font-size:1.1rem;
-                    font-weight:bold;
-                    color:#2c3e50;
-                ">
+                <div class="strong">
                     ${pointGuideEscapeHtml(u.name)}
                 </div>
 
@@ -1051,7 +813,7 @@ window.openBulkPointPopup = async function(
     });
 
 
-    bodyHtml += `</div>`;
+    bodyHtml += `</div></div>`;
 
     bodyEl.innerHTML =
         bodyHtml;
@@ -1087,8 +849,8 @@ window.openBulkPointPopup = async function(
 
                 if (
                     !confirm(
-                        `${checkboxes.length}명의 학생에게 ` +
-                        `[${reason}] 사유로 ${points}P를 부여하시겠습니까?`
+                        `${checkboxes.length}명에게 ` +
+                        `[${reason}] ${points}P 를 반영합니다. 계속할까요?`
                     )
                 ) {
                     return;
@@ -1096,7 +858,6 @@ window.openBulkPointPopup = async function(
 
 
                 const updates = {};
-
 
                 for (let cb of checkboxes) {
 
@@ -1125,7 +886,6 @@ window.openBulkPointPopup = async function(
                         ] =
                             currentPoints + points;
 
-
                         const hRef =
                             db.ref('pointLogs').push();
 
@@ -1141,17 +901,20 @@ window.openBulkPointPopup = async function(
                                     'ko-KR'
                                 )
                         };
+
                     }
                 }
 
 
                 await db.ref().update(updates);
 
-                alert(
-                    "✨ 일괄 지급 완료!"
-                );
-
                 closePointPopup();
+
+                const summary =
+                    `${checkboxes.length}명 · ${reason} ` +
+                    `${points >= 0 ? '+' : ''}${points}P 반영했습니다.`;
+
+                alert(summary);
             };
     }
 
@@ -1174,17 +937,6 @@ window.toggleSelectAllStudents =
                         masterCb.checked
             );
     };
-
-window.setBulkPointSelection = function(checked) {
-    document
-        .querySelectorAll('#point-popup .student-checkbox, #point-popup .point-pop-chk')
-        .forEach(cb => {
-            cb.checked = Boolean(checked);
-            if (typeof window.togglePointPopInputs === 'function') {
-                window.togglePointPopInputs(cb);
-            }
-        });
-};
 
 
 window.closePointPopup =
