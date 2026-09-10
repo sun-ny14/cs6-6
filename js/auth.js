@@ -224,15 +224,26 @@ auth.onAuthStateChanged(async user=>{
                 `userEmails/${emailKey}`
             ).once('value');
 
-        if(!emailSnapshot.exists()&&!admin){
+        let studentName=String(emailSnapshot.val()||'').trim();
+        if(!studentName&&!admin){
+            const legacySnapshot=await db.ref('users')
+                .orderByChild('email')
+                .equalTo(loginEmail)
+                .limitToFirst(2)
+                .once('value');
+            const matches=[];
+            legacySnapshot.forEach(child=>matches.push(child.key));
+            if(matches.length===1){
+                studentName=matches[0];
+                await db.ref(`userEmails/${emailKey}`).set(studentName);
+            }
+        }
+        if(!studentName&&!admin){
             alert('미등록 용사입니다.');
             await auth.signOut();
             return;
         }
-
-        const studentName=
-            emailSnapshot.val()||
-            '총사령관';
+        studentName=studentName||'총사령관';
 
         const userSnapshot=
             await db.ref(
@@ -253,8 +264,6 @@ auth.onAuthStateChanged(async user=>{
             ...userData,
             name:userData.name||studentName
         };
-
-        
 
         startInactivityLogout();
 

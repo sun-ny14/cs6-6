@@ -2,8 +2,15 @@
   "rules": {
     ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && auth.token.email == 'ksosuny@cberi.go.kr'",
     ".write": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && auth.token.email == 'ksosuny@cberi.go.kr'",
-    "userEmails": { "$email": { ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && $email == auth.token.email.replace('.', ',')" } },
-    "users": { "$userName": { ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && root.child('userEmails').child(auth.token.email.replace('.', ',')).val() == $userName" } },
+    "userEmails": { "$email": {
+      ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && $email == auth.token.email.replace('.', ',')",
+      ".write": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && $email == auth.token.email.replace('.', ',') && !data.exists() && newData.isString() && root.child('users').child(newData.val()).child('email').val() == auth.token.email"
+    } },
+    "users": {
+      ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && query.orderByChild == 'email' && query.equalTo == auth.token.email",
+      ".indexOn": ["email"],
+      "$userName": { ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && (root.child('userEmails').child(auth.token.email.replace('.', ',')).val() == $userName || data.child('email').val() == auth.token.email)" }
+    },
     "publicStudents": { ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && root.child('userEmails').child(auth.token.email.replace('.', ',')).isString()" },
     "rooms": {
       ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider == 'google.com' && root.child('userEmails').child(auth.token.email.replace('.', ',')).isString()",
