@@ -9,9 +9,13 @@ initializeApp();
 
 const REGION = 'asia-northeast3';
 const TEACHER_EMAIL = 'ksosuny@cberi.go.kr';
-const callable = handler => onCall({ region: REGION, enforceAppCheck: false }, handler);
+const callable = handler => onCall({ region: REGION, memory: '512MiB', enforceAppCheck: false }, handler);
 const cleanEmail = value => String(value || '').trim().toLowerCase();
 const safeKey = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(value);
+const safeDatabaseSegment = value => {
+    const segment = String(value || '').trim();
+    return segment.length > 0 && !/[.#$\/\[\]\u0000-\u001F\u007F]/.test(segment);
+};
 const kstDate = timestamp => new Date(timestamp + 9 * 3600000).toISOString().slice(0, 10);
 const publicUser = (name, user={}) => ({
     name:String(user.name || name), no:Number(user.no || user.number || 0),
@@ -52,24 +56,32 @@ async function actor(request) {
 exports.getSecureSession = callable(async request => {
     const current = await actor(request);
     const database = getDatabase();
-    const updates = {};
-    updates[`access/${current.uid}`] = {
+    // Login authorization must not depend on optional legacy-data backfills.
+    await database.ref(`access/${current.uid}`).set({
         name:current.name, role:current.role, teacher:current.teacher, updatedAt:Date.now()
-    };
+    });
+
+    const updates = {};
     const settings = (await database.ref('settings').get()).val() || {};
     updates.publicSettings = publicSettings(settings);
     updates.cleaningSettings = cleaningSettings(settings);
-    if (current.teacher) {
-        const users = (await database.ref('users').get()).val() || {};
-        Object.entries(users).forEach(([name,user]) => { updates[`publicProfiles/${name}`] = publicUser(name,user); });
-    } else {
+    if (!current.teacher) {
         updates[`publicProfiles/${current.name}`] = publicUser(current.name,current.user);
+        const orders=(await database.ref('orders').get()).val()||{};
+        Object.entries(orders).forEach(([key,order])=>{
+            const owner=String(order?.user||'').trim();
+            if(safeDatabaseSegment(owner)&&owner===current.name){
+                updates[`ordersByUser/${owner}/${key}`]=order;
+            }
+        });
     }
-    const orders=(await database.ref('orders').get()).val()||{};
-    Object.entries(orders).forEach(([key,order])=>{
-        if(current.teacher||order?.user===current.name)updates[`ordersByUser/${order.user}/${key}`]=order;
-    });
-    await database.ref().update(updates);
+    try {
+        await database.ref().update(updates);
+    } catch (error) {
+        // Public mirrors are convenience data. A malformed legacy record must never
+        // turn a valid teacher/student login into an HTTP 500 response.
+        console.error('Optional login mirror update failed', error);
+    }
     return { name:current.name, role:current.role, teacher:current.teacher,
         user:current.teacher ? { name:current.name, role:'교사' } : current.user };
 });
@@ -95,8 +107,10 @@ exports.mirrorPublicSettings = onValueWritten({ ref:'/settings' }, async event =
 exports.mirrorOrder = onValueWritten({ ref:'/orders/{orderId}' }, async event => {
     const before=event.data.before.val(), after=event.data.after.val(), id=event.params.orderId;
     const updates={};
-    if(before?.user)updates[`ordersByUser/${before.user}/${id}`]=null;
-    if(after?.user)updates[`ordersByUser/${after.user}/${id}`]=after;
+    const beforeOwner=String(before?.user||'').trim();
+    const afterOwner=String(after?.user||'').trim();
+    if(safeDatabaseSegment(beforeOwner))updates[`ordersByUser/${beforeOwner}/${id}`]=null;
+    if(safeDatabaseSegment(afterOwner))updates[`ordersByUser/${afterOwner}/${id}`]=after;
     if(Object.keys(updates).length)await getDatabase().ref().update(updates);
 });
 
