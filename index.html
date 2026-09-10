@@ -11,316 +11,11 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-functions-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="css/style.css?v=20260908-security-3">
-    
-<style>
-#loading-screen{
-    position:fixed;
-    top:0;
-    left:0;
-    width:100%;
-    height:100%;
-    background:#2c3e50;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
-    z-index:99999;
-    gap:40px;
-    color:white;
-}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@500;700;800;900&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 
-@keyframes bounceAnim{
-    0%,100%{transform:translateY(0);}
-    50%{transform:translateY(-20px);}
-}
-
-.bouncing-text{
-    display:inline-block;
-    animation:bounceAnim 0.8s ease-in-out infinite;
-    font-size:5rem;
-    font-weight:bold;
-}
-
-body{
-    margin:0;
-    padding:0;
-    font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
-    background-color:#f4f7f6;
-    font-size:20px !important;
-}
-
-#main-app{
-    display:flex !important;
-    flex-direction:row !important;
-    width:100% !important;
-    min-height:100vh !important;
-    position:relative !important;
-}
-
-.sidebar-menu{
-    width:320px !important;
-    min-width:320px !important;
-    background:#fff !important;
-    border-right:1px solid #e0e0e0 !important;
-    display:flex !important;
-    flex-direction:column !important;
-    padding:35px 20px !important;
-    gap:16px !important;
-    box-sizing:border-box !important;
-    z-index:100;
-    transition:transform 0.3s ease;
-}
-
-.sidebar-menu.collapsed{
-    display:none !important;
-}
-
-.sidebar-menu button{
-    width:100% !important;
-    text-align:left !important;
-    padding:22px 25px !important;
-    border:none !important;
-    background:transparent !important;
-    border-radius:12px !important;
-    font-size:1.5rem !important;
-    font-weight:bold !important;
-    color:#333 !important;
-    cursor:pointer !important;
-}
-
-.sidebar-menu button:hover{
-    background:#f1f3f5 !important;
-}
-
-.main-content-area{
-    flex:1 1 auto !important;
-    min-width:0 !important;
-    width:auto !important;
-    padding:45px !important;
-    box-sizing:border-box !important;
-    overflow-y:auto !important;
-    overflow-x:hidden !important;
-}
-
-#sidebar-toggle-btn{
-    position:fixed !important;
-    top:25px !important;
-    left:320px !important;
-    z-index:998 !important;
-    background:#2c3e50 !important;
-    color:white !important;
-    border:none !important;
-    border-radius:0 12px 12px 0 !important;
-    width:45px !important;
-    height:65px !important;
-    font-size:1.5rem !important;
-    cursor:pointer !important;
-    display:flex !important;
-    align-items:center !important;
-    justify-content:center !important;
-    box-shadow:3px 3px 8px rgba(0,0,0,0.2);
-    transition:left 0.3s ease;
-}
-
-#sidebar-toggle-btn.collapsed{
-    left:0 !important;
-}
-
-.tab-content{
-    display:none;
-}
-
-.tab-content.active{
-    display:block;
-}
-
-h1{
-    font-size:3rem !important;
-}
-
-h2{
-    font-size:2.5rem !important;
-}
-
-h3{
-    font-size:2rem !important;
-}
-
-p,
-span,
-label,
-input,
-button,
-table th,
-table td{
-    font-size:1.4rem !important;
-}
-
-.horizontal-box{
-    display:flex;
-    flex-direction:row;
-    align-items:center;
-    gap:15px;
-    flex-wrap:wrap;
-}
-
-#login-screen[style*="display: flex"] ~ #main-app #sidebar-toggle-btn,
-.overlay[style*="display: flex"] ~ #sidebar-toggle-btn,
-.overlay[style*="display:flex"] ~ #sidebar-toggle-btn{
-    display:none !important;
-}
-
-/* =========================
-   포인트 도감
-   ========================= */
-
-#tab-points{
-    width:100% !important;
-    min-width:0 !important;
-    box-sizing:border-box !important;
-}
-
-#tab-points > .card:first-child{
-    width:100% !important;
-    max-width:none !important;
-    min-width:0 !important;
-    margin-left:0 !important;
-    margin-right:0 !important;
-    box-sizing:border-box !important;
-}
-
-#guide-list.point-guide-grid{
-    display:grid !important;
-    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
-    gap:22px !important;
-    width:100% !important;
-    max-width:none !important;
-    min-width:0 !important;
-    box-sizing:border-box !important;
-    align-items:stretch !important;
-}
-
-#guide-list.point-guide-grid > *{
-    width:100% !important;
-    min-width:0 !important;
-    max-width:none !important;
-    box-sizing:border-box !important;
-}
-
-/* =========================
-   등교 화면 전용
-   ========================= */
-
-.checkin-card{
-    background:white;
-    padding:35px;
-    border-radius:15px;
-    margin-bottom:25px;
-    box-sizing:border-box;
-}
-
-.checkin-admin-toolbar{
-    display:flex;
-    gap:12px;
-    flex-wrap:wrap;
-    align-items:center;
-    margin-bottom:20px;
-}
-
-.checkin-admin-toolbar button,
-.checkin-admin-toolbar input{
-    box-sizing:border-box;
-}
-
-#seat-map-container{
-    display:grid;
-    gap:12px;
-    width:100%;
-    margin-top:20px;
-}
-
-#seat-map-container > div{
-    min-width:0;
-}
-
-.checkin-summary-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-    gap:15px;
-    margin-bottom:20px;
-}
-
-.checkin-summary-card{
-    background:white;
-    border-radius:12px;
-    padding:20px;
-    text-align:center;
-    border:1px solid #e5e7eb;
-}
-
-.checkin-summary-card strong{
-    display:block;
-    font-size:2rem !important;
-    margin-top:8px;
-}
-
-.checkin-log-table-wrap{
-    overflow-x:auto;
-    background:white;
-    border-radius:12px;
-    border:1px solid #ddd;
-}
-
-.checkin-log-table{
-    width:100%;
-    border-collapse:collapse;
-    min-width:800px;
-}
-
-.checkin-log-table th,
-.checkin-log-table td{
-    border-bottom:1px solid #eee;
-    padding:12px;
-    text-align:center;
-}
-
-.checkin-log-table th{
-    background:#f8f9fa;
-    font-weight:bold;
-}
-
-/* =========================
-   포인트 도감 반응형
-   ========================= */
-
-@media(max-width:1100px){
-    #guide-list.point-guide-grid{
-        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
-    }
-}
-
-@media(max-width:800px){
-    .sidebar-menu{
-        width:250px !important;
-        min-width:250px !important;
-    }
-
-    #sidebar-toggle-btn{
-        left:250px !important;
-    }
-
-    .main-content-area{
-        padding:20px !important;
-    }
-}
-
-@media(max-width:700px){
-    #guide-list.point-guide-grid{
-        grid-template-columns:1fr !important;
-    }
-}
-</style>
+<link rel="stylesheet" href="css/style.css?v=20260911-final-1">
 
 <script>
 function toggleSidebar(){
@@ -336,130 +31,128 @@ function toggleSidebar(){
     }
 }
 </script>
-<link rel="stylesheet" href="css/modern.css?v=20260908-security-3">
 </head>
 
-<body>
+<body class="role-teacher">
 
 <div id="loading-screen">
-    <div style="font-size:8rem;">🏰</div>
+    <div class="loading-mark">🏰</div>
 
-    <div style="display:flex;gap:15px;">
-        <span class="bouncing-text" style="color:#fff;">용</span>
-        <span class="bouncing-text" style="color:#3498db;">사</span>
-        <span class="bouncing-text" style="color:#fff;">본</span>
-        <span class="bouncing-text" style="color:#e74c3c;">부</span>
-        <span class="bouncing-text" style="color:#f1c40f;">접</span>
-        <span class="bouncing-text" style="color:#2ecc71;">속</span>
-        <span class="bouncing-text" style="color:#bdc3c7;">중</span>
+    <div class="row">
+        <span class="bouncing-text">용</span>
+        <span class="bouncing-text">사</span>
+        <span class="bouncing-text">본</span>
+        <span class="bouncing-text">부</span>
+        <span class="bouncing-text">접</span>
+        <span class="bouncing-text">속</span>
+        <span class="bouncing-text">중</span>
     </div>
 </div>
 
-<div id="common-overlay" class="overlay" style="display:none;">
+<div id="common-overlay" class="overlay">
     <div class="popup-box">
-        <h2 id="pop-title" style="margin:0;text-align:center;">알림</h2>
+        <h2 id="pop-title">알림</h2>
         <div id="pop-content"></div>
-        <button onclick="closePopup()" id="pop-close-btn">확인(닫기)</button>
+        <button onclick="closePopup()" id="pop-close-btn">확인 (닫기)</button>
     </div>
 </div>
 
-<div id="point-popup" class="overlay point-bulk-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;justify-content:center;align-items:center;">
-    <div class="popup-box point-bulk-dialog" style="background:white;padding:30px;border-radius:15px;width:600px;max-width:95%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 5px 25px rgba(0,0,0,0.3);">
+<div id="point-popup" class="overlay">
+    <div class="popup-box">
 
-        <h2 id="point-pop-title" style="margin-top:0;text-align:center;color:#2c3e50;">
-            ⚖️ 포인트 전령 (개별 지급)
-        </h2>
+        <h2 id="point-pop-title">⚖️ 포인트 전령 (개별 지급)</h2>
 
-        <p class="point-bulk-description" style="color:#666;font-size:1rem;text-align:center;margin-bottom:12px;">
-            선택한 학생들마다 각각 다른 포인트와 사유를 입력하여 반영할 수 있습니다.
-        </p>
+        <div class="popup-body stack">
 
-        <div class="point-bulk-toolbar" style="margin-bottom:12px;display:flex;gap:10px;">
-            <button onclick="setBulkPointSelection(true)" style="padding:8px 12px;cursor:pointer;background:#ecf0f1;border:none;border-radius:6px;font-weight:bold;flex:1;">
-                전체 선택
-            </button>
+            <p class="muted small">
+                선택한 학생마다 다른 포인트와 사유를 입력해 한 번에 반영합니다.
+            </p>
 
-            <button onclick="setBulkPointSelection(false)" style="padding:8px 12px;cursor:pointer;background:#ecf0f1;border:none;border-radius:6px;font-weight:bold;flex:1;">
-                전체 해제
-            </button>
+            <div class="btn-row btn-row--fill">
+                <button class="btn btn--sm" onclick="document.querySelectorAll('.point-pop-chk').forEach(cb=>{cb.checked=true;togglePointPopInputs(cb);})">
+                    전체 선택
+                </button>
+
+                <button class="btn btn--sm" onclick="document.querySelectorAll('.point-pop-chk').forEach(cb=>{cb.checked=false;togglePointPopInputs(cb);})">
+                    전체 해제
+                </button>
+            </div>
+
+            <div id="point-pop-body" class="well scroll-y"></div>
+
         </div>
 
-        <div id="point-pop-body" style="overflow-y:auto;flex:1;border:1px solid #ddd;padding:12px;border-radius:8px;background:#fdfdfd;margin-bottom:20px;"></div>
-
-        <div class="point-bulk-actions" style="display:flex;gap:15px;">
-            <button onclick="closePointPopup()" style="background:#95a5a6;color:white;border:none;border-radius:12px;flex:1;padding:16px;font-weight:bold;cursor:pointer;">
-                닫기
-            </button>
-
-            <button id="point-apply-btn" onclick="submitPointPopupCustom()" style="background:#27ae60;color:white;font-weight:bold;border:none;border-radius:12px;flex:2;padding:16px;cursor:pointer;font-size:1.1rem;">
-                선택된 학생들 반영하기
+        <div class="point-bulk-actions">
+            <button class="btn" onclick="closePointPopup()">닫기</button>
+            <button class="btn btn--good" id="point-apply-btn" onclick="submitPointPopupCustom()">
+                선택한 학생에게 반영
             </button>
         </div>
     </div>
 </div>
 
-<div id="login-screen" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#f4f7f6;justify-content:center;align-items:center;z-index:9998;">
-    <div class="login-box" style="background:white;padding:60px;border-radius:20px;text-align:center;box-shadow:0 4px 25px rgba(0,0,0,0.15);">
-
-        <h1 style="font-size:3rem !important;">
-            🏰 6-6 본부
-        </h1>
-
-        <button onclick="handleLogin()" style="background:#4285F4;color:white;border:none;border-radius:15px;padding:22px 45px;font-size:1.4rem;cursor:pointer;">
-            Google 로그인
+<div id="login-screen">
+    <div class="login-box">
+        <h1>🏰 6-6 본부</h1>
+        <p>학교 구글 계정으로 들어오세요.</p>
+        <button class="btn btn--primary btn--lg btn--block" onclick="handleLogin()">
+            Google 계정으로 로그인
         </button>
     </div>
 </div>
 
 <div id="main-app">
 
-    <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="메뉴 열기/닫기">
+    <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="메뉴 열기/닫기" aria-label="메뉴 열기/닫기">
         ◀
     </button>
 
     <nav id="sidebar-menu" class="sidebar-menu">
 
-        <h2 style="text-align:center;margin:0 0 15px 0;">
-            🏰 6-6 본부
-        </h2>
+        <div class="nav-brand">
+            <strong>🏰 6-6 본부</strong>
+            <span id="nav-role-label">용사 관리 시스템</span>
+        </div>
 
-        <button id="btn-main" onclick="showTab('main')" style="">
+        <button id="btn-main" onclick="showTab('main')">
             🤺 용사들
         </button>
 
-        <button id="btn-shop" onclick="showTab('shop');renderShop();" style="">
+        <button id="btn-shop" onclick="showTab('shop');renderShop();">
             🛍️ 상점
         </button>
 
-        <button id="btn-checkin" onclick="showTab('checkin')" style="">
+        <button id="btn-checkin" onclick="showTab('checkin')">
             ⚔️ 등교
         </button>
 
-        <button id="btn-assignments" onclick="showTab('assignments');initAssignmentsTab();" style="">
+        <button id="btn-assignments" onclick="showTab('assignments');initAssignmentsTab();">
             📝 과제
         </button>
 
-        <button id="btn-points" onclick="showTab('points')" style="">
+        <button id="btn-points" onclick="showTab('points')">
             💰 포인트·도감
         </button>
 
-        <button id="btn-housing" onclick="showTab('housing');" style="">
+        <button id="btn-housing" onclick="showTab('housing');">
             🏰 방
         </button>
 
-        <button id="btn-blackboard-admin" style="display:none;" onclick="showTab('blackboard-admin');initBlackboardAdmin();">
+        <div class="nav-section" id="nav-admin-section" hidden>선생님 메뉴</div>
+
+        <button id="btn-blackboard-admin" hidden onclick="showTab('blackboard-admin');initBlackboardAdmin();">
             🏫 전자칠판 관리
         </button>
 
-        <button id="btn-management" style="display:none;" onclick="showTab('management');renderManagementSub('grades');">
+        <button id="btn-management" hidden onclick="showTab('management');renderManagementSub('grades');">
             🛡️ 학급관리
         </button>
 
-        <button id="btn-cleaning" style="display:none;" onclick="showTab('cleaning');renderRoleCleaning();">
+        <button id="btn-cleaning" hidden onclick="showTab('cleaning');renderRoleCleaning();">
             🧹 1인 1역·청소
         </button>
 
-        <button id="btn-admin" style="display:none;" onclick="showTab('admin');initSettings();">
+        <button id="btn-admin" hidden onclick="showTab('admin');initSettings();">
             ⚙️ 설정
         </button>
 
@@ -470,21 +163,35 @@ function toggleSidebar(){
         <!-- 1. 용사들 -->
         <section id="tab-main" class="tab-content active">
 
-            <div id="hero-grid" class="hero-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:22px;">
-            </div>
+            <header class="page-head">
+                <div>
+                    <h2>🤺 용사들</h2>
+                    <p>이름을 누르면 상세 기록과 방으로 갑니다.</p>
+                </div>
+            </header>
+
+            <div id="hero-grid" class="hero-grid"></div>
 
         </section>
 
         <!-- 2. 상점 -->
         <section id="tab-shop" class="tab-content">
 
-            <div class="card" style="background:white;padding:35px;border-radius:15px;margin-bottom:20px;">
-                <h2>🛍️ 용사 보급소</h2>
+            <header class="page-head">
+                <div>
+                    <h2>🛍️ 용사 보급소</h2>
+                    <p>모은 포인트로 교환합니다.</p>
+                </div>
+            </header>
+
+            <div class="card">
                 <div id="shop-list"></div>
             </div>
 
-            <div id="admin-order-mgr" class="card" style="display:none;border:2px solid #e74c3c;background:white;padding:35px;border-radius:15px;">
-                <h3>📜 사용 요청 승인</h3>
+            <div id="admin-order-mgr" class="card card--bad" hidden>
+                <div class="panel-head">
+                    <h3>📜 사용 요청 승인</h3>
+                </div>
                 <div id="order-list"></div>
             </div>
 
@@ -493,13 +200,20 @@ function toggleSidebar(){
         <!-- 3. 등교 -->
         <section id="tab-checkin" class="tab-content">
 
-            <div id="checkin-sub-menu-container" style="display:flex;gap:15px;margin-bottom:25px;">
+            <header class="page-head">
+                <div>
+                    <h2 id="checkin-page-title">⚔️ 등교</h2>
+                    <p id="checkin-guide"></p>
+                </div>
+            </header>
 
-                <button onclick="switchCheckinSub('checkin-main')" id="sub-btn-checkin-main" style="background:#2c3e50;color:white;padding:18px;border-radius:12px;border:none;flex:1;font-weight:bold;font-size:1.3rem;cursor:pointer;">
+            <div id="checkin-sub-menu-container" class="seg">
+
+                <button onclick="switchCheckinSub('checkin-main')" id="sub-btn-checkin-main" class="active">
                     ⚔️ 등교하기
                 </button>
 
-                <button onclick="switchCheckinSub('checkin-logs')" id="sub-btn-checkin-logs" class="admin-only-checkin-btn" style="background:#ddd;color:#333;padding:18px;border-radius:12px;border:none;flex:1;font-weight:bold;font-size:1.3rem;cursor:pointer;display:none;">
+                <button onclick="switchCheckinSub('checkin-logs')" id="sub-btn-checkin-logs" class="admin-only-checkin-btn" hidden>
                     📅 등교로그 및 좌석
                 </button>
 
@@ -507,67 +221,81 @@ function toggleSidebar(){
 
             <div id="sub-checkin-main" class="sub-checkin-content">
 
-                <div class="checkin-card">
+                <div class="card">
 
-                    <h2>⚔️ 등교 확인</h2>
+                    <div class="panel-head">
+                        <h3>⚔️ 등교 확인</h3>
+                    </div>
 
-                    <div id="checkin-guide" style="font-weight:bold;margin-bottom:20px;color:#2c3e50;font-size:1.4rem;"></div>
+                    <!-- 오늘 이미 처리됐으면 입력칸 대신 이 도장이 보입니다. -->
+                    <div id="checkin-my-status" class="checkin-stamp" hidden></div>
 
-                    <input type="text" id="checkin-pass" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="등교 암호 4자리 입력" style="text-align:center;padding:18px;width:100%;box-sizing:border-box;margin-bottom:20px;font-size:1.4rem;">
+                    <div class="stack" id="checkin-form">
+                        <div class="field">
+                            <label class="field-label" for="checkin-pass">오늘의 등교 암호</label>
+                            <input type="text" id="checkin-pass" class="input--num" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="숫자 4자리">
+                        </div>
 
-                    <button id="checkin-btn" onclick="submitCheckIn()" style="background:#3498db;color:white;border:none;border-radius:15px;padding:22px;width:100%;font-weight:bold;font-size:1.4rem;cursor:pointer;">
-                        본부 소환!
-                    </button>
+                        <button id="checkin-btn" class="btn btn--primary btn--lg btn--block" onclick="submitCheckIn()">
+                            본부 소환!
+                        </button>
+                    </div>
 
                 </div>
 
             </div>
 
-            <div id="sub-checkin-logs" class="sub-checkin-content" style="display:none;">
+            <div id="sub-checkin-logs" class="sub-checkin-content stack" style="display:none;">
 
-                <div class="checkin-card">
+                <div class="card">
 
-                    <h2 style="margin-top:0;">📅 등교로그</h2>
+                    <div class="panel-head">
+                        <h3>📅 등교로그</h3>
+                    </div>
 
-                    <div class="checkin-admin-toolbar" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:15px;">
+                    <div class="checkin-admin-toolbar">
 
-                        <label for="checkin-date-filter">조회 날짜</label>
+                        <label class="field-label" for="checkin-date-filter">조회 날짜</label>
 
-                        <input type="date" id="checkin-date-filter" onchange="refreshCheckinManagement()" style="padding:12px;border:1px solid #ccc;border-radius:8px;">
+                        <input type="date" id="checkin-date-filter" class="input--sm" onchange="refreshCheckinManagement()">
 
-                        <button onclick="refreshCheckinManagement()" style="background:#3498db;color:white;border:none;padding:12px 20px;border-radius:8px;font-weight:bold;cursor:pointer;">
+                        <button class="btn btn--sm" onclick="refreshCheckinManagement()">
                             🔄 새로고침
                         </button>
 
-                        <button onclick="openExclusionPopup()" style="background:#9b59b6;color:white;border:none;padding:12px 20px;border-radius:8px;font-weight:bold;cursor:pointer;">
+                        <button class="btn btn--sm" onclick="openExclusionPopup()">
                             🚫 등교 제외 설정
                         </button>
 
-                        <button onclick="openMonthlyCalendar()" style="background:#2ecc71;color:white;border:none;padding:12px 20px;border-radius:8px;font-weight:bold;cursor:pointer;">
+                        <button class="btn btn--sm btn--outline" onclick="openMonthlyCalendar()">
                             📊 월간 출석부
                         </button>
 
                     </div>
 
-                    <div id="checkin-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:15px;"></div>
+                    <div id="checkin-summary" class="stat-grid"></div>
 
                 </div>
 
-                <div class="checkin-card">
+                <div class="card">
 
-                    <h3 style="margin-top:0;">🪑 오늘의 좌석 및 출결 현황</h3>
+                    <div class="panel-head">
+                        <h3>🪑 오늘의 좌석 및 출결</h3>
+                    </div>
 
-                    <p style="color:#666;">
-                        한 번 클릭하면 출결 처리, 빠르게 두 번 클릭하면 상세 수정이 가능합니다.
+                    <p class="muted small">
+                        한 번 클릭하면 출결 처리, 빠르게 두 번 클릭하면 상세 수정입니다.
                     </p>
 
-                    <div id="seat-map-container"></div>
+                    <div id="seat-map-container" class="seat-grid"></div>
 
                 </div>
 
-                <div class="checkin-card">
+                <div class="card">
 
-                    <h3 style="margin-top:0;">📜 등교 기록</h3>
+                    <div class="panel-head">
+                        <h3>📜 등교 기록</h3>
+                    </div>
 
                     <div id="checkin-log-list"></div>
 
@@ -577,41 +305,61 @@ function toggleSidebar(){
 
         </section>
 
-        <!-- 학생 과제 안내 -->
-        <section id="tab-assignments" class="tab-content" style="display:none;">
-            <div id="assignments-tab-container">과제를 불러오는 중...</div>
+        <!-- 4. 과제 -->
+        <section id="tab-assignments" class="tab-content">
+            <div id="assignments-tab-container" class="empty">과제를 불러오는 중…</div>
         </section>
 
-        <!-- 4. 포인트 -->
+        <!-- 5. 포인트 -->
         <section id="tab-points" class="tab-content">
 
-            <div class="card" style="background:white;padding:35px;border-radius:15px;margin-bottom:20px;width:100% !important;max-width:none !important;min-width:0 !important;box-sizing:border-box;">
+            <header class="page-head">
+                <div>
+                    <h2>💰 포인트·도감</h2>
+                    <p>어떻게 얻고 쓰는지, 지금까지 어떻게 움직였는지.</p>
+                </div>
+            </header>
 
-                <h2>📜 포인트 도감</h2>
+            <div id="point-guide-panel" class="card" hidden>
+
+                <div class="panel-head">
+                    <h3>📜 포인트 도감</h3>
+                    <div class="panel-head-actions">
+                        <button id="btn-add-point-guide" class="btn btn--sm" hidden onclick="openPointGuideModal()">
+                            + 항목 추가
+                        </button>
+                    </div>
+                </div>
 
                 <div id="guide-list" class="point-guide-grid"></div>
 
             </div>
 
-            <div id="my-inventory" class="card" style="background:white;padding:35px;border-radius:15px;margin-bottom:20px;">
+            <div id="my-inventory" class="card">
 
-                <h3>🎁 나의 인벤토리</h3>
-
-                <div id="inv-unused" class="inv-section">
-                    <h4>📦 미사용 보관함</h4>
-                    <div class="list"></div>
+                <div class="panel-head">
+                    <h3>🎁 나의 인벤토리</h3>
                 </div>
 
-                <div id="inv-waiting" class="inv-section">
-                    <h4>⏳ 사용 대기중</h4>
-                    <div class="list"></div>
+                <div class="stack">
+                    <div id="inv-unused" class="inv-section">
+                        <h4>📦 미사용 보관함</h4>
+                        <div class="list"></div>
+                    </div>
+
+                    <div id="inv-waiting" class="inv-section">
+                        <h4>⏳ 사용 대기중</h4>
+                        <div class="list"></div>
+                    </div>
                 </div>
 
             </div>
 
-            <div class="card" style="background:white;padding:35px;border-radius:15px;">
+            <div class="card">
 
-                <h3>📜 포인트 연대기</h3>
+                <div class="panel-head">
+                    <h3>📜 포인트 연대기</h3>
+                </div>
 
                 <div id="point-history-list"></div>
 
@@ -619,97 +367,100 @@ function toggleSidebar(){
 
         </section>
 
-        <!-- 5. 전자칠판 -->
-        <section id="tab-blackboard-admin" class="tab-content" style="display:none;">
+        <!-- 6. 전자칠판 -->
+        <section id="tab-blackboard-admin" class="tab-content">
 
-            <div class="card" style="max-width:1200px;margin:0 auto;background:white;padding:35px;border-radius:15px;">
+            <header class="page-head">
+                <div>
+                    <h2>🏫 전자칠판 관리</h2>
+                    <p id="bb-share-status" role="status">전자칠판 공유 자료를 준비하고 있습니다…</p>
+                </div>
+                <div class="page-head-actions">
+                    <button class="btn btn--primary" onclick="window.open('blackboard.html','_blank','fullscreen=yes')">
+                        📺 전자칠판 새 창
+                    </button>
+                </div>
+            </header>
 
-                <p id="bb-share-status" role="status">전자칠판 공유 자료를 준비하고 있습니다…</p>
-                <button onclick="window.open('blackboard.html','_blank','fullscreen=yes')" style="background:#2c3e50;color:white;padding:20px;border-radius:12px;border:none;font-weight:bold;width:100%;margin-bottom:25px;cursor:pointer;font-size:1.3rem;">
-                    📺 전자칠판 새창 띄우기
-                </button>
+            <div class="card">
 
-                <h3 style="margin-top:0;color:#3498db;">
-                    🛠️ 전자칠판 날짜별 공지·주간 시간표 관리
-                </h3>
+                <div class="panel-head">
+                    <h3>🛠️ 날짜별 공지 · 주간 시간표</h3>
+                </div>
 
-                <div id="bb-schedule-form-container" style="display:flex;flex-direction:column;gap:15px;margin-bottom:25px;"></div>
+                <div id="bb-schedule-form-container" class="stack"></div>
 
             </div>
 
         </section>
 
-        <!-- 6. 하우징 -->
+        <!-- 7. 하우징 -->
         <section id="tab-housing" class="tab-content">
 
-            <div class="card" style="max-width:950px;margin:0 auto;background:white;padding:35px;border-radius:15px;">
+            <div id="admin-housing-control" class="card card--accent" hidden>
 
-                <div id="admin-housing-control" style="display:none;border:3px solid #3498db;padding:25px;border-radius:15px;margin-bottom:25px;background-color:#f8f9fa;">
-
-                    <h3 style="margin-top:0;color:#2c3e50;">
-                        👑 용사의 방 관리자 시스템
-                    </h3>
-
-                    <h4 style="margin:10px 0;">
-                        현재 상태:
-                        <span id="housing-current-status" style="font-weight:bold;">
-                            확인 중...
-                        </span>
-                    </h4>
-
-                    <button id="housing-toggle-btn" onclick="toggleHousing()" style="background-color:#e74c3c;color:white;width:100%;padding:18px;border-radius:10px;font-weight:bold;cursor:pointer;font-size:1.2rem;">
-                        상태 변경
-                    </button>
-
+                <div class="panel-head">
+                    <h3>👑 용사의 방 관리</h3>
+                    <div class="panel-head-actions">
+                        <button id="housing-toggle-btn" class="btn btn--warn btn--sm" onclick="toggleHousing()">
+                            상태 변경
+                        </button>
+                    </div>
                 </div>
 
-                <div class="housing-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <p class="muted">
+                    현재 상태: <strong id="housing-current-status">확인 중…</strong>
+                </p>
 
-                    <h2 id="housing-room-title" style="margin:0;">
-                        🏰 용사의 방
-                    </h2>
+            </div>
 
-                    <button id="housing-shop-button" hidden onclick="openHousingShopPopup()" style="background:#f1c40f;color:#2c3e50;padding:16px 28px;border-radius:10px;border:none;font-weight:bold;cursor:pointer;font-size:1.3rem;">
-                        🛒 하우징 상점 열기
-                    </button>
+            <div class="card">
 
+                <header class="housing-header">
+                    <h2 id="housing-room-title">🏰 용사의 방</h2>
+
+                    <div class="btn-row">
+                        <button id="housing-purchase-history-button" class="btn btn--sm" type="button" hidden onclick="openHousingPurchaseHistory()">
+                            🧾 구매 내역
+                        </button>
+
+                        <button id="housing-shop-button" class="btn btn--gold" hidden onclick="openHousingShopPopup()">
+                            🛒 하우징 상점 열기
+                        </button>
+                    </div>
+                </header>
+
+                <p id="housing-room-status" class="muted small" role="status" aria-live="polite"></p>
+
+                <div id="my-room-container" class="room-canvas">
+                    <div id="my-room-canvas"></div>
                 </div>
 
-                <button id="housing-purchase-history-button" type="button" hidden onclick="openHousingPurchaseHistory()">🧾 구매 내역 확인</button>
-
-                <p id="housing-room-status" role="status" aria-live="polite"></p>
-
-                <div id="my-room-container" style="position:relative;width:100%;max-width:640px;height:480px;border:6px solid #5d4037;border-radius:15px;background-size:100% 100%;background-repeat:no-repeat;box-shadow:0 10px 20px rgba(0,0,0,0.2);overflow:hidden;margin:0 auto;">
-
-                    <div id="my-room-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
-
-                </div>
-
-                <div id="housing-social" hidden>
-                    <div id="housing-reactions" hidden aria-label="친구에게 이모지 반응 남기기"></div>
-                    <p id="housing-reaction-status" role="status" aria-live="polite"></p>
-                    <button type="button" id="housing-guestbook-button" aria-expanded="false" aria-controls="housing-guestbook" onclick="toggleRoomGuestbook()">📖 방명록 확인</button>
-                    <div id="housing-guestbook" hidden>
-                        <h3>📖 방명록</h3>
+                <div id="housing-social" class="stack" hidden>
+                    <div id="housing-reactions" class="chip-row" hidden aria-label="친구에게 이모지 반응 남기기"></div>
+                    <p id="housing-reaction-status" class="muted small" role="status" aria-live="polite"></p>
+                    <div>
+                        <button type="button" id="housing-guestbook-button" class="btn btn--sm" aria-expanded="false" aria-controls="housing-guestbook" onclick="toggleRoomGuestbook()">
+                            📖 방명록 확인
+                        </button>
+                    </div>
+                    <div id="housing-guestbook" class="well" hidden>
+                        <h4>📖 방명록</h4>
                         <div id="housing-guestbook-list"></div>
                     </div>
                 </div>
 
-                <div id="housing-save-controls" hidden style="margin-top:25px;text-align:center;">
+                <!-- 가구를 옮기면 그 자리에서 저장됩니다.
+                     예전의 '저장하기' 버튼은 안내 알림만 띄우는 가짜 버튼이라 없앴습니다. -->
+                <p id="housing-save-controls" class="field-hint" hidden>
+                    가구를 옮기면 그 자리에서 바로 저장됩니다.
+                </p>
 
-                    <button onclick="saveMyRoom()" style="padding:20px 50px;background-color:#2ecc71;color:white;border:none;border-radius:12px;font-size:1.5rem;font-weight:bold;cursor:pointer;">
-                        💾 방 저장하기
-                    </button>
+                <div id="housing-inventory-panel" class="well" hidden>
 
-                </div>
+                    <h4>🎒 내 하우징 보관함</h4>
 
-                <div id="housing-inventory-panel" hidden style="width:100%;background:#f8f9fa;padding:25px;border-radius:15px;border:2px solid #ddd;margin-top:25px;box-sizing:border-box;">
-
-                    <h3 style="margin-top:0;">
-                        🎒 내 하우징 보관함 (구매한 아이템)
-                    </h3>
-
-                    <div id="housing-inventory-list" style="display:flex;gap:15px;overflow-x:auto;padding-bottom:10px;min-height:120px;"></div>
+                    <div id="housing-inventory-list" class="row"></div>
 
                 </div>
 
@@ -717,152 +468,188 @@ function toggleSidebar(){
 
         </section>
 
-        <!-- 7. 학급관리 -->
-        <section id="tab-management" class="tab-content" style="display:none;">
+        <!-- 8. 학급관리 -->
+        <section id="tab-management" class="tab-content">
 
-            <div style="display:flex;gap:15px;margin-bottom:25px;">
+            <header class="page-head">
+                <div>
+                    <h2>🛡️ 학급관리</h2>
+                </div>
+            </header>
 
-                <button onclick="renderManagementSub('grades')" id="sub-btn-grades" style="background:#3498db;color:white;padding:18px;border-radius:12px;border:none;flex:1;font-weight:bold;font-size:1.3rem;cursor:pointer;">
+            <div class="seg">
+                <button onclick="renderManagementSub('grades')" id="sub-btn-grades" class="active">
                     📝 성적 관리
                 </button>
 
-                <button onclick="renderManagementSub('budget')" id="sub-btn-budget" style="background:#ddd;color:#333;padding:18px;border-radius:12px;border:none;flex:1;font-weight:bold;font-size:1.3rem;cursor:pointer;">
+                <button onclick="renderManagementSub('budget')" id="sub-btn-budget">
                     💵 학급 운영비
                 </button>
-
             </div>
 
             <div id="management-sub-container"></div>
 
         </section>
 
-        <!-- 8. 청소 -->
-        <section id="tab-cleaning" class="tab-content" style="display:none;padding:35px;background:white;border-radius:15px;">
+        <!-- 9. 청소 -->
+        <section id="tab-cleaning" class="tab-content">
 
-            <div id="tab-cleaning-container">
-                불러오는 중...
-            </div>
+            <div id="tab-cleaning-container" class="empty">불러오는 중…</div>
 
         </section>
 
-        <!-- 9. 설정 -->
+        <!-- 10. 설정 -->
         <section id="tab-admin" class="tab-content">
 
-            <div class="card" style="background:white;padding:35px;border-radius:15px;margin-bottom:20px;">
+            <header class="page-head">
+                <div>
+                    <h2>⚙️ 설정</h2>
+                    <p>좌석·명단·등교 암호·보상을 여기서 관리합니다.</p>
+                </div>
+                <div class="page-head-actions">
+                    <button class="btn" onclick="toggleSeatBuilder()">
+                        ⚙️ 좌석 표 만들기
+                    </button>
+                </div>
+            </header>
 
-                <h3>🪑 현재 좌석 배치</h3>
+            <div class="card">
 
-                <div id="current-seating-view" style="margin-top:15px;"></div>
+                <div class="panel-head">
+                    <h3>🪑 현재 좌석 배치</h3>
+                </div>
+
+                <div id="current-seating-view"></div>
 
             </div>
 
-            <div style="margin-bottom:20px;">
+            <div id="seat-builder-section" class="card card--accent" style="display:none;">
 
-                <button onclick="toggleSeatBuilder()" style="background:#2c3e50;color:white;padding:14px 24px;border:none;border-radius:10px;cursor:pointer;font-weight:bold;font-size:1.2rem;">
-                    ⚙️ 좌석 배치 설정 (표 만들기 열기/닫기)
-                </button>
+                <div class="panel-head">
+                    <h3>🛠️ 좌석 표 만들기</h3>
+                </div>
 
-            </div>
+                <div class="stack">
 
-            <div id="seat-builder-section" class="card" style="display:none;background:#f8f9fa;padding:35px;border-radius:15px;margin-bottom:20px;border:2px solid #3498db;">
+                    <div class="row">
+                        <label class="field-label" for="seat-cols">가로</label>
+                        <input type="number" id="seat-cols" class="input--sm input--num" value="5">
 
-                <h3>🛠️ 좌석 표 만들기 및 자리 배치 편집</h3>
+                        <label class="field-label" for="seat-rows">세로</label>
+                        <input type="number" id="seat-rows" class="input--sm input--num" value="6">
 
-                <div class="horizontal-box" style="margin-bottom:15px;margin-top:15px;">
+                        <button class="btn btn--sm" onclick="generateSeatInputs()">
+                            표 만들기
+                        </button>
+                    </div>
 
-                    가로
+                    <div id="seat-input-container"></div>
 
-                    <input type="number" id="seat-cols" value="5" style="width:90px;padding:10px;font-size:1.3rem;">
-
-                    x 세로
-
-                    <input type="number" id="seat-rows" value="6" style="width:90px;padding:10px;font-size:1.3rem;">
-
-                    <button onclick="generateSeatInputs()" style="background:#3498db;color:white;padding:12px 24px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">
-                        표 만들기
+                    <button class="btn btn--good btn--block" onclick="saveSeatSettings()">
+                        배치 저장
                     </button>
 
                 </div>
 
-                <div id="seat-input-container"></div>
-
-                <button onclick="saveSeatSettings()" style="width:100%;margin-top:20px;padding:18px;background:#2ecc71;color:white;border:none;border-radius:10px;font-weight:bold;font-size:1.3rem;cursor:pointer;">
-                    배치 저장
-                </button>
-
             </div>
 
-            <div class="card" style="background:white;padding:35px;border-radius:15px;margin-bottom:20px;">
+            <div class="card">
 
-                <h3>👥 명단 관리 (번호/역할)</h3>
+                <div class="panel-head">
+                    <h3>👥 명단 관리 (번호·역할)</h3>
+                </div>
 
                 <div id="student-admin-list"></div>
 
             </div>
 
-            <div class="card" style="background:white;padding:35px;border-radius:15px;margin-bottom:20px;">
+            <div class="card">
 
-                <h3>⚙️ 시스템 설정</h3>
+                <div class="panel-head">
+                    <h3>⚙️ 시스템 설정</h3>
+                </div>
 
-                <div class="horizontal-box" style="margin-bottom:18px;">
+                <div class="stack">
 
-                    암호:
+                    <div class="field">
+                        <label class="field-label" for="conf-pass">등교 암호</label>
+                        <div class="row">
+                            <input type="text" id="conf-pass" class="input--num" inputmode="numeric" maxlength="4" pattern="[0-9]{4}">
+                            <button class="btn btn--warn btn--sm" onclick="generateRandomPassword()">
+                                🎲 난수 생성
+                            </button>
+                        </div>
+                        <p id="checkin-password-status" class="field-hint">
+                            수동 갱신 모드 · 저장한 암호는 다시 변경할 때까지 유지되며 전자칠판에도 적용됩니다.
+                        </p>
+                    </div>
 
-                    <input type="text" id="conf-pass" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="flex:1;padding:12px;font-size:1.3rem;">
+                    <div class="form-grid--tight form-grid">
+                        <div class="field">
+                            <label class="field-label" for="conf-late">지각 기준</label>
+                            <input type="time" id="conf-late">
+                        </div>
 
-                    <button onclick="generateRandomPassword()" style="background:#ff9800;color:white;width:auto;padding:14px 22px;font-weight:bold;border-radius:10px;border:none;cursor:pointer;font-size:1.2rem;">
-                        🎲 난수 비번 생성
-                    </button>
+                        <div class="field">
+                            <label class="field-label" for="conf-close">등교 마감</label>
+                            <input type="time" id="conf-close">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="conf-routine">아침 루틴 (한 줄에 하나)</label>
+                        <textarea id="conf-routine" rows="4"></textarea>
+                    </div>
+
+                    <div class="btn-row btn-row--end">
+                        <button class="btn btn--primary" onclick="saveSettings()">
+                            시스템 저장
+                        </button>
+                    </div>
 
                 </div>
 
-                    <p id="checkin-password-status" style="color:#64748b;font-size:15px;line-height:1.5;">수동 갱신 모드 · 기존 암호는 새로 저장할 때까지 유지됩니다.</p>
+            </div>
 
-                <div class="horizontal-box" style="margin-bottom:18px;">
+            <div class="card">
 
-                    지각:
-
-                    <input type="time" id="conf-late" style="padding:12px;font-size:1.3rem;">
-
-                    마감:
-
-                    <input type="time" id="conf-close" style="padding:12px;font-size:1.3rem;">
-
+                <div class="panel-head">
+                    <h3>🎁 레벨업 보상</h3>
                 </div>
 
-                루틴:
+                <div class="stack">
+                    <div class="field">
+                        <label class="field-label" for="conf-gifts">보상 목록 (한 줄에 하나)</label>
+                        <textarea id="conf-gifts" rows="4"></textarea>
+                    </div>
 
-                <textarea id="conf-routine" rows="4" style="width:100%;box-sizing:border-box;margin-bottom:18px;font-size:1.3rem;"></textarea>
-
-                <button onclick="saveSettings()" style="background:#3498db;color:white;border:none;padding:16px 30px;border-radius:10px;cursor:pointer;font-size:1.3rem;font-weight:bold;">
-                    시스템 저장
-                </button>
-
-            </div>
-
-            <div class="card" style="background:white;padding:35px;border-radius:15px;margin-bottom:20px;">
-
-                <h3>🎁 레벨업 보상</h3>
-
-                보상목록:
-
-                <textarea id="conf-gifts" rows="4" style="width:100%;box-sizing:border-box;margin-bottom:18px;font-size:1.3rem;"></textarea>
-
-                <button onclick="saveGifts()" style="background:#3498db;color:white;border:none;padding:16px 30px;border-radius:10px;cursor:pointer;font-size:1.3rem;font-weight:bold;">
-                    보상 저장
-                </button>
+                    <div class="btn-row btn-row--end">
+                        <button class="btn btn--primary" onclick="saveGifts()">
+                            보상 저장
+                        </button>
+                    </div>
+                </div>
 
             </div>
 
-            <div class="card" style="background:white;padding:35px;border-radius:15px;">
+            <div class="card">
 
-                <h3>🆕 학생 일괄 등록</h3>
+                <div class="panel-head">
+                    <h3>🆕 학생 일괄 등록</h3>
+                </div>
 
-                <textarea id="bulk-in" rows="3" placeholder="이름,이메일" style="width:100%;box-sizing:border-box;margin-bottom:18px;font-size:1.3rem;"></textarea>
+                <div class="stack">
+                    <div class="field">
+                        <label class="field-label" for="bulk-in">이름,이메일 (한 줄에 하나)</label>
+                        <textarea id="bulk-in" rows="3" placeholder="김하준,student3@school.kr"></textarea>
+                    </div>
 
-                <button onclick="bulkReg()" style="background:#3498db;color:white;border:none;padding:16px 30px;border-radius:10px;cursor:pointer;font-size:1.3rem;font-weight:bold;">
-                    주입
-                </button>
+                    <div class="btn-row btn-row--end">
+                        <button class="btn btn--primary" onclick="bulkReg()">
+                            주입
+                        </button>
+                    </div>
+                </div>
 
             </div>
 
@@ -871,24 +658,23 @@ function toggleSidebar(){
     </main>
 </div>
 
-<script src="js/firebase-config.js?v=20260908-security-3"></script>
-<script src="js/security-api.js?v=20260909-client-index-1"></script>
-<script src="functions/checkin-password-core.js?v=20260908-security-3"></script>
-<script src="js/checkin-password.js?v=20260908-security-3"></script>
-<script src="js/blackboard-share.js?v=20260908-security-3"></script>
-<script src="js/global.js?v=20260910-data-recovery-1"></script>
-<script src="js/auth.js?v=20260910-data-recovery-1"></script>
-<script src="js/checkin-seat.js?v=20260909-student-access-1"></script>
-<script src="js/hero-mgr.js?v=20260908-security-3"></script>
-<script src="js/point-shop.js?v=20260908-security-3"></script>
-<script src="js/point-guide.js?v=20260908-security-3"></script>
-<script src="js/housing.js?v=20260908-security-3"></script>
-<script src="js/admin-grades.js?v=20260908-security-3"></script>
-<script src="js/blackboard-admin.js?v=20260908-security-3"></script>
-<script src="js/assignments.js?v=20260908-security-3"></script>
-<script src="js/settings.js?v=20260909-client-index-1"></script>
-<script src="js/cleaning.js?v=20260908-security-3"></script>
-    
-<script src="js/security-actions.js?v=20260908-security-3"></script>
+<script src="js/firebase-config.js?v=20260911-final-1"></script>
+<script src="js/secure-api.js?v=20260911-final-1"></script>
+<script src="functions/checkin-password-core.js?v=20260911-final-1"></script>
+<script src="js/checkin-password.js?v=20260911-final-1"></script>
+<script src="js/blackboard-share.js?v=20260911-final-1"></script>
+<script src="js/global.js?v=20260911-final-1"></script>
+<script src="js/auth.js?v=20260911-final-1"></script>
+<script src="js/checkin-seat.js?v=20260911-final-1"></script>
+<script src="js/hero-mgr.js?v=20260911-final-1"></script>
+<script src="js/point-shop.js?v=20260911-final-1"></script>
+<script src="js/point-guide.js?v=20260911-final-1"></script>
+<script src="js/housing.js?v=20260911-final-1"></script>
+<script src="js/admin-grades.js?v=20260911-final-1"></script>
+<script src="js/blackboard-admin.js?v=20260911-final-1"></script>
+<script src="js/assignments.js?v=20260911-final-1"></script>
+<script src="js/settings.js?v=20260911-final-1"></script>
+<script src="js/cleaning.js?v=20260911-final-1"></script>
+
 </body>
 </html>
