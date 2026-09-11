@@ -9,8 +9,14 @@ initializeApp();
 
 const REGION = 'asia-northeast3';
 const TEACHER_EMAIL = 'ksosuny@cberi.go.kr';
-// 256MiB에서 실제 사용량이 278~281MiB까지 올라가 로그인/등교 호출이 500으로 종료됐다.
-const callable = handler => onCall({ region: REGION, memory: '512MiB', enforceAppCheck: false }, handler);
+// 복구된 DB의 큰 학생 레코드도 안정적으로 처리하도록 호출 함수에 여유를 둔다.
+const callable = handler => onCall({
+    region: REGION,
+    memory: '1GiB',
+    timeoutSeconds: 60,
+    maxInstances: 3,
+    enforceAppCheck: false
+}, handler);
 const cleanEmail = value => String(value || '').trim().toLowerCase();
 const safeKey = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(value);
 const kstDate = timestamp => new Date(timestamp + 9 * 3600000).toISOString().slice(0, 10);
@@ -234,7 +240,8 @@ exports.submitStudentCheckin = callable(async request => {
     const desired=excluded?0:-Math.min(9,late);
     const category=late>0?'지각':'정상';
     const time=`${String(clock.getUTCHours()).padStart(2,'0')}:${String(clock.getUTCMinutes()).padStart(2,'0')}`;
-    const priorRecords=(await database.ref('checkins').get()).val()||{};
+    // 전체 출결 기록 대신 오늘 날짜만 읽어 대용량 DB의 메모리 초과를 막는다.
+    const priorRecords=(await database.ref('checkins').orderByChild('date').equalTo(date).get()).val()||{};
     const priorEntry=Object.entries(priorRecords).find(([,record])=>
         String(record?.name||record?.user||'')===current.name&&record?.date===date);
     const stableKey=priorEntry?.[0]||`${current.uid}_${date}`;

@@ -63,12 +63,14 @@
     },
     "checkins": {
       ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      ".indexOn": ["date"],
       "$record": {
         ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
       }
     },
     "checkinLogs": {
       ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      ".indexOn": ["date"],
       "$record": {
         ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
       }

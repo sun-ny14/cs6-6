@@ -578,12 +578,27 @@ if (typeof refreshCheckinGuide === 'function') {
 
         snap.forEach(child=>{
 
-            const u=child.val()||{};
+            let u=child.val()||{};
 
             u.__firebaseKey=child.key;
 
             if(!u.name){
                 u.name=child.key;
+            }
+
+            // 공개 명단에는 포인트/경험치가 없으므로, 로그인한 학생의
+            // 보안 세션 정보만 자기 프로필에 합쳐 본인 화면에 표시한다.
+            if(
+                !admin&&
+                window.currentUser&&
+                String(u.name||'')===String(window.myName||window.currentUser.name||'')
+            ){
+                u={
+                    ...u,
+                    ...window.currentUser,
+                    name:u.name||child.key,
+                    __firebaseKey:child.key
+                };
             }
 
             const role=String(u.role||'').trim();

@@ -1423,6 +1423,31 @@ body.role-student .hero-points {
 .seat-state { font-size: var(--ui-tiny-size); font-weight: 700; }
 .seat-no { font-size: var(--ui-tiny-size); color: var(--ui-faint); font-weight: 600; }
 
+.checkin-detail-button {
+    margin-top: 4px;
+    padding: 5px 10px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    color: inherit;
+    font: inherit;
+    font-size: var(--ui-tiny-size);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.checkin-detail-button:hover,
+.checkin-detail-button:focus-visible {
+    background: color-mix(in srgb, currentColor 16%, transparent);
+    outline: none;
+}
+
+.checkin-card[aria-busy="true"] {
+    cursor: wait;
+    opacity: .68;
+    pointer-events: none;
+}
+
 .is-good  { border-color: var(--ui-good-line); background: var(--ui-good-soft); color: var(--ui-good); }
 .is-warn  { border-color: var(--ui-warn-line); background: var(--ui-warn-soft); color: var(--ui-warn); }
 .is-bad   { border-color: var(--ui-bad-line);  background: var(--ui-bad-soft);  color: var(--ui-bad); }
