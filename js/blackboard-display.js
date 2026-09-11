@@ -122,11 +122,12 @@
             const name = String(item.name || item.user || item.userName || '').trim();
             const category=String(item.category||item.status||'').trim();
             const result=String(item.result||item.reason||'').trim();
-            const attended=typeof item.attended==='boolean'
-                ?item.attended
-                :category==='정상'||category==='지각'||result==='등교'||
-                    result.includes('정상')||result.includes('지각')||
-                    (!category&&!result);
+            const absent=category==='결석'||result.includes('결석');
+            const attended=!absent&&(
+                item.attended===true||category==='정상'||category==='지각'||
+                category==='조퇴'||result==='등교'||result.includes('정상')||
+                result.includes('지각')||result.includes('조퇴')||(!category&&!result)
+            );
             if (date === today && name && attended) checked.add(name);
         });
         return checked;

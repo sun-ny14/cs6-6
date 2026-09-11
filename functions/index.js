@@ -20,6 +20,8 @@ const callable = handler => onCall({
 const cleanEmail = value => String(value || '').trim().toLowerCase();
 const safeKey = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(value);
 const kstDate = timestamp => new Date(timestamp + 9 * 3600000).toISOString().slice(0, 10);
+const scoreLogKey = (requestId,name) =>
+    `score_${requestId}_${Buffer.from(String(name)).toString('base64url')}`;
 const publicUser = (name, user={}) => ({
     name:String(user.name || name), no:Number(user.no || user.number || 0),
     character:String(user.character || ''), selectedAnimal:String(user.selectedAnimal || ''),
@@ -85,6 +87,28 @@ exports.mirrorPublicSettings = onValueWritten({ ref:'/settings' }, async event =
     await getDatabase().ref().update({
         publicSettings:settings ? publicSettings(settings) : null,
         cleaningSettings:settings ? cleaningSettings(settings) : null
+    });
+});
+
+// 점수 영수증이 만들어지면 두 연대기를 다시 보장한다. 호출 함수가 로그 저장
+// 직전에 끊기더라도 이 트리거가 같은 결정적 키로 빠진 기록을 복구한다.
+exports.mirrorScoreChangeReceipt = onValueWritten({
+    ref:'/users/{userName}/scoreChangeReceipts/{requestId}'
+}, async event => {
+    const receipt=event.data.after.val();
+    if(!receipt)return;
+    const name=event.params.userName, requestId=event.params.requestId;
+    const logKey=scoreLogKey(requestId,name);
+    const timestamp=Number(receipt.timestamp)||Date.now();
+    const date=kstDate(timestamp);
+    const time=new Date(timestamp+9*3600000).toISOString().slice(11,16);
+    const points=Number(receipt.points)||0, exp=Number(receipt.exp)||0;
+    const reason=String(receipt.reason||'포인트 변경');
+    await getDatabase().ref().update({
+        [`pointLogs/${logKey}`]:{name,pAmt:points,eAmt:exp,reason,time,timestamp},
+        [`pointHistory/${name}/${logKey}`]:{date,time,reason,change:points,
+            pChange:points,expChange:exp,result:Number(receipt.nextPoints)||0,
+            pointResult:Number(receipt.nextPoints)||0,expResult:Number(receipt.nextExp)||0,timestamp}
     });
 });
 
@@ -160,7 +184,11 @@ exports.purchasePointShop = callable(async request => {
     // 트랜잭션의 첫 콜백이 빈 로컬 캐시를 실제 사용자 없음으로 오인하지 않게 한다.
     await userRef.get();
     const userResult=await userRef.transaction(user=>{
-        if(!user){reason='missing';return;}
+        // Admin SDK도 트랜잭션 첫 호출에서 null을 줄 수 있다. actor()에서 방금
+        // 확인한 학생 데이터로 첫 시도만 이어 가면 서버 값과 비교 후 자동 재시도된다.
+        if(user===null)user=JSON.parse(JSON.stringify(current.user||{}));
+        if(!user||typeof user!=='object'||!Object.keys(user).length){reason='missing';return;}
+        user.name=String(user.name||current.name);
         user.pointShopPurchases||={};
         const existing=user.pointShopPurchases[purchaseId];
         if(existing){
@@ -366,6 +394,65 @@ exports.teacherQuickCheckin = callable(async request => {
     }
     return {recordKey,category:'정상',source:'teacher',lateMinutes:0,penalty:0,
         pointDelta,points,hadPrevious:Boolean(existingKey),previousData,previousPoints};
+});
+
+exports.adjustStudentScores = callable(async request => {
+    const current=await actor(request);
+    if(!current.teacher)throw new HttpsError('permission-denied','교사만 포인트를 변경할 수 있습니다.');
+    const reason=String(request.data?.reason||'').trim();
+    const requestId=String(request.data?.requestId||'');
+    const targets=Array.isArray(request.data?.targets)?request.data.targets:[];
+    if(!reason||reason.length>200||!safeKey(requestId)||!targets.length||targets.length>40){
+        throw new HttpsError('invalid-argument','포인트 변경 정보를 확인해 주세요.');
+    }
+    const database=getDatabase(), now=Date.now(), date=kstDate(now);
+    const time=new Date(now+9*3600000).toISOString().slice(11,16);
+    const results=[];
+
+    for(let index=0;index<targets.length;index+=1){
+        const target=targets[index]||{};
+        const name=String(target.name||'').trim();
+        const points=Number(target.points??target.p??0);
+        const exp=Number(target.exp??0);
+        if(!name||name.length>100||/[.#$\[\]/\u0000-\u001f]/.test(name)||
+            !Number.isSafeInteger(points)||!Number.isSafeInteger(exp)||
+            Math.abs(points)>100000||Math.abs(exp)>100000){
+            throw new HttpsError('invalid-argument','학생별 포인트 값을 확인해 주세요.');
+        }
+        const userRef=database.ref(`users/${name}`);
+        const initial=(await userRef.get()).val();
+        if(!initial)throw new HttpsError('not-found',`${name} 학생 정보를 찾을 수 없습니다.`);
+        let receipt=null;
+        const result=await userRef.transaction(user=>{
+            if(user===null)user=JSON.parse(JSON.stringify(initial));
+            if(!user||typeof user!=='object')return;
+            user.scoreChangeReceipts||={};
+            if(user.scoreChangeReceipts[requestId]){
+                receipt=user.scoreChangeReceipts[requestId];
+                return user;
+            }
+            const nextPoints=(Number(user.points)||0)+points;
+            const nextExp=(Number(user.exp)||0)+exp;
+            receipt={points,exp,nextPoints,nextExp,reason,timestamp:now};
+            user.points=nextPoints;
+            user.exp=nextExp;
+            user.scoreChangeReceipts[requestId]=receipt;
+            return user;
+        },undefined,false);
+        if(result.committed){
+            receipt=result.snapshot.child(`scoreChangeReceipts/${requestId}`).val()||receipt;
+        }
+        if(!result.committed||!receipt)throw new HttpsError('aborted',`${name} 포인트를 저장하지 못했습니다.`);
+        const logKey=scoreLogKey(requestId,name);
+        await database.ref().update({
+        [`pointLogs/${logKey}`]:{name,pAmt:points,eAmt:exp,reason,time,timestamp:now},
+        [`pointHistory/${name}/${logKey}`]:{date,time,reason,change:points,
+            pChange:points,expChange:exp,result:receipt.nextPoints,pointResult:receipt.nextPoints,
+            expResult:receipt.nextExp,timestamp:now}
+        });
+        results.push({name,points:receipt.nextPoints,exp:receipt.nextExp});
+    }
+    return {updated:results.length,results};
 });
 
 exports.submitStudentCheckin = callable(async request => {

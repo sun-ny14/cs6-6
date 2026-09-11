@@ -36,13 +36,28 @@ test('teacher one-click attendance uses the dedicated callable and mirrors the b
     assert.match(server, /blackboardDisplay\/data\/checkins/);
 });
 
-test('every direct point adjustment writes student point history', () => {
+test('every teacher point adjustment uses the server history writer', () => {
     const global=read('js/global.js');
     const guide=read('js/point-guide.js');
-    const addStart=global.indexOf('window.addScore=');
-    const addEnd=global.indexOf('window.togglePointPopInputs',addStart);
-    assert.match(global.slice(addStart,addEnd), /pointHistory\/\$\{userName\}/);
-    assert.match(guide, /pointHistory\/\$\{sKey\}\/\$\{hRef\.key\}/);
+    const server=read('functions/index.js');
+    assert.match(global, /callSecure\('adjustStudentScores'/);
+    assert.match(guide, /callSecure\('adjustStudentScores'/);
+    assert.match(server, /exports\.adjustStudentScores/);
+    assert.match(server, /exports\.mirrorScoreChangeReceipt/);
+    assert.match(server, /\[`pointLogs\/\$\{logKey\}`\]/);
+    assert.match(server, /\[`pointHistory\/\$\{name\}\/\$\{logKey\}`\]/);
+});
+
+test('batch point editor keeps each student on one horizontal row', () => {
+    const css=read('css/style.css');
+    assert.match(css, /\.batch-student-row\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*minmax\(250px, 1fr\) minmax\(130px, 170px\) minmax\(130px, 170px\)/);
+});
+
+test('attendance remains complete until it is explicitly marked absent', () => {
+    const editor=read('js/checkin-seat.js');
+    const board=read('js/blackboard-display.js');
+    assert.match(editor, /attended:category!=='결석'/);
+    assert.match(board, /const absent=category==='결석'\|\|result\.includes\('결석'\)/);
 });
 
 test('attendance date queries are indexed in realtime database rules', () => {
@@ -136,6 +151,7 @@ test('point shop reads the committed receipt from the final transaction snapshot
     const end = source.indexOf('const BUILTIN_FURNITURE', start);
     const block = source.slice(start, end);
     assert.match(block, /await userRef\.get\(\)/);
+    assert.match(block, /if\(user===null\)user=JSON\.parse\(JSON\.stringify\(current\.user\|\|\{\}\)\)/);
     assert.match(block, /userResult\.snapshot\.child\(`pointShopPurchases\/\$\{purchaseId\}`\)\.val\(\)/);
 });
 

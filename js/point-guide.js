@@ -163,8 +163,8 @@ window.initPointsTabListeners = function() {
 
     // 포인트 연대기
     const pointLogQuery = window.isAdmin === true
-        ? db.ref('pointLogs').limitToLast(50)
-        : db.ref(`pointHistory/${window.myName}`).limitToLast(50);
+        ? db.ref('pointLogs').orderByChild('timestamp').limitToLast(50)
+        : db.ref(`pointHistory/${window.myName}`).orderByChild('timestamp').limitToLast(50);
 
 pointLogQuery.on('value', snap => {
         let historyArr = [];
@@ -857,65 +857,12 @@ window.openBulkPointPopup = async function(
                 }
 
 
-                const updates = {};
-
-                for (let cb of checkboxes) {
-
-                    const sKey =
-                        cb.value;
-
-                    const sName =
-                        cb.getAttribute(
-                            'data-name'
-                        );
-
-
-                    const uSnap =
-                        await db.ref(
-                            `users/${sKey}`
-                        ).once('value');
-
-
-                    if (uSnap.exists()) {
-
-                        const currentPoints =
-                            uSnap.val().points || 0;
-
-                        updates[
-                            `users/${sKey}/points`
-                        ] =
-                            currentPoints + points;
-
-                        const hRef =
-                            db.ref('pointLogs').push();
-
-
-                        updates[
-                            `pointLogs/${hRef.key}`
-                        ] = {
-                            name:sName,
-                            pAmt:points,
-                            reason:reason,
-                            time:new Date()
-                                .toLocaleString(
-                                    'ko-KR'
-                                ),
-                            timestamp:Date.now()
-                        };
-
-                        updates[`pointHistory/${sKey}/${hRef.key}`]={
-                            date:typeof getTodayKST==='function'?getTodayKST():new Date().toISOString().slice(0,10),
-                            time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}),
-                            reason:reason,change:points,pChange:points,expChange:0,
-                            result:currentPoints+points,pointResult:currentPoints+points,
-                            expResult:Number(uSnap.val().exp)||0,timestamp:Date.now()
-                        };
-
-                    }
-                }
-
-
-                await db.ref().update(updates);
+                const requestId=`score_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
+                const targets=Array.from(checkboxes).map(cb=>({
+                    name:cb.getAttribute('data-name')||cb.value,
+                    points,exp:0
+                }));
+                await window.callSecure('adjustStudentScores',{requestId,reason,targets});
 
                 closePointPopup();
 

@@ -2269,24 +2269,18 @@ window.saveDetailLog=async function(
         // checkins 갱신
         // ======================================
 
-        if(checkinsKey){
+        const checkinRecordKey=checkinsKey||db.ref('checkins').push().key;
+        updates[`checkins/${checkinRecordKey}`]=data;
 
-            updates[
-                `checkins/${checkinsKey}`
-            ]=data;
-
-        }else{
-
-            const newKey=
-                db.ref(
-                    'checkins'
-                ).push().key;
-
-
-            updates[
-                `checkins/${newKey}`
-            ]=data;
-        }
+        // 한 번 등교한 학생은 상세 화면에서 명시적으로 결석 처리하기 전까지
+        // 공개 좌석판에서도 계속 등교 완료로 유지한다.
+        updates[`blackboardDisplay/data/checkins/${checkinRecordKey}`]={
+            name:name,
+            date:date,
+            attended:category!=='결석',
+            category:category,
+            result:result
+        };
 
 
         // ======================================

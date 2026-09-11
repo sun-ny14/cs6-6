@@ -785,42 +785,11 @@ window.openMultiPopup=function(title,points,reason){
 window.addScore=async function(userName,points,exp,reason){
     const pointValue=parseInt(points)||0;
     const expValue=parseInt(exp)||0;
-    const userRef=db.ref(`users/${userName}`);
-
-    const result=await userRef.transaction(user=>{
-        if(!user)return user;
-        user.points=(parseInt(user.points)||0)+pointValue;
-        user.exp=(parseInt(user.exp)||0)+expValue;
-        return user;
+    const requestId=`score_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
+    return window.callSecure('adjustStudentScores',{
+        requestId,reason:reason||'포인트 변경',
+        targets:[{name:userName,points:pointValue,exp:expValue}]
     });
-
-    if(!result.committed){
-        throw new Error(`사용자 점수 변경 실패: ${userName}`);
-    }
-
-    const saved=result.snapshot.val()||{};
-    const timestamp=Date.now();
-    const logKey=db.ref('pointLogs').push().key;
-    const updates={};
-    if(pointValue!==0){
-        updates[`pointLogs/${logKey}`]={
-            name:userName,
-            pAmt:pointValue,
-            reason:reason||'포인트 변경',
-            time:new Date().toLocaleString('ko-KR'),
-            timestamp
-        };
-    }
-    if(pointValue!==0||expValue!==0){
-        updates[`pointHistory/${userName}/${logKey}`]={
-            date:typeof getTodayKST==='function'?getTodayKST():new Date().toISOString().slice(0,10),
-            time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}),
-            reason:reason||'포인트 변경',change:pointValue,pChange:pointValue,
-            expChange:expValue,result:Number(saved.points)||0,pointResult:Number(saved.points)||0,
-            expResult:Number(saved.exp)||0,timestamp
-        };
-    }
-    if(Object.keys(updates).length)await db.ref().update(updates);
 };
 
 
@@ -1047,105 +1016,12 @@ window.submitBatchPoints=async function(){
     }
 
 
-    const today=
-        typeof getTodayKST==='function'
-            ?getTodayKST()
-            :new Date().toISOString().slice(0,10);
-
-
-    const time=
-        new Date().toLocaleTimeString(
-            'ko-KR',
-            {
-                hour:'2-digit',
-                minute:'2-digit',
-                hour12:false
-            }
-        );
-
-
-    const updates={};
-
     try{
-
-        for(const target of targets){
-
-            const userSnap=
-                await db.ref(
-                    `users/${target.name}`
-                ).once('value');
-
-
-            if(!userSnap.exists()){
-                continue;
-            }
-
-
-            const data=
-                userSnap.val()||{};
-
-
-            const oldPoints=
-                parseInt(data.points)||0;
-
-            const oldExp=
-                parseInt(data.exp)||0;
-
-
-            const newPoints=
-                oldPoints+target.p;
-
-            const newExp=
-                oldExp+target.exp;
-
-
-            updates[
-                `users/${target.name}/points`
-            ]=newPoints;
-
-            updates[
-                `users/${target.name}/exp`
-            ]=newExp;
-
-            if (target.p !== 0) {
-    const logKey =
-        db.ref("pointLogs").push().key;
-
-    updates[`pointLogs/${logKey}`] = {
-        name: target.name,
-        pAmt: target.p,
-        reason: reason,
-        time: new Date().toLocaleString("ko-KR"),
-        timestamp: Date.now()
-    };
-}
-
-if (target.p !== 0 || target.exp !== 0) {
-    const historyKey =
-        db.ref(
-            `pointHistory/${target.name}`
-        ).push().key;
-
-    updates[
-        `pointHistory/${target.name}/${historyKey}`
-    ] = {
-        date: today,
-        time: time,
-        reason: reason,
-
-        change: target.p,
-        pChange: target.p,
-        expChange: target.exp,
-
-        result: newPoints,
-        pointResult: newPoints,
-        expResult: newExp,
-        timestamp: Date.now()
-        };
-}
-        } // ← 이거 하나 추가: for(const target of targets) 종료
-
-        await db.ref().update(updates);
+        const requestId=`score_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
+        await window.callSecure('adjustStudentScores',{
+            requestId,reason,
+            targets:targets.map(target=>({name:target.name,points:target.p,exp:target.exp}))
+        });
 
         closePopup();
 
