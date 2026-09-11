@@ -85,6 +85,15 @@ body.role-teacher .sidebar-menu button.active {
 body.role-student .main-content-area,
 body.role-teacher .main-content-area { max-width: 1540px; }
 
+/* 학생 홈은 용사·공지·과제에 집중하고, 학급 전체 통계는 교사에게만 표시한다. */
+body.role-student .home-stats { display: none; }
+
+/* 전자칠판 진입 버튼은 교사 홈에만 제공한다. */
+body.role-student .home-board-button,
+body.role-student .home-board-link {
+    display: none !important;
+}
+
 body.role-student .card,
 body.role-teacher .card,
 body.role-student .page-head,
@@ -279,8 +288,27 @@ body.role-student .home-hero-panel .hero-card:hover {
 .home-task-item b { color: #8d9bae; }
 .home-empty { padding: 24px 8px; color: var(--ui-muted); text-align: center; font-size: .8rem; font-weight: 750; }
 
+.home-extras-grid { display: grid; grid-template-columns: minmax(0,1.65fr) minmax(290px,.85fr); gap: 18px; }
+.home-shop-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.home-shop-item { display: grid; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 76px; padding: 11px; border: 1px solid var(--ui-line-soft); border-radius: 13px; background: #fff; color: var(--ui-text); text-align: left; font: inherit; cursor: pointer; }
+.home-shop-item:hover { border-color: #a9c9f2; background: #f8fbff; transform: translateY(-1px); }
+.home-shop-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: #fff3d9; font-size: 1.55rem; }
+.home-shop-item > span:nth-child(2) { display: grid; min-width: 0; }
+.home-shop-item strong { overflow: hidden; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+.home-shop-item small { margin-top: 4px; color: #2474d0; font-size: .72rem; font-weight: 950; }
+.home-shop-item b { color: #a0acba; }
+.home-clean-count { display: flex; align-items: end; justify-content: space-between; }
+.home-clean-count strong { color: var(--ui-text); font-size: 1.18rem; }
+.home-clean-count span { color: #2474d0; font-size: .72rem; font-weight: 850; }
+.home-clean-track { height: 8px; margin: 9px 0 12px; overflow: hidden; border-radius: 999px; background: #e8eef7; }
+.home-clean-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#4296ff,#1971db); }
+.home-clean-row { display: flex; justify-content: space-between; padding: 8px 2px; border-top: 1px solid var(--ui-line-soft); color: var(--ui-text-soft); font-size: .76rem; }
+.home-clean-row b { color: var(--ui-text); }
+.home-clean-names { margin: 8px 0 0; color: var(--ui-muted); font-size: .67rem; line-height: 1.45; }
+
 @media (max-width: 1080px) {
     .home-dashboard-grid { grid-template-columns: 1fr; }
+    .home-extras-grid { grid-template-columns: 1fr; }
     .home-side-column { grid-template-columns: repeat(2,minmax(0,1fr)); }
     .home-hero-panel .hero-grid { max-height: none; }
 }
@@ -292,6 +320,7 @@ body.role-student .home-hero-panel .hero-card:hover {
     .home-stat { justify-content: flex-start; border-right: 0; border-bottom: 1px solid var(--ui-line-soft); }
     .home-stat:last-child { border-bottom: 0; }
     .home-side-column { grid-template-columns: 1fr; }
+    .home-shop-list { grid-template-columns: 1fr; }
     .home-panel-hint { display: none; }
     .home-hero-panel { padding: 13px; }
     .home-hero-panel .hero-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -299,81 +328,4 @@ body.role-student .home-hero-panel .hero-card:hover {
 
 @media (max-width: 390px) {
     .home-hero-panel .hero-grid { grid-template-columns: 1fr; }
-}
-
-/* 포인트·경험치 개별 지급 목록 — 가로형 */
-.batch-card-modal-v6 {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 52vh;
-    overflow-y: auto;
-}
-
-.batch-student-row {
-    display: grid;
-    grid-template-columns:
-        minmax(230px, 1fr)
-        minmax(110px, 140px)
-        minmax(110px, 140px);
-    align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-}
-
-/* 체크박스 | 이름 | 현재 포인트 */
-.batch-student-row > label {
-    display: grid;
-    grid-template-columns: 22px minmax(100px, 1fr) auto;
-    align-items: center;
-    gap: 10px;
-    margin: 0;
-}
-
-/* 번호는 숨김 */
-.batch-student-row .batch-no {
-    display: none;
-}
-
-.batch-student-row > label input[type="checkbox"] {
-    width: 19px;
-    min-width: 19px;
-    height: 19px;
-    margin: 0;
-}
-
-.batch-student-row > label .strong {
-    min-width: 0;
-    overflow: hidden;
-    text-align: left;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.batch-student-row > label .badge {
-    min-width: 58px;
-    text-align: center;
-    white-space: nowrap;
-}
-
-.batch-card-field {
-    width: 100%;
-    min-width: 0;
-}
-
-.batch-card-field input {
-    width: 100%;
-    min-width: 0;
-    margin: 0;
-}
-
-/* 좁은 화면에서는 다시 세로 배치 */
-@media (max-width: 720px) {
-    .batch-student-row {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .batch-student-row > label {
-        grid-column: 1 / -1;
-    }
 }

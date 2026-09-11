@@ -899,7 +899,16 @@ window.openBulkPointPopup = async function(
                             time:new Date()
                                 .toLocaleString(
                                     'ko-KR'
-                                )
+                                ),
+                            timestamp:Date.now()
+                        };
+
+                        updates[`pointHistory/${sKey}/${hRef.key}`]={
+                            date:typeof getTodayKST==='function'?getTodayKST():new Date().toISOString().slice(0,10),
+                            time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}),
+                            reason:reason,change:points,pChange:points,expChange:0,
+                            result:currentPoints+points,pointResult:currentPoints+points,
+                            expResult:Number(uSnap.val().exp)||0,timestamp:Date.now()
                         };
 
                     }

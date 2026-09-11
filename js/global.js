@@ -623,8 +623,34 @@ if (typeof refreshCheckinGuide === 'function') {
         });
 
 
+        // 복구 이전 공개 프로필과 새 프로필의 키가 달라도 이름이 같으면
+        // 한 학생으로 취급한다. 원본 데이터는 지우지 않고 화면에서만 합친다.
+        const uniqueUsersByName=new Map();
+        users.forEach(user=>{
+            const identity=String(user&&user.name||'')
+                .normalize('NFKC')
+                .replace(/\s+/g,'')
+                .trim();
+            if(!identity)return;
+
+            const previous=uniqueUsersByName.get(identity);
+            if(!previous){
+                uniqueUsersByName.set(identity,user);
+                return;
+            }
+
+            const previousUsesNameKey=String(previous.__firebaseKey||'')===String(previous.name||'');
+            const currentUsesNameKey=String(user.__firebaseKey||'')===String(user.name||'');
+            uniqueUsersByName.set(
+                identity,
+                currentUsesNameKey&&!previousUsesNameKey
+                    ?{...previous,...user}
+                    :{...user,...previous}
+            );
+        });
+
         window.currentUsers=
-            users.sort((a,b)=>{
+            Array.from(uniqueUsersByName.values()).sort((a,b)=>{
 
                 const my=
                     typeof myName!=='undefined'
@@ -668,6 +694,46 @@ if (typeof refreshCheckinGuide === 'function') {
         }
     });
 
+    // 학생 공개 명단에는 포인트/경험치가 의도적으로 빠져 있다.
+    // 로그인한 학생에게 허용된 자기 레코드만 별도로 구독해 도감 지급,
+    // 상점 구매 등 모든 포인트 변화를 화면에 즉시 반영한다.
+    if(!admin&&String(window.myName||'').trim()){
+        if(typeof window.stopOwnUserListener==='function'){
+            window.stopOwnUserListener();
+        }
+
+        const ownUserRef=db.ref(`users/${window.myName}`);
+        const receiveOwnUser=snapshot=>{
+            if(!snapshot.exists())return;
+
+            const ownData={
+                ...(snapshot.val()||{}),
+                name:window.myName,
+                __firebaseKey:snapshot.key
+            };
+
+            window.currentUser={...(window.currentUser||{}),...ownData};
+
+            if(Array.isArray(window.currentUsers)){
+                const index=window.currentUsers.findIndex(user=>
+                    String(user&&user.name||'')===String(window.myName||'')
+                );
+                if(index>=0){
+                    window.currentUsers[index]={...window.currentUsers[index],...ownData};
+                }
+            }
+
+            if(typeof renderHeroes==='function'){
+                renderHeroes(window.currentUsers);
+            }
+        };
+
+        ownUserRef.on('value',receiveOwnUser,error=>{
+            console.error('내 포인트 갱신 오류:',error);
+        });
+        window.stopOwnUserListener=()=>ownUserRef.off('value',receiveOwnUser);
+    }
+
 
     if(typeof generateNewLayout==='function'){
         generateNewLayout();
@@ -691,6 +757,10 @@ if (typeof refreshCheckinGuide === 'function') {
 
     if(typeof renderHeroes==='function'){
         renderHeroes();
+    }
+
+    if(typeof window.initHomeDashboard==='function'){
+        window.initHomeDashboard();
     }
 }
 
@@ -728,15 +798,29 @@ window.addScore=async function(userName,points,exp,reason){
         throw new Error(`사용자 점수 변경 실패: ${userName}`);
     }
 
+    const saved=result.snapshot.val()||{};
+    const timestamp=Date.now();
+    const logKey=db.ref('pointLogs').push().key;
+    const updates={};
     if(pointValue!==0){
-        await db.ref('pointLogs').push({
+        updates[`pointLogs/${logKey}`]={
             name:userName,
             pAmt:pointValue,
             reason:reason||'포인트 변경',
             time:new Date().toLocaleString('ko-KR'),
-            timestamp:Date.now()
-        });
+            timestamp
+        };
     }
+    if(pointValue!==0||expValue!==0){
+        updates[`pointHistory/${userName}/${logKey}`]={
+            date:typeof getTodayKST==='function'?getTodayKST():new Date().toISOString().slice(0,10),
+            time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}),
+            reason:reason||'포인트 변경',change:pointValue,pChange:pointValue,
+            expChange:expValue,result:Number(saved.points)||0,pointResult:Number(saved.points)||0,
+            expResult:Number(saved.exp)||0,timestamp
+        };
+    }
+    if(Object.keys(updates).length)await db.ref().update(updates);
 };
 
 

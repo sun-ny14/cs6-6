@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@500;700;800;900&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 
 <link rel="stylesheet" href="css/style.css?v=20260911-attendance-fix-1">
-<link rel="stylesheet" href="css/classroom-dashboard.css?v=20260911-home-2">
+<link rel="stylesheet" href="css/classroom-dashboard.css?v=20260911-student-board-hide-1">
 
 <script>
 function toggleSidebar(){
@@ -194,7 +194,7 @@ function toggleSidebar(){
 
                     <aside class="home-side-column">
                         <section class="home-info-card">
-                            <div class="home-card-head"><h3>📣 오늘의 알림</h3><button type="button" onclick="window.open('blackboard.html','_blank','fullscreen=yes')">전자칠판 보기 ›</button></div>
+                            <div class="home-card-head"><h3>📣 오늘의 알림</h3><button class="home-board-link" type="button" onclick="window.open('blackboard.html','_blank','fullscreen=yes')">전자칠판 보기 ›</button></div>
                             <div id="home-notice-list" class="home-notice-list"><div class="home-empty">알림을 불러오는 중이에요.</div></div>
                         </section>
 
@@ -203,6 +203,18 @@ function toggleSidebar(){
                             <div id="home-task-list" class="home-task-list"><div class="home-empty">과제를 불러오는 중이에요.</div></div>
                         </section>
                     </aside>
+                </div>
+
+                <div class="home-extras-grid">
+                    <section class="home-info-card home-shop-preview">
+                        <div class="home-card-head"><h3>🛍️ 학급 상점</h3><button type="button" onclick="showTab('shop');renderShop();">전체 보기 ›</button></div>
+                        <div id="home-shop-list" class="home-shop-list"><div class="home-empty">상품을 불러오는 중이에요.</div></div>
+                    </section>
+
+                    <section class="home-info-card home-clean-preview">
+                        <div class="home-card-head"><h3>🧹 오늘 청소</h3><button type="button" onclick="showTab('cleaning');renderRoleCleaning();">확인하기 ›</button></div>
+                        <div id="home-clean-summary" class="home-clean-summary"><div class="home-empty">청소 현황을 불러오는 중이에요.</div></div>
+                    </section>
                 </div>
             </div>
 
@@ -697,18 +709,18 @@ function toggleSidebar(){
 <script src="functions/checkin-password-core.js?v=20260911-final-2"></script>
 <script src="js/checkin-password.js?v=20260911-final-2"></script>
 <script src="js/blackboard-share.js?v=20260911-final-2"></script>
-<script src="js/global.js?v=20260911-point-sync-1"></script>
-<script src="js/home-dashboard.js?v=20260911-home-1"></script>
+<script src="js/global.js?v=20260911-history-fix-2"></script>
+<script src="js/home-dashboard.js?v=20260911-cute-home-2"></script>
 <script src="js/auth.js?v=20260911-attendance-fix-2"></script>
-<script src="js/checkin-seat.js?v=20260911-attendance-fix-1"></script>
+<script src="js/checkin-seat.js?v=20260911-quick-checkin-2"></script>
 <script src="js/hero-mgr.js?v=20260911-final-2"></script>
-<script src="js/point-shop.js?v=20260911-point-sync-1"></script>
-<script src="js/point-guide.js?v=20260911-final-2"></script>
+<script src="js/point-shop.js?v=20260911-shop-fix-1"></script>
+<script src="js/point-guide.js?v=20260911-history-fix-2"></script>
 <script src="js/housing.js?v=20260911-final-2"></script>
 <script src="js/admin-grades.js?v=20260911-final-2"></script>
 <script src="js/blackboard-admin.js?v=20260911-final-2"></script>
 <script src="js/assignments.js?v=20260911-final-2"></script>
-<script src="js/settings.js?v=20260911-final-2"></script>
+<script src="js/settings.js?v=20260911-settings-fix-1"></script>
 <script src="js/cleaning.js?v=20260911-final-2"></script>
 
 </body>

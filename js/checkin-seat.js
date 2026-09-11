@@ -1493,7 +1493,18 @@ window.attendanceClickTimer=null;
 // 좌석 격자와 예전 진입점 두 곳이 같은 동작을 쓰도록 여기 모은다.
 window.checkinWithUndo=async function(user,reason){
     const label=reason||'정상 등교';
-    const result=await submitCheckin(user,label);
+    const result=window.isAdmin===true&&label.includes('정상')
+        ?await window.callSecure('teacherQuickCheckin',{name:user,date:checkinGetToday()})
+        :await submitCheckin(user,label);
+
+    if(window.isAdmin===true){
+        try{
+            await window.refreshCheckinManagement();
+        }catch(refreshError){
+            console.error('원클릭 출결 화면 갱신 오류:',refreshError);
+            checkinRefreshSeatMap();
+        }
+    }
 
     if(!result||typeof window.showUndoBar!=='function')return result;
 
@@ -1505,6 +1516,12 @@ window.checkinWithUndo=async function(user,reason){
             updates[`checkins/${result.recordKey}`]=
                 result.hadPrevious
                     ?result.previousData
+                    :null;
+
+            updates[`blackboardDisplay/data/checkins/${result.recordKey}`]=
+                result.hadPrevious&&result.previousData
+                    ?{name:user,date:result.previousData.date,
+                        attended:['정상','지각'].includes(result.previousData.category)}
                     :null;
 
             if(

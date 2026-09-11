@@ -1,45 +1,32 @@
-등교/학생 포인트 안정화 수정 적용 방법
-========================================
+긴급 수정 적용 순서 (2026-09-11)
 
-포함된 수정
-- 일부 학생 등교 시 internal 오류 완화
-  · submitStudentCheckin 메모리 1GiB/제한시간 60초
-  · 과거 출결 전체가 아니라 해당 날짜만 조회
-- 학생 본인 포인트가 0으로 보이던 문제 수정
-  · 공개 명단에는 포인트를 노출하지 않고 로그인한 본인 값만 화면에 결합
-- 교사용 원클릭 등교 수정
-  · 좌석 한 번 클릭 즉시 등교 처리
-  · 중복 클릭 방지
-- 출결 상세 수정창이 바로 닫히던 문제 수정
-  · 더블클릭 타이머 제거
-  · 각 좌석의 '상세 수정' 버튼으로 분리
-- 출결 날짜 조회 인덱스 추가
-- 교사 자동 로그아웃 대기시간을 30분에서 3시간으로 연장
-  · 학생 자동 로그아웃은 기존 2시간 유지
+1. 이 압축파일의 폴더 구조를 유지한 채 현재 프로젝트 폴더에 모두 덮어씁니다.
 
-1. 압축을 현재 GitHub 프로젝트 폴더에 그대로 덮어쓰기
-
-2. 프로젝트 최상위 폴더에서 Firebase 배포
-
-   npm.cmd --prefix functions install
-   npx.cmd firebase-tools deploy --only "database,functions:checkin-password:getSecureSession,functions:checkin-password:submitStudentCheckin" --project cs6-6class
-
-   삭제 여부를 물으면 No를 선택해도 됩니다.
-   마지막에 Deploy complete!가 나오는지 확인하세요.
-
-3. GitHub 반영
-
-   git add css/style.css database.rules.json functions/index.js index.html js/auth.js js/checkin-seat.js js/global.js tests/attendance-stability.test.cjs
-   git commit -m "등교 및 학생 포인트 안정화"
+2. VS Code 터미널에서 GitHub에 올립니다.
+   git add css/style.css css/classroom-dashboard.css database.rules.json functions/index.js index.html js/auth.js js/checkin-seat.js js/global.js js/home-dashboard.js js/point-guide.js js/point-shop.js js/settings.js tests/attendance-stability.test.cjs
+   git commit -m "학생 화면과 상점 설정 오류 수정"
    git pull --rebase origin main
    git push origin main
 
-4. 확인
-- 학생 계정에서 Ctrl+F5 후 본인 포인트 확인
-- 학생 등교 암호 입력 후 정상/지각 처리 확인
-- 교사 계정에서 좌석 한 번 클릭으로 등교 처리 확인
-- 좌석 안의 '상세 수정' 버튼을 눌러 수정창이 유지되는지 확인
+3. Cloud Shell에서 함수와 데이터베이스 규칙을 배포합니다.
+   cd ~/cs6-6-deploy
+   git pull origin main
+   npm --prefix functions install
+   firebase deploy --only "database,functions:checkin-password:purchasePointShop,functions:checkin-password:syncHousingRewards,functions:checkin-password:getPopularShopItems,functions:checkin-password:mirrorOrder,functions:checkin-password:teacherQuickCheckin" --project cs6-6class
+
+4. 배포 완료 후 학생·교사 브라우저에서 Ctrl+F5를 누릅니다.
+
+수정 내용
+- 학생 홈의 전자칠판 열기/보기 버튼 제거(교사 화면은 유지)
+- 방꾸미기 보상 함수가 학생 전체 데이터를 반환하던 문제 제거
+- 설정 저장 시 /settings 전체 transaction 대신 필요한 필드만 update
+- 상점 구매에서 데이터베이스 전체 transaction 제거 및 구매 재시도 중복 차감 방지
+- 학생 포인트 즉시 반영, 복구 데이터의 중복 학생 카드 병합
+- 홈에 실제 누적 구매량 TOP 3 인기 상품과 오늘의 청소 현황 표시
+- 등교 안정화 및 교사 자동 로그아웃 3시간 적용
+- 모든 포인트 증감 경로에 학생별 포인트 연대기 기록 추가
+- 좌석 원클릭 정상 등교를 교사 전용 서버 함수로 안정화
 
 주의
-- Firebase Functions 배포 없이 GitHub만 푸시하면 학생 internal 오류 수정은 적용되지 않습니다.
-- database.rules.json 배포 없이 GitHub만 푸시하면 날짜 인덱스가 적용되지 않습니다.
+- 전자칠판의 공개 주소 자체는 기존 요구대로 로그인 없이 열립니다.
+- 학생 홈페이지 안의 전자칠판 진입 버튼만 제거됩니다.

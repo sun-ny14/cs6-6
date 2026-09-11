@@ -171,6 +171,10 @@ window.applyAccessControl=applyAccessControl;
 auth.onAuthStateChanged(async user=>{
     stopAccessListener();
     stopAccessListener=()=>{};
+    if(typeof window.stopOwnUserListener==='function'){
+        window.stopOwnUserListener();
+        window.stopOwnUserListener=()=>{};
+    }
     const loginScreen=document.getElementById('login-screen');
     const loadingScreen=document.getElementById('loading-screen');
     const mainApp=document.getElementById('main-app');

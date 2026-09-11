@@ -80,12 +80,35 @@ window.renderShop = function() {
 
 // 2. 물품 구매 로직
 window.buyItem = async function(k) {
+    window.pointShopInFlight=window.pointShopInFlight||{};
+    window.pointShopRequestIds=window.pointShopRequestIds||{};
+    if(window.pointShopInFlight[k])return;
+
+    const purchaseId=window.pointShopRequestIds[k]||
+        `shop_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
+    window.pointShopRequestIds[k]=purchaseId;
+    window.pointShopInFlight[k]=true;
+
     try {
-        const result = await window.callSecure('purchasePointShop', { itemKey:k });
+        const result = await window.callSecure('purchasePointShop', { itemKey:k,purchaseId });
+        if(window.currentUser&&Number.isFinite(Number(result.points))){
+            window.currentUser.points=Number(result.points);
+            const mine=Array.isArray(window.currentUsers)
+                ?window.currentUsers.find(user=>user&&user.name===window.myName)
+                :null;
+            if(mine)mine.points=window.currentUser.points;
+            if(typeof renderHeroes==='function')renderHeroes(window.currentUsers);
+        }
+        delete window.pointShopRequestIds[k];
         alert(`✅ [${result.name}] 구매 완료! 남은 포인트: ${result.points}P`);
     } catch (err) {
         console.error("구매 처리 오류:", err);
+        if(!/internal|unavailable/i.test(String(err?.code||''))){
+            delete window.pointShopRequestIds[k];
+        }
         alert(err?.message || "구매 중 오류가 발생했습니다.");
+    } finally {
+        delete window.pointShopInFlight[k];
     }
 };
 
@@ -405,6 +428,9 @@ window.startShopListener = function() {
 
         if (typeof window.renderShop === 'function') {
             window.renderShop();
+        }
+        if (typeof window.renderHomeShop === 'function') {
+            window.renderHomeShop();
         }
     };
 

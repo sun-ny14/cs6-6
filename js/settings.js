@@ -525,22 +525,22 @@ window.saveSettings = async function() {
         const passwordWasEdited = password !== baseline;
         const now = window.CheckinPassword.now();
 
-        // 설정 화면을 오래 열어 둔 창이 다른 창의 최신 암호를 덮어쓰지 않도록
-        // 암호와 나머지 설정을 한 트랜잭션에서 병합한다.
-        const result = await db.ref('settings').transaction(currentValue => {
-            const current = currentValue || {};
-            const passwordSettings = passwordWasEdited ||
-                !window.CheckinPasswordCore.valid(current.password)
-                ? window.CheckinPasswordCore.manual(current, password, now)
-                : current;
+        const settingsRef = db.ref('settings');
+        const current = (await settingsRef.once('value')).val() || {};
+        const updates = { ...otherSettings };
 
-            return {
-                ...passwordSettings,
-                ...otherSettings
-            };
-        }, undefined, false);
+        // 암호가 실제로 바뀐 경우에만 암호 필드를 갱신한다. /settings 전체
+        // transaction을 없애 학교망에서 반복되던 disconnect 오류를 줄인다.
+        if (passwordWasEdited || !window.CheckinPasswordCore.valid(current.password)) {
+            const passwordSettings = window.CheckinPasswordCore.manual(current, password, now);
+            updates.password = passwordSettings.password;
+            updates.passwordDate = passwordSettings.passwordDate;
+            updates.passwordRevision = passwordSettings.passwordRevision;
+            updates.passwordUpdatedAt = passwordSettings.passwordUpdatedAt;
+        }
 
-        const saved = result.snapshot.val() || {};
+        await settingsRef.update(updates);
+        const saved = { ...current, ...updates };
         await window.CheckinPassword.publish(saved);
 
         passInput.value = String(saved.password);

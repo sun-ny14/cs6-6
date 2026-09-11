@@ -93,57 +93,153 @@ exports.mirrorOrder = onValueWritten({ ref:'/orders/{orderId}' }, async event =>
     const updates={};
     if(before?.user)updates[`ordersByUser/${before.user}/${id}`]=null;
     if(after?.user)updates[`ordersByUser/${after.user}/${id}`]=after;
-    if(Object.keys(updates).length)await getDatabase().ref().update(updates);
+    if(Object.keys(updates).length){
+        updates['publicShopStats/updatedAt']=0;
+        await getDatabase().ref().update(updates);
+    }
+});
+
+exports.getPopularShopItems = callable(async request => {
+    await actor(request);
+    const database=getDatabase(), now=Date.now();
+    const cacheRef=database.ref('publicShopStats');
+    const cached=(await cacheRef.get()).val()||{};
+    if(now-Number(cached.updatedAt||0)<300000&&Array.isArray(cached.items)){
+        return {items:cached.items};
+    }
+
+    const [ordersSnapshot,shopSnapshot]=await Promise.all([
+        database.ref('orders').get(),database.ref('shop').get()
+    ]);
+    const orders=ordersSnapshot.val()||{}, shop=shopSnapshot.val()||{};
+    const nameToKey={};
+    Object.entries(shop).forEach(([key,item])=>{
+        if(item?.name)nameToKey[String(item.name)]=key;
+    });
+    const counts={};
+    Object.values(orders).forEach(order=>{
+        const key=String(order?.shopKey||nameToKey[String(order?.item||'')]||'');
+        if(key&&shop[key])counts[key]=(counts[key]||0)+1;
+    });
+    const items=Object.entries(shop)
+        .filter(([,item])=>item?.name&&item.isSoldOut!==true&&
+            !(item.stock!==-1&&item.stock!=null&&Number(item.stock)<=0))
+        .map(([key,item])=>({key,name:String(item.name),cat:String(item.cat||''),
+            price:Number(item.price)||0,count:counts[key]||0}))
+        .sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'ko'))
+        .slice(0,3);
+    await cacheRef.set({updatedAt:now,items});
+    return {items};
 });
 
 exports.purchasePointShop = callable(async request => {
     const current = await actor(request);
     if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 구매해 주세요.');
-    const itemKey = request.data?.itemKey;
-    if (!safeKey(itemKey)) throw new HttpsError('invalid-argument', '상품 정보가 올바르지 않습니다.');
-    const database = getDatabase();
-    const orderKey = database.ref('orders').push().key;
-    const logKey = database.ref('pointLogs').push().key;
-    const historyKey = database.ref(`pointHistory/${current.name}`).push().key;
-    let reason = '';
-    const result = await database.ref().transaction(root => {
-        if (!root) return;
-        const item = root.shop?.[itemKey];
-        const user = root.users?.[current.name];
-        if (!item || !user) { reason='missing'; return; }
-        const price = Number(item.price), limit = Math.max(0, Number(item.limit) || 0);
-        const stock = item.stock == null ? -1 : Number(item.stock);
-        const points = Number(user.points) || 0;
-        if (!Number.isSafeInteger(price) || price < 0) { reason='invalid-price'; return; }
-        if (item.isSoldOut === true || (stock !== -1 && stock <= 0)) { reason='sold-out'; return; }
-        if (points < 0 || points < price) { reason='points'; return; }
-        const bought = Object.values(root.orders || {}).filter(order => order?.user === current.name &&
-            order?.shopKey === itemKey && order?.limitReset !== true).length;
-        if (limit > 0 && bought >= limit) { reason='limit'; return; }
-        const now = Date.now(), next = points - price;
-        root.users[current.name].points = next;
-        if (stock > 0) root.shop[itemKey].stock = stock - 1;
-        root.orders ||= {};
-        root.orders[orderKey] = { user:current.name, shopKey:itemKey, item:String(item.name || ''),
-            price, time:now, status:'요청' };
-        root.ordersByUser ||= {}; root.ordersByUser[current.name] ||= {};
-        root.ordersByUser[current.name][orderKey]=root.orders[orderKey];
-        root.pointLogs ||= {};
-        root.pointLogs[logKey] = { name:current.name, pAmt:-price,
-            reason:`[상점 구매] ${String(item.name || '')}`, timestamp:now };
-        root.pointHistory ||= {}; root.pointHistory[current.name] ||= {};
-        root.pointHistory[current.name][historyKey] = { date:kstDate(now), reason:`[상점 구매] ${String(item.name || '')}`,
-            change:-price, pChange:-price, expChange:0, result:next, pointResult:next, timestamp:now };
-        return root;
-    }, undefined, false);
-    if (!result.committed) {
-        const messages = { missing:'상품 또는 사용자 정보를 찾을 수 없습니다.', 'invalid-price':'상품 가격이 올바르지 않습니다.',
-            'sold-out':'품절된 상품입니다.', points:'포인트가 부족합니다.', limit:'구매 한도를 초과했습니다.' };
-        throw new HttpsError('failed-precondition', messages[reason] || '구매를 완료하지 못했습니다.');
+    const itemKey = request.data?.itemKey, purchaseId=request.data?.purchaseId;
+    if (!safeKey(itemKey) || !safeKey(purchaseId)) {
+        throw new HttpsError('invalid-argument', '구매 정보가 올바르지 않습니다.');
     }
-    const saved = result.snapshot.val();
-    return { orderKey, name:saved.orders[orderKey].item, price:saved.orders[orderKey].price,
-        points:saved.users[current.name].points };
+    const database = getDatabase();
+    const now=Date.now();
+    const itemRef=database.ref(`shop/${itemKey}`);
+    const item=(await itemRef.get()).val();
+    if(!item)throw new HttpsError('not-found','상품을 찾을 수 없습니다.');
+
+    const price=Number(item.price), limit=Math.max(0,Number(item.limit)||0);
+    if(!Number.isSafeInteger(price)||price<0){
+        throw new HttpsError('failed-precondition','상품 가격이 올바르지 않습니다.');
+    }
+
+    // 구매 한도는 이 학생의 주문만 읽는다. 복구된 DB 전체를 읽지 않는다.
+    const priorOrders=(await database.ref(`ordersByUser/${current.name}`).get()).val()||{};
+    const legacyBought=Object.values(priorOrders).filter(order=>
+        order?.shopKey===itemKey&&order?.limitReset!==true).length;
+
+    let reason='',receipt=null;
+    const userRef=database.ref(`users/${current.name}`);
+    // 트랜잭션의 첫 콜백이 빈 로컬 캐시를 실제 사용자 없음으로 오인하지 않게 한다.
+    await userRef.get();
+    const userResult=await userRef.transaction(user=>{
+        if(!user){reason='missing';return;}
+        user.pointShopPurchases||={};
+        const existing=user.pointShopPurchases[purchaseId];
+        if(existing){
+            if(existing.itemKey!==itemKey){reason='request';return;}
+            receipt=existing;
+            return user;
+        }
+
+        const storedBought=Object.values(user.pointShopPurchases).filter(saved=>
+            saved?.itemKey===itemKey&&saved?.limitReset!==true).length;
+        const bought=Math.max(legacyBought,storedBought);
+        const points=Number(user.points)||0;
+        if(limit>0&&bought>=limit){reason='limit';return;}
+        if(points<0||points<price){reason='points';return;}
+
+        const next=points-price;
+        user.points=next;
+        receipt={purchaseId,itemKey,name:String(item.name||''),price,
+            balanceAfter:next,status:'charged',createdAt:now};
+        user.pointShopPurchases[purchaseId]=receipt;
+        return user;
+    },undefined,false);
+
+    // transaction 콜백은 충돌 시 여러 번 호출될 수 있으므로 바깥 변수만 믿지 않고
+    // 최종 커밋 스냅샷에서 영수증을 다시 가져온다.
+    if(userResult.committed){
+        receipt=userResult.snapshot.child(`pointShopPurchases/${purchaseId}`).val()||receipt;
+    }
+    if(!userResult.committed||!receipt){
+        const messages={missing:'학생 정보를 찾을 수 없습니다.',request:'구매 요청 정보가 충돌했습니다.',
+            points:'포인트가 부족합니다.',limit:'구매 한도를 초과했습니다.'};
+        throw new HttpsError('failed-precondition',messages[reason]||'구매를 완료하지 못했습니다.');
+    }
+
+    // 재고도 해당 상품에서만 예약한다. purchaseId로 재시도해도 두 번 차감되지 않는다.
+    let stockReason='';
+    const stockResult=await itemRef.transaction(saved=>{
+        if(!saved){stockReason='missing';return;}
+        saved.purchaseReservations||={};
+        if(saved.purchaseReservations[purchaseId])return saved;
+        const stock=saved.stock==null?-1:Number(saved.stock);
+        if(saved.isSoldOut===true||(stock!==-1&&stock<=0)){stockReason='sold-out';return;}
+        if(Number(saved.price)!==price){stockReason='changed';return;}
+        if(stock>0)saved.stock=stock-1;
+        saved.purchaseReservations[purchaseId]={createdAt:now};
+        return saved;
+    },undefined,false);
+
+    if(!stockResult.committed){
+        // 재고 확보 실패 시 이 요청에서 차감한 포인트만 안전하게 되돌린다.
+        await userRef.transaction(user=>{
+            const saved=user?.pointShopPurchases?.[purchaseId];
+            if(!saved||saved.status!=='charged')return user;
+            user.points=(Number(user.points)||0)+price;
+            delete user.pointShopPurchases[purchaseId];
+            return user;
+        },undefined,false);
+        const messages={missing:'상품을 찾을 수 없습니다.','sold-out':'품절된 상품입니다.',
+            changed:'상품 가격이 변경되었습니다. 다시 확인해 주세요.'};
+        throw new HttpsError('failed-precondition',messages[stockReason]||'재고를 확인하지 못했습니다.');
+    }
+
+    const orderKey=purchaseId;
+    const order={user:current.name,shopKey:itemKey,item:receipt.name,
+        price,time:now,status:'요청'};
+    const logKey=`shop_${purchaseId}`;
+    const updates={
+        [`orders/${orderKey}`]:order,
+        [`ordersByUser/${current.name}/${orderKey}`]:order,
+        [`pointLogs/${logKey}`]:{name:current.name,pAmt:-price,
+            reason:`[상점 구매] ${receipt.name}`,timestamp:now},
+        [`pointHistory/${current.name}/${logKey}`]:{date:kstDate(now),
+            reason:`[상점 구매] ${receipt.name}`,change:-price,pChange:-price,expChange:0,
+            result:receipt.balanceAfter,pointResult:receipt.balanceAfter,timestamp:now},
+        [`users/${current.name}/pointShopPurchases/${purchaseId}/status`]:'completed',
+        'publicShopStats/updatedAt':0
+    };
+    await database.ref().update(updates);
+    return {orderKey,name:receipt.name,price,points:receipt.balanceAfter};
 });
 
 const BUILTIN_FURNITURE = {
@@ -209,6 +305,67 @@ exports.verifyCheckinPassword = callable(async request => {
     const settings = (await getDatabase().ref('settings').get()).val() || {};
     if (String(settings.password || '') !== password) throw new HttpsError('permission-denied', '등교 암호가 맞지 않습니다.');
     return { valid:true, lateTime:String(settings.lateTime || '08:40'), closeTime:String(settings.closeTime || '09:00') };
+});
+
+exports.teacherQuickCheckin = callable(async request => {
+    const current=await actor(request);
+    if(!current.teacher)throw new HttpsError('permission-denied','교사만 출결을 처리할 수 있습니다.');
+    const name=String(request.data?.name||'').trim();
+    const date=String(request.data?.date||kstDate(Date.now()));
+    if(!name||name.length>100||/[.#$\[\]/\u0000-\u001f]/.test(name)||!/^\d{4}-\d{2}-\d{2}$/.test(date)){
+        throw new HttpsError('invalid-argument','학생 또는 날짜 정보가 올바르지 않습니다.');
+    }
+    const database=getDatabase();
+    const userRef=database.ref(`users/${name}`);
+    const userSnapshot=await userRef.get();
+    if(!userSnapshot.exists())throw new HttpsError('not-found','학생 정보를 찾을 수 없습니다.');
+
+    const records=(await database.ref('checkins').orderByChild('date').equalTo(date).get()).val()||{};
+    const existingEntry=Object.entries(records).find(([,record])=>
+        String(record?.name||record?.user||'')===name);
+    const existingKey=existingEntry?.[0]||'';
+    const previousData=existingEntry?.[1]||null;
+    const previousPenalty=Number(previousData?.pointPenalty)||0;
+    const pointDelta=-previousPenalty;
+    const previousPoints=Number(userSnapshot.val()?.points)||0;
+    let points=previousPoints;
+
+    if(pointDelta){
+        const pointsRef=userRef.child('points');
+        await pointsRef.get();
+        const pointResult=await pointsRef.transaction(value=>{
+            points=(Number(value)||0)+pointDelta;
+            return points;
+        },undefined,false);
+        if(!pointResult.committed)throw new HttpsError('aborted','학생 포인트를 갱신하지 못했습니다.');
+        points=Number(pointResult.snapshot.val())||0;
+    }
+
+    const recordKey=existingKey||database.ref('checkins').push().key;
+    const now=Date.now();
+    const time=new Date(now+9*3600000).toISOString().slice(11,16);
+    const record={...(previousData||{}),name,user:name,date,time,category:'정상',
+        reason:'정상 등교',result:'정상 등교',pointPenalty:0,penaltySource:'none',
+        lateMinutes:0,docSubmitted:Boolean(previousData?.docSubmitted),timestamp:now};
+    const updates={
+        [`checkins/${recordKey}`]:record,
+        [`blackboardDisplay/data/checkins/${recordKey}`]:{name,date,attended:true}
+    };
+    if(pointDelta){
+        const logKey=`teacher_checkin_${recordKey}_${now}`;
+        const reason='출결 수정에 따른 지각 차감 복구';
+        updates[`pointLogs/${logKey}`]={name,pAmt:pointDelta,reason,timestamp:now};
+        updates[`pointHistory/${name}/${logKey}`]={date,time,reason,change:pointDelta,
+            pChange:pointDelta,expChange:0,result:points,pointResult:points,timestamp:now};
+    }
+    try{
+        await database.ref().update(updates);
+    }catch(error){
+        if(pointDelta)await userRef.child('points').transaction(value=>(Number(value)||0)-pointDelta);
+        throw error;
+    }
+    return {recordKey,category:'정상',source:'teacher',lateMinutes:0,penalty:0,
+        pointDelta,points,hadPrevious:Boolean(existingKey),previousData,previousPoints};
 });
 
 exports.submitStudentCheckin = callable(async request => {
@@ -353,7 +510,18 @@ exports.syncHousingRewards = callable(async request => {
         return user;
     },undefined,false);
     if(!result.committed)throw new HttpsError('not-found','사용자 정보를 찾을 수 없습니다.');
-    return result.snapshot.val();
+    // Callable 응답에 아바타/방/기록 등 학생 전체 데이터를 싣지 않는다.
+    // 복구된 학생 데이터가 큰 경우 전체 레코드를 반환하면 응답 크기 제한으로
+    // INTERNAL(500)이 발생할 수 있다. 화면에 필요한 보상 값만 반환한다.
+    const saved=result.snapshot.val()||{};
+    const level=Math.max(1,Number(saved.level||saved.lv)||1);
+    return {
+        name:current.name,
+        level,
+        lv:level,
+        roomCoins:Number(saved.roomCoins)||0,
+        roomRewardedLevel:Number(saved.roomRewardedLevel)||level
+    };
 });
 
 exports.setCheckinRoomReward = callable(async request => {
