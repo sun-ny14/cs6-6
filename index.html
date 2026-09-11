@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@500;700;800;900&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 
 <link rel="stylesheet" href="css/style.css?v=20260911-attendance-fix-1">
+<link rel="stylesheet" href="css/classroom-dashboard.css?v=20260911-home-2">
 
 <script>
 function toggleSidebar(){
@@ -163,14 +164,47 @@ function toggleSidebar(){
         <!-- 1. 용사들 -->
         <section id="tab-main" class="tab-content active">
 
-            <header class="page-head">
-                <div>
-                    <h2>🤺 용사들</h2>
-                    <p>이름을 누르면 상세 기록과 방으로 갑니다.</p>
-                </div>
-            </header>
+            <div class="home-dashboard">
+                <header class="home-welcome">
+                    <div>
+                        <span class="home-eyebrow" id="home-date-label">우리 반 · 오늘</span>
+                        <h2>우리 반의 오늘</h2>
+                        <p id="home-welcome-copy">함께 배우고, 서로의 성장을 응원해요.</p>
+                    </div>
+                    <button class="home-board-button" type="button"
+                            onclick="window.open('blackboard.html','_blank','fullscreen=yes')">
+                        <span aria-hidden="true">▣</span> 전자칠판 열기
+                    </button>
+                </header>
 
-            <div id="hero-grid" class="hero-grid"></div>
+                <section class="home-stats" aria-label="오늘의 학급 현황">
+                    <div class="home-stat"><span class="home-stat-icon is-blue">👥</span><span><small>우리 반 용사</small><strong id="home-stat-students">-</strong></span></div>
+                    <div class="home-stat"><span class="home-stat-icon is-green">✓</span><span><small>오늘 등교</small><strong id="home-stat-attendance">-</strong></span></div>
+                    <div class="home-stat"><span class="home-stat-icon is-amber">✎</span><span><small id="home-stat-task-label">미완료 과제</small><strong id="home-stat-tasks">-</strong></span></div>
+                </section>
+
+                <div class="home-dashboard-grid">
+                    <section class="home-hero-panel">
+                        <div class="home-panel-head">
+                            <div><span aria-hidden="true">✦</span><h3>우리 반 용사들</h3><small id="home-hero-count"></small></div>
+                            <span class="home-panel-hint">카드를 누르면 자세히 볼 수 있어요</span>
+                        </div>
+                        <div id="hero-grid" class="hero-grid"></div>
+                    </section>
+
+                    <aside class="home-side-column">
+                        <section class="home-info-card">
+                            <div class="home-card-head"><h3>📣 오늘의 알림</h3><button type="button" onclick="window.open('blackboard.html','_blank','fullscreen=yes')">전자칠판 보기 ›</button></div>
+                            <div id="home-notice-list" class="home-notice-list"><div class="home-empty">알림을 불러오는 중이에요.</div></div>
+                        </section>
+
+                        <section class="home-info-card">
+                            <div class="home-card-head"><h3 id="home-task-title">📝 미완료 과제</h3><button type="button" onclick="showTab('assignments');initAssignmentsTab();">과제 탭 보기 ›</button></div>
+                            <div id="home-task-list" class="home-task-list"><div class="home-empty">과제를 불러오는 중이에요.</div></div>
+                        </section>
+                    </aside>
+                </div>
+            </div>
 
         </section>
 
@@ -663,11 +697,12 @@ function toggleSidebar(){
 <script src="functions/checkin-password-core.js?v=20260911-final-2"></script>
 <script src="js/checkin-password.js?v=20260911-final-2"></script>
 <script src="js/blackboard-share.js?v=20260911-final-2"></script>
-<script src="js/global.js?v=20260911-attendance-fix-1"></script>
+<script src="js/global.js?v=20260911-point-sync-1"></script>
+<script src="js/home-dashboard.js?v=20260911-home-1"></script>
 <script src="js/auth.js?v=20260911-attendance-fix-2"></script>
 <script src="js/checkin-seat.js?v=20260911-attendance-fix-1"></script>
 <script src="js/hero-mgr.js?v=20260911-final-2"></script>
-<script src="js/point-shop.js?v=20260911-final-2"></script>
+<script src="js/point-shop.js?v=20260911-point-sync-1"></script>
 <script src="js/point-guide.js?v=20260911-final-2"></script>
 <script src="js/housing.js?v=20260911-final-2"></script>
 <script src="js/admin-grades.js?v=20260911-final-2"></script>
