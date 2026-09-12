@@ -1121,6 +1121,11 @@ window.renderSeatMap=function(rows,cols){
     const container=document.getElementById('seat-map-container');
     if(!container)return;
 
+    // 탭 진입과 새로고침이 동시에 호출돼도 가장 최근 렌더링만 반영한다.
+    // 이전 비동기 조회가 나중에 끝나 좌석을 한 벌 더 붙이는 것을 막는다.
+    const renderToken=(Number(window.checkinSeatRenderToken)||0)+1;
+    window.checkinSeatRenderToken=renderToken;
+
     rows=parseInt(rows)||6;
     cols=parseInt(cols)||5;
 
@@ -1152,6 +1157,7 @@ window.renderSeatMap=function(rows,cols){
         ]);
 
     attendanceReads.then(snaps=>{
+        if(renderToken!==window.checkinSeatRenderToken)return;
 
         const logs={};
 
@@ -1351,6 +1357,7 @@ window.renderSeatMap=function(rows,cols){
         }
 
     }).catch(err=>{
+        if(renderToken!==window.checkinSeatRenderToken)return;
 
         console.error(
             '좌석 출결 데이터 로드 오류:',
