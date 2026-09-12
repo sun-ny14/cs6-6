@@ -13,6 +13,7 @@ function formatDateTime(timestamp) {
 }
 
 window.isPointsListenerAttached = false;
+window.pointsListenerState = window.pointsListenerState || null;
 window.isPointGuideListenerAttached = false;
 
 function pointGuideEscapeHtml(value) {
@@ -37,12 +38,24 @@ function canManageItemUseRequests() {
 // ============================================================
 
 window.initPointsTabListeners = function() {
-    if (window.isPointsListenerAttached) return;
+    const canManage=Boolean(
+        window.canManageShopRequests&&window.canManageShopRequests()
+    );
+    const listenerKey=`${canManage?'manager':'student'}:${String(window.myName||'')}`;
+    if(window.pointsListenerState?.key===listenerKey)return;
+
+    if(window.pointsListenerState){
+        const previous=window.pointsListenerState;
+        previous.ordersRef?.off('value',previous.ordersHandler);
+        previous.pointLogQuery?.off('value',previous.pointLogHandler);
+    }
+
     window.isPointsListenerAttached = true;
 
-    const ordersPath=window.canManageShopRequests&&window.canManageShopRequests()
+    const ordersPath=canManage
         ?'orders':`ordersByUser/${window.myName}`;
-    db.ref(ordersPath).on('value', snap => {
+    const ordersRef=db.ref(ordersPath);
+    const ordersHandler=snap => {
         let uHtml = "";
         let wHtml = "";
         let adminOrderHtml = "";
@@ -158,15 +171,16 @@ window.initPointsTabListeners = function() {
                 adminOrderHtml ||
                 "<div class='empty'><strong>대기 중인 사용 요청이 없습니다.</strong></div>";
         }
-    });
+    };
+    ordersRef.on('value',ordersHandler);
 
 
     // 포인트 연대기
-    const pointLogQuery = window.isAdmin === true
-        ? db.ref('pointLogs').limitToLast(50)
-        : db.ref(`pointHistory/${window.myName}`).limitToLast(50);
+    const pointLogQuery = canManage
+        ? db.ref('pointLogs').orderByChild('timestamp').limitToLast(50)
+        : db.ref(`pointHistory/${window.myName}`).orderByChild('timestamp').limitToLast(50);
 
-pointLogQuery.on('value', snap => {
+    const pointLogHandler=snap => {
         let historyArr = [];
 
         snap.forEach(c => {
@@ -186,7 +200,7 @@ pointLogQuery.on('value', snap => {
                     );
 
             historyArr.push({
-                user: window.isAdmin === true
+                user: canManage
                     ? (val.name || val.user || "알 수 없음")
                     : window.myName,
                 p: parseInt(pointVal) || 0,
@@ -248,7 +262,11 @@ pointLogQuery.on('value', snap => {
                 historyHtml ||
                 "<div class='empty'><strong>포인트 기록이 없습니다.</strong></div>";
         }
-    });
+    };
+    pointLogQuery.on('value',pointLogHandler);
+    window.pointsListenerState={
+        key:listenerKey,ordersRef,ordersHandler,pointLogQuery,pointLogHandler
+    };
 };
 
 
@@ -857,56 +875,12 @@ window.openBulkPointPopup = async function(
                 }
 
 
-                const updates = {};
-
-                for (let cb of checkboxes) {
-
-                    const sKey =
-                        cb.value;
-
-                    const sName =
-                        cb.getAttribute(
-                            'data-name'
-                        );
-
-
-                    const uSnap =
-                        await db.ref(
-                            `users/${sKey}`
-                        ).once('value');
-
-
-                    if (uSnap.exists()) {
-
-                        const currentPoints =
-                            uSnap.val().points || 0;
-
-                        updates[
-                            `users/${sKey}/points`
-                        ] =
-                            currentPoints + points;
-
-                        const hRef =
-                            db.ref('pointLogs').push();
-
-
-                        updates[
-                            `pointLogs/${hRef.key}`
-                        ] = {
-                            name:sName,
-                            pAmt:points,
-                            reason:reason,
-                            time:new Date()
-                                .toLocaleString(
-                                    'ko-KR'
-                                )
-                        };
-
-                    }
-                }
-
-
-                await db.ref().update(updates);
+                const requestId=`score_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
+                const targets=Array.from(checkboxes).map(cb=>({
+                    name:cb.getAttribute('data-name')||cb.value,
+                    points,exp:0
+                }));
+                await window.callSecure('adjustStudentScores',{requestId,reason,targets});
 
                 closePointPopup();
 

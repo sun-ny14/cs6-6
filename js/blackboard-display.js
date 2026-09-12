@@ -122,11 +122,12 @@
             const name = String(item.name || item.user || item.userName || '').trim();
             const category=String(item.category||item.status||'').trim();
             const result=String(item.result||item.reason||'').trim();
-            const attended=typeof item.attended==='boolean'
-                ?item.attended
-                :category==='정상'||category==='지각'||result==='등교'||
-                    result.includes('정상')||result.includes('지각')||
-                    (!category&&!result);
+            const absent=category==='결석'||result.includes('결석');
+            const attended=!absent&&(
+                item.attended===true||category==='정상'||category==='지각'||
+                category==='조퇴'||result==='등교'||result.includes('정상')||
+                result.includes('지각')||result.includes('조퇴')||(!category&&!result)
+            );
             if (date === today && name && attended) checked.add(name);
         });
         return checked;
@@ -399,8 +400,11 @@
         legacySchedule:'blackboard/schedule', legacyNotice:'blackboard/notice',
         periodTimes:'blackboard/periodTimes', baseSchedule:'blackboard/baseSchedule',
         weeklySchedules:'blackboard/weeklySchedules', notices:'blackboard/notices',
-        users:'users', checkins:'checkins', seatData:'seatLayoutData', checkinPassword:'settings',
-        cleaningRoot:'classManagement/cleaningStatus', assignments:'blackboard/assignments',
+        // 전자칠판에는 공개용 최소 데이터만 연결한다. 큰 users/checkins 원본을
+        // 매번 내려받지 않아도 좌석 이름과 출결 상태를 표시할 수 있다.
+        users:'publicProfiles', checkins:'blackboardDisplay/data/checkins',
+        seatData:'seatLayoutData', checkinPassword:'settings',
+        cleaningRoot:'blackboardDisplay/data/cleaningRoot', assignments:'blackboard/assignments',
         assignmentCompletions:'blackboard/assignmentCompletions', dismissalNotes:'blackboard/dismissalNotes'
     };
     let sourceGeneration = 0;

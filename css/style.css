@@ -1423,6 +1423,31 @@ body.role-student .hero-points {
 .seat-state { font-size: var(--ui-tiny-size); font-weight: 700; }
 .seat-no { font-size: var(--ui-tiny-size); color: var(--ui-faint); font-weight: 600; }
 
+.checkin-detail-button {
+    margin-top: 4px;
+    padding: 5px 10px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    color: inherit;
+    font: inherit;
+    font-size: var(--ui-tiny-size);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.checkin-detail-button:hover,
+.checkin-detail-button:focus-visible {
+    background: color-mix(in srgb, currentColor 16%, transparent);
+    outline: none;
+}
+
+.checkin-card[aria-busy="true"] {
+    cursor: wait;
+    opacity: .68;
+    pointer-events: none;
+}
+
 .is-good  { border-color: var(--ui-good-line); background: var(--ui-good-soft); color: var(--ui-good); }
 .is-warn  { border-color: var(--ui-warn-line); background: var(--ui-warn-soft); color: var(--ui-warn); }
 .is-bad   { border-color: var(--ui-bad-line);  background: var(--ui-bad-soft);  color: var(--ui-bad); }
@@ -1605,17 +1630,17 @@ body.role-student .shop-price { color: var(--ui-gold); }
 /* 차등 지급 모달 */
 .batch-card-modal-v6 {
     display: grid;
-    /* 이름 + 번호 + 보유 포인트가 한 줄에 들어가도록 최소 폭을 넓혔습니다. */
-    grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+    grid-template-columns: minmax(620px, 1fr);
     gap: var(--ui-space-3);
     max-height: 52vh;
-    overflow-y: auto;
+    overflow: auto;
     padding: 2px;
 }
 
 .batch-student-row {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(250px, 1fr) minmax(130px, 170px) minmax(130px, 170px);
+    align-items: center;
     gap: var(--ui-space-2);
     padding: var(--ui-space-3);
     border: 1px solid var(--ui-line);
@@ -1694,6 +1719,7 @@ body.role-student .shop-price { color: var(--ui-gold); }
 .batch-card-field { display: flex; align-items: center; gap: 6px; }
 .batch-p-input,
 .batch-exp-input {
+    width: 100%;
     min-height: 34px;
     padding: 4px 8px;
     text-align: center;
@@ -1995,6 +2021,18 @@ body.role-student .room-canvas {
 }
 
 @media (max-width: 560px) {
+    #login-screen { padding: 16px; }
+    .login-box {
+        width: 100%;
+        min-height: min(520px, calc(100svh - 32px));
+        padding: 40px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .login-box h1 { font-size: clamp(30px, 9vw, 42px); }
+    .login-box p { font-size: 17px; }
+    .login-box .btn { min-height: 56px; font-size: 18px; }
     #undo-bar { border-radius: var(--ui-radius); left: 16px; right: 16px; transform: none; max-width: none; }
     @keyframes undoRise { from { opacity: 0 } to { opacity: 1 } }
 }
