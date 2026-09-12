@@ -63,12 +63,14 @@
     },
     "checkins": {
       ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      ".indexOn": ["date"],
       "$record": {
         ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
       }
     },
     "checkinLogs": {
       ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      ".indexOn": ["date"],
       "$record": {
         ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
       }
@@ -104,10 +106,11 @@
       "$log": {
         ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
       },
-      ".indexOn": ["name"]
+      ".indexOn": ["name", "timestamp"]
     },
     "pointHistory": {
       "$userName": {
+        ".indexOn": ["timestamp"],
         ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('name').val() == $userName)",
         ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
       }

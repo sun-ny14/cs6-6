@@ -167,8 +167,8 @@ window.refreshCheckinManagement=async function(){
             exclusionsSnap
         ]=
             await Promise.all([
-                db.ref('checkins').once('value'),
-                db.ref('checkinLogs').once('value'),
+                db.ref('checkins').orderByChild('date').equalTo(targetDate).once('value'),
+                db.ref('checkinLogs').orderByChild('date').equalTo(targetDate).once('value'),
                 db.ref('users').once('value'),
                 db.ref('settings/fixedExclusions').once('value')
             ]);
@@ -721,7 +721,7 @@ window.submitCheckin=async function(
 
             db.ref(
                 'checkins'
-            ).once('value'),
+            ).orderByChild('date').equalTo(today).once('value'),
 
             db.ref(
                 `users/${user}`
@@ -1046,14 +1046,6 @@ if(
 }
 
         if(
-            typeof closePopup===
-            'function'
-        ){
-            closePopup();
-        }
-
-
-        if(
             typeof appendExtraLogsUI===
             'function'
         ){
@@ -1149,8 +1141,8 @@ window.renderSeatMap=function(rows,cols){
     const emptySnapshot={forEach:()=>{},val:()=>({})};
     const attendanceReads=adminView
         ?Promise.all([
-            db.ref('checkins').once('value'),
-            db.ref('checkinLogs').once('value'),
+            db.ref('checkins').orderByChild('date').equalTo(targetDate).once('value'),
+            db.ref('checkinLogs').orderByChild('date').equalTo(targetDate).once('value'),
             db.ref('settings/fixedExclusions').once('value')
         ])
         :Promise.all([
@@ -1283,6 +1275,8 @@ window.renderSeatMap=function(rows,cols){
         ${checkinEscape(statusText)}
         ${checkinEscape(time)}
     </div>
+
+    ${adminView?'<button type="button" class="checkin-detail-button">상세 수정</button>':''}
 `;
 
                     cell.title=
@@ -1294,26 +1288,18 @@ window.renderSeatMap=function(rows,cols){
                     cell.title='빈 자리';
                 }
 
-                const doubleClickDelay=520;
-                let detailOpenLock=false;
+                const detailButton=
+                    cell.querySelector('.checkin-detail-button');
 
-                const openDetailOnce=function(){
+                if(detailButton){
+                    detailButton.onclick=function(event){
+                        event.preventDefault();
+                        event.stopPropagation();
+                        openCheckinEditModal(name,targetDate);
+                    };
+                }
 
-                    if(detailOpenLock)return;
-
-                    detailOpenLock=true;
-
-                    openCheckinEditModal(
-                        name,
-                        targetDate
-                    );
-
-                    setTimeout(()=>{
-                        detailOpenLock=false;
-                    },700);
-                };
-
-                cell.onclick=function(){
+                cell.onclick=async function(){
 
                     if(!adminView){
                         if(name&&typeof window.openFriendRoom==='function'){
@@ -1336,50 +1322,21 @@ window.renderSeatMap=function(rows,cols){
 
                     if(!name)return;
 
-                    if(cell._clickTimer){
+                    if(cell.dataset.saving==='true')return;
+                    cell.dataset.saving='true';
+                    cell.setAttribute('aria-busy','true');
 
-                        clearTimeout(cell._clickTimer);
-                        cell._clickTimer=null;
-
-                        openDetailOnce();
-                        return;
+                    try{
+                        await window.checkinWithUndo(name,'정상 등교');
+                    }finally{
+                        delete cell.dataset.saving;
+                        cell.removeAttribute('aria-busy');
                     }
-
-                    cell._clickTimer=setTimeout(()=>{
-
-                        cell._clickTimer=null;
-
-                        window.checkinWithUndo(
-                            name,
-                            '정상 등교'
-                        );
-
-                    },doubleClickDelay);
                 };
 
-                cell.ondblclick=function(e){
-
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    if(!adminView)return;
-
-                    if(
-                        typeof isEditMode!=='undefined'&&
-                        isEditMode
-                    ){
-                        return;
-                    }
-
-                    if(!name)return;
-
-                    if(cell._clickTimer){
-                        clearTimeout(cell._clickTimer);
-                        cell._clickTimer=null;
-                    }
-
-                    openDetailOnce();
-                };
+                // 상세 수정은 명시적 버튼으로만 연다. 단일/더블클릭
+                // 타이머 경합으로 팝업이 곧바로 닫히는 문제를 막는다.
+                cell.ondblclick=null;
 
                 cell.onmouseenter=function(){
                     cell.style.transform='scale(1.01)';
@@ -1536,7 +1493,18 @@ window.attendanceClickTimer=null;
 // 좌석 격자와 예전 진입점 두 곳이 같은 동작을 쓰도록 여기 모은다.
 window.checkinWithUndo=async function(user,reason){
     const label=reason||'정상 등교';
-    const result=await submitCheckin(user,label);
+    const result=window.isAdmin===true&&label.includes('정상')
+        ?await window.callSecure('teacherQuickCheckin',{name:user,date:checkinGetToday()})
+        :await submitCheckin(user,label);
+
+    if(window.isAdmin===true){
+        try{
+            await window.refreshCheckinManagement();
+        }catch(refreshError){
+            console.error('원클릭 출결 화면 갱신 오류:',refreshError);
+            checkinRefreshSeatMap();
+        }
+    }
 
     if(!result||typeof window.showUndoBar!=='function')return result;
 
@@ -1548,6 +1516,12 @@ window.checkinWithUndo=async function(user,reason){
             updates[`checkins/${result.recordKey}`]=
                 result.hadPrevious
                     ?result.previousData
+                    :null;
+
+            updates[`blackboardDisplay/data/checkins/${result.recordKey}`]=
+                result.hadPrevious&&result.previousData
+                    ?{name:user,date:result.previousData.date,
+                        attended:['정상','지각'].includes(result.previousData.category)}
                     :null;
 
             if(
@@ -1651,6 +1625,23 @@ window.submitCheckIn=async function(){
         const saveResult=await window.callSecure('submitStudentCheckin',{password});
         const lateBy=Number(saveResult.lateBy)||0;
 
+        // 공개 프로필에는 민감한 포인트가 없으므로 서버가 반환한 본인 값으로
+        // 현재 화면만 즉시 갱신한다. 다른 학생에게는 이 값이 노출되지 않는다.
+        if(window.currentUser&&Number.isFinite(Number(saveResult.points))){
+            window.currentUser.points=Number(saveResult.points);
+            window.currentUser.roomCoins=Number(saveResult.roomCoins)||0;
+
+            const mine=Array.isArray(window.currentUsers)
+                ?window.currentUsers.find(item=>item&&item.name===window.myName)
+                :null;
+            if(mine){
+                mine.points=window.currentUser.points;
+                mine.roomCoins=window.currentUser.roomCoins;
+            }
+
+            if(typeof renderHeroes==='function')renderHeroes(window.currentUsers);
+        }
+
         if(passInput){
             passInput.value='';
         }
@@ -1718,9 +1709,13 @@ window.openLogEditPopup=function(
     Promise.all([
 
         db.ref('checkins')
+        .orderByChild('date')
+        .equalTo(date)
         .once('value'),
 
         db.ref('checkinLogs')
+        .orderByChild('date')
+        .equalTo(date)
         .once('value')
 
     ])
@@ -2274,24 +2269,18 @@ window.saveDetailLog=async function(
         // checkins 갱신
         // ======================================
 
-        if(checkinsKey){
+        const checkinRecordKey=checkinsKey||db.ref('checkins').push().key;
+        updates[`checkins/${checkinRecordKey}`]=data;
 
-            updates[
-                `checkins/${checkinsKey}`
-            ]=data;
-
-        }else{
-
-            const newKey=
-                db.ref(
-                    'checkins'
-                ).push().key;
-
-
-            updates[
-                `checkins/${newKey}`
-            ]=data;
-        }
+        // 한 번 등교한 학생은 상세 화면에서 명시적으로 결석 처리하기 전까지
+        // 공개 좌석판에서도 계속 등교 완료로 유지한다.
+        updates[`blackboardDisplay/data/checkins/${checkinRecordKey}`]={
+            name:name,
+            date:date,
+            attended:category!=='결석',
+            category:category,
+            result:result
+        };
 
 
         // ======================================

@@ -1,7 +1,7 @@
 // js/auth.js
 
 const DEV_MODE=false;
-const ADMIN_INACTIVITY_MS=30*60*1000;
+const ADMIN_INACTIVITY_MS=3*60*60*1000;
 const STUDENT_INACTIVITY_MS=2*60*60*1000;
 let inactivityTimer=null;
 let stopAccessListener=()=>{};
@@ -171,6 +171,10 @@ window.applyAccessControl=applyAccessControl;
 auth.onAuthStateChanged(async user=>{
     stopAccessListener();
     stopAccessListener=()=>{};
+    if(typeof window.stopOwnUserListener==='function'){
+        window.stopOwnUserListener();
+        window.stopOwnUserListener=()=>{};
+    }
     const loginScreen=document.getElementById('login-screen');
     const loadingScreen=document.getElementById('loading-screen');
     const mainApp=document.getElementById('main-app');

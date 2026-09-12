@@ -9,11 +9,19 @@ initializeApp();
 
 const REGION = 'asia-northeast3';
 const TEACHER_EMAIL = 'ksosuny@cberi.go.kr';
-// 256MiB에서 실제 사용량이 278~281MiB까지 올라가 로그인/등교 호출이 500으로 종료됐다.
-const callable = handler => onCall({ region: REGION, memory: '512MiB', enforceAppCheck: false }, handler);
+// 복구된 DB의 큰 학생 레코드도 안정적으로 처리하도록 호출 함수에 여유를 둔다.
+const callable = handler => onCall({
+    region: REGION,
+    memory: '1GiB',
+    timeoutSeconds: 60,
+    maxInstances: 3,
+    enforceAppCheck: false
+}, handler);
 const cleanEmail = value => String(value || '').trim().toLowerCase();
 const safeKey = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(value);
 const kstDate = timestamp => new Date(timestamp + 9 * 3600000).toISOString().slice(0, 10);
+const scoreLogKey = (requestId,name) =>
+    `score_${requestId}_${Buffer.from(String(name)).toString('base64url')}`;
 const publicUser = (name, user={}) => ({
     name:String(user.name || name), no:Number(user.no || user.number || 0),
     character:String(user.character || ''), selectedAnimal:String(user.selectedAnimal || ''),
@@ -82,62 +90,184 @@ exports.mirrorPublicSettings = onValueWritten({ ref:'/settings' }, async event =
     });
 });
 
+// 점수 영수증이 만들어지면 두 연대기를 다시 보장한다. 호출 함수가 로그 저장
+// 직전에 끊기더라도 이 트리거가 같은 결정적 키로 빠진 기록을 복구한다.
+exports.mirrorScoreChangeReceipt = onValueWritten({
+    ref:'/users/{userName}/scoreChangeReceipts/{requestId}'
+}, async event => {
+    const receipt=event.data.after.val();
+    if(!receipt)return;
+    const name=event.params.userName, requestId=event.params.requestId;
+    const logKey=scoreLogKey(requestId,name);
+    const timestamp=Number(receipt.timestamp)||Date.now();
+    const date=kstDate(timestamp);
+    const time=new Date(timestamp+9*3600000).toISOString().slice(11,16);
+    const points=Number(receipt.points)||0, exp=Number(receipt.exp)||0;
+    const reason=String(receipt.reason||'포인트 변경');
+    await getDatabase().ref().update({
+        [`pointLogs/${logKey}`]:{name,pAmt:points,eAmt:exp,reason,time,timestamp},
+        [`pointHistory/${name}/${logKey}`]:{date,time,reason,change:points,
+            pChange:points,expChange:exp,result:Number(receipt.nextPoints)||0,
+            pointResult:Number(receipt.nextPoints)||0,expResult:Number(receipt.nextExp)||0,timestamp}
+    });
+});
+
 exports.mirrorOrder = onValueWritten({ ref:'/orders/{orderId}' }, async event => {
     const before=event.data.before.val(), after=event.data.after.val(), id=event.params.orderId;
     const updates={};
     if(before?.user)updates[`ordersByUser/${before.user}/${id}`]=null;
     if(after?.user)updates[`ordersByUser/${after.user}/${id}`]=after;
-    if(Object.keys(updates).length)await getDatabase().ref().update(updates);
+    if(Object.keys(updates).length){
+        updates['publicShopStats/updatedAt']=0;
+        await getDatabase().ref().update(updates);
+    }
+});
+
+exports.getPopularShopItems = callable(async request => {
+    await actor(request);
+    const database=getDatabase(), now=Date.now();
+    const cacheRef=database.ref('publicShopStats');
+    const cached=(await cacheRef.get()).val()||{};
+    if(now-Number(cached.updatedAt||0)<300000&&Array.isArray(cached.items)){
+        return {items:cached.items};
+    }
+
+    const [ordersSnapshot,shopSnapshot]=await Promise.all([
+        database.ref('orders').get(),database.ref('shop').get()
+    ]);
+    const orders=ordersSnapshot.val()||{}, shop=shopSnapshot.val()||{};
+    const nameToKey={};
+    Object.entries(shop).forEach(([key,item])=>{
+        if(item?.name)nameToKey[String(item.name)]=key;
+    });
+    const counts={};
+    Object.values(orders).forEach(order=>{
+        const key=String(order?.shopKey||nameToKey[String(order?.item||'')]||'');
+        if(key&&shop[key])counts[key]=(counts[key]||0)+1;
+    });
+    const items=Object.entries(shop)
+        .filter(([,item])=>item?.name&&item.isSoldOut!==true&&
+            !(item.stock!==-1&&item.stock!=null&&Number(item.stock)<=0))
+        .map(([key,item])=>({key,name:String(item.name),cat:String(item.cat||''),
+            price:Number(item.price)||0,count:counts[key]||0}))
+        .sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'ko'))
+        .slice(0,3);
+    await cacheRef.set({updatedAt:now,items});
+    return {items};
 });
 
 exports.purchasePointShop = callable(async request => {
     const current = await actor(request);
     if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 구매해 주세요.');
-    const itemKey = request.data?.itemKey;
-    if (!safeKey(itemKey)) throw new HttpsError('invalid-argument', '상품 정보가 올바르지 않습니다.');
-    const database = getDatabase();
-    const orderKey = database.ref('orders').push().key;
-    const logKey = database.ref('pointLogs').push().key;
-    const historyKey = database.ref(`pointHistory/${current.name}`).push().key;
-    let reason = '';
-    const result = await database.ref().transaction(root => {
-        if (!root) return;
-        const item = root.shop?.[itemKey];
-        const user = root.users?.[current.name];
-        if (!item || !user) { reason='missing'; return; }
-        const price = Number(item.price), limit = Math.max(0, Number(item.limit) || 0);
-        const stock = item.stock == null ? -1 : Number(item.stock);
-        const points = Number(user.points) || 0;
-        if (!Number.isSafeInteger(price) || price < 0) { reason='invalid-price'; return; }
-        if (item.isSoldOut === true || (stock !== -1 && stock <= 0)) { reason='sold-out'; return; }
-        if (points < 0 || points < price) { reason='points'; return; }
-        const bought = Object.values(root.orders || {}).filter(order => order?.user === current.name &&
-            order?.shopKey === itemKey && order?.limitReset !== true).length;
-        if (limit > 0 && bought >= limit) { reason='limit'; return; }
-        const now = Date.now(), next = points - price;
-        root.users[current.name].points = next;
-        if (stock > 0) root.shop[itemKey].stock = stock - 1;
-        root.orders ||= {};
-        root.orders[orderKey] = { user:current.name, shopKey:itemKey, item:String(item.name || ''),
-            price, time:now, status:'요청' };
-        root.ordersByUser ||= {}; root.ordersByUser[current.name] ||= {};
-        root.ordersByUser[current.name][orderKey]=root.orders[orderKey];
-        root.pointLogs ||= {};
-        root.pointLogs[logKey] = { name:current.name, pAmt:-price,
-            reason:`[상점 구매] ${String(item.name || '')}`, timestamp:now };
-        root.pointHistory ||= {}; root.pointHistory[current.name] ||= {};
-        root.pointHistory[current.name][historyKey] = { date:kstDate(now), reason:`[상점 구매] ${String(item.name || '')}`,
-            change:-price, pChange:-price, expChange:0, result:next, pointResult:next, timestamp:now };
-        return root;
-    }, undefined, false);
-    if (!result.committed) {
-        const messages = { missing:'상품 또는 사용자 정보를 찾을 수 없습니다.', 'invalid-price':'상품 가격이 올바르지 않습니다.',
-            'sold-out':'품절된 상품입니다.', points:'포인트가 부족합니다.', limit:'구매 한도를 초과했습니다.' };
-        throw new HttpsError('failed-precondition', messages[reason] || '구매를 완료하지 못했습니다.');
+    const itemKey = request.data?.itemKey, purchaseId=request.data?.purchaseId;
+    if (!safeKey(itemKey) || !safeKey(purchaseId)) {
+        throw new HttpsError('invalid-argument', '구매 정보가 올바르지 않습니다.');
     }
-    const saved = result.snapshot.val();
-    return { orderKey, name:saved.orders[orderKey].item, price:saved.orders[orderKey].price,
-        points:saved.users[current.name].points };
+    const database = getDatabase();
+    const now=Date.now();
+    const itemRef=database.ref(`shop/${itemKey}`);
+    const item=(await itemRef.get()).val();
+    if(!item)throw new HttpsError('not-found','상품을 찾을 수 없습니다.');
+
+    const price=Number(item.price), limit=Math.max(0,Number(item.limit)||0);
+    if(!Number.isSafeInteger(price)||price<0){
+        throw new HttpsError('failed-precondition','상품 가격이 올바르지 않습니다.');
+    }
+
+    // 구매 한도는 이 학생의 주문만 읽는다. 복구된 DB 전체를 읽지 않는다.
+    const priorOrders=(await database.ref(`ordersByUser/${current.name}`).get()).val()||{};
+    const legacyBought=Object.values(priorOrders).filter(order=>
+        order?.shopKey===itemKey&&order?.limitReset!==true).length;
+
+    let reason='',receipt=null;
+    const userRef=database.ref(`users/${current.name}`);
+    // 트랜잭션의 첫 콜백이 빈 로컬 캐시를 실제 사용자 없음으로 오인하지 않게 한다.
+    await userRef.get();
+    const userResult=await userRef.transaction(user=>{
+        // Admin SDK도 트랜잭션 첫 호출에서 null을 줄 수 있다. actor()에서 방금
+        // 확인한 학생 데이터로 첫 시도만 이어 가면 서버 값과 비교 후 자동 재시도된다.
+        if(user===null)user=JSON.parse(JSON.stringify(current.user||{}));
+        if(!user||typeof user!=='object'||!Object.keys(user).length){reason='missing';return;}
+        user.name=String(user.name||current.name);
+        user.pointShopPurchases||={};
+        const existing=user.pointShopPurchases[purchaseId];
+        if(existing){
+            if(existing.itemKey!==itemKey){reason='request';return;}
+            receipt=existing;
+            return user;
+        }
+
+        const storedBought=Object.values(user.pointShopPurchases).filter(saved=>
+            saved?.itemKey===itemKey&&saved?.limitReset!==true).length;
+        const bought=Math.max(legacyBought,storedBought);
+        const points=Number(user.points)||0;
+        if(limit>0&&bought>=limit){reason='limit';return;}
+        if(points<0||points<price){reason='points';return;}
+
+        const next=points-price;
+        user.points=next;
+        receipt={purchaseId,itemKey,name:String(item.name||''),price,
+            balanceAfter:next,status:'charged',createdAt:now};
+        user.pointShopPurchases[purchaseId]=receipt;
+        return user;
+    },undefined,false);
+
+    // transaction 콜백은 충돌 시 여러 번 호출될 수 있으므로 바깥 변수만 믿지 않고
+    // 최종 커밋 스냅샷에서 영수증을 다시 가져온다.
+    if(userResult.committed){
+        receipt=userResult.snapshot.child(`pointShopPurchases/${purchaseId}`).val()||receipt;
+    }
+    if(!userResult.committed||!receipt){
+        const messages={missing:'학생 정보를 찾을 수 없습니다.',request:'구매 요청 정보가 충돌했습니다.',
+            points:'포인트가 부족합니다.',limit:'구매 한도를 초과했습니다.'};
+        throw new HttpsError('failed-precondition',messages[reason]||'구매를 완료하지 못했습니다.');
+    }
+
+    // 재고도 해당 상품에서만 예약한다. purchaseId로 재시도해도 두 번 차감되지 않는다.
+    let stockReason='';
+    const stockResult=await itemRef.transaction(saved=>{
+        if(!saved){stockReason='missing';return;}
+        saved.purchaseReservations||={};
+        if(saved.purchaseReservations[purchaseId])return saved;
+        const stock=saved.stock==null?-1:Number(saved.stock);
+        if(saved.isSoldOut===true||(stock!==-1&&stock<=0)){stockReason='sold-out';return;}
+        if(Number(saved.price)!==price){stockReason='changed';return;}
+        if(stock>0)saved.stock=stock-1;
+        saved.purchaseReservations[purchaseId]={createdAt:now};
+        return saved;
+    },undefined,false);
+
+    if(!stockResult.committed){
+        // 재고 확보 실패 시 이 요청에서 차감한 포인트만 안전하게 되돌린다.
+        await userRef.transaction(user=>{
+            const saved=user?.pointShopPurchases?.[purchaseId];
+            if(!saved||saved.status!=='charged')return user;
+            user.points=(Number(user.points)||0)+price;
+            delete user.pointShopPurchases[purchaseId];
+            return user;
+        },undefined,false);
+        const messages={missing:'상품을 찾을 수 없습니다.','sold-out':'품절된 상품입니다.',
+            changed:'상품 가격이 변경되었습니다. 다시 확인해 주세요.'};
+        throw new HttpsError('failed-precondition',messages[stockReason]||'재고를 확인하지 못했습니다.');
+    }
+
+    const orderKey=purchaseId;
+    const order={user:current.name,shopKey:itemKey,item:receipt.name,
+        price,time:now,status:'요청'};
+    const logKey=`shop_${purchaseId}`;
+    const updates={
+        [`orders/${orderKey}`]:order,
+        [`ordersByUser/${current.name}/${orderKey}`]:order,
+        [`pointLogs/${logKey}`]:{name:current.name,pAmt:-price,
+            reason:`[상점 구매] ${receipt.name}`,timestamp:now},
+        [`pointHistory/${current.name}/${logKey}`]:{date:kstDate(now),
+            reason:`[상점 구매] ${receipt.name}`,change:-price,pChange:-price,expChange:0,
+            result:receipt.balanceAfter,pointResult:receipt.balanceAfter,timestamp:now},
+        [`users/${current.name}/pointShopPurchases/${purchaseId}/status`]:'completed',
+        'publicShopStats/updatedAt':0
+    };
+    await database.ref().update(updates);
+    return {orderKey,name:receipt.name,price,points:receipt.balanceAfter};
 });
 
 const BUILTIN_FURNITURE = {
@@ -205,6 +335,126 @@ exports.verifyCheckinPassword = callable(async request => {
     return { valid:true, lateTime:String(settings.lateTime || '08:40'), closeTime:String(settings.closeTime || '09:00') };
 });
 
+exports.teacherQuickCheckin = callable(async request => {
+    const current=await actor(request);
+    if(!current.teacher)throw new HttpsError('permission-denied','교사만 출결을 처리할 수 있습니다.');
+    const name=String(request.data?.name||'').trim();
+    const date=String(request.data?.date||kstDate(Date.now()));
+    if(!name||name.length>100||/[.#$\[\]/\u0000-\u001f]/.test(name)||!/^\d{4}-\d{2}-\d{2}$/.test(date)){
+        throw new HttpsError('invalid-argument','학생 또는 날짜 정보가 올바르지 않습니다.');
+    }
+    const database=getDatabase();
+    const userRef=database.ref(`users/${name}`);
+    const userSnapshot=await userRef.get();
+    if(!userSnapshot.exists())throw new HttpsError('not-found','학생 정보를 찾을 수 없습니다.');
+
+    const records=(await database.ref('checkins').orderByChild('date').equalTo(date).get()).val()||{};
+    const existingEntry=Object.entries(records).find(([,record])=>
+        String(record?.name||record?.user||'')===name);
+    const existingKey=existingEntry?.[0]||'';
+    const previousData=existingEntry?.[1]||null;
+    const previousPenalty=Number(previousData?.pointPenalty)||0;
+    const pointDelta=-previousPenalty;
+    const previousPoints=Number(userSnapshot.val()?.points)||0;
+    let points=previousPoints;
+
+    if(pointDelta){
+        const pointsRef=userRef.child('points');
+        await pointsRef.get();
+        const pointResult=await pointsRef.transaction(value=>{
+            points=(Number(value)||0)+pointDelta;
+            return points;
+        },undefined,false);
+        if(!pointResult.committed)throw new HttpsError('aborted','학생 포인트를 갱신하지 못했습니다.');
+        points=Number(pointResult.snapshot.val())||0;
+    }
+
+    const recordKey=existingKey||database.ref('checkins').push().key;
+    const now=Date.now();
+    const time=new Date(now+9*3600000).toISOString().slice(11,16);
+    const record={...(previousData||{}),name,user:name,date,time,category:'정상',
+        reason:'정상 등교',result:'정상 등교',pointPenalty:0,penaltySource:'none',
+        lateMinutes:0,docSubmitted:Boolean(previousData?.docSubmitted),timestamp:now};
+    const updates={
+        [`checkins/${recordKey}`]:record,
+        [`blackboardDisplay/data/checkins/${recordKey}`]:{name,date,attended:true}
+    };
+    if(pointDelta){
+        const logKey=`teacher_checkin_${recordKey}_${now}`;
+        const reason='출결 수정에 따른 지각 차감 복구';
+        updates[`pointLogs/${logKey}`]={name,pAmt:pointDelta,reason,timestamp:now};
+        updates[`pointHistory/${name}/${logKey}`]={date,time,reason,change:pointDelta,
+            pChange:pointDelta,expChange:0,result:points,pointResult:points,timestamp:now};
+    }
+    try{
+        await database.ref().update(updates);
+    }catch(error){
+        if(pointDelta)await userRef.child('points').transaction(value=>(Number(value)||0)-pointDelta);
+        throw error;
+    }
+    return {recordKey,category:'정상',source:'teacher',lateMinutes:0,penalty:0,
+        pointDelta,points,hadPrevious:Boolean(existingKey),previousData,previousPoints};
+});
+
+exports.adjustStudentScores = callable(async request => {
+    const current=await actor(request);
+    if(!current.teacher)throw new HttpsError('permission-denied','교사만 포인트를 변경할 수 있습니다.');
+    const reason=String(request.data?.reason||'').trim();
+    const requestId=String(request.data?.requestId||'');
+    const targets=Array.isArray(request.data?.targets)?request.data.targets:[];
+    if(!reason||reason.length>200||!safeKey(requestId)||!targets.length||targets.length>40){
+        throw new HttpsError('invalid-argument','포인트 변경 정보를 확인해 주세요.');
+    }
+    const database=getDatabase(), now=Date.now(), date=kstDate(now);
+    const time=new Date(now+9*3600000).toISOString().slice(11,16);
+    const results=[];
+
+    for(let index=0;index<targets.length;index+=1){
+        const target=targets[index]||{};
+        const name=String(target.name||'').trim();
+        const points=Number(target.points??target.p??0);
+        const exp=Number(target.exp??0);
+        if(!name||name.length>100||/[.#$\[\]/\u0000-\u001f]/.test(name)||
+            !Number.isSafeInteger(points)||!Number.isSafeInteger(exp)||
+            Math.abs(points)>100000||Math.abs(exp)>100000){
+            throw new HttpsError('invalid-argument','학생별 포인트 값을 확인해 주세요.');
+        }
+        const userRef=database.ref(`users/${name}`);
+        const initial=(await userRef.get()).val();
+        if(!initial)throw new HttpsError('not-found',`${name} 학생 정보를 찾을 수 없습니다.`);
+        let receipt=null;
+        const result=await userRef.transaction(user=>{
+            if(user===null)user=JSON.parse(JSON.stringify(initial));
+            if(!user||typeof user!=='object')return;
+            user.scoreChangeReceipts||={};
+            if(user.scoreChangeReceipts[requestId]){
+                receipt=user.scoreChangeReceipts[requestId];
+                return user;
+            }
+            const nextPoints=(Number(user.points)||0)+points;
+            const nextExp=(Number(user.exp)||0)+exp;
+            receipt={points,exp,nextPoints,nextExp,reason,timestamp:now};
+            user.points=nextPoints;
+            user.exp=nextExp;
+            user.scoreChangeReceipts[requestId]=receipt;
+            return user;
+        },undefined,false);
+        if(result.committed){
+            receipt=result.snapshot.child(`scoreChangeReceipts/${requestId}`).val()||receipt;
+        }
+        if(!result.committed||!receipt)throw new HttpsError('aborted',`${name} 포인트를 저장하지 못했습니다.`);
+        const logKey=scoreLogKey(requestId,name);
+        await database.ref().update({
+        [`pointLogs/${logKey}`]:{name,pAmt:points,eAmt:exp,reason,time,timestamp:now},
+        [`pointHistory/${name}/${logKey}`]:{date,time,reason,change:points,
+            pChange:points,expChange:exp,result:receipt.nextPoints,pointResult:receipt.nextPoints,
+            expResult:receipt.nextExp,timestamp:now}
+        });
+        results.push({name,points:receipt.nextPoints,exp:receipt.nextExp});
+    }
+    return {updated:results.length,results};
+});
+
 exports.submitStudentCheckin = callable(async request => {
     const current=await actor(request);
     if(current.teacher)throw new HttpsError('failed-precondition','학생 계정에서 등교해 주세요.');
@@ -234,7 +484,8 @@ exports.submitStudentCheckin = callable(async request => {
     const desired=excluded?0:-Math.min(9,late);
     const category=late>0?'지각':'정상';
     const time=`${String(clock.getUTCHours()).padStart(2,'0')}:${String(clock.getUTCMinutes()).padStart(2,'0')}`;
-    const priorRecords=(await database.ref('checkins').get()).val()||{};
+    // 전체 출결 기록 대신 오늘 날짜만 읽어 대용량 DB의 메모리 초과를 막는다.
+    const priorRecords=(await database.ref('checkins').orderByChild('date').equalTo(date).get()).val()||{};
     const priorEntry=Object.entries(priorRecords).find(([,record])=>
         String(record?.name||record?.user||'')===current.name&&record?.date===date);
     const stableKey=priorEntry?.[0]||`${current.uid}_${date}`;
@@ -346,7 +597,18 @@ exports.syncHousingRewards = callable(async request => {
         return user;
     },undefined,false);
     if(!result.committed)throw new HttpsError('not-found','사용자 정보를 찾을 수 없습니다.');
-    return result.snapshot.val();
+    // Callable 응답에 아바타/방/기록 등 학생 전체 데이터를 싣지 않는다.
+    // 복구된 학생 데이터가 큰 경우 전체 레코드를 반환하면 응답 크기 제한으로
+    // INTERNAL(500)이 발생할 수 있다. 화면에 필요한 보상 값만 반환한다.
+    const saved=result.snapshot.val()||{};
+    const level=Math.max(1,Number(saved.level||saved.lv)||1);
+    return {
+        name:current.name,
+        level,
+        lv:level,
+        roomCoins:Number(saved.roomCoins)||0,
+        roomRewardedLevel:Number(saved.roomRewardedLevel)||level
+    };
 });
 
 exports.setCheckinRoomReward = callable(async request => {
