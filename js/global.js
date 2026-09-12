@@ -618,10 +618,11 @@ if (typeof refreshCheckinGuide === 'function') {
             const administratorEmail=String(
                 typeof adminEmail!=='undefined' ? adminEmail : ''
             ).trim().toLowerCase();
+            const studentLikeTeacher=String(u.name||'').trim()==='6-6 선생님';
             if(
                 u.name==='총사령관'||
-                u.isAdmin===true||
-                role==='관리자'||
+                (!studentLikeTeacher&&u.isAdmin===true)||
+                (!studentLikeTeacher&&role==='관리자')||
                 (
                     userEmail&&
                     administratorEmail&&
@@ -828,8 +829,7 @@ window.openBatchPointModal=function(){
 
         if(
             !name||
-            name==='총사령관'||
-            name.includes('선생님')
+            name==='총사령관'
         ){
             return;
         }
@@ -1917,7 +1917,7 @@ async function loadHistory(name, firebaseKey) {
         const cards = users
             .filter(user => {
                 const name = user?.name || '';
-                return name && name !== '총사령관' && !name.includes('선생님');
+                return name && name !== '총사령관';
             })
             .sort((a, b) => (Number.parseInt(a.no, 10) || 99) - (Number.parseInt(b.no, 10) || 99))
             .map(user => {

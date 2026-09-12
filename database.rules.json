@@ -99,7 +99,8 @@
     },
     "shop": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      ".indexOn": ["name"]
     },
     "pointLogs": {
       ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",

@@ -160,14 +160,28 @@ exports.purchasePointShop = callable(async request => {
     const current = await actor(request);
     if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 구매해 주세요.');
     const itemKey = request.data?.itemKey, purchaseId=request.data?.purchaseId;
+    const itemName=String(request.data?.itemName||'').trim();
     if (!safeKey(itemKey) || !safeKey(purchaseId)) {
         throw new HttpsError('invalid-argument', '구매 정보가 올바르지 않습니다.');
     }
     const database = getDatabase();
     const now=Date.now();
-    const itemRef=database.ref(`shop/${itemKey}`);
-    const item=(await itemRef.get()).val();
-    if(!item)throw new HttpsError('not-found','상품을 찾을 수 없습니다.');
+    let resolvedItemKey=itemKey;
+    let itemRef=database.ref(`shop/${resolvedItemKey}`);
+    let item=(await itemRef.get()).val();
+    // DB 복구 뒤 상품 push key가 바뀐 상태에서 오래 열린 화면이 이전 key를
+    // 보낼 수 있다. 그 경우에만 동일한 상품명으로 현재 key를 다시 찾는다.
+    if(!item&&itemName&&itemName.length<=100){
+        const matched=await database.ref('shop')
+            .orderByChild('name').equalTo(itemName).limitToFirst(1).get();
+        matched.forEach(child=>{
+            if(item)return;
+            resolvedItemKey=child.key;
+            item=child.val();
+        });
+        itemRef=database.ref(`shop/${resolvedItemKey}`);
+    }
+    if(!item)throw new HttpsError('not-found','상품을 찾을 수 없습니다. 상점 화면을 새로고침해 주세요.');
 
     const price=Number(item.price), limit=Math.max(0,Number(item.limit)||0);
     if(!Number.isSafeInteger(price)||price<0){
@@ -177,7 +191,7 @@ exports.purchasePointShop = callable(async request => {
     // 구매 한도는 이 학생의 주문만 읽는다. 복구된 DB 전체를 읽지 않는다.
     const priorOrders=(await database.ref(`ordersByUser/${current.name}`).get()).val()||{};
     const legacyBought=Object.values(priorOrders).filter(order=>
-        order?.shopKey===itemKey&&order?.limitReset!==true).length;
+        order?.shopKey===resolvedItemKey&&order?.limitReset!==true).length;
 
     let reason='',receipt=null;
     const userRef=database.ref(`users/${current.name}`);
@@ -192,13 +206,13 @@ exports.purchasePointShop = callable(async request => {
         user.pointShopPurchases||={};
         const existing=user.pointShopPurchases[purchaseId];
         if(existing){
-            if(existing.itemKey!==itemKey){reason='request';return;}
+            if(existing.itemKey!==resolvedItemKey){reason='request';return;}
             receipt=existing;
             return user;
         }
 
         const storedBought=Object.values(user.pointShopPurchases).filter(saved=>
-            saved?.itemKey===itemKey&&saved?.limitReset!==true).length;
+            saved?.itemKey===resolvedItemKey&&saved?.limitReset!==true).length;
         const bought=Math.max(legacyBought,storedBought);
         const points=Number(user.points)||0;
         if(limit>0&&bought>=limit){reason='limit';return;}
@@ -206,7 +220,7 @@ exports.purchasePointShop = callable(async request => {
 
         const next=points-price;
         user.points=next;
-        receipt={purchaseId,itemKey,name:String(item.name||''),price,
+        receipt={purchaseId,itemKey:resolvedItemKey,name:String(item.name||''),price,
             balanceAfter:next,status:'charged',createdAt:now};
         user.pointShopPurchases[purchaseId]=receipt;
         return user;
@@ -252,7 +266,7 @@ exports.purchasePointShop = callable(async request => {
     }
 
     const orderKey=purchaseId;
-    const order={user:current.name,shopKey:itemKey,item:receipt.name,
+    const order={user:current.name,shopKey:resolvedItemKey,item:receipt.name,
         price,time:now,status:'요청'};
     const logKey=`shop_${purchaseId}`;
     const updates={
@@ -687,8 +701,19 @@ exports.manageShopOrder = callable(async request => {
         }else{
             const user=root.users?.[order.user];
             const refund=Math.max(0,Number(order.price)||0);
-            if(user&&refund){user.points=(Number(user.points)||0)+refund;root.pointLogs||={};
-                root.pointLogs[logKey]={name:order.user,pAmt:refund,reason:`[환불] ${String(order.item||'')} 승인 거절`,timestamp:Date.now()};}
+            if(user&&refund){
+                const timestamp=Date.now();
+                const nextPoints=(Number(user.points)||0)+refund;
+                const reason=`[환불] ${String(order.item||'')} 승인 거절`;
+                user.points=nextPoints;
+                root.pointLogs||={};
+                root.pointLogs[logKey]={name:order.user,pAmt:refund,reason,timestamp};
+                root.pointHistory||={};
+                root.pointHistory[order.user]||={};
+                root.pointHistory[order.user][logKey]={date:kstDate(timestamp),reason,
+                    change:refund,pChange:refund,expChange:0,result:nextPoints,
+                    pointResult:nextPoints,timestamp};
+            }
             delete root.orders[orderKey];
         }
         return root;

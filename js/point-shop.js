@@ -90,7 +90,12 @@ window.buyItem = async function(k) {
     window.pointShopInFlight[k]=true;
 
     try {
-        const result = await window.callSecure('purchasePointShop', { itemKey:k,purchaseId });
+        const selectedItem=(window.shopData||[]).find(child=>child?.key===k)?.val?.()||{};
+        const result = await window.callSecure('purchasePointShop', {
+            itemKey:k,
+            itemName:String(selectedItem.name||''),
+            purchaseId
+        });
         if(window.currentUser&&Number.isFinite(Number(result.points))){
             window.currentUser.points=Number(result.points);
             const mine=Array.isArray(window.currentUsers)

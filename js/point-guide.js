@@ -753,7 +753,7 @@ window.openBulkPointPopup = async function(
             val.name !== '총사령관' &&
             val.role !== '총관리자1' &&
             val.role !== '총관리자2' &&
-            val.name !== '선생님'
+            (val.name !== '선생님' || val.name === '6-6 선생님')
         ) {
             usersArr.push({
                 key:c.key,
