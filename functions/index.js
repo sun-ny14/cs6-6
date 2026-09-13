@@ -160,6 +160,7 @@ exports.getPopularShopItems = callable(async request => {
 });
 
 exports.purchasePointShop = callable(async request => {
+    const startedAt=Date.now();
     const current = await actor(request);
     if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 구매해 주세요.');
     const itemKey = request.data?.itemKey, purchaseId=request.data?.purchaseId;
@@ -191,15 +192,24 @@ exports.purchasePointShop = callable(async request => {
         throw new HttpsError('failed-precondition','상품 가격이 올바르지 않습니다.');
     }
 
-    // 구매 한도는 이 학생의 주문만 읽는다. 복구된 DB 전체를 읽지 않는다.
-    const priorOrders=(await database.ref(`ordersByUser/${current.name}`).get()).val()||{};
+    const initialStock=item.stock==null?-1:Number(item.stock);
+    if(!Number.isFinite(initialStock)||!Number.isInteger(initialStock)||initialStock < -1){
+        throw new HttpsError('failed-precondition','상품 재고가 올바르지 않습니다.');
+    }
+    if(item.isSoldOut===true||(initialStock!==-1&&initialStock<=0)){
+        throw new HttpsError('failed-precondition','품절된 상품입니다.');
+    }
+
+    // 구매 제한이 있는 상품만 과거 주문을 확인한다. 무제한 상품은 이 조회를
+    // 건너뛰어 일반 구매의 서버 왕복을 하나 줄인다.
+    const priorOrders=limit>0
+        ?(await database.ref(`ordersByUser/${current.name}`).get()).val()||{}
+        :{};
     const legacyBought=Object.values(priorOrders).filter(order=>
         order?.shopKey===resolvedItemKey&&order?.limitReset!==true).length;
 
     let reason='',receipt=null;
     const userRef=database.ref(`users/${current.name}`);
-    // 트랜잭션의 첫 콜백이 빈 로컬 캐시를 실제 사용자 없음으로 오인하지 않게 한다.
-    await userRef.get();
     const userResult=await userRef.transaction(user=>{
         // Admin SDK도 트랜잭션 첫 호출에서 null을 줄 수 있다. actor()에서 방금
         // 확인한 학생 데이터로 첫 시도만 이어 가면 서버 값과 비교 후 자동 재시도된다.
@@ -242,21 +252,24 @@ exports.purchasePointShop = callable(async request => {
 
     // 재고도 해당 상품에서만 예약한다. purchaseId로 재시도해도 두 번 차감되지 않는다.
     let stockReason='';
-    const initialItem=JSON.parse(JSON.stringify(item));
-    const stockResult=await itemRef.transaction(saved=>{
-        // Admin SDK 트랜잭션의 첫 콜백은 서버에 상품이 있어도 null로 시작할 수 있다.
-        // 직전에 읽은 서버 상품으로 첫 비교를 진행하고 충돌 시 자동 재시도한다.
-        if(saved===null)saved=JSON.parse(JSON.stringify(initialItem));
-        if(!saved||typeof saved!=='object'){stockReason='missing';return;}
-        saved.purchaseReservations||={};
-        if(saved.purchaseReservations[purchaseId])return saved;
-        const stock=saved.stock==null?-1:Number(saved.stock);
-        if(saved.isSoldOut===true||(stock!==-1&&stock<=0)){stockReason='sold-out';return;}
-        if(Number(saved.price)!==price){stockReason='changed';return;}
-        if(stock>0)saved.stock=stock-1;
-        saved.purchaseReservations[purchaseId]={createdAt:now};
-        return saved;
-    },undefined,false);
+    let stockResult={committed:true};
+    if(initialStock!==-1){
+        const initialItem=JSON.parse(JSON.stringify(item));
+        stockResult=await itemRef.transaction(saved=>{
+            // Admin SDK 트랜잭션의 첫 콜백은 서버에 상품이 있어도 null로 시작할 수 있다.
+            // 직전에 읽은 서버 상품으로 첫 비교를 진행하고 충돌 시 자동 재시도한다.
+            if(saved===null)saved=JSON.parse(JSON.stringify(initialItem));
+            if(!saved||typeof saved!=='object'){stockReason='missing';return;}
+            saved.purchaseReservations||={};
+            if(saved.purchaseReservations[purchaseId])return saved;
+            const stock=saved.stock==null?-1:Number(saved.stock);
+            if(saved.isSoldOut===true||(stock!==-1&&stock<=0)){stockReason='sold-out';return;}
+            if(Number(saved.price)!==price){stockReason='changed';return;}
+            if(stock>0)saved.stock=stock-1;
+            saved.purchaseReservations[purchaseId]={createdAt:now};
+            return saved;
+        },undefined,false);
+    }
 
     if(!stockResult.committed){
         // 재고 확보 실패 시 이 요청에서 차감한 포인트만 안전하게 되돌린다.
@@ -289,7 +302,7 @@ exports.purchasePointShop = callable(async request => {
     };
     await database.ref().update(updates);
     return {orderKey,name:receipt.name,price,points:receipt.balanceAfter,
-        serverVersion:'20260913-shop-3'};
+        durationMs:Date.now()-startedAt,serverVersion:'20260913-shop-4'};
 });
 
 const BUILTIN_FURNITURE = {
@@ -429,10 +442,9 @@ exports.adjustStudentScores = callable(async request => {
     }
     const database=getDatabase(), now=Date.now(), date=kstDate(now);
     const time=new Date(now+9*3600000).toISOString().slice(11,16);
-    const results=[];
-
-    const updateTarget=async target=>{
-        target=target||{};
+    const seenKeys=new Set();
+    const prepared=targets.map(rawTarget=>{
+        const target=rawTarget||{};
         const userKey=String(target.userKey||target.name||'').trim();
         const points=Number(target.points??target.p??0);
         const exp=Number(target.exp??0);
@@ -441,47 +453,73 @@ exports.adjustStudentScores = callable(async request => {
             Math.abs(points)>100000||Math.abs(exp)>100000){
             throw new HttpsError('invalid-argument','학생별 포인트 값을 확인해 주세요.');
         }
-        const userRef=database.ref(`users/${userKey}`);
+        if(seenKeys.has(userKey))throw new HttpsError('invalid-argument','같은 학생이 두 번 선택되었습니다.');
+        seenKeys.add(userKey);
+        return {target,userKey,points,exp};
+    });
+
+    // 모든 대상을 먼저 한 번에 확인한다. 잘못된 학생 하나 때문에 앞 학생만
+    // 반영되는 부분 성공을 막고, 순차 조회 대기 시간도 없앤다.
+    const loaded=await Promise.all(prepared.map(async item=>{
+        const userRef=database.ref(`users/${item.userKey}`);
         const initial=(await userRef.get()).val();
-        const displayName=String(initial?.name||target.name||userKey).trim();
+        const displayName=String(initial?.name||item.target.name||item.userKey).trim();
         if(!initial)throw new HttpsError('not-found',`${displayName} 학생 정보를 찾을 수 없습니다.`);
+        return {...item,userRef,initial,displayName};
+    }));
+
+    const updateTarget=async item=>{
+        const {userKey,points,exp,userRef,initial,displayName}=item;
         let receipt=null;
         const result=await userRef.transaction(user=>{
             if(user===null)user=JSON.parse(JSON.stringify(initial));
             if(!user||typeof user!=='object')return;
-            user.scoreChangeReceipts||={};
-            if(user.scoreChangeReceipts[requestId]){
-                receipt=user.scoreChangeReceipts[requestId];
+            // 기존 mirrorScoreChangeReceipt 트리거와 분리해 학생 수만큼 별도
+            // Functions가 실행되는 일을 막는다. 최근 영수증만 남겨 레코드도 작게 유지한다.
+            user.scoreAdjustmentReceipts||={};
+            if(user.scoreAdjustmentReceipts[requestId]){
+                receipt=user.scoreAdjustmentReceipts[requestId];
                 return user;
             }
+            const oldReceiptKeys=Object.entries(user.scoreAdjustmentReceipts)
+                .sort((a,b)=>(Number(a[1]?.timestamp)||0)-(Number(b[1]?.timestamp)||0))
+                .map(([key])=>key);
+            while(oldReceiptKeys.length>=50)delete user.scoreAdjustmentReceipts[oldReceiptKeys.shift()];
             const nextPoints=(Number(user.points)||0)+points;
             const nextExp=(Number(user.exp)||0)+exp;
             receipt={name:displayName,points,exp,nextPoints,nextExp,reason,timestamp:now};
             user.points=nextPoints;
             user.exp=nextExp;
-            user.scoreChangeReceipts[requestId]=receipt;
+            user.scoreAdjustmentReceipts[requestId]=receipt;
             return user;
         },undefined,false);
         if(result.committed){
-            receipt=result.snapshot.child(`scoreChangeReceipts/${requestId}`).val()||receipt;
+            receipt=result.snapshot.child(`scoreAdjustmentReceipts/${requestId}`).val()||receipt;
         }
         if(!result.committed||!receipt)throw new HttpsError('aborted',`${displayName} 포인트를 저장하지 못했습니다.`);
         const logKey=scoreLogKey(requestId,userKey);
-        await database.ref().update({
-        [`pointLogs/${logKey}`]:{name:displayName,userKey,pAmt:points,eAmt:exp,reason,time,timestamp:now},
-        [`pointHistory/${userKey}/${logKey}`]:{date,time,reason,change:points,
-            pChange:points,expChange:exp,result:receipt.nextPoints,pointResult:receipt.nextPoints,
-            expResult:receipt.nextExp,timestamp:now}
-        });
-        return {name:displayName,userKey,points:receipt.nextPoints,exp:receipt.nextExp};
+        return {
+            result:{name:displayName,userKey,points:receipt.nextPoints,exp:receipt.nextExp},
+            logs:{
+                [`pointLogs/${logKey}`]:{name:displayName,userKey,pAmt:points,eAmt:exp,reason,time,timestamp:now},
+                [`pointHistory/${userKey}/${logKey}`]:{date,time,reason,change:points,
+                    pChange:points,expChange:exp,result:receipt.nextPoints,pointResult:receipt.nextPoints,
+                    expResult:receipt.nextExp,timestamp:now}
+            }
+        };
     };
 
-    // 학생별 트랜잭션은 서로 독립이므로 6명씩 병렬 처리한다. 전원을 선택해도
-    // 순차 처리로 60초 제한을 넘지 않으면서 DB에 순간 부하가 몰리지 않는다.
-    for(let index=0;index<targets.length;index+=6){
-        results.push(...await Promise.all(targets.slice(index,index+6).map(updateTarget)));
+    const completed=[];
+    // 학생별 트랜잭션은 서로 독립이므로 10명씩 처리하고, 로그는 마지막에
+    // 한 번의 다중 경로 업데이트로 저장한다.
+    for(let index=0;index<loaded.length;index+=10){
+        completed.push(...await Promise.all(loaded.slice(index,index+10).map(updateTarget)));
     }
-    return {updated:results.length,results,serverVersion:'20260913-score-3'};
+    const logUpdates={};
+    completed.forEach(item=>Object.assign(logUpdates,item.logs));
+    await database.ref().update(logUpdates);
+    const results=completed.map(item=>item.result);
+    return {updated:results.length,results,serverVersion:'20260913-score-4'};
 });
 
 exports.submitStudentCheckin = callable(async request => {

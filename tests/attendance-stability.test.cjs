@@ -36,16 +36,18 @@ test('teacher one-click attendance uses the dedicated callable and mirrors the b
     assert.match(server, /blackboardDisplay\/data\/checkins/);
 });
 
-test('every teacher point adjustment uses the server history writer', () => {
+test('every teacher point adjustment uses one batched server history write', () => {
     const global=read('js/global.js');
     const guide=read('js/point-guide.js');
     const server=read('functions/index.js');
     assert.match(global, /callSecure\('adjustStudentScores'/);
     assert.match(guide, /callSecure\('adjustStudentScores'/);
     assert.match(server, /exports\.adjustStudentScores/);
-    assert.match(server, /exports\.mirrorScoreChangeReceipt/);
-    assert.match(server, /\[`pointLogs\/\$\{logKey\}`\]/);
-    assert.match(server, /\[`pointHistory\/\$\{name\}\/\$\{logKey\}`\]/);
+    const block=server.slice(server.indexOf('exports.adjustStudentScores'),server.indexOf('exports.submitStudentCheckin'));
+    assert.match(block, /scoreAdjustmentReceipts/);
+    assert.match(block, /\[`pointLogs\/\$\{logKey\}`\]/);
+    assert.match(block, /\[`pointHistory\/\$\{userKey\}\/\$\{logKey\}`\]/);
+    assert.match(block, /database\.ref\(\)\.update\(logUpdates\)/);
 });
 
 test('batch point editor keeps each student on one horizontal row', () => {
@@ -145,12 +147,13 @@ test('point shop purchase never transacts the restored database root', () => {
     assert.match(purchase, /purchaseReservations\[purchaseId\]/);
 });
 
-test('point shop reads the committed receipt from the final transaction snapshot', () => {
+test('point shop reuses the authenticated user and reads the committed receipt', () => {
     const source = read('functions/index.js');
     const start = source.indexOf('exports.purchasePointShop');
     const end = source.indexOf('const BUILTIN_FURNITURE', start);
     const block = source.slice(start, end);
-    assert.match(block, /await userRef\.get\(\)/);
+    assert.doesNotMatch(block, /await userRef\.get\(\)/);
+    assert.match(block, /current\.user/);
     assert.match(block, /if\(user===null\)user=JSON\.parse\(JSON\.stringify\(current\.user\|\|\{\}\)\)/);
     assert.match(block, /userResult\.snapshot\.child\(`pointShopPurchases\/\$\{purchaseId\}`\)\.val\(\)/);
 });

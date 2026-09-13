@@ -47,7 +47,7 @@ window.renderShop = function() {
 
             let btnHtml = isSoldOut
                 ? `<button disabled class="btn btn--block is-disabled">품절 🚫</button>`
-                : `<button onclick="buyItem('${shopEscapeHtml(k)}')" class="btn btn--primary btn--block">구매하기</button>`;
+                : `<button onclick="buyItem('${shopEscapeHtml(k)}', this)" class="btn btn--primary btn--block">구매하기</button>`;
 
             let adminBtnHtml = (typeof isAdmin !== 'undefined' && isAdmin)
                 ? `<div class="row-actions"><button onclick="openEditShopPopup('${shopEscapeHtml(k)}')" class="btn btn--xs">⚙️ 수정/삭제</button></div>` : "";
@@ -79,7 +79,7 @@ window.renderShop = function() {
 };
 
 // 2. 물품 구매 로직
-window.buyItem = async function(k) {
+window.buyItem = async function(k, clickedButton) {
     window.pointShopInFlight=window.pointShopInFlight||{};
     window.pointShopRequestIds=window.pointShopRequestIds||{};
     if(window.pointShopInFlight[k])return;
@@ -88,6 +88,12 @@ window.buyItem = async function(k) {
         `shop_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
     window.pointShopRequestIds[k]=purchaseId;
     window.pointShopInFlight[k]=true;
+    const originalButtonText=clickedButton?.textContent||'구매하기';
+    if(clickedButton){
+        clickedButton.disabled=true;
+        clickedButton.textContent='구매 처리 중…';
+        clickedButton.setAttribute('aria-busy','true');
+    }
 
     try {
         const selectedItem=(window.shopData||[]).find(child=>child?.key===k)?.val?.()||{};
@@ -96,7 +102,7 @@ window.buyItem = async function(k) {
             itemName:String(selectedItem.name||''),
             purchaseId
         });
-        console.info('상점 구매 서버 버전:',result.serverVersion||'unknown');
+        console.info('상점 구매 서버 버전:',result.serverVersion||'unknown',`${result.durationMs||0}ms`);
         if(window.currentUser&&Number.isFinite(Number(result.points))){
             window.currentUser.points=Number(result.points);
             const mine=Array.isArray(window.currentUsers)
@@ -115,6 +121,11 @@ window.buyItem = async function(k) {
         alert(err?.message || "구매 중 오류가 발생했습니다.");
     } finally {
         delete window.pointShopInFlight[k];
+        if(clickedButton?.isConnected){
+            clickedButton.disabled=false;
+            clickedButton.textContent=originalButtonText;
+            clickedButton.removeAttribute('aria-busy');
+        }
     }
 };
 

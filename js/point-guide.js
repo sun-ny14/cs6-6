@@ -890,24 +890,53 @@ window.openBulkPointPopup = async function(
                 }
 
 
-                const requestId=`score_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
                 const targets=Array.from(checkboxes).map(cb=>({
                     userKey:cb.value,
                     name:cb.getAttribute('data-name')||cb.value,
                     points:pointValue,exp:0
                 }));
+                window.pointGuideRequestIds=window.pointGuideRequestIds||{};
+                const requestSignature=JSON.stringify([
+                    reason,
+                    targets.map(target=>[target.userKey,target.points,target.exp])
+                ]);
+                const requestId=window.pointGuideRequestIds[requestSignature]||
+                    `score_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
+                window.pointGuideRequestIds[requestSignature]=requestId;
                 newApplyBtn.disabled=true;
                 newApplyBtn.textContent='반영 중…';
                 try{
                     const result=await window.callSecure('adjustStudentScores',{requestId,reason,targets});
                     console.info('포인트 지급 서버 버전:',result.serverVersion||'unknown');
+                    delete window.pointGuideRequestIds[requestSignature];
+                    (Array.isArray(result.results)?result.results:[]).forEach(saved=>{
+                        const user=Array.isArray(window.currentUsers)
+                            ?window.currentUsers.find(item=>
+                                String(item?.__firebaseKey||'')===String(saved.userKey||'')||
+                                String(item?.name||'')===String(saved.name||''))
+                            :null;
+                        if(user){
+                            user.points=Number(saved.points)||0;
+                            user.exp=Number(saved.exp)||0;
+                        }
+                        if(window.currentUser&&String(window.currentUser.name||'')===String(saved.name||'')){
+                            window.currentUser.points=Number(saved.points)||0;
+                            window.currentUser.exp=Number(saved.exp)||0;
+                        }
+                    });
+                    if(typeof window.renderHeroes==='function'){
+                        window.renderHeroes(window.currentUsers);
+                    }
                     closePointPopup();
                     alert(
-                        `${checkboxes.length}명 · ${reason} `+
+                        `${Number(result.updated)||checkboxes.length}명 · ${reason} `+
                         `${pointValue >= 0 ? '+' : ''}${pointValue}P 반영했습니다.`
                     );
                 }catch(error){
                     console.error('포인트 도감 지급 오류:',error);
+                    if(!/internal|unavailable|deadline-exceeded|unknown|cancelled/i.test(String(error?.code||''))){
+                        delete window.pointGuideRequestIds[requestSignature];
+                    }
                     alert(error?.message||'포인트를 반영하지 못했습니다.');
                 }finally{
                     newApplyBtn.disabled=false;

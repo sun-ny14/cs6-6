@@ -126,7 +126,8 @@
             const attended=!absent&&(
                 item.attended===true||category==='정상'||category==='지각'||
                 category==='조퇴'||result==='등교'||result.includes('정상')||
-                result.includes('지각')||result.includes('조퇴')||(!category&&!result)
+                result.includes('지각')||result.includes('조퇴')||
+                (!category&&!result&&item.attended!==false)
             );
             if (date === today && name && attended) checked.add(name);
         });
@@ -407,6 +408,11 @@
         cleaningRoot:'blackboardDisplay/data/cleaningRoot', assignments:'blackboard/assignments',
         assignmentCompletions:'blackboard/assignmentCompletions', dismissalNotes:'blackboard/dismissalNotes'
     };
+    const editorSourceKeys = new Set([
+        'legacySchedule', 'legacyNotice', 'periodTimes', 'baseSchedule',
+        'weeklySchedules', 'notices', 'checkinPassword', 'assignments',
+        'assignmentCompletions', 'dismissalNotes'
+    ]);
     let sourceGeneration = 0;
     let sourceStops = [];
 
@@ -419,45 +425,80 @@
         state.manualPeriodName = '';
         state.manualModeKey = '';
         state.syncMessage = '전자칠판 자료를 연결하고 있습니다…';
-        const subscribe = (path, receive) => {
+        const subscribe = (path, receive, reject) => {
             const ref = db.ref(path);
             const callback = snapshot => { if (generation === sourceGeneration) receive(snapshot); };
             ref.on('value', callback, error => {
                 if (generation !== sourceGeneration) return;
+                if (reject) {
+                    reject(error);
+                    return;
+                }
                 state.syncMessage = '전자칠판 자료를 읽지 못했습니다. Firebase 규칙과 연결 상태를 확인해 주세요.';
                 console.error('전자칠판 연결 실패:', error);
                 render();
             });
             sourceStops.push(() => ref.off('value', callback));
         };
-        if (user) {
-            const waiting = new Set(Object.keys(sourcePaths));
-            Object.entries(sourcePaths).forEach(([key, path]) => subscribe(path, snapshot => {
-                state[key] = key === 'checkinPassword' ? window.CheckinPasswordCore.forDisplay(snapshot.val())
-                    : snapshot.val() ?? (key === 'legacyNotice' ? '' : {});
-                waiting.delete(key);
-                state.dataReady = waiting.size === 0;
-                if (state.dataReady) state.syncMessage = '';
-                if (key === 'users') updateEditPermission();
-                render();
-            }));
-        } else {
-            // A fresh device reads only the deliberately published display data.
-            // It never requests users, points, attendance reasons or other private paths.
-            subscribe('blackboardDisplay', snapshot => {
-                const shared = snapshot.val();
-                if (shared?.schemaVersion !== 1 || !shared.data) {
-                    state.dataReady = false;
-                    state.syncMessage = '공유 자료가 아직 없습니다. 관리자 PC에서 새 버전의 학급 앱에 한 번 로그인해 주세요.';
-                } else {
-                    Object.keys(sourcePaths).forEach(key => state[key] = key === 'checkinPassword'
-                        ? shared.checkinPassword || null : shared.data[key] ?? (key === 'legacyNotice' ? '' : {}));
-                    state.dataReady = true;
-                    state.syncMessage = '';
+        let sharedReady = false;
+        const editorLoaded = new Set();
+        let editorStarted = false;
+
+        const startEditorSources = () => {
+            if (!user || editorStarted) return;
+            editorStarted = true;
+            // 교사는 수정 가능한 작은 경로만 직접 구독한다. 좌석·학생·출결·청소는
+            // 이미 축약된 blackboardDisplay 값을 사용해 중복 다운로드를 막는다.
+            const waiting = new Set(editorSourceKeys);
+            Object.entries(sourcePaths).filter(([key]) => editorSourceKeys.has(key))
+                .forEach(([key, path]) => subscribe(path, snapshot => {
+                    state[key] = key === 'checkinPassword'
+                        ? window.CheckinPasswordCore.forDisplay(snapshot.val())
+                        : snapshot.val() ?? (key === 'legacyNotice' ? '' : {});
+                    editorLoaded.add(key);
+                    waiting.delete(key);
+                    if (!sharedReady && waiting.size === 0) {
+                        state.dataReady = true;
+                        state.syncMessage = '';
+                    }
+                    render();
+                }, error => {
+                    waiting.delete(key);
+                    console.warn(`전자칠판 편집 자료 연결 실패 (${path}):`, error);
+                    if (!sharedReady && waiting.size === 0) {
+                        state.dataReady = true;
+                        state.syncMessage = '';
+                        render();
+                    }
+                }));
+        };
+
+        // 공용 요약본 하나로 화면을 먼저 완성한다. 교사 로그인 여부와 관계없이
+        // 큰 users/checkins 원본을 기다리지 않으므로 첫 화면이 빠르게 열린다.
+        subscribe('blackboardDisplay', snapshot => {
+            const shared = snapshot.val();
+            if (shared?.schemaVersion !== 1 || !shared.data) {
+                if (!state.dataReady) {
+                    state.syncMessage = user
+                        ? '전자칠판 편집 자료를 불러오고 있습니다…'
+                        : '공유 자료가 아직 없습니다. 관리자 PC에서 새 버전의 학급 앱에 한 번 로그인해 주세요.';
                 }
-                render();
-            });
-        }
+            } else {
+                Object.keys(sourcePaths).forEach(key => {
+                    if (user && editorLoaded.has(key)) return;
+                    state[key] = key === 'checkinPassword'
+                        ? shared.checkinPassword || null
+                        : shared.data[key] ?? (key === 'legacyNotice' ? '' : {});
+                });
+                sharedReady = true;
+                state.dataReady = true;
+                state.syncMessage = '';
+            }
+            render();
+            // 첫 화면용 요약본의 응답을 받은 뒤 편집 구독을 시작해 초기 요청이
+            // 대용량 데이터 요청과 경쟁하지 않도록 한다.
+            startEditorSources();
+        });
         render();
     }
 

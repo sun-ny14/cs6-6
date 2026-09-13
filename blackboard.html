@@ -114,7 +114,13 @@
     </script>
     <script src="functions/checkin-password-core.js?v=20260911-final-2"></script>
     <script src="js/blackboard-auth.js?v=20260911-final-2"></script>
-    <script src="js/blackboard-share.js?v=20260911-final-2"></script>
-    <script src="js/blackboard-display.js?v=20260912-stable-1"></script>
+    <script src="js/blackboard-display.js?v=20260913-fast-board-1"></script>
+    <script>
+        window.setTimeout(function () {
+            const publisher = document.createElement('script');
+            publisher.src = 'js/blackboard-share.js?v=20260911-final-2';
+            document.body.appendChild(publisher);
+        }, 1200);
+    </script>
 </body>
 </html>
