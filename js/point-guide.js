@@ -381,7 +381,8 @@ window.renderPointGuide = function() {
         });
 
 
-        let html = "";
+        let increaseHtml = "";
+        let decreaseHtml = "";
 
         if (!guides.length) {
             guideListEl.innerHTML = `
@@ -463,7 +464,7 @@ window.renderPointGuide = function() {
                 `onclick="openBulkPointPopup('${safeTitle}',${g.points})"`;
 
 
-            html += `
+            const cardHtml = `
                 <div
                     ${onClickAction}
                     class="guide-card${g.points < 0 ? ' is-minus' : ''}"
@@ -500,12 +501,20 @@ window.renderPointGuide = function() {
 
                 </div>
             `;
+            if(Number(g.points)<0)decreaseHtml+=cardHtml;
+            else increaseHtml+=cardHtml;
         });
 
-
-        
-
-        guideListEl.innerHTML = html;
+        const section=(title,tone,cards,emptyText)=>`
+            <section class="point-guide-section ${tone}">
+                <h4>${title}</h4>
+                <div class="point-guide-section-grid">
+                    ${cards||`<div class="empty"><strong>${emptyText}</strong></div>`}
+                </div>
+            </section>`;
+        guideListEl.innerHTML =
+            section('➕ 포인트 증가 항목','is-plus',increaseHtml,'등록된 증가 항목이 없습니다.')+
+            section('➖ 포인트 차감 항목','is-minus',decreaseHtml,'등록된 차감 항목이 없습니다.');
     });
 };
 
@@ -716,6 +725,12 @@ window.openBulkPointPopup = async function(
         return;
     }
 
+    const pointValue=Number(points);
+    if(!Number.isSafeInteger(pointValue)){
+        alert('도감의 포인트 값이 올바르지 않습니다.');
+        return;
+    }
+
     const popup =
         document.getElementById('point-popup');
 
@@ -734,7 +749,7 @@ window.openBulkPointPopup = async function(
 
     if (titleEl) {
         titleEl.innerText =
-            `⚖️ 포인트 일괄 지급 (${reason} : ${points >= 0 ? '+' : ''}${points}P)`;
+            `⚖️ 포인트 일괄 지급 (${reason} : ${pointValue >= 0 ? '+' : ''}${pointValue}P)`;
     }
 
 
@@ -771,7 +786,7 @@ window.openBulkPointPopup = async function(
 
 
     // 점수가 음수면 전원 미선택 상태로 엽니다. 양수는 전원 선택입니다.
-    const isPenalty = Number(points) < 0;
+    const isPenalty = pointValue < 0;
     const defaultChecked = isPenalty ? '' : 'checked';
 
     let bodyHtml = `
@@ -868,7 +883,7 @@ window.openBulkPointPopup = async function(
                 if (
                     !confirm(
                         `${checkboxes.length}명에게 ` +
-                        `[${reason}] ${points}P 를 반영합니다. 계속할까요?`
+                        `[${reason}] ${pointValue}P 를 반영합니다. 계속할까요?`
                     )
                 ) {
                     return;
@@ -877,18 +892,26 @@ window.openBulkPointPopup = async function(
 
                 const requestId=`score_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
                 const targets=Array.from(checkboxes).map(cb=>({
+                    userKey:cb.value,
                     name:cb.getAttribute('data-name')||cb.value,
-                    points,exp:0
+                    points:pointValue,exp:0
                 }));
-                await window.callSecure('adjustStudentScores',{requestId,reason,targets});
-
-                closePointPopup();
-
-                const summary =
-                    `${checkboxes.length}명 · ${reason} ` +
-                    `${points >= 0 ? '+' : ''}${points}P 반영했습니다.`;
-
-                alert(summary);
+                newApplyBtn.disabled=true;
+                newApplyBtn.textContent='반영 중…';
+                try{
+                    await window.callSecure('adjustStudentScores',{requestId,reason,targets});
+                    closePointPopup();
+                    alert(
+                        `${checkboxes.length}명 · ${reason} `+
+                        `${pointValue >= 0 ? '+' : ''}${pointValue}P 반영했습니다.`
+                    );
+                }catch(error){
+                    console.error('포인트 도감 지급 오류:',error);
+                    alert(error?.message||'포인트를 반영하지 못했습니다.');
+                }finally{
+                    newApplyBtn.disabled=false;
+                    newApplyBtn.textContent='선택한 학생에게 반영';
+                }
             };
     }
 

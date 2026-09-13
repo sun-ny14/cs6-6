@@ -989,7 +989,8 @@ window.submitBatchPoints=async function(){
 
 
             targets.push({
-                name:chk.value,
+                userKey:chk.value,
+                name:row.dataset.name||chk.value,
                 p:Number.isNaN(p)?0:p,
                 exp:Number.isNaN(exp)?0:exp
             });
@@ -1012,7 +1013,12 @@ window.submitBatchPoints=async function(){
         const requestId=`score_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
         await window.callSecure('adjustStudentScores',{
             requestId,reason,
-            targets:targets.map(target=>({name:target.name,points:target.p,exp:target.exp}))
+            targets:targets.map(target=>({
+                userKey:target.userKey,
+                name:target.name,
+                points:target.p,
+                exp:target.exp
+            }))
         });
 
         closePopup();
@@ -1922,6 +1928,7 @@ async function loadHistory(name, firebaseKey) {
             .sort((a, b) => (Number.parseInt(a.no, 10) || 99) - (Number.parseInt(b.no, 10) || 99))
             .map(user => {
                 const safeName = escapeHtml(user.name || '');
+                const safeUserKey = escapeHtml(user.__firebaseKey || user.name || '');
                 const points = Number.parseInt(user.points, 10) || 0;
                 const no = Number.parseInt(user.no, 10);
                 const label = Number.isFinite(no) && no > 0 ? String(no) : '–';
@@ -1929,7 +1936,7 @@ async function loadHistory(name, firebaseKey) {
                 return `
                     <article class="batch-student-row" data-name="${safeName}" data-no="${escapeHtml(label)}">
                         <label class="row">
-                            <input type="checkbox" class="batch-student-chk" value="${safeName}">
+                            <input type="checkbox" class="batch-student-chk" value="${safeUserKey}">
                             <span class="batch-no">${escapeHtml(label)}</span>
                             <span class="strong">${safeName}</span>
                             <span class="badge badge--gold">${points.toLocaleString('ko-KR')}P</span>
@@ -1976,14 +1983,14 @@ async function loadHistory(name, firebaseKey) {
 
                 <p id="batch-hint" class="muted small" role="status"></p>
 
-                <section class="batch-card-modal-v6">
-                    ${cards || '<div class="empty"><span>학생이 없습니다.</span></div>'}
-                </section>
-
-                <div class="btn-row btn-row--fill">
+                <div class="btn-row btn-row--fill batch-modal-actions">
                     <button type="button" class="btn" onclick="closePopup()">취소</button>
                     <button type="button" class="btn btn--good" onclick="submitBatchPoints()">선택 학생 반영</button>
                 </div>
+
+                <section class="batch-card-modal-v6">
+                    ${cards || '<div class="empty"><span>학생이 없습니다.</span></div>'}
+                </section>
             </div>
         `;
 

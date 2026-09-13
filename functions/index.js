@@ -5,7 +5,9 @@ const { onValueWritten } = require('firebase-functions/v2/database');
 const { initializeApp } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
 
-initializeApp();
+// 프로젝트에 복구용 RTDB 인스턴스도 있으므로 운영 DB를 명시한다.
+// 클라이언트가 보는 상점과 Functions가 조회하는 상점이 항상 같아진다.
+initializeApp({databaseURL:'https://cs6-6class-default-rtdb.firebaseio.com'});
 
 const REGION = 'asia-northeast3';
 const TEACHER_EMAIL = 'ksosuny@cberi.go.kr';
@@ -97,16 +99,17 @@ exports.mirrorScoreChangeReceipt = onValueWritten({
 }, async event => {
     const receipt=event.data.after.val();
     if(!receipt)return;
-    const name=event.params.userName, requestId=event.params.requestId;
-    const logKey=scoreLogKey(requestId,name);
+    const userKey=event.params.userName, requestId=event.params.requestId;
+    const name=String(receipt.name||userKey);
+    const logKey=scoreLogKey(requestId,userKey);
     const timestamp=Number(receipt.timestamp)||Date.now();
     const date=kstDate(timestamp);
     const time=new Date(timestamp+9*3600000).toISOString().slice(11,16);
     const points=Number(receipt.points)||0, exp=Number(receipt.exp)||0;
     const reason=String(receipt.reason||'포인트 변경');
     await getDatabase().ref().update({
-        [`pointLogs/${logKey}`]:{name,pAmt:points,eAmt:exp,reason,time,timestamp},
-        [`pointHistory/${name}/${logKey}`]:{date,time,reason,change:points,
+        [`pointLogs/${logKey}`]:{name,userKey,pAmt:points,eAmt:exp,reason,time,timestamp},
+        [`pointHistory/${userKey}/${logKey}`]:{date,time,reason,change:points,
             pChange:points,expChange:exp,result:Number(receipt.nextPoints)||0,
             pointResult:Number(receipt.nextPoints)||0,expResult:Number(receipt.nextExp)||0,timestamp}
     });
@@ -425,17 +428,18 @@ exports.adjustStudentScores = callable(async request => {
 
     for(let index=0;index<targets.length;index+=1){
         const target=targets[index]||{};
-        const name=String(target.name||'').trim();
+        const userKey=String(target.userKey||target.name||'').trim();
         const points=Number(target.points??target.p??0);
         const exp=Number(target.exp??0);
-        if(!name||name.length>100||/[.#$\[\]/\u0000-\u001f]/.test(name)||
+        if(!userKey||userKey.length>100||/[.#$\[\]/\u0000-\u001f]/.test(userKey)||
             !Number.isSafeInteger(points)||!Number.isSafeInteger(exp)||
             Math.abs(points)>100000||Math.abs(exp)>100000){
             throw new HttpsError('invalid-argument','학생별 포인트 값을 확인해 주세요.');
         }
-        const userRef=database.ref(`users/${name}`);
+        const userRef=database.ref(`users/${userKey}`);
         const initial=(await userRef.get()).val();
-        if(!initial)throw new HttpsError('not-found',`${name} 학생 정보를 찾을 수 없습니다.`);
+        const displayName=String(initial?.name||target.name||userKey).trim();
+        if(!initial)throw new HttpsError('not-found',`${displayName} 학생 정보를 찾을 수 없습니다.`);
         let receipt=null;
         const result=await userRef.transaction(user=>{
             if(user===null)user=JSON.parse(JSON.stringify(initial));
@@ -447,7 +451,7 @@ exports.adjustStudentScores = callable(async request => {
             }
             const nextPoints=(Number(user.points)||0)+points;
             const nextExp=(Number(user.exp)||0)+exp;
-            receipt={points,exp,nextPoints,nextExp,reason,timestamp:now};
+            receipt={name:displayName,points,exp,nextPoints,nextExp,reason,timestamp:now};
             user.points=nextPoints;
             user.exp=nextExp;
             user.scoreChangeReceipts[requestId]=receipt;
@@ -456,15 +460,15 @@ exports.adjustStudentScores = callable(async request => {
         if(result.committed){
             receipt=result.snapshot.child(`scoreChangeReceipts/${requestId}`).val()||receipt;
         }
-        if(!result.committed||!receipt)throw new HttpsError('aborted',`${name} 포인트를 저장하지 못했습니다.`);
-        const logKey=scoreLogKey(requestId,name);
+        if(!result.committed||!receipt)throw new HttpsError('aborted',`${displayName} 포인트를 저장하지 못했습니다.`);
+        const logKey=scoreLogKey(requestId,userKey);
         await database.ref().update({
-        [`pointLogs/${logKey}`]:{name,pAmt:points,eAmt:exp,reason,time,timestamp:now},
-        [`pointHistory/${name}/${logKey}`]:{date,time,reason,change:points,
+        [`pointLogs/${logKey}`]:{name:displayName,userKey,pAmt:points,eAmt:exp,reason,time,timestamp:now},
+        [`pointHistory/${userKey}/${logKey}`]:{date,time,reason,change:points,
             pChange:points,expChange:exp,result:receipt.nextPoints,pointResult:receipt.nextPoints,
             expResult:receipt.nextExp,timestamp:now}
         });
-        results.push({name,points:receipt.nextPoints,exp:receipt.nextExp});
+        results.push({name:displayName,userKey,points:receipt.nextPoints,exp:receipt.nextExp});
     }
     return {updated:results.length,results};
 });

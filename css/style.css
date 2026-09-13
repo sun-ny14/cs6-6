@@ -1540,6 +1540,22 @@ body.role-student .hero-points {
     gap: var(--ui-gap);
 }
 
+.point-guide-section { grid-column: 1 / -1; display: grid; gap: var(--ui-space-3); }
+.point-guide-section + .point-guide-section { margin-top: var(--ui-space-5); }
+.point-guide-section > h4 {
+    margin: 0;
+    padding: 12px 16px;
+    border-radius: var(--ui-radius-sm);
+    font-size: var(--ui-heading-size);
+}
+.point-guide-section.is-plus > h4 { color: var(--ui-good); background: var(--ui-good-soft); }
+.point-guide-section.is-minus > h4 { color: var(--ui-bad); background: var(--ui-bad-soft); }
+.point-guide-section-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: var(--ui-gap);
+}
+
 .guide-card {
     display: flex;
     flex-direction: column;
@@ -1701,6 +1717,17 @@ body.role-student .shop-price { color: var(--ui-gold); }
     border: 1px dashed var(--ui-line);
     border-radius: var(--ui-radius-sm);
     background: var(--ui-surface-soft);
+}
+
+.batch-modal-actions {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding: var(--ui-space-2);
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+    box-shadow: var(--ui-shadow-sm);
 }
 
 .batch-fill-label {
