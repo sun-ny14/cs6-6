@@ -4,6 +4,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onValueWritten } = require('firebase-functions/v2/database');
 const { initializeApp } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
+const { createHash, randomBytes, scryptSync, timingSafeEqual } = require('node:crypto');
 
 // 프로젝트에 복구용 RTDB 인스턴스도 있으므로 운영 DB를 명시한다.
 // 클라이언트가 보는 상점과 Functions가 조회하는 상점이 항상 같아진다.
@@ -37,6 +38,16 @@ const publicSettings = settings => ({
 const cleaningSettings = settings => ({
     studentRoles:settings?.studentRoles || {}, cleaningAssignments:settings?.cleaningAssignments || {}
 });
+const JOURNAL_SESSION_MS = 30 * 60 * 1000;
+const JOURNAL_CATEGORIES = new Set(['교우관계','학교생활','민원','학습','보호자상담','기타']);
+const journalTokenKey = token => createHash('sha256').update(String(token)).digest('hex');
+const journalPasswordHash = (password,salt) => scryptSync(password,salt,64).toString('hex');
+const journalPasswordMatches = (password,config={}) => {
+    if(!config.salt||!config.hash)return false;
+    const saved=Buffer.from(String(config.hash),'hex');
+    const received=Buffer.from(journalPasswordHash(password,String(config.salt)),'hex');
+    return saved.length===received.length&&timingSafeEqual(saved,received);
+};
 
 function requireAuth(request) {
     if (!request.auth) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
@@ -72,6 +83,117 @@ exports.getSecureSession = callable(async request => {
     });
     return { name:current.name, role:current.role, teacher:current.teacher,
         user:current.teacher ? { name:current.name, role:'교사' } : current.user };
+});
+
+async function journalTeacher(request){
+    const current=await actor(request);
+    if(!current.teacher)throw new HttpsError('permission-denied','관리자만 학급일지를 사용할 수 있습니다.');
+    return current;
+}
+
+async function requireJournalSession(request,current){
+    const token=String(request.data?.journalToken||'');
+    if(!/^[A-Za-z0-9_-]{40,100}$/.test(token)){
+        throw new HttpsError('permission-denied','학급일지 비밀번호를 다시 확인해 주세요.');
+    }
+    const ref=getDatabase().ref(`classJournalSessions/${current.uid}/${journalTokenKey(token)}`);
+    const session=(await ref.get()).val();
+    if(!session||Number(session.expiresAt)<=Date.now()){
+        if(session)await ref.remove();
+        throw new HttpsError('permission-denied','학급일지 인증 시간이 만료되었습니다. 다시 확인해 주세요.');
+    }
+}
+
+exports.setClassJournalPassword = callable(async request => {
+    const current=await journalTeacher(request);
+    const currentPassword=String(request.data?.currentPassword||'');
+    const newPassword=String(request.data?.newPassword||'');
+    if(newPassword.length<4||newPassword.length>64){
+        throw new HttpsError('invalid-argument','학급일지 비밀번호는 4~64자로 설정해 주세요.');
+    }
+    const database=getDatabase();
+    const passwordRef=database.ref('privateConfig/classJournalPassword');
+    const saved=(await passwordRef.get()).val();
+    if(saved&&!journalPasswordMatches(currentPassword,saved)){
+        throw new HttpsError('permission-denied','현재 학급일지 비밀번호가 맞지 않습니다.');
+    }
+    const salt=randomBytes(24).toString('base64url');
+    await Promise.all([
+        passwordRef.set({salt,hash:journalPasswordHash(newPassword,salt),updatedAt:Date.now()}),
+        database.ref(`classJournalSessions/${current.uid}`).remove()
+    ]);
+    return {configured:true};
+});
+
+exports.unlockClassJournal = callable(async request => {
+    const current=await journalTeacher(request);
+    const password=String(request.data?.password||'');
+    const database=getDatabase();
+    const passwordConfig=(await database.ref('privateConfig/classJournalPassword').get()).val();
+    if(!passwordConfig){
+        throw new HttpsError('failed-precondition','학급일지 비밀번호를 먼저 설정해 주세요.');
+    }
+    const failureRef=database.ref(`classJournalAuthFailures/${current.uid}`);
+    const failure=(await failureRef.get()).val()||{};
+    if(Number(failure.blockedUntil)>Date.now()){
+        throw new HttpsError('resource-exhausted','비밀번호 확인이 여러 번 실패했습니다. 5분 후 다시 시도해 주세요.');
+    }
+    if(!journalPasswordMatches(password,passwordConfig)){
+        const attempts=(Number(failure.attempts)||0)+1;
+        await failureRef.set({attempts,blockedUntil:attempts>=5?Date.now()+5*60*1000:0,updatedAt:Date.now()});
+        throw new HttpsError('permission-denied','학급일지 비밀번호가 맞지 않습니다.');
+    }
+    await failureRef.remove();
+    const token=randomBytes(32).toString('base64url');
+    const expiresAt=Date.now()+JOURNAL_SESSION_MS;
+    await database.ref(`classJournalSessions/${current.uid}`).set({
+        [journalTokenKey(token)]:{createdAt:Date.now(),expiresAt}
+    });
+    return {journalToken:token,expiresAt};
+});
+
+exports.getClassJournalMonth = callable(async request => {
+    const current=await journalTeacher(request);
+    await requireJournalSession(request,current);
+    const month=String(request.data?.month||'');
+    if(!/^\d{4}-\d{2}$/.test(month))throw new HttpsError('invalid-argument','조회할 달을 확인해 주세요.');
+    const days=(await getDatabase().ref(`classJournal/${month}`).get()).val()||{};
+    return {month,days};
+});
+
+exports.saveClassJournalDay = callable(async request => {
+    const current=await journalTeacher(request);
+    await requireJournalSession(request,current);
+    const date=String(request.data?.date||'');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new HttpsError('invalid-argument','저장할 날짜를 확인해 주세요.');
+    const lessonNote=String(request.data?.lessonNote||'').trim();
+    if(lessonNote.length>12000)throw new HttpsError('invalid-argument','수업일지는 12,000자 이내로 작성해 주세요.');
+    const counseling=(Array.isArray(request.data?.counseling)?request.data.counseling:[])
+        .slice(0,50).map((item,index)=>({
+            id:safeKey(String(item?.id||''))?String(item.id):`c_${Date.now()}_${index}`,
+            category:JOURNAL_CATEGORIES.has(String(item?.category||''))?String(item.category):'기타',
+            studentName:String(item?.studentName||'').trim().slice(0,100),
+            content:String(item?.content||'').trim().slice(0,6000)
+        })).filter(item=>item.content);
+    const schedules=(Array.isArray(request.data?.schedules)?request.data.schedules:[])
+        .slice(0,50).map((item,index)=>({
+            id:safeKey(String(item?.id||''))?String(item.id):`w_${Date.now()}_${index}`,
+            time:String(item?.time||'').trim().slice(0,20),
+            title:String(item?.title||'').trim().slice(0,200),
+            details:String(item?.details||'').trim().slice(0,3000),
+            notify:item?.notify===true,
+            completed:item?.completed===true
+        })).filter(item=>item.title);
+    const updatedAt=Date.now();
+    const day={lessonNote,counseling,schedules,updatedAt};
+    const alerts=Object.fromEntries(schedules.filter(item=>item.notify&&!item.completed)
+        .map(item=>[item.id,{title:item.title,time:item.time,details:item.details,updatedAt}]));
+    const empty=!lessonNote&&!counseling.length&&!schedules.length;
+    await getDatabase().ref().update({
+        [`classJournal/${date.slice(0,7)}/${date}`]:empty?null:day,
+        [`teacherAlerts/${date}`]:Object.keys(alerts).length?alerts:null
+    });
+    return {date,day:empty?null:day,alertCount:Object.keys(alerts).length};
 });
 
 

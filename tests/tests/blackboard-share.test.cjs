@@ -36,7 +36,7 @@ test('partial weekly overrides keep inheritance and only copy display fields', (
     }, '2026-09-02');
     assert.deepEqual(value.weeklySchedules['2026-08-31']['2026-09-02']['1교시'], { learningNote: '오늘 메모' });
     assert.equal(value.baseSchedule[3]['1교시'].subject, '수학');
-    assert.equal(value.notices['2026-09-02'], '공지');
+    assert.equal(value.notices['2026-09-02'].text, '공지');
     assert.doesNotMatch(JSON.stringify(value), /SECRET/);
 });
 
@@ -84,7 +84,7 @@ test('initial publication waits for every source and persists the sanitized data
     app.emit('blackboard/notices', { '2026-09-02': '새 공지' });
     await app.flush();
     assert.equal(app.writes.length, 1);
-    assert.equal(app.writes[0].data.notices['2026-09-02'], '새 공지');
+    assert.equal(app.writes[0].data.notices['2026-09-02'].text, '새 공지');
     assert.equal(app.writes[0].schemaVersion, 1);
     assert.equal(app.writes[0].publishedDate, '2026-09-02');
     app.stop();
@@ -97,7 +97,7 @@ test('source changes automatically update the shared board but private-only chan
     assert.equal(app.writes.length, 1);
     app.emit('blackboard/notices', { '2026-09-02': '수정 공지' }); await app.flush();
     assert.equal(app.writes.length, 2);
-    assert.equal(app.writes[1].data.notices['2026-09-02'], '수정 공지');
+    assert.equal(app.writes[1].data.notices['2026-09-02'].text, '수정 공지');
     app.stop();
 });
 

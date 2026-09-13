@@ -1,7 +1,7 @@
 (function(){
     'use strict';
 
-    const state={started:false,data:{},popularItems:[]};
+    const state={started:false,data:{},popularItems:[],teacherAlerts:{}};
     const esc=value=>String(value==null?'':value)
         .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
         .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -18,12 +18,32 @@
     function renderNotices(data,today){
         const target=document.getElementById('home-notice-list');
         if(!target)return;
-        const notice=String(data.notices?.[today]||data.legacyNotice||'').trim();
-        const lines=notice.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).slice(0,4);
+        const noticeValue=data.notices?.[today];
+        const noticeLines=noticeValue&&typeof noticeValue==='object'&&Array.isArray(noticeValue.items)
+            ?noticeValue.items.filter(item=>item?.showOnHome).map(item=>String(item.text||'').trim())
+            :String(noticeValue||data.legacyNotice||'').split(/\r?\n/).map(line=>line.trim());
+        const workLines=window.isAdmin===true
+            ?Object.values(state.teacherAlerts||{}).filter(Boolean)
+                .sort((a,b)=>String(a.time||'99:99').localeCompare(String(b.time||'99:99')))
+                .map(item=>`${item.time?item.time+' · ':''}${String(item.title||'')}`.trim())
+            :[];
+        const lines=[...noticeLines.filter(Boolean),...workLines.filter(Boolean)].slice(0,8);
         target.innerHTML=lines.length
             ?lines.map((line,index)=>`<div class="home-notice-item"><span>${index+1}</span><p>${esc(line)}</p></div>`).join('')
             :'<div class="home-empty">오늘 등록된 알림이 없어요.</div>';
     }
+
+    window.refreshTeacherAlerts=async function(){
+        if(window.isAdmin!==true){state.teacherAlerts={};render();return;}
+        try{
+            const snapshot=await db.ref(`teacherAlerts/${todayKst()}`).once('value');
+            state.teacherAlerts=snapshot.val()||{};
+        }catch(error){
+            console.error('교사 업무 알림 조회 오류:',error);
+            state.teacherAlerts={};
+        }
+        render();
+    };
 
     function renderTasks(data){
         const target=document.getElementById('home-task-list');
@@ -129,9 +149,10 @@
     }
 
     window.initHomeDashboard=function(){
-        if(state.started){render();return;}
+        if(state.started){window.refreshTeacherAlerts();render();return;}
         state.started=true;
         loadPopularShop();
+        window.refreshTeacherAlerts();
         db.ref('blackboardDisplay/data').on('value',snapshot=>{
             state.data=snapshot.val()||{};
             render();

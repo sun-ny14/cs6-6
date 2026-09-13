@@ -135,6 +135,10 @@ function toggleSidebar(){
             🏫 전자칠판 관리
         </button>
 
+        <button id="btn-class-journal" hidden onclick="openClassJournalEntry();">
+            📚 학급일지
+        </button>
+
         <button id="btn-management" hidden onclick="showTab('management');renderManagementSub('grades');">
             🛡️ 학급관리
         </button>
@@ -430,6 +434,11 @@ function toggleSidebar(){
 
         </section>
 
+        <!-- 관리자 전용 학급일지 -->
+        <section id="tab-class-journal" class="tab-content">
+            <div id="class-journal-container"></div>
+        </section>
+
         <!-- 7. 하우징 -->
         <section id="tab-housing" class="tab-content">
 
@@ -698,17 +707,18 @@ function toggleSidebar(){
 <script src="js/secure-api.js?v=20260911-final-2"></script>
 <script src="functions/checkin-password-core.js?v=20260911-final-2"></script>
 <script src="js/checkin-password.js?v=20260911-final-2"></script>
-<script src="js/blackboard-share.js?v=20260911-final-2"></script>
-<script src="js/global.js?v=20260913-point-toolbar-1"></script>
-<script src="js/home-dashboard.js?v=20260911-cute-home-2"></script>
-<script src="js/auth.js?v=20260911-attendance-fix-2"></script>
+<script src="js/blackboard-share.js?v=20260913-journal-1"></script>
+<script src="js/global.js?v=20260913-journal-1"></script>
+<script src="js/home-dashboard.js?v=20260913-journal-1"></script>
+<script src="js/auth.js?v=20260913-journal-1"></script>
 <script src="js/checkin-seat.js?v=20260913-seat-dedupe-1"></script>
 <script src="js/hero-mgr.js?v=20260913-permission-1"></script>
 <script src="js/point-shop.js?v=20260913-shop-4"></script>
 <script src="js/point-guide.js?v=20260913-score-4"></script>
 <script src="js/housing.js?v=20260911-final-2"></script>
 <script src="js/admin-grades.js?v=20260911-final-2"></script>
-<script src="js/blackboard-admin.js?v=20260911-final-2"></script>
+<script src="js/blackboard-admin.js?v=20260913-journal-1"></script>
+<script src="js/class-journal.js?v=20260913-journal-1"></script>
 <script src="js/assignments.js?v=20260913-readability-1"></script>
 <script src="js/settings.js?v=20260911-settings-fix-1"></script>
 <script src="js/cleaning.js?v=20260911-final-2"></script>

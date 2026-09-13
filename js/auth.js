@@ -116,6 +116,7 @@ function applyAccessControl(){
         'btn-budget',
         'btn-management',
         'btn-blackboard-admin',
+        'btn-class-journal',
         'btn-admin',
         'btn-add-point-guide',
         'floating-point-btn',

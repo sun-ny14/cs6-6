@@ -17,6 +17,16 @@
         .filter(([key]) => datePattern.test(key)).map(([key, item]) => [key, convert(item)]));
     const todayKst = timestamp => new Date(timestamp + 9 * 3600000).toISOString().slice(0, 10);
 
+    function notice(raw) {
+        if (raw && typeof raw === 'object' && Array.isArray(raw.items)) {
+            const items=raw.items.map(item=>({text:text(item?.text).trim(),showOnHome:item?.showOnHome===true}))
+                .filter(item=>item.text);
+            return {text:items.map(item=>item.text).join('\n'),items};
+        }
+        const value=text(raw).trim();
+        return {text:value,items:value.split(/\r?\n/).map(line=>({text:line.trim(),showOnHome:true})).filter(item=>item.text)};
+    }
+
     function schedule(raw) {
         return Object.fromEntries(periods.filter(name => raw?.[name]).map(name => {
             const item = raw[name];
@@ -78,7 +88,7 @@
             baseSchedule: Object.fromEntries(entries(raw.baseSchedule).filter(([day]) => /^[0-6]$/.test(day))
                 .map(([day, value]) => [day, schedule(value)])),
             weeklySchedules: dateMap(raw.weeklySchedules, week => dateMap(week, schedule)),
-            notices: dateMap(raw.notices, text), users, checkins,
+            notices: dateMap(raw.notices, notice), users, checkins,
             seatData: { config: { rows: dimension(seat.config?.rows || seat.rows, 6),
                 cols: dimension(seat.config?.cols || seat.cols, 5) }, layout },
             cleaningRoot: { [today]: cleaning }, assignments, assignmentCompletions: completions,

@@ -29,6 +29,14 @@
             .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
+    function noticeText(value) {
+        if(value&&typeof value==='object'){
+            if(typeof value.text==='string')return value.text;
+            if(Array.isArray(value.items))return value.items.map(item=>String(item?.text||'')).filter(Boolean).join('\n');
+        }
+        return String(value||'');
+    }
+
     function addDays(dateString, amount) {
         const date = new Date(`${dateString}T00:00:00Z`);
         date.setUTCDate(date.getUTCDate() + amount);
@@ -191,7 +199,7 @@
     function renderNotice(today) {
         const notice = document.getElementById('notice-display');
         const hasDatedNotices = Object.keys(state.notices || {}).length > 0;
-        const text = String(
+        const text = noticeText(
             hasDatedNotices ? (state.notices[today] || '') : (state.legacyNotice || '')
         ).trim();
         notice.classList.toggle('is-visible', Boolean(text));
@@ -288,12 +296,12 @@
         const roster=getRoster();
         const cleaning=state.cleaningRoot?.[today]||{};
         const cleaningIncomplete=roster.filter(student=>!Boolean(cleaning[student.name]?.cleanDone));
-        const dueAssignments=Object.entries(state.assignments||{}).map(([id,item])=>{const completed=state.assignmentCompletions?.[id]||{};const incomplete=roster.filter(student=>!completed[student.name]);return {id,item,incomplete};}).filter(entry=>entry.item&&entry.item.active!==false&&entry.item.required!==false&&entry.item.dueDate<=today&&entry.incomplete.length>0);
+        const dueAssignments=Object.entries(state.assignments||{}).map(([id,item])=>{const completed=state.assignmentCompletions?.[id]||{};const incomplete=roster.filter(student=>!completed[student.name]);return {id,item,incomplete};}).filter(entry=>entry.item&&entry.item.active!==false&&entry.item.required!==false&&entry.incomplete.length>0);
         const assignmentHtml=dueAssignments.length?dueAssignments.map(({item,incomplete})=>{
             return `<div class="task-due-item"><div class="task-due-title">${escapeHtml(item.title||'제목 없는 과제')} · 마감 ${escapeHtml(item.dueDate||'')}</div><div class="task-due-numbers">${incomplete.map(student=>`${student.number}번`).join(', ')}</div></div>`;
         }).join(''):'<div class="number-list all-done" style="font-size:32px">미완료 과제 없음</div>';
         const tomorrow = nextSchoolDay(today);
-        const tomorrowText = String(state.notices?.[tomorrow] || '').trim();
+        const tomorrowText = noticeText(state.notices?.[tomorrow] || '').trim();
         const tomorrowCard = `<section class="dismissal-card tomorrow-notice"><h3>📅 내일 공지 <small>${escapeHtml(tomorrow)}</small></h3><div class="tomorrow-notice-text">${tomorrowText ? escapeHtml(tomorrowText) : '등록된 내일 공지가 없습니다.'}</div></section>`;
         const manual=String(state.dismissalNotes?.[today]?.teacherMessage||state.dismissalNotes?.[today]?.manualIncomplete||'');
         const manualBody=state.canEdit?`<textarea class="dismissal-input" data-dismissal-note data-note-date="${today}" placeholder="하교 전 학생들에게 전달할 내용을 적으세요.">${escapeHtml(manual)}</textarea><div class="dismissal-status" data-dismissal-status>입력을 멈추면 자동 저장됩니다.</div>`:`<div class="dismissal-view">${manual?escapeHtml(manual):'전달사항 없음'}</div>`;

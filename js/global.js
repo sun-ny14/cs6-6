@@ -158,6 +158,7 @@ window.showUndoBar=function(message,onUndo,seconds){
 function showTab(t, housingOwner){
     const adminOnlyTabs=[
         'blackboard-admin',
+        'class-journal',
         'management',
         'admin'
     ];
@@ -194,6 +195,8 @@ function showTab(t, housingOwner){
     }
 
     if(typeof window.leaveHousingTab==='function') window.leaveHousingTab();
+    if(window.currentTab==='class-journal'&&t!=='class-journal'&&
+        typeof window.lockClassJournal==='function')window.lockClassJournal();
     window.currentTab=t;
 
     try{

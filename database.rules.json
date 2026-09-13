@@ -13,6 +13,14 @@
       ".read": "auth != null",
       ".write": false
     },
+    "teacherAlerts": {
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      ".write": false
+    },
+    "classJournal": {
+      ".read": false,
+      ".write": false
+    },
     "publicProfiles": {
       ".read": "auth != null",
       ".write": false

@@ -73,6 +73,7 @@
             #bb-schedule-form-container .bb-notice-calendar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:16px 0}.bb-calendar-toolbar{margin-top:16px}.bb-calendar-toolbar strong{min-width:140px;text-align:center;font-size:23px}.bb-calendar-weekday{text-align:center;padding:8px 0;font-size:16px;font-weight:900;color:var(--ui-muted)}
             #bb-schedule-form-container .bb-calendar-day{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:8px;width:100%;min-width:0;min-height:100px;margin:0;padding:10px;border:1px solid var(--ui-line);border-radius:10px;background:var(--ui-surface);text-align:left;color:var(--ui-text);font-size:16px;cursor:pointer;overflow:hidden;box-sizing:border-box}
             #bb-schedule-form-container .bb-calendar-day.active{border:2px solid var(--ui-accent);background:var(--ui-accent-soft);padding:9px}.bb-calendar-day.is-today .bb-calendar-day-head b{color:var(--ui-accent-deep);text-decoration:underline;text-underline-offset:4px}.bb-calendar-day.has-notice{box-shadow:inset 0 -4px var(--ui-gold-line)}.bb-calendar-day-head{display:flex;align-items:center;justify-content:space-between;gap:4px;flex-wrap:wrap}.bb-calendar-day-head small{font-size:11px;color:var(--ui-gold)}.bb-calendar-preview{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;white-space:pre-wrap;font-size:14px;line-height:1.4}.bb-notice-editor-label{display:block;margin:18px 0 8px;font-size:19px;font-weight:900;color:var(--ui-text)}
+            .bb-notice-check-list{display:grid;gap:8px;margin-top:10px}.bb-notice-check-list .bb-check{padding:10px 12px;border:1px solid var(--ui-line);border-radius:9px;background:var(--ui-surface)}.bb-notice-check-list .bb-check span{padding:4px 7px;border-radius:999px;background:var(--ui-accent-soft);color:var(--ui-accent-deep);font-size:12px}.bb-notice-check-list .bb-check strong{white-space:normal}
             @media(max-width:600px){#bb-schedule-form-container .bb-calendar-day{min-height:78px;padding:5px;font-size:14px}#bb-schedule-form-container .bb-calendar-day.active{padding:4px}.bb-calendar-preview{font-size:11px}.bb-calendar-day-head small{font-size:9px}.bb-calendar-toolbar strong{min-width:90px;font-size:19px}}
             @media(max-width:1000px){.bb-notebook-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.bb-period-row{grid-template-columns:1fr}.bb-period-extra{grid-column:1;grid-template-columns:1fr}.bb-time-grid,.bb-notebook-grid{grid-template-columns:1fr}}
         `;
@@ -108,12 +109,41 @@
         return result;
     }
 
+    function normalizeNotice(value) {
+        if (value && typeof value === 'object' && Array.isArray(value.items)) {
+            const items=value.items.map((item,index)=>({
+                id:String(item?.id||`line_${index}`),
+                text:String(item?.text||'').trim(),
+                showOnHome:item?.showOnHome===true
+            })).filter(item=>item.text);
+            return {text:items.map(item=>item.text).join('\n'),items};
+        }
+        const text=String(value||'').trim();
+        return {text,items:text.split(/\r?\n/).map((line,index)=>({
+            id:`line_${index}`,text:line.trim(),showOnHome:true
+        })).filter(item=>item.text)};
+    }
     function captureNoticeDraft() {
         const input = document.getElementById('bb-notice-text');
-        if (input && state.selectedNoticeDate) state.noticeDrafts[state.selectedNoticeDate] = input.value;
+        if (!input || !state.selectedNoticeDate) return;
+        const checks=Array.from(document.querySelectorAll('[data-notice-home-index]'))
+            .map(box=>Boolean(box.checked));
+        const items=String(input.value||'').split(/\r?\n/).map((line,index)=>({
+            id:`line_${index}`,text:line.trim(),showOnHome:checks[index]??false
+        })).filter(item=>item.text);
+        state.noticeDrafts[state.selectedNoticeDate]={text:input.value,items};
     }
     function noticeFor(date) {
-        return Object.hasOwn(state.noticeDrafts, date) ? state.noticeDrafts[date] : state.notices[date] || '';
+        return Object.hasOwn(state.noticeDrafts, date)
+            ? normalizeNotice(state.noticeDrafts[date])
+            : normalizeNotice(state.notices[date]);
+    }
+    function renderNoticeChecks() {
+        const target=document.getElementById('bb-notice-home-checks');if(!target)return;
+        const notice=noticeFor(state.selectedNoticeDate);
+        target.innerHTML=notice.items.length
+            ?notice.items.map((item,index)=>`<label class="bb-check"><input type="checkbox" data-notice-home-index="${index}" ${item.showOnHome?'checked':''}> <span>오늘의 알림</span><strong>${index+1}. ${esc(item.text)}</strong></label>`).join('')
+            :'<div class="bb-status">공지 내용을 엔터로 나누면 항목별 체크칸이 생깁니다.</div>';
     }
     function selectNoticeDate(date) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
@@ -150,15 +180,17 @@
         const leadingBlanks = Array.from({length:leading}, () => '<div class="bb-calendar-blank" aria-hidden="true"></div>').join('');
         calendar.innerHTML = headings + leadingBlanks + weekdayDates.map(date => {
             const day = Number(date.slice(8));
-            const text = String(noticeFor(date));
-            const draft = Object.hasOwn(state.noticeDrafts, date) && text !== (state.notices[date] || '');
+            const notice=noticeFor(date);
+            const text=notice.text;
+            const draft = Object.hasOwn(state.noticeDrafts, date);
             const selected = date === state.selectedNoticeDate;
             return `<button type="button" class="bb-calendar-day${selected ? ' active' : ''}${date === today ? ' is-today' : ''}${text.trim() ? ' has-notice' : ''}" data-notice-date="${date}" aria-pressed="${selected}" aria-label="${date}${date === today ? ' 오늘' : ''}${text.trim() ? ' 공지 있음' : ' 공지 없음'}" title="${esc(text)}"><span class="bb-calendar-day-head"><b>${day}</b>${date === today ? '<small>오늘</small>' : ''}${draft ? '<small>작성 중</small>' : ''}</span><span class="bb-calendar-preview">${esc(text)}</span></button>`;
         }).join('');
         document.getElementById('bb-notice-month-label').textContent = `${firstDate.getUTCFullYear()}년 ${firstDate.getUTCMonth() + 1}월`;
         document.getElementById('bb-notice-date').value = state.selectedNoticeDate;
         document.getElementById('bb-notice-editor-label').textContent = `${state.selectedNoticeDate} 공지`;
-        document.getElementById('bb-notice-text').value = noticeFor(state.selectedNoticeDate);
+        document.getElementById('bb-notice-text').value = noticeFor(state.selectedNoticeDate).text;
+        renderNoticeChecks();
     }
     function captureWeekDay() {
         const editor = document.getElementById('bb-week-editor');
@@ -189,6 +221,7 @@
                 <div class="bb-notice-calendar" id="bb-notice-date-strip" aria-label="월별 공지 달력"></div>
                 <label id="bb-notice-editor-label" for="bb-notice-text" class="bb-notice-editor-label"></label>
                 <textarea id="bb-notice-text" rows="4" placeholder="선택한 날짜에 표시할 전자칠판 공지"></textarea>
+                <div id="bb-notice-home-checks" class="bb-notice-check-list"></div>
                 <div class="bb-toolbar bb-toolbar--gap-sm"><button class="bb-btn primary" id="bb-save-notice">공지 저장</button><button class="bb-btn red" id="bb-delete-notice">공지 삭제</button></div>
             </section>
             <section class="bb-panel">
@@ -227,6 +260,8 @@
             if (event.target.closest('#bb-save-week')) await saveWeek();
         };
         document.getElementById('bb-notice-date').addEventListener('change',event=>selectNoticeDate(event.target.value || todayKst()));
+        document.getElementById('bb-notice-text').addEventListener('input',()=>{captureNoticeDraft();renderNoticeChecks();});
+        document.getElementById('bb-notice-home-checks').addEventListener('change',captureNoticeDraft);
     }
     async function loadWeek(weekStart) {
         const snapshot=await db.ref(`blackboard/weeklySchedules/${weekStart}`).once('value');
@@ -235,15 +270,19 @@
     }
     async function saveNotice() {
         const date = state.selectedNoticeDate;
-        const original = String(document.getElementById('bb-notice-text').value || '');
-        const text = original.trim();
         captureNoticeDraft();
+        const notice=noticeFor(date);
+        const text=notice.text.trim();
+        const saved=text?{text,items:notice.items}:null;
+        const savedFingerprint=JSON.stringify(normalizeNotice(saved));
         try {
-            await db.ref(`blackboard/notices/${date}`).set(text || null);
-            if (text) state.notices[date] = text; else delete state.notices[date];
-            // Preserve newer typing or a different day's draft during a slow save.
+            await db.ref(`blackboard/notices/${date}`).set(saved);
+            if (saved) state.notices[date] = saved; else delete state.notices[date];
+            // 저장 요청 중 다른 날짜로 이동하거나 새로 입력한 내용은 지우지 않습니다.
             captureNoticeDraft();
-            if (state.noticeDrafts[date] === original) delete state.noticeDrafts[date];
+            if(JSON.stringify(normalizeNotice(state.noticeDrafts[date]))===savedFingerprint){
+                delete state.noticeDrafts[date];
+            }
             renderNoticeStrip();
             alert(`${date} 공지를 저장했습니다.`);
         } catch (error) {
@@ -253,14 +292,17 @@
     }
     async function deleteNotice() {
         const date = state.selectedNoticeDate;
-        const original = String(document.getElementById('bb-notice-text').value || '');
+        captureNoticeDraft();
+        const deletingFingerprint=JSON.stringify(normalizeNotice(state.noticeDrafts[date]));
         // '공지 저장' 바로 옆 버튼이라 오클릭이 잦습니다. 지운 내용을 들고 되돌리기를 답니다.
         const before = state.notices[date];
         try {
             await db.ref(`blackboard/notices/${date}`).remove();
             delete state.notices[date];
             captureNoticeDraft();
-            if (state.noticeDrafts[date] === original) delete state.noticeDrafts[date];
+            if(JSON.stringify(normalizeNotice(state.noticeDrafts[date]))===deletingFingerprint){
+                delete state.noticeDrafts[date];
+            }
             renderNoticeStrip();
 
             if (typeof window.showUndoBar === 'function' && before != null) {
