@@ -899,7 +899,8 @@ window.openBulkPointPopup = async function(
                 newApplyBtn.disabled=true;
                 newApplyBtn.textContent='반영 중…';
                 try{
-                    await window.callSecure('adjustStudentScores',{requestId,reason,targets});
+                    const result=await window.callSecure('adjustStudentScores',{requestId,reason,targets});
+                    console.info('포인트 지급 서버 버전:',result.serverVersion||'unknown');
                     closePointPopup();
                     alert(
                         `${checkboxes.length}명 · ${reason} `+

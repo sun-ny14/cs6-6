@@ -96,6 +96,7 @@ window.buyItem = async function(k) {
             itemName:String(selectedItem.name||''),
             purchaseId
         });
+        console.info('상점 구매 서버 버전:',result.serverVersion||'unknown');
         if(window.currentUser&&Number.isFinite(Number(result.points))){
             window.currentUser.points=Number(result.points);
             const mine=Array.isArray(window.currentUsers)

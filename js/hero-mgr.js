@@ -127,22 +127,17 @@ function heroUnlockedTitles(user, level) {
 }
 
 function heroFindUser(userName) {
-    return db.ref("users").once("value").then(snapshot => {
-        let found = null;
+    const listed=Array.isArray(window.currentUsers)
+        ?window.currentUsers.find(user=>heroNormalizeName(user?.name)===heroNormalizeName(userName))
+        :null;
+    const userKey=String(listed?.__firebaseKey||window.myName||userName||'').trim();
+    if(!userKey)return Promise.resolve(null);
 
-        snapshot.forEach(child => {
-            const user = child.val() || {};
-            const name = user.name || child.key;
-
-            if (!found && name === userName) {
-                found = {
-                    key: child.key,
-                    data: Object.assign({}, user, { name:name })
-                };
-            }
-        });
-
-        return found;
+    // 학생은 /users 전체를 읽을 권한이 없고 자기 레코드만 읽을 수 있다.
+    return db.ref(`users/${userKey}`).once('value').then(snapshot=>{
+        if(!snapshot.exists())return null;
+        const user=snapshot.val()||{};
+        return {key:snapshot.key,data:Object.assign({},user,{name:user.name||userName||snapshot.key})};
     });
 }
 

@@ -242,8 +242,12 @@ exports.purchasePointShop = callable(async request => {
 
     // 재고도 해당 상품에서만 예약한다. purchaseId로 재시도해도 두 번 차감되지 않는다.
     let stockReason='';
+    const initialItem=JSON.parse(JSON.stringify(item));
     const stockResult=await itemRef.transaction(saved=>{
-        if(!saved){stockReason='missing';return;}
+        // Admin SDK 트랜잭션의 첫 콜백은 서버에 상품이 있어도 null로 시작할 수 있다.
+        // 직전에 읽은 서버 상품으로 첫 비교를 진행하고 충돌 시 자동 재시도한다.
+        if(saved===null)saved=JSON.parse(JSON.stringify(initialItem));
+        if(!saved||typeof saved!=='object'){stockReason='missing';return;}
         saved.purchaseReservations||={};
         if(saved.purchaseReservations[purchaseId])return saved;
         const stock=saved.stock==null?-1:Number(saved.stock);
@@ -284,7 +288,8 @@ exports.purchasePointShop = callable(async request => {
         'publicShopStats/updatedAt':0
     };
     await database.ref().update(updates);
-    return {orderKey,name:receipt.name,price,points:receipt.balanceAfter};
+    return {orderKey,name:receipt.name,price,points:receipt.balanceAfter,
+        serverVersion:'20260913-shop-3'};
 });
 
 const BUILTIN_FURNITURE = {
@@ -426,8 +431,8 @@ exports.adjustStudentScores = callable(async request => {
     const time=new Date(now+9*3600000).toISOString().slice(11,16);
     const results=[];
 
-    for(let index=0;index<targets.length;index+=1){
-        const target=targets[index]||{};
+    const updateTarget=async target=>{
+        target=target||{};
         const userKey=String(target.userKey||target.name||'').trim();
         const points=Number(target.points??target.p??0);
         const exp=Number(target.exp??0);
@@ -468,9 +473,15 @@ exports.adjustStudentScores = callable(async request => {
             pChange:points,expChange:exp,result:receipt.nextPoints,pointResult:receipt.nextPoints,
             expResult:receipt.nextExp,timestamp:now}
         });
-        results.push({name:displayName,userKey,points:receipt.nextPoints,exp:receipt.nextExp});
+        return {name:displayName,userKey,points:receipt.nextPoints,exp:receipt.nextExp};
+    };
+
+    // 학생별 트랜잭션은 서로 독립이므로 6명씩 병렬 처리한다. 전원을 선택해도
+    // 순차 처리로 60초 제한을 넘지 않으면서 DB에 순간 부하가 몰리지 않는다.
+    for(let index=0;index<targets.length;index+=6){
+        results.push(...await Promise.all(targets.slice(index,index+6).map(updateTarget)));
     }
-    return {updated:results.length,results};
+    return {updated:results.length,results,serverVersion:'20260913-score-3'};
 });
 
 exports.submitStudentCheckin = callable(async request => {
