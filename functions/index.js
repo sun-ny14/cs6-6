@@ -74,15 +74,6 @@ exports.getSecureSession = callable(async request => {
         user:current.teacher ? { name:current.name, role:'교사' } : current.user };
 });
 
-exports.mirrorPublicUser = onValueWritten({ ref:'/users/{userName}' }, async event => {
-    const name = event.params.userName;
-    const user = event.data.after.val();
-    const database=getDatabase();
-    const updates={[`publicProfiles/${name}`]:user ? publicUser(name,user) : null};
-    const access=await database.ref('access').orderByChild('name').equalTo(name).get();
-    access.forEach(child=>{updates[`access/${child.key}/role`]=String(user?.role||'');});
-    await database.ref().update(updates);
-});
 
 exports.mirrorPublicSettings = onValueWritten({ ref:'/settings' }, async event => {
     const settings = event.data.after.val();
