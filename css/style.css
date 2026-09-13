@@ -1648,8 +1648,8 @@ body.role-student .shop-price { color: var(--ui-gold); }
     display: grid;
     grid-template-columns: minmax(620px, 1fr);
     gap: var(--ui-space-3);
-    max-height: 52vh;
-    overflow: auto;
+    max-height: none;
+    overflow: visible;
     padding: 2px;
 }
 
@@ -1719,15 +1719,34 @@ body.role-student .shop-price { color: var(--ui-gold); }
     background: var(--ui-surface-soft);
 }
 
-.batch-modal-actions {
+.batch-modal-toolbar {
     position: sticky;
     top: 0;
     z-index: 3;
-    padding: var(--ui-space-2);
+    display: grid;
+    gap: var(--ui-space-2);
+    padding: var(--ui-space-2) 0 var(--ui-space-3);
     border: 1px solid var(--ui-line);
     border-radius: var(--ui-radius-sm);
     background: var(--ui-surface);
     box-shadow: var(--ui-shadow-sm);
+}
+
+.batch-toolbar-row { display: grid; gap: var(--ui-space-2); padding: 0 var(--ui-space-2); }
+.batch-toolbar-search { grid-template-columns: minmax(260px, 2fr) minmax(180px, 1fr); }
+.batch-toolbar-actions {
+    grid-template-columns: auto auto 78px 88px auto minmax(150px, 1fr);
+    align-items: center;
+}
+.batch-toolbar-actions .btn { min-width: 0; white-space: nowrap; }
+.batch-toolbar-actions input { width: 100%; min-width: 0; }
+.batch-modal-toolbar #batch-hint { min-height: 0; margin: 0; padding: 0 var(--ui-space-2); }
+
+@media (max-width: 760px) {
+    .batch-toolbar-search { grid-template-columns: 1fr; }
+    .batch-toolbar-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .batch-toolbar-actions .batch-submit { grid-column: 1 / -1; }
+    .batch-card-modal-v6 { grid-template-columns: 1fr; }
 }
 
 .batch-fill-label {

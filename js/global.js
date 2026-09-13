@@ -1956,36 +1956,31 @@ async function loadHistory(name, firebaseKey) {
 
         const html = `
             <div class="stack">
-                <input
-                    type="text"
-                    id="batch-reason"
-                    placeholder="공통 사유 입력 (예: 모둠 활동 우수)"
-                >
+                <div class="batch-modal-toolbar">
+                    <div class="batch-toolbar-row batch-toolbar-search">
+                        <input
+                            type="text"
+                            id="batch-reason"
+                            placeholder="공통 사유 (예: 모둠 활동 우수)"
+                        >
+                        <input
+                            type="search"
+                            id="batch-search"
+                            placeholder="번호·이름 찾기"
+                            oninput="batchFilterCardsV6(this.value)"
+                        >
+                    </div>
 
-                <input
-                    type="search"
-                    id="batch-search"
-                    placeholder="번호나 이름으로 찾기 (예: 7, 김)"
-                    oninput="batchFilterCardsV6(this.value)"
-                >
+                    <div class="batch-toolbar-row batch-toolbar-actions">
+                        <button type="button" class="btn" onclick="batchSelectAllCardsV6()">전체 선택</button>
+                        <button type="button" class="btn" onclick="batchClearAllCardsV6()">전체 해제</button>
+                        <input type="number" id="batch-fill-p" class="input--num" placeholder="P" inputmode="numeric" aria-label="일괄 포인트">
+                        <input type="number" id="batch-fill-exp" class="input--num" placeholder="EXP" inputmode="numeric" aria-label="일괄 경험치">
+                        <button type="button" class="btn" onclick="batchFillSelectedV6()">한번에 채우기</button>
+                        <button type="button" class="btn btn--good batch-submit" onclick="submitBatchPoints()">선택 학생 반영</button>
+                    </div>
 
-                <div class="btn-row btn-row--fill">
-                    <button type="button" class="btn" onclick="batchSelectAllCardsV6()">전체 선택</button>
-                    <button type="button" class="btn" onclick="batchClearAllCardsV6()">전체 해제</button>
-                </div>
-
-                <div class="batch-fill">
-                    <span class="batch-fill-label">선택 학생 한 번에</span>
-                    <input type="number" id="batch-fill-p" class="input--num" placeholder="P" inputmode="numeric" aria-label="일괄 포인트">
-                    <input type="number" id="batch-fill-exp" class="input--num" placeholder="EXP" inputmode="numeric" aria-label="일괄 경험치">
-                    <button type="button" class="btn btn--sm" onclick="batchFillSelectedV6()">채우기</button>
-                </div>
-
-                <p id="batch-hint" class="muted small" role="status"></p>
-
-                <div class="btn-row btn-row--fill batch-modal-actions">
-                    <button type="button" class="btn" onclick="closePopup()">취소</button>
-                    <button type="button" class="btn btn--good" onclick="submitBatchPoints()">선택 학생 반영</button>
+                    <p id="batch-hint" class="muted small" role="status"></p>
                 </div>
 
                 <section class="batch-card-modal-v6">
