@@ -36,7 +36,7 @@ test('teacher one-click attendance uses the dedicated callable and mirrors the b
     assert.match(server, /blackboardDisplay\/data\/checkins/);
 });
 
-test('every teacher point adjustment uses one batched server history write', () => {
+test('teacher point adjustment avoids whole-user reads and uses one atomic small-path write', () => {
     const global=read('js/global.js');
     const guide=read('js/point-guide.js');
     const server=read('functions/index.js');
@@ -44,10 +44,12 @@ test('every teacher point adjustment uses one batched server history write', () 
     assert.match(guide, /callSecure\('adjustStudentScores'/);
     assert.match(server, /exports\.adjustStudentScores/);
     const block=server.slice(server.indexOf('exports.adjustStudentScores'),server.indexOf('exports.submitStudentCheckin'));
-    assert.match(block, /scoreAdjustmentReceipts/);
+    assert.match(block, /scoreAdjustmentReceipts\/\$\{item\.userKey\}\/\$\{requestId\}/);
     assert.match(block, /\[`pointLogs\/\$\{logKey\}`\]/);
     assert.match(block, /\[`pointHistory\/\$\{userKey\}\/\$\{logKey\}`\]/);
-    assert.match(block, /database\.ref\(\)\.update\(logUpdates\)/);
+    assert.match(block, /database\.ref\(\)\.update\(scoreUpdates\)/);
+    assert.doesNotMatch(block, /userRef\.transaction/);
+    assert.doesNotMatch(block, /database\.ref\(`users\/\$\{item\.userKey\}`\)\.get/);
 });
 
 test('batch point editor keeps each student on one horizontal row', () => {

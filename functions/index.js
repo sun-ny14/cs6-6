@@ -449,68 +449,60 @@ exports.adjustStudentScores = callable(async request => {
         return {target,userKey,points,exp};
     });
 
-    // 모든 대상을 먼저 한 번에 확인한다. 잘못된 학생 하나 때문에 앞 학생만
-    // 반영되는 부분 성공을 막고, 순차 조회 대기 시간도 없앤다.
+    // 사용자 전체에는 Base64 방 이미지가 들어갈 수 있다. 점수 지급 때
+    // users/{학생} 전체를 읽거나 transaction 하면 수 MB가 왕복하므로,
+    // 필요한 작은 필드와 외부 영수증만 병렬로 읽는다.
     const loaded=await Promise.all(prepared.map(async item=>{
-        const userRef=database.ref(`users/${item.userKey}`);
-        const initial=(await userRef.get()).val();
-        const displayName=String(initial?.name||item.target.name||item.userKey).trim();
-        if(!initial)throw new HttpsError('not-found',`${displayName} 학생 정보를 찾을 수 없습니다.`);
-        return {...item,userRef,initial,displayName};
+        const userPath=`users/${item.userKey}`;
+        const receiptPath=`scoreAdjustmentReceipts/${item.userKey}/${requestId}`;
+        const [nameSnapshot,pointsSnapshot,expSnapshot,receiptSnapshot]=await Promise.all([
+            database.ref(`${userPath}/name`).get(),
+            database.ref(`${userPath}/points`).get(),
+            database.ref(`${userPath}/exp`).get(),
+            database.ref(receiptPath).get()
+        ]);
+        const displayName=String(nameSnapshot.val()||item.target.name||item.userKey).trim();
+        if(!nameSnapshot.exists()&&!pointsSnapshot.exists()&&!expSnapshot.exists()){
+            throw new HttpsError('not-found',`${displayName} 학생 정보를 찾을 수 없습니다.`);
+        }
+        return {
+            ...item,displayName,receiptPath,
+            currentPoints:Number(pointsSnapshot.val())||0,
+            currentExp:Number(expSnapshot.val())||0,
+            existingReceipt:receiptSnapshot.val()||null
+        };
     }));
 
-    const updateTarget=async item=>{
-        const {userKey,points,exp,userRef,initial,displayName}=item;
-        let receipt=null;
-        const result=await userRef.transaction(user=>{
-            if(user===null)user=JSON.parse(JSON.stringify(initial));
-            if(!user||typeof user!=='object')return;
-            // 기존 mirrorScoreChangeReceipt 트리거와 분리해 학생 수만큼 별도
-            // Functions가 실행되는 일을 막는다. 최근 영수증만 남겨 레코드도 작게 유지한다.
-            user.scoreAdjustmentReceipts||={};
-            if(user.scoreAdjustmentReceipts[requestId]){
-                receipt=user.scoreAdjustmentReceipts[requestId];
-                return user;
-            }
-            const oldReceiptKeys=Object.entries(user.scoreAdjustmentReceipts)
-                .sort((a,b)=>(Number(a[1]?.timestamp)||0)-(Number(b[1]?.timestamp)||0))
-                .map(([key])=>key);
-            while(oldReceiptKeys.length>=50)delete user.scoreAdjustmentReceipts[oldReceiptKeys.shift()];
-            const nextPoints=(Number(user.points)||0)+points;
-            const nextExp=(Number(user.exp)||0)+exp;
-            receipt={name:displayName,points,exp,nextPoints,nextExp,reason,timestamp:now};
-            user.points=nextPoints;
-            user.exp=nextExp;
-            user.scoreAdjustmentReceipts[requestId]=receipt;
-            return user;
-        },undefined,false);
-        if(result.committed){
-            receipt=result.snapshot.child(`scoreAdjustmentReceipts/${requestId}`).val()||receipt;
+    const scoreUpdates={};
+    const results=[];
+    loaded.forEach(item=>{
+        const {userKey,points,exp,displayName,receiptPath,existingReceipt}=item;
+        if(existingReceipt){
+            results.push({name:displayName,userKey,
+                points:Number(existingReceipt.nextPoints)||0,
+                exp:Number(existingReceipt.nextExp)||0});
+            return;
         }
-        if(!result.committed||!receipt)throw new HttpsError('aborted',`${displayName} 포인트를 저장하지 못했습니다.`);
+        const nextPoints=item.currentPoints+points;
+        const nextExp=item.currentExp+exp;
         const logKey=scoreLogKey(requestId,userKey);
-        return {
-            result:{name:displayName,userKey,points:receipt.nextPoints,exp:receipt.nextExp},
-            logs:{
-                [`pointLogs/${logKey}`]:{name:displayName,userKey,pAmt:points,eAmt:exp,reason,time,timestamp:now},
-                [`pointHistory/${userKey}/${logKey}`]:{date,time,reason,change:points,
-                    pChange:points,expChange:exp,result:receipt.nextPoints,pointResult:receipt.nextPoints,
-                    expResult:receipt.nextExp,timestamp:now}
-            }
-        };
-    };
+        const receipt={name:displayName,userKey,points,exp,nextPoints,nextExp,
+            reason,timestamp:now,logKey};
+        scoreUpdates[`users/${userKey}/points`]=nextPoints;
+        scoreUpdates[`users/${userKey}/exp`]=nextExp;
+        scoreUpdates[receiptPath]=receipt;
+        scoreUpdates[`pointLogs/${logKey}`]={name:displayName,userKey,pAmt:points,
+            eAmt:exp,reason,time,timestamp:now};
+        scoreUpdates[`pointHistory/${userKey}/${logKey}`]={date,time,reason,change:points,
+            pChange:points,expChange:exp,result:nextPoints,pointResult:nextPoints,
+            expResult:nextExp,timestamp:now};
+        results.push({name:displayName,userKey,points:nextPoints,exp:nextExp});
+    });
 
-    const completed=[];
-    // 학생별 트랜잭션은 서로 독립이므로 10명씩 처리하고, 로그는 마지막에
-    // 한 번의 다중 경로 업데이트로 저장한다.
-    for(let index=0;index<loaded.length;index+=10){
-        completed.push(...await Promise.all(loaded.slice(index,index+10).map(updateTarget)));
-    }
-    const logUpdates={};
-    completed.forEach(item=>Object.assign(logUpdates,item.logs));
-    await database.ref().update(logUpdates);
-    const results=completed.map(item=>item.result);
-    return {updated:results.length,results,serverVersion:'20260913-score-4'};
+    // 잔액·경험치·영수증·두 로그를 한 번에 원자적으로 저장한다. 일부 학생만
+    // 반영되거나 로그만 빠지는 상태를 만들지 않는다.
+    if(Object.keys(scoreUpdates).length)await database.ref().update(scoreUpdates);
+    return {updated:results.length,results,serverVersion:'20260913-score-5'};
 });
 
 exports.submitStudentCheckin = callable(async request => {
