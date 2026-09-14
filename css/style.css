@@ -1453,6 +1453,33 @@ body.role-student .hero-points {
 .is-bad   { border-color: var(--ui-bad-line);  background: var(--ui-bad-soft);  color: var(--ui-bad); }
 .is-empty { border-style: dashed; background: transparent; color: var(--ui-faint); cursor: default; }
 
+/* 지각과 결석을 멀리서도 혼동하지 않도록 색과 테두리를 분리합니다. */
+.checkin-card.is-late {
+    border: 2px solid var(--ui-warn);
+    background: var(--ui-warn-soft);
+    color: var(--ui-warn);
+}
+
+.checkin-card.is-absent {
+    border: 3px solid var(--ui-bad);
+    background: var(--ui-bad-soft);
+    color: var(--ui-bad);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ui-bad) 22%, transparent);
+}
+
+.attendance-late {
+    border: 2px solid var(--ui-warn) !important;
+    background: var(--ui-warn-soft) !important;
+    color: var(--ui-warn) !important;
+}
+
+.attendance-absent {
+    border: 3px solid var(--ui-bad) !important;
+    background: var(--ui-bad-soft) !important;
+    color: var(--ui-bad) !important;
+    font-weight: 900;
+}
+
 .checkin-admin-toolbar {
     display: flex;
     flex-wrap: wrap;

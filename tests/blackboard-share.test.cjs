@@ -112,7 +112,7 @@ test('initial publication waits for every source and persists the sanitized data
     app.emit('blackboard/notices', { '2026-09-02': '새 공지' });
     await app.flush();
     assert.equal(app.writes.length, 1);
-    assert.equal(app.writes[0].data.notices['2026-09-02'].text, '새 공지');
+    assert.equal(app.writes[0]['data/notices']['2026-09-02'].text, '새 공지');
     assert.equal(app.writes[0].schemaVersion, 1);
     assert.equal(app.writes[0].publishedDate, '2026-09-02');
     app.stop();
@@ -125,7 +125,7 @@ test('source changes automatically update the shared board but private-only chan
     assert.equal(app.writes.length, 1);
     app.emit('blackboard/notices', { '2026-09-02': '수정 공지' }); await app.flush();
     assert.equal(app.writes.length, 2);
-    assert.equal(app.writes[1].data.notices['2026-09-02'].text, '수정 공지');
+    assert.equal(app.writes[1]['data/notices']['2026-09-02'].text, '수정 공지');
     app.stop();
 });
 
@@ -139,15 +139,15 @@ test('offline updates wait, failed publication retries and logout cancels listen
     app.stop();
 });
 
-test('Korean midnight refreshes only the current-day attendance projection', async () => {
+test('publisher never overwrites callable-managed attendance projection at midnight', async () => {
     const app = harness(); app.login(); app.load(); app.emit('.info/connected', true);
     app.emit('users', { student: { name: '학생', number: 1 } });
-    app.emit('checkins', { one: { name: '학생', date: '2026-09-02' } }); await app.flush();
-    assert.equal(Object.keys(app.writes[0].data.checkins).length, 1);
+    await app.flush();
+    assert.equal(Object.hasOwn(app.writes[0],'data/checkins'),false);
     app.clock.now = Date.parse('2026-09-02T15:00:00Z');
     [...app.intervals.values()].forEach(callback => callback()); await app.flush();
     assert.equal(app.writes.at(-1).publishedDate, '2026-09-03');
-    assert.deepEqual(app.writes.at(-1).data.checkins, {});
+    assert.equal(Object.hasOwn(app.writes.at(-1),'data/checkins'),false);
     app.stop();
 });
 

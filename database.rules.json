@@ -14,7 +14,7 @@
       ".write": false
     },
     "teacherAlerts": {
-      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      ".read": "auth != null && auth.token.email_verified == true && auth.token.email == 'ksosuny@cberi.go.kr'",
       ".write": false
     },
     "classJournal": {
@@ -73,14 +73,31 @@
       ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
       ".indexOn": ["date"],
       "$record": {
-        ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+        ".write": false
       }
     },
     "checkinLogs": {
       ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
       ".indexOn": ["date"],
       "$record": {
-        ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+        ".write": false
+      }
+    },
+    "studentCheckins": {
+      "$date": {
+        ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+        "$uid": {
+          ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'ksosuny@cberi.go.kr')",
+          ".write": false
+        }
+      }
+    },
+    "attendanceRecords": {
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      "$date": {
+        "$studentName": {
+          ".write": "auth != null && auth.token.email_verified == true && auth.token.email == 'ksosuny@cberi.go.kr'"
+        }
       }
     },
     "classManagement": {

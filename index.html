@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@500;700;800;900&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 
-<link rel="stylesheet" href="css/style.css?v=20260913-point-toolbar-1">
+<link rel="stylesheet" href="css/style.css?v=20260914-attendance-color-1">
 <link rel="stylesheet" href="css/classroom-dashboard.css?v=20260911-student-board-hide-1">
 
 <script>
@@ -113,7 +113,7 @@ function toggleSidebar(){
             🛍️ 상점
         </button>
 
-        <button id="btn-checkin" onclick="showTab('checkin')">
+        <button id="btn-student-checkin" onclick="showTab('student-checkin')">
             ⚔️ 등교
         </button>
 
@@ -130,6 +130,10 @@ function toggleSidebar(){
         </button>
 
         <div class="nav-section" id="nav-admin-section" hidden>선생님 메뉴</div>
+
+        <button id="btn-attendance-admin" hidden onclick="showTab('attendance-admin')">
+            📅 등교로그·좌석
+        </button>
 
         <button id="btn-blackboard-admin" hidden onclick="showTab('blackboard-admin');initBlackboardAdmin();">
             🏫 전자칠판 관리
@@ -237,8 +241,8 @@ function toggleSidebar(){
 
         </section>
 
-        <!-- 3. 등교 -->
-        <section id="tab-checkin" class="tab-content">
+        <!-- 3. 학생 등교: 교사용 출결 관리와 DOM부터 완전히 분리 -->
+        <section id="tab-student-checkin" class="tab-content">
 
             <header class="page-head">
                 <div>
@@ -246,18 +250,6 @@ function toggleSidebar(){
                     <p id="checkin-guide"></p>
                 </div>
             </header>
-
-            <div id="checkin-sub-menu-container" class="seg">
-
-                <button onclick="switchCheckinSub('checkin-main')" id="sub-btn-checkin-main" class="active">
-                    ⚔️ 등교하기
-                </button>
-
-                <button onclick="switchCheckinSub('checkin-logs')" id="sub-btn-checkin-logs" class="admin-only-checkin-btn" hidden>
-                    📅 등교로그 및 좌석
-                </button>
-
-            </div>
 
             <div id="sub-checkin-main" class="sub-checkin-content">
 
@@ -285,7 +277,18 @@ function toggleSidebar(){
 
             </div>
 
-            <div id="sub-checkin-logs" class="sub-checkin-content stack" style="display:none;">
+        </section>
+
+        <!-- 4. 교사 전용 최종 출결 관리 -->
+        <section id="tab-attendance-admin" class="tab-content">
+            <header class="page-head">
+                <div>
+                    <h2>📅 등교로그·좌석</h2>
+                    <p>학생 제출을 확인하고 교사가 최종 출결을 확정합니다.</p>
+                </div>
+            </header>
+
+            <div id="sub-checkin-logs" class="stack">
 
                 <div class="card">
 
@@ -345,7 +348,7 @@ function toggleSidebar(){
 
         </section>
 
-        <!-- 4. 과제 -->
+        <!-- 5. 과제 -->
         <section id="tab-assignments" class="tab-content">
             <div id="assignments-tab-container" class="empty">과제를 불러오는 중…</div>
         </section>
@@ -707,18 +710,18 @@ function toggleSidebar(){
 <script src="js/secure-api.js?v=20260911-final-2"></script>
 <script src="functions/checkin-password-core.js?v=20260911-final-2"></script>
 <script src="js/checkin-password.js?v=20260911-final-2"></script>
-<script src="js/blackboard-share.js?v=20260913-journal-1"></script>
-<script src="js/global.js?v=20260914-student-access-1"></script>
-<script src="js/home-dashboard.js?v=20260913-journal-1"></script>
+<script src="js/blackboard-share.js?v=20260914-attendance-split-1"></script>
+<script src="js/global.js?v=20260914-attendance-split-1"></script>
+<script src="js/home-dashboard.js?v=20260914-journal-final-1"></script>
 <script src="js/auth.js?v=20260913-journal-1"></script>
-<script src="js/checkin-seat.js?v=20260914-student-access-1"></script>
+<script src="js/checkin-seat.js?v=20260914-attendance-split-1"></script>
 <script src="js/hero-mgr.js?v=20260913-permission-1"></script>
 <script src="js/point-shop.js?v=20260913-shop-4"></script>
 <script src="js/point-guide.js?v=20260914-inventory-sync-1"></script>
 <script src="js/housing.js?v=20260911-final-2"></script>
 <script src="js/admin-grades.js?v=20260911-final-2"></script>
 <script src="js/blackboard-admin.js?v=20260913-journal-1"></script>
-<script src="js/class-journal.js?v=20260913-journal-1"></script>
+<script src="js/class-journal.js?v=20260914-journal-pin-1"></script>
 <script src="js/assignments.js?v=20260913-readability-1"></script>
 <script src="js/settings.js?v=20260911-settings-fix-1"></script>
 <script src="js/cleaning.js?v=20260911-final-2"></script>

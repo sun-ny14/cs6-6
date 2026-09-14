@@ -5,7 +5,7 @@
         legacySchedule: 'blackboard/schedule', legacyNotice: 'blackboard/notice',
         periodTimes: 'blackboard/periodTimes', baseSchedule: 'blackboard/baseSchedule',
         weeklySchedules: 'blackboard/weeklySchedules', notices: 'blackboard/notices',
-        users: 'users', checkins: 'checkins', seatData: 'seatLayoutData',
+        users: 'users', seatData: 'seatLayoutData',
         cleaningRoot: 'classManagement/cleaningStatus', assignments: 'blackboard/assignments',
         assignmentCompletions: 'blackboard/assignmentCompletions', dismissalNotes: 'blackboard/dismissalNotes'
     };
@@ -115,8 +115,22 @@
             const raw = {}, loaded = new Set(), failed = new Set(), subscriptions = [];
             const listen = (path, receive, fail) => {
                 const ref = database.ref(path);
-                ref.on('value', receive, fail);
-                subscriptions.push(() => ref.off('value', receive));
+                let stopped=false,retryTimer=null,retryDelay=1500;
+                const success=snapshot=>{retryDelay=1500;receive(snapshot);};
+                const rejected=error=>{
+                    if(fail)fail(error);
+                    if(stopped||!active)return;
+                    cancel(retryTimer);
+                    retryTimer=later(async()=>{
+                        if(stopped||!active)return;
+                        try{await user.getIdToken(true);}catch(tokenError){}
+                        ref.off('value',success);
+                        ref.on('value',success,rejected);
+                        retryDelay=Math.min(retryDelay*2,30000);
+                    },retryDelay);
+                };
+                ref.on('value',success,rejected);
+                subscriptions.push(()=>{stopped=true;cancel(retryTimer);ref.off('value',success);});
             };
             const queue = () => {
                 dirty = true;
@@ -133,8 +147,13 @@
                 writing = true;
                 dirty = false;
                 try {
-                    await database.ref('blackboardDisplay').update({ schemaVersion: 1,
-                        publishedAt: stamp, publishedDate: day, data });
+                    const updates={schemaVersion:1,publishedAt:stamp,publishedDate:day};
+                    // 출결 공개본은 학생/교사 출결 함수가 즉시 갱신한다. 이 게시기가
+                    // 과거 checkins 값으로 다시 덮지 않도록 나머지 자료만 갱신한다.
+                    Object.entries(data).forEach(([key,value])=>{
+                        if(key!=='checkins')updates[`data/${key}`]=value;
+                    });
+                    await database.ref('blackboardDisplay').update(updates);
                     if (!active) return;
                     lastSent = fingerprint;
                     lastDay = day;

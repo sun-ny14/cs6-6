@@ -9,6 +9,10 @@
         timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'
     }).format(new Date());
 
+    // 학급일지는 홈페이지가 이미 읽은 전자칠판/시간표 데이터를 재사용한다.
+    // 여기서 새 Firebase 조회를 만들지 않아 화면 속도와 사용량을 함께 줄인다.
+    window.getHomeDashboardData=()=>state.data||{};
+
     function assignmentRows(data){
         return Object.entries(data.assignments||{})
             .filter(([,item])=>item&&item.active!==false)

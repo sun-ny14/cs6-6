@@ -20,7 +20,8 @@
         weeklySchedules:{}, notices:{}, users:{}, checkins:{}, seatData:{},
         cleaningRoot:{}, assignments:{}, assignmentCompletions:{}, dismissalNotes:{},
         manualPeriodName:'', manualModeKey:'', authUser:null, canEdit:false, memoTimers:{},
-        checkinPassword:null, dataReady:false, syncMessage:'전자칠판 자료를 연결하고 있습니다…', serverOffset:0
+        checkinPassword:null, dataReady:false, syncMessage:'전자칠판 자료를 연결하고 있습니다…', serverOffset:0,
+        sourceFailed:false
     };
 
     function escapeHtml(value) {
@@ -435,18 +436,32 @@
         state.syncMessage = '전자칠판 자료를 연결하고 있습니다…';
         const subscribe = (path, receive, reject) => {
             const ref = db.ref(path);
-            const callback = snapshot => { if (generation === sourceGeneration) receive(snapshot); };
-            ref.on('value', callback, error => {
+            let stopped=false,retryTimer=null,retryDelay=1500;
+            const callback = snapshot => {
+                if (generation !== sourceGeneration)return;
+                retryDelay=1500;state.sourceFailed=false;receive(snapshot);
+            };
+            const failed = error => {
                 if (generation !== sourceGeneration) return;
+                state.sourceFailed=true;
                 if (reject) {
                     reject(error);
-                    return;
+                }else{
+                    state.syncMessage = '전자칠판 자료를 읽지 못했습니다. 연결을 자동 복구하고 있습니다…';
+                    console.error('전자칠판 연결 실패:', error);
+                    render();
                 }
-                state.syncMessage = '전자칠판 자료를 읽지 못했습니다. Firebase 규칙과 연결 상태를 확인해 주세요.';
-                console.error('전자칠판 연결 실패:', error);
-                render();
-            });
-            sourceStops.push(() => ref.off('value', callback));
+                clearTimeout(retryTimer);
+                retryTimer=setTimeout(async()=>{
+                    if(stopped||generation!==sourceGeneration)return;
+                    try{await auth?.currentUser?.getIdToken(true);}catch(tokenError){}
+                    ref.off('value',callback);
+                    ref.on('value',callback,failed);
+                    retryDelay=Math.min(retryDelay*2,30000);
+                },retryDelay);
+            };
+            ref.on('value', callback, failed);
+            sourceStops.push(()=>{stopped=true;clearTimeout(retryTimer);ref.off('value',callback);});
         };
         let sharedReady = false;
         const editorLoaded = new Set();
@@ -558,8 +573,14 @@
         });
     } else connectSources(null);
     setInterval(render, 1000);
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') render();
+    document.addEventListener('visibilitychange', async() => {
+        if (document.visibilityState === 'visible') {
+            if(state.sourceFailed){
+                try{await auth?.currentUser?.getIdToken(true);}catch(error){}
+                connectSources(state.canEdit?auth.currentUser:null);
+            }
+            render();
+        }
     });
     window.addEventListener('focus', render);
     window.addEventListener('pageshow', render);

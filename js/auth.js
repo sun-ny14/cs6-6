@@ -116,6 +116,7 @@ function applyAccessControl(){
         'btn-budget',
         'btn-management',
         'btn-blackboard-admin',
+        'btn-attendance-admin',
         'btn-class-journal',
         'btn-admin',
         'btn-add-point-guide',
@@ -135,24 +136,9 @@ function applyAccessControl(){
         window.canManageShopRequests()
     );
 
-    // 등교로그 및 좌석
-    setMenuVisible(
-        'sub-btn-checkin-logs',
-        admin
-    );
-
-    setMenuVisible(
-        'sub-btn-checkin-main',
-        !admin,
-        'block'
-    );
-
-    const checkinButton=document.getElementById('btn-checkin');
-    if(checkinButton){
-        checkinButton.textContent=admin
-            ?'🗓️ 등교로그 및 좌석'
-            :'⚔️ 등교';
-    }
+    // 학생 등교와 교사 최종 출결은 메뉴와 탭을 공유하지 않는다.
+    setMenuVisible('btn-student-checkin',!admin);
+    setMenuVisible('btn-attendance-admin',admin);
 
     // 청소 메뉴는 관리자 또는 청소 역할 학생만
     setMenuVisible(

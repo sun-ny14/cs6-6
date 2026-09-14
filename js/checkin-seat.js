@@ -134,6 +134,36 @@ function checkinNormalizeLog(value,key,source){
 window.checkinNormalizeLog=
     checkinNormalizeLog;
 
+function checkinBoardKey(name){
+    const bytes=new TextEncoder().encode(String(name||''));
+    let binary='';
+    bytes.forEach(byte=>binary+=String.fromCharCode(byte));
+    return 'student_'+btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+// 신규 구조의 우선순위는 교사 최종 기록 > 학생 제출 > 과거 기록이다.
+// 과거 경로는 읽기 호환만 유지하고 새 기록을 다시 쓰지 않는다.
+async function checkinLoadAdminRecords(date){
+    const [finalSnap,studentSnap,legacySnap,legacyLogsSnap]=await Promise.all([
+        db.ref(`attendanceRecords/${date}`).once('value'),
+        db.ref(`studentCheckins/${date}`).once('value'),
+        db.ref('checkins').orderByChild('date').equalTo(date).once('value'),
+        db.ref('checkinLogs').orderByChild('date').equalTo(date).once('value')
+    ]);
+    const byName=new Map();
+    const collect=(snapshot,source)=>snapshot.forEach(child=>{
+        const log=checkinNormalizeLog(child.val(),child.key,source);
+        if(log.name&&log.date===date)byName.set(log.name,log);
+    });
+    collect(legacyLogsSnap,'legacyLog');
+    collect(legacySnap,'legacyCheckin');
+    collect(studentSnap,'studentSubmission');
+    collect(finalSnap,'teacherFinal');
+    return Array.from(byName.values());
+}
+
+window.checkinLoadAdminRecords=checkinLoadAdminRecords;
+
 
 /* =========================================================
    좌석 및 출결 새로고침
@@ -160,50 +190,16 @@ window.refreshCheckinManagement=async function(){
     try{
         await window.loadCheckinState();
 
-        const [
-            checkinsSnap,
-            logsSnap,
-            usersSnap,
-            exclusionsSnap
-        ]=
+        const [loadedAttendance,usersSnap,exclusionsSnap]=
             await Promise.all([
-                db.ref('checkins').orderByChild('date').equalTo(targetDate).once('value'),
-                db.ref('checkinLogs').orderByChild('date').equalTo(targetDate).once('value'),
+                checkinLoadAdminRecords(targetDate),
                 db.ref('users').once('value'),
                 db.ref('settings/fixedExclusions').once('value')
             ]);
 
         const byName=new Map();
 
-        const collect=(snapshot,source)=>{
-            snapshot.forEach(child=>{
-                const log=checkinNormalizeLog(
-                    child.val(),
-                    child.key,
-                    source
-                );
-
-                if(
-                    !log.name||
-                    log.date!==targetDate
-                ){
-                    return;
-                }
-
-                const old=byName.get(log.name);
-
-                if(
-                    !old||
-                    log.timestamp>=old.timestamp||
-                    source==='checkins'
-                ){
-                    byName.set(log.name,log);
-                }
-            });
-        };
-
-        collect(logsSnap,'checkinLogs');
-        collect(checkinsSnap,'checkins');
+        loadedAttendance.forEach(log=>byName.set(log.name,log));
 
         const loadedUsers=[];
 
@@ -1106,17 +1102,14 @@ window.renderSeatMap=function(rows,cols){
     ];
 
     const adminView=window.isAdmin===true;
-    const emptySnapshot={forEach:()=>{},val:()=>({})};
     const attendanceReads=adminView
         ?Promise.all([
-            db.ref('checkins').orderByChild('date').equalTo(targetDate).once('value'),
-            db.ref('checkinLogs').orderByChild('date').equalTo(targetDate).once('value'),
+            checkinLoadAdminRecords(targetDate),
             db.ref('settings/fixedExclusions').once('value')
         ])
         :Promise.all([
             db.ref('blackboardDisplay/data/checkins').once('value'),
-            Promise.resolve(emptySnapshot),
-            Promise.resolve(emptySnapshot)
+            Promise.resolve({val:()=>({})})
         ]);
 
     attendanceReads.then(snaps=>{
@@ -1124,37 +1117,17 @@ window.renderSeatMap=function(rows,cols){
 
         const logs={};
 
-        snaps[1].forEach(c=>{
-            const value=c.val()||{};
-            const log=checkinNormalizeLog(
-                adminView?value:{
-                    ...value,
-                    category:value.attended?'정상':value.category,
-                    result:value.attended?'정상 등교':value.result
-                },
-                c.key,
-                'checkinLogs'
-            );
+        if(adminView){
+            snaps[0].forEach(log=>{if(log.name&&log.date===targetDate)logs[log.name]=log;});
+        }else{
+            snaps[0].forEach(c=>{
+                const value=c.val()||{};
+                const log=checkinNormalizeLog({...value,result:value.attended?'등교':'미등교'},c.key,'publicCheckin');
+                if(log.name&&log.date===targetDate)logs[log.name]=log;
+            });
+        }
 
-            if(log.name&&log.date===targetDate){
-                logs[log.name]=log;
-            }
-        });
-
-        snaps[0].forEach(c=>{
-            const value=c.val()||{};
-            const log=checkinNormalizeLog(
-                adminView?value:{...value,result:value.attended?'등교':'미등교'},
-                c.key,
-                'checkins'
-            );
-
-            if(log.name&&log.date===targetDate){
-                logs[log.name]=log;
-            }
-        });
-
-        const exclusionData=snaps[2].val()||{};
+        const exclusionData=snaps[1].val()||{};
         const todayExclusions=exclusionData[selectedDay]||[];
         const layout=window.currentLayout||{};
 
@@ -1191,12 +1164,12 @@ window.renderSeatMap=function(rows,cols){
                         }else if(
                             statusText.includes('지각')
                         ){
-                            stateClass='is-bad';
+                            stateClass='is-warn is-late';
 
                         }else if(
                             statusText.includes('결석')
                         ){
-                            stateClass='is-bad';
+                            stateClass='is-bad is-absent';
 
                         }else if(
                             statusText.includes('조퇴')
@@ -1483,12 +1456,12 @@ window.checkinWithUndo=async function(user,reason){
         async()=>{
             const updates={};
 
-            updates[`checkins/${result.recordKey}`]=
+            updates[`attendanceRecords/${checkinGetToday()}/${user}`]=
                 result.hadPrevious
                     ?result.previousData
                     :null;
 
-            updates[`blackboardDisplay/data/checkins/${result.recordKey}`]=
+            updates[`blackboardDisplay/data/checkins/${checkinBoardKey(user)}`]=
                 result.hadPrevious&&result.previousData
                     ?{name:user,date:result.previousData.date,
                         attended:['정상','지각'].includes(result.previousData.category)}
@@ -1676,69 +1649,10 @@ window.openLogEditPopup=function(
     date
 ){
 
-    Promise.all([
+    checkinLoadAdminRecords(date)
+    .then(records=>{
 
-        db.ref('checkins')
-        .orderByChild('date')
-        .equalTo(date)
-        .once('value'),
-
-        db.ref('checkinLogs')
-        .orderByChild('date')
-        .equalTo(date)
-        .once('value')
-
-    ])
-    .then(snaps=>{
-
-        let log=null;
-        let checkinsKey=null;
-        let checkinLogsKey=null;
-
-        // 현재 데이터
-        snaps[0].forEach(c=>{
-
-            const v=c.val()||{};
-
-            if(
-                (v.user||v.name)===name&&
-                v.date===date
-            ){
-
-                log=
-                    checkinNormalizeLog(
-                        v,
-                        c.key,
-                        'checkins'
-                    );
-
-                checkinsKey=c.key;
-            }
-        });
-
-        // 기존 데이터
-        snaps[1].forEach(c=>{
-
-            const v=c.val()||{};
-
-            if(
-                (v.user||v.name)===name&&
-                v.date===date
-            ){
-
-                if(!log){
-
-                    log=
-                        checkinNormalizeLog(
-                            v,
-                            c.key,
-                            'checkinLogs'
-                        );
-                }
-
-                checkinLogsKey=c.key;
-            }
-        });
+        let log=records.find(record=>record.name===name)||null;
 
         if(!log){
 
@@ -1777,9 +1691,7 @@ window.openLogEditPopup=function(
 
         const safeKey=
             String(
-                checkinsKey||
-                checkinLogsKey||
-                ''
+                name
             )
             .replace(/\\/g,'\\\\')
             .replace(/'/g,"\\'");
@@ -2005,7 +1917,9 @@ window.saveDetailLog=async function(
         const [
             checkinsSnap,
             logsSnap,
-            userSnap
+            userSnap,
+            finalSnap,
+            studentSubmissionsSnap
         ]=await Promise.all([
 
             db.ref(
@@ -2018,7 +1932,11 @@ window.saveDetailLog=async function(
 
             db.ref(
                 `users/${name}`
-            ).once('value')
+            ).once('value'),
+
+            db.ref(`attendanceRecords/${date}/${name}`).once('value'),
+
+            db.ref(`studentCheckins/${date}`).once('value')
 
         ]);
 
@@ -2026,7 +1944,13 @@ window.saveDetailLog=async function(
         let checkinsKey=null;
         let logsKey=null;
 
-        let existingData=null;
+        let existingData=finalSnap.val()||null;
+        if(!existingData){
+            studentSubmissionsSnap.forEach(child=>{
+                const value=child.val()||{};
+                if((value.name||value.user)===name)existingData=value;
+            });
+        }
         let existingLogData=null;
 
 
@@ -2046,7 +1970,7 @@ window.saveDetailLog=async function(
 
                 checkinsKey=c.key;
 
-                existingData=v;
+                if(!existingData)existingData=v;
             }
         });
 
@@ -2239,12 +2163,12 @@ window.saveDetailLog=async function(
         // checkins 갱신
         // ======================================
 
-        const checkinRecordKey=checkinsKey||db.ref('checkins').push().key;
-        updates[`checkins/${checkinRecordKey}`]=data;
+        const checkinRecordKey=name;
+        updates[`attendanceRecords/${date}/${name}`]=data;
 
         // 한 번 등교한 학생은 상세 화면에서 명시적으로 결석 처리하기 전까지
         // 공개 좌석판에서도 계속 등교 완료로 유지한다.
-        updates[`blackboardDisplay/data/checkins/${checkinRecordKey}`]={
+        updates[`blackboardDisplay/data/checkins/${checkinBoardKey(name)}`]={
             name:name,
             date:date,
             attended:category!=='결석',
@@ -2254,21 +2178,7 @@ window.saveDetailLog=async function(
 
 
         // ======================================
-        // 예전 checkinLogs가 존재하면
-        // 같이 맞춰줌
-        // ======================================
-
-        if(logsKey){
-
-            updates[
-                `checkinLogs/${logsKey}`
-            ]={
-
-                ...(existingLogData||{}),
-
-                ...data
-            };
-        }
+        // 과거 checkins/checkinLogs는 조회 호환용 보관 자료이므로 수정하지 않는다.
 
 
         let newPoints=null;
@@ -2757,6 +2667,12 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
 
     Promise.all([
 
+        db.ref('attendanceRecords')
+        .once('value'),
+
+        db.ref('studentCheckins')
+        .once('value'),
+
         db.ref('checkins')
         .once('value'),
 
@@ -2785,30 +2701,17 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
 
         const records=[];
 
-        snaps.forEach(snap=>{
-
-            snap.forEach(c=>{
-
-                const log=
-                    checkinNormalizeLog(
-                        c.val(),
-                        c.key,
-                        ''
-                    );
-
-                if(
-                    log.name&&
-                    log.name!=='총사령관'
-                ){
-
-                    usersSet.add(
-                        log.name
-                    );
-
-                    records.push(log);
-                }
-            });
-        });
+        const byNameDate=new Map();
+        const collectRecord=(value,key,source)=>{
+            const log=checkinNormalizeLog(value,key,source);
+            if(!log.name||log.name==='총사령관')return;
+            usersSet.add(log.name);byNameDate.set(`${log.date}|${log.name}`,log);
+        };
+        // 신규 경로 두 개는 날짜 아래에 기록이 있고, 과거 경로 두 개는 평면 구조다.
+        [snaps[2],snaps[3]].forEach((snap,index)=>snap.forEach(c=>collectRecord(c.val(),c.key,index?'legacyLog':'legacyCheckin')));
+        snaps[1].forEach(dateNode=>dateNode.forEach(c=>collectRecord(c.val(),c.key,'studentSubmission')));
+        snaps[0].forEach(dateNode=>dateNode.forEach(c=>collectRecord(c.val(),c.key,'teacherFinal')));
+        records.push(...byNameDate.values());
 
 
         const users=
@@ -3069,14 +2972,14 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
                     ){
 
                         mark='결';
-                        stateClass='is-bad';
+                        stateClass='is-bad attendance-absent';
 
                     }else if(
                         status.includes('지각')
                     ){
 
                         mark='지';
-                        stateClass='is-bad';
+                        stateClass='is-warn attendance-late';
 
                     }else if(
                         status.includes('조퇴')
@@ -3189,20 +3092,21 @@ window.appendExtraLogsUI=function(){
     }
 
 
-    db.ref('checkins')
-    .once('value',snap=>{
+    Promise.all([
+        db.ref('attendanceRecords').once('value'),
+        db.ref('studentCheckins').once('value'),
+        db.ref('checkins').once('value')
+    ]).then(snaps=>{
 
-        const checkins=[];
-
-        snap.forEach(c=>{
-
-            checkins.push({
-                key:c.key,
-                ...(c.val()||{})
-            });
-        });
-
-        checkins.reverse();
+        const combined=new Map();
+        const collect=(value,key,source)=>{
+            const log=checkinNormalizeLog(value,key,source);
+            if(log.name&&log.date)combined.set(`${log.date}|${log.name}`,{...log,key});
+        };
+        snaps[2].forEach(c=>collect(c.val(),c.key,'legacyCheckin'));
+        snaps[1].forEach(dateNode=>dateNode.forEach(c=>collect(c.val(),c.key,'studentSubmission')));
+        snaps[0].forEach(dateNode=>dateNode.forEach(c=>collect(c.val(),c.key,'teacherFinal')));
+        const checkins=Array.from(combined.values()).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
 
 
         let html=`
@@ -3257,7 +3161,7 @@ window.appendExtraLogsUI=function(){
                 html+=`
 
                     <button
-                        onclick="completeDoc('${c.key}')"
+                        onclick="completeDoc('${encodeURIComponent(c.user||c.name)}','${c.date}')"
                         class="btn btn--danger btn--sm"
                     >
                         ${c.user||c.name}
@@ -3332,7 +3236,7 @@ window.appendExtraLogsUI=function(){
 };
 
 
-window.completeDoc=function(key){
+window.completeDoc=function(encodedName,date){
 
     if(
         !confirm(
@@ -3342,9 +3246,8 @@ window.completeDoc=function(key){
         return;
     }
 
-    db.ref(
-        'checkins/'+key
-    )
+    const name=decodeURIComponent(encodedName||'');
+    db.ref(`attendanceRecords/${date}/${name}`)
     .update({
         docSubmitted:true
     })

@@ -6,11 +6,19 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('student check-in reads only the selected date and has sufficient memory', () => {
+test('student submission and teacher final attendance use separate paths', () => {
     const source = read('functions/index.js');
+    const client = read('js/checkin-seat.js');
+    const html = read('index.html');
+    const rules = JSON.parse(read('database.rules.json')).rules;
     assert.match(source, /memory:\s*'1GiB'/);
-    assert.match(source, /ref\('checkins'\)\.orderByChild\('date'\)\.equalTo\(date\)\.get\(\)/);
-    assert.doesNotMatch(source, /const priorRecords=\(await database\.ref\('checkins'\)\.get\(\)/);
+    assert.match(source, /studentCheckins\/\$\{date\}\/\$\{current\.uid\}/);
+    assert.match(source, /attendanceRecords\/\$\{date\}\/\$\{name\}/);
+    assert.match(client, /teacherFinal/);
+    assert.match(html, /id="tab-student-checkin"/);
+    assert.match(html, /id="tab-attendance-admin"/);
+    assert.equal(rules.checkins.$record['.write'],false);
+    assert.equal(rules.checkinLogs.$record['.write'],false);
 });
 
 test('student sees only their own secure point value', () => {
@@ -189,4 +197,15 @@ test('settings save uses a targeted update instead of a settings transaction', (
     const block = source.slice(start, end);
     assert.match(block, /settingsRef\.update\(updates\)/);
     assert.doesNotMatch(block, /settingsRef\.transaction|ref\('settings'\)\.transaction/);
+});
+
+test('late and absent attendance use clearly different colors and borders', () => {
+    const source = read('js/checkin-seat.js');
+    const css = read('css/style.css');
+    assert.match(source, /stateClass='is-warn is-late'/);
+    assert.match(source, /stateClass='is-bad is-absent'/);
+    assert.match(source, /stateClass='is-warn attendance-late'/);
+    assert.match(source, /stateClass='is-bad attendance-absent'/);
+    assert.match(css, /\.checkin-card\.is-late\s*\{[\s\S]*?border:\s*2px solid var\(--ui-warn\)/);
+    assert.match(css, /\.checkin-card\.is-absent\s*\{[\s\S]*?border:\s*3px solid var\(--ui-bad\)/);
 });

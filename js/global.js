@@ -2,6 +2,7 @@
 // 공통 유틸리티, 탭 전환, 앱 시작, 공통 팝업, 차등 포인트 지급
 
 window.currentTab=window.currentTab||sessionStorage.getItem('activeTab')||'main';
+if(window.currentTab==='checkin')window.currentTab='student-checkin';
 window.isHousingEnabled=window.isHousingEnabled!==false;
 window.rIdx=window.rIdx||0;
 window.routineActive=false;
@@ -158,6 +159,7 @@ window.showUndoBar=function(message,onUndo,seconds){
 function showTab(t, housingOwner){
     const adminOnlyTabs=[
         'blackboard-admin',
+        'attendance-admin',
         'class-journal',
         'management',
         'admin'
@@ -237,29 +239,18 @@ if(typeof renderHeroes==='function'){
     }
 
 
-    if(t==='checkin'){
+    if(t==='student-checkin'){
+        if(admin){t='attendance-admin';return showTab(t);}
+        if(typeof refreshCheckinGuide==='function')refreshCheckinGuide();
+    }
+
+    if(t==='attendance-admin'){
         if(typeof generateNewLayout==='function'){
             generateNewLayout();
         }
 
         if(typeof loadCheckinState==='function'){
             loadCheckinState();
-        }
-
-        if(typeof switchCheckinSub==='function'){
-            switchCheckinSub(
-                isCheckinAdminUser()
-                    ?'checkin-logs'
-                    :'checkin-main'
-            );
-        }
-
-        const adminBtn=
-            document.getElementById('sub-btn-checkin-logs');
-
-        if(adminBtn){
-            adminBtn.style.display=
-                isCheckinAdminUser()?'block':'none';
         }
 
         if(typeof refreshCheckinGuide==='function'){
@@ -311,8 +302,7 @@ if(typeof renderHeroes==='function'){
    ========================================================= */
 
 function isCheckinAdminUser(){
-    // 청소·상점 역할은 해당 업무만 맡는다. isHelper/role 값을 출결 관리자
-    // 권한과 공유하면 학생에게 등교 로그와 좌석 관리 화면이 노출된다.
+    // 상점·청소 도우미도 학생입니다. 등교 관리 화면은 실제 교사만 사용합니다.
     return window.isAdmin===true;
 }
 
@@ -323,7 +313,8 @@ function isCheckinAdminUser(){
 
 function switchCheckinSub(subId){
     const adminView=isCheckinAdminUser();
-    // 교사는 로그 화면, 모든 학생은 역할과 무관하게 암호 입력 화면으로 고정한다.
+
+    // 학생은 무조건 비밀번호 입력 화면
     subId=adminView?'checkin-logs':'checkin-main';
     const main=
         document.getElementById('sub-checkin-main');
@@ -453,24 +444,10 @@ function startApp(){
     }
 
 
-    const checkinBtn=
-        document.getElementById('btn-checkin');
-
-    if(checkinBtn){
-        checkinBtn.style.display='block';
-        checkinBtn.textContent=admin
-            ?'🗓️ 등교로그 및 좌석'
-            :'⚔️ 등교';
-    }
-
-
-    const checkinLogsBtn=
-        document.getElementById('sub-btn-checkin-logs');
-
-    if(checkinLogsBtn){
-        checkinLogsBtn.style.display=
-            canManage?'block':'none';
-    }
+    const studentCheckinBtn=document.getElementById('btn-student-checkin');
+    const attendanceAdminBtn=document.getElementById('btn-attendance-admin');
+    if(studentCheckinBtn)studentCheckinBtn.style.display=admin?'none':'block';
+    if(attendanceAdminBtn)attendanceAdminBtn.style.display=admin?'block':'none';
 
 
     const cleaning=
@@ -1061,9 +1038,9 @@ window.closePointPopup=function(){
         const text = `${title || ''} ${content || ''}`;
 
         // 판정 기준은 현재 탭입니다.
-        // `sub-checkin-logs` 의 display 값은 탭을 이동해도 'block' 으로 유지되므로 사용하지 않습니다.
-        const checkinTab = window.currentTab === 'checkin' ||
-            document.getElementById('tab-checkin')?.classList.contains('active');
+        const checkinTab = ['student-checkin','attendance-admin'].includes(window.currentTab) ||
+            document.getElementById('tab-student-checkin')?.classList.contains('active') ||
+            document.getElementById('tab-attendance-admin')?.classList.contains('active');
 
         const checkinContent = /등교|출석|출결|지각|결석|조퇴|학생 배치|요일별 등교제외/.test(text);
 

@@ -25,6 +25,8 @@ const safeKey = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,160}$/.t
 const kstDate = timestamp => new Date(timestamp + 9 * 3600000).toISOString().slice(0, 10);
 const scoreLogKey = (requestId,name) =>
     `score_${requestId}_${Buffer.from(String(name)).toString('base64url')}`;
+const attendanceBoardKey = name =>
+    `student_${Buffer.from(String(name)).toString('base64url')}`;
 const publicUser = (name, user={}) => ({
     name:String(user.name || name), no:Number(user.no || user.number || 0),
     character:String(user.character || ''), selectedAnimal:String(user.selectedAnimal || ''),
@@ -42,6 +44,7 @@ const JOURNAL_SESSION_MS = 30 * 60 * 1000;
 const JOURNAL_CATEGORIES = new Set(['교우관계','학교생활','민원','학습','보호자상담','기타']);
 const journalTokenKey = token => createHash('sha256').update(String(token)).digest('hex');
 const journalPasswordHash = (password,salt) => scryptSync(password,salt,64).toString('hex');
+const journalPasswordIsValid = password => /^\d{4}$/.test(password);
 const journalPasswordMatches = (password,config={}) => {
     if(!config.salt||!config.hash)return false;
     const saved=Buffer.from(String(config.hash),'hex');
@@ -57,7 +60,7 @@ function requireAuth(request) {
 async function actor(request) {
     const auth = requireAuth(request);
     const email = cleanEmail(auth.token.email);
-    const teacher = email === TEACHER_EMAIL;
+    const teacher = email === TEACHER_EMAIL && auth.token.email_verified === true;
     if (teacher) return { uid:auth.uid, email, name:'총사령관', role:'교사', teacher:true };
     const emailKey = email.replace(/\./g, ',');
     const name = String((await getDatabase().ref(`userEmails/${emailKey}`).get()).val() || '').trim();
@@ -104,12 +107,22 @@ async function requireJournalSession(request,current){
     }
 }
 
+async function readJournalMonth(database,month){
+    const noticeQuery=database.ref('blackboard/notices')
+        .orderByKey().startAt(`${month}-01`).endAt(`${month}-\uf8ff`);
+    const [daysSnapshot,noticesSnapshot]=await Promise.all([
+        database.ref(`classJournal/${month}`).get(),
+        noticeQuery.get()
+    ]);
+    return {month,days:daysSnapshot.val()||{},notices:noticesSnapshot.val()||{}};
+}
+
 exports.setClassJournalPassword = callable(async request => {
     const current=await journalTeacher(request);
     const currentPassword=String(request.data?.currentPassword||'');
     const newPassword=String(request.data?.newPassword||'');
-    if(newPassword.length<4||newPassword.length>64){
-        throw new HttpsError('invalid-argument','학급일지 비밀번호는 4~64자로 설정해 주세요.');
+    if(!journalPasswordIsValid(newPassword)){
+        throw new HttpsError('invalid-argument','학급일지 비밀번호는 숫자 4자리로 설정해 주세요.');
     }
     const database=getDatabase();
     const passwordRef=database.ref('privateConfig/classJournalPassword');
@@ -128,13 +141,18 @@ exports.setClassJournalPassword = callable(async request => {
 exports.unlockClassJournal = callable(async request => {
     const current=await journalTeacher(request);
     const password=String(request.data?.password||'');
+    const requestedMonth=String(request.data?.month||kstDate(Date.now()).slice(0,7));
+    if(!/^\d{4}-\d{2}$/.test(requestedMonth))throw new HttpsError('invalid-argument','조회할 달을 확인해 주세요.');
     const database=getDatabase();
-    const passwordConfig=(await database.ref('privateConfig/classJournalPassword').get()).val();
+    const failureRef=database.ref(`classJournalAuthFailures/${current.uid}`);
+    const [passwordSnapshot,failureSnapshot]=await Promise.all([
+        database.ref('privateConfig/classJournalPassword').get(),failureRef.get()
+    ]);
+    const passwordConfig=passwordSnapshot.val();
     if(!passwordConfig){
         throw new HttpsError('failed-precondition','학급일지 비밀번호를 먼저 설정해 주세요.');
     }
-    const failureRef=database.ref(`classJournalAuthFailures/${current.uid}`);
-    const failure=(await failureRef.get()).val()||{};
+    const failure=failureSnapshot.val()||{};
     if(Number(failure.blockedUntil)>Date.now()){
         throw new HttpsError('resource-exhausted','비밀번호 확인이 여러 번 실패했습니다. 5분 후 다시 시도해 주세요.');
     }
@@ -143,13 +161,16 @@ exports.unlockClassJournal = callable(async request => {
         await failureRef.set({attempts,blockedUntil:attempts>=5?Date.now()+5*60*1000:0,updatedAt:Date.now()});
         throw new HttpsError('permission-denied','학급일지 비밀번호가 맞지 않습니다.');
     }
-    await failureRef.remove();
     const token=randomBytes(32).toString('base64url');
     const expiresAt=Date.now()+JOURNAL_SESSION_MS;
-    await database.ref(`classJournalSessions/${current.uid}`).set({
-        [journalTokenKey(token)]:{createdAt:Date.now(),expiresAt}
-    });
-    return {journalToken:token,expiresAt};
+    const [monthData]=await Promise.all([
+        readJournalMonth(database,requestedMonth),
+        failureRef.remove(),
+        database.ref(`classJournalSessions/${current.uid}`).set({
+            [journalTokenKey(token)]:{createdAt:Date.now(),expiresAt}
+        })
+    ]);
+    return {journalToken:token,expiresAt,...monthData};
 });
 
 exports.getClassJournalMonth = callable(async request => {
@@ -157,8 +178,7 @@ exports.getClassJournalMonth = callable(async request => {
     await requireJournalSession(request,current);
     const month=String(request.data?.month||'');
     if(!/^\d{4}-\d{2}$/.test(month))throw new HttpsError('invalid-argument','조회할 달을 확인해 주세요.');
-    const days=(await getDatabase().ref(`classJournal/${month}`).get()).val()||{};
-    return {month,days};
+    return readJournalMonth(getDatabase(),month);
 });
 
 exports.saveClassJournalDay = callable(async request => {
@@ -168,12 +188,22 @@ exports.saveClassJournalDay = callable(async request => {
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new HttpsError('invalid-argument','저장할 날짜를 확인해 주세요.');
     const lessonNote=String(request.data?.lessonNote||'').trim();
     if(lessonNote.length>12000)throw new HttpsError('invalid-argument','수업일지는 12,000자 이내로 작성해 주세요.');
+    const periodNotes={};
+    const requestedPeriods=request.data?.periodNotes&&typeof request.data.periodNotes==='object'
+        ?request.data.periodNotes:{};
+    for(let number=1;number<=6;number+=1){
+        const key=`${number}교시`,item=requestedPeriods[key]||{};
+        const note=String(item?.note||'').trim().slice(0,6000);
+        if(note)periodNotes[key]={subject:String(item?.subject||'').trim().slice(0,100),note};
+    }
     const counseling=(Array.isArray(request.data?.counseling)?request.data.counseling:[])
         .slice(0,50).map((item,index)=>({
             id:safeKey(String(item?.id||''))?String(item.id):`c_${Date.now()}_${index}`,
             category:JOURNAL_CATEGORIES.has(String(item?.category||''))?String(item.category):'기타',
             studentName:String(item?.studentName||'').trim().slice(0,100),
-            content:String(item?.content||'').trim().slice(0,6000)
+            content:String(item?.content||'').trim().slice(0,6000),
+            relatedStudents:[...new Set((Array.isArray(item?.relatedStudents)?item.relatedStudents:[])
+                .map(name=>String(name||'').trim().slice(0,100)).filter(Boolean))].slice(0,35)
         })).filter(item=>item.content);
     const schedules=(Array.isArray(request.data?.schedules)?request.data.schedules:[])
         .slice(0,50).map((item,index)=>({
@@ -185,15 +215,22 @@ exports.saveClassJournalDay = callable(async request => {
             completed:item?.completed===true
         })).filter(item=>item.title);
     const updatedAt=Date.now();
-    const day={lessonNote,counseling,schedules,updatedAt};
+    const day={lessonNote,periodNotes,counseling,schedules,updatedAt};
     const alerts=Object.fromEntries(schedules.filter(item=>item.notify&&!item.completed)
         .map(item=>[item.id,{title:item.title,time:item.time,details:item.details,updatedAt}]));
-    const empty=!lessonNote&&!counseling.length&&!schedules.length;
+    const noticeText=String(request.data?.notice?.text||'').trim().slice(0,12000);
+    const noticeItems=(Array.isArray(request.data?.notice?.items)?request.data.notice.items:[])
+        .slice(0,50).map(item=>({
+            text:String(item?.text||'').trim().slice(0,1000),showOnHome:item?.showOnHome===true
+        })).filter(item=>item.text);
+    const notice=noticeText?{text:noticeText,items:noticeItems}:null;
+    const empty=!lessonNote&&!Object.keys(periodNotes).length&&!counseling.length&&!schedules.length;
     await getDatabase().ref().update({
         [`classJournal/${date.slice(0,7)}/${date}`]:empty?null:day,
-        [`teacherAlerts/${date}`]:Object.keys(alerts).length?alerts:null
+        [`teacherAlerts/${date}`]:Object.keys(alerts).length?alerts:null,
+        [`blackboard/notices/${date}`]:notice
     });
-    return {date,day:empty?null:day,alertCount:Object.keys(alerts).length};
+    return {date,day:empty?null:day,notice,alertCount:Object.keys(alerts).length};
 });
 
 
@@ -522,11 +559,19 @@ exports.teacherQuickCheckin = callable(async request => {
     const userSnapshot=await userRef.get();
     if(!userSnapshot.exists())throw new HttpsError('not-found','학생 정보를 찾을 수 없습니다.');
 
-    const records=(await database.ref('checkins').orderByChild('date').equalTo(date).get()).val()||{};
-    const existingEntry=Object.entries(records).find(([,record])=>
-        String(record?.name||record?.user||'')===name);
-    const existingKey=existingEntry?.[0]||'';
-    const previousData=existingEntry?.[1]||null;
+    const finalRef=database.ref(`attendanceRecords/${date}/${name}`);
+    const [finalSnapshot,submissionsSnapshot]=await Promise.all([
+        finalRef.get(),database.ref(`studentCheckins/${date}`).get()
+    ]);
+    let previousData=finalSnapshot.val()||null;
+    if(!previousData){
+        previousData=Object.values(submissionsSnapshot.val()||{})
+            .find(record=>String(record?.name||record?.user||'')===name)||null;
+    }
+    if(!previousData){
+        const legacy=(await database.ref('checkins').orderByChild('date').equalTo(date).get()).val()||{};
+        previousData=Object.values(legacy).find(record=>String(record?.name||record?.user||'')===name)||null;
+    }
     const previousPenalty=Number(previousData?.pointPenalty)||0;
     const pointDelta=-previousPenalty;
     const previousPoints=Number(userSnapshot.val()?.points)||0;
@@ -543,15 +588,15 @@ exports.teacherQuickCheckin = callable(async request => {
         points=Number(pointResult.snapshot.val())||0;
     }
 
-    const recordKey=existingKey||database.ref('checkins').push().key;
+    const recordKey=name;
     const now=Date.now();
     const time=new Date(now+9*3600000).toISOString().slice(11,16);
     const record={...(previousData||{}),name,user:name,date,time,category:'정상',
         reason:'정상 등교',result:'정상 등교',pointPenalty:0,penaltySource:'none',
         lateMinutes:0,docSubmitted:Boolean(previousData?.docSubmitted),timestamp:now};
     const updates={
-        [`checkins/${recordKey}`]:record,
-        [`blackboardDisplay/data/checkins/${recordKey}`]:{name,date,attended:true}
+        [`attendanceRecords/${date}/${name}`]:record,
+        [`blackboardDisplay/data/checkins/${attendanceBoardKey(name)}`]:{name,date,attended:true}
     };
     if(pointDelta){
         const logKey=`teacher_checkin_${recordKey}_${now}`;
@@ -567,7 +612,7 @@ exports.teacherQuickCheckin = callable(async request => {
         throw error;
     }
     return {recordKey,category:'정상',source:'teacher',lateMinutes:0,penalty:0,
-        pointDelta,points,hadPrevious:Boolean(existingKey),previousData,previousPoints};
+        pointDelta,points,hadPrevious:Boolean(previousData),previousData,previousPoints};
 });
 
 exports.adjustStudentScores = callable(async request => {
@@ -682,11 +727,10 @@ exports.submitStudentCheckin = callable(async request => {
     const desired=excluded?0:-Math.min(9,late);
     const category=late>0?'지각':'정상';
     const time=`${String(clock.getUTCHours()).padStart(2,'0')}:${String(clock.getUTCMinutes()).padStart(2,'0')}`;
-    // 전체 출결 기록 대신 오늘 날짜만 읽어 대용량 DB의 메모리 초과를 막는다.
-    const priorRecords=(await database.ref('checkins').orderByChild('date').equalTo(date).get()).val()||{};
-    const priorEntry=Object.entries(priorRecords).find(([,record])=>
-        String(record?.name||record?.user||'')===current.name&&record?.date===date);
-    const stableKey=priorEntry?.[0]||`${current.uid}_${date}`;
+    // 학생 제출 원본과 교사의 최종 출결은 서로 다른 경로에 보관한다.
+    const submissionRef=database.ref(`studentCheckins/${date}/${current.uid}`);
+    const priorSubmission=(await submissionRef.get()).val()||null;
+    const stableKey=current.uid;
 
     // The restored database is tens of megabytes.  A root transaction exceeded
     // the callable request/event limit, so attendance accounting is kept inside
@@ -703,7 +747,7 @@ exports.submitStudentCheckin = callable(async request => {
             return user;
         }
         const previousState=user.attendanceState[date]||{};
-        const previous=Number(previousState.pointPenalty??priorEntry?.[1]?.pointPenalty)||0;
+        const previous=Number(previousState.pointPenalty??priorSubmission?.pointPenalty)||0;
         const delta=desired-previous;
         user.points=(Number(user.points)||0)+delta;
         user.roomCoins=Number.isFinite(Number(user.roomCoins))?Number(user.roomCoins):10;
@@ -734,9 +778,8 @@ exports.submitStudentCheckin = callable(async request => {
     const recordKey=outcome.recordKey;
     const record=outcome.record;
     const updates={
-        // Public projection target: blackboardDisplay.data.checkins
-        [`checkins/${recordKey}`]:record,
-        [`blackboardDisplay/data/checkins/${recordKey}`]:{name:current.name,date,attended:true}
+        [`studentCheckins/${date}/${current.uid}`]:record,
+        [`blackboardDisplay/data/checkins/${attendanceBoardKey(current.name)}`]:{name:current.name,date,attended:true}
     };
     if(outcome.delta){
         const logKey=`attendance_${recordKey}`;
@@ -815,9 +858,7 @@ exports.setCheckinRoomReward = callable(async request => {
     const date=String(request.data?.date||'');
     if(date!==kstDate(Date.now()))throw new HttpsError('invalid-argument','오늘 출석만 반영할 수 있습니다.');
     const database=getDatabase();
-    const checkins=(await database.ref('checkins').get()).val()||{};
-    const record=Object.values(checkins).find(value=>
-        String(value?.name||value?.user||'')===current.name&&String(value?.date||'')===date);
+    const record=(await database.ref(`studentCheckins/${date}/${current.uid}`).get()).val();
     const normal=String(record?.category||record?.result||'').includes('정상');
     const result=await database.ref(`users/${current.name}`).transaction(user=>{
         if(!user)return;

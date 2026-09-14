@@ -14,6 +14,9 @@ test('class journal is admin-only, password-gated and server mediated',()=>{
     assert.match(server,/exports\.getClassJournalMonth/);
     assert.match(server,/exports\.saveClassJournalDay/);
     assert.match(server,/scryptSync/);
+    assert.match(server,/email_verified === true/);
+    assert.match(server,/journalPasswordIsValid/);
+    assert.match(server,/\^\\d\{4\}\$/);
     assert.match(server,/classJournalSessions/);
     assert.match(client,/callSecure\('unlockClassJournal'/);
     assert.match(client,/callSecure\('getClassJournalMonth'/);
@@ -21,6 +24,40 @@ test('class journal is admin-only, password-gated and server mediated',()=>{
     assert.doesNotMatch(client,/db\.ref\(['"`]classJournal/);
     assert.equal(rules.classJournal['.read'],false);
     assert.equal(rules.classJournal['.write'],false);
+});
+
+test('journal unlock returns the selected month without a second client round trip',()=>{
+    const server=read('functions/index.js');
+    const client=read('js/class-journal.js');
+    assert.match(server,/readJournalMonth\(database,month\)/);
+    assert.match(server,/return \{journalToken:token,expiresAt,\.\.\.monthData\}/);
+    assert.match(client,/result\.days\|\|\{\}/);
+    assert.match(client,/result\.notices\|\|\{\}/);
+});
+
+test('journal editor uses timetable periods and extracts related students',()=>{
+    const server=read('functions/index.js');
+    const client=read('js/class-journal.js');
+    const home=read('js/home-dashboard.js');
+    assert.match(client,/const PERIODS=\['1교시','2교시','3교시','4교시','5교시','6교시'\]/);
+    assert.match(client,/window\.getHomeDashboardData/);
+    assert.match(home,/window\.getHomeDashboardData=\(\)=>state\.data\|\|\{\}/);
+    assert.match(client,/relatedStudents:relatedStudents\(item\)/);
+    assert.match(server,/relatedStudents:\[\.\.\.new Set/);
+    assert.match(server,/const periodNotes=\{\}/);
+    assert.doesNotMatch(client,/기록 0개/);
+});
+
+test('journal uses a mobile PIN keypad, large filtered calendar and typed entry picker',()=>{
+    const client=read('js/class-journal.js');
+    assert.match(client,/data-pin-key/);
+    assert.match(client,/input\.value\.length===4\)unlock\(\)/);
+    assert.match(client,/data-journal-filter/);
+    assert.match(client,/\['all','전체'\]/);
+    assert.match(client,/\['schedule','일정'\]/);
+    assert.match(client,/\['counsel','상담'\]/);
+    assert.match(client,/\['lesson','수업일지'\]/);
+    assert.match(client,/min-height:125px/);
 });
 
 test('only checked work schedules are copied to teacher alerts',()=>{
