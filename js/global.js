@@ -311,31 +311,9 @@ if(typeof renderHeroes==='function'){
    ========================================================= */
 
 function isCheckinAdminUser(){
-    const admin=
-        (typeof isAdmin!=='undefined'&&!!isAdmin)||
-        !!window.isAdmin;
-
-    const helper=
-        (typeof isHelper!=='undefined'&&!!isHelper)||
-        !!window.isHelper;
-
-    const name=
-        typeof myName!=='undefined'
-            ?myName
-            :window.myName;
-
-    const role=
-        typeof currentUser!=='undefined'&&currentUser
-            ?currentUser.role
-            :'';
-
-    return(
-        admin||
-        helper||
-        name==='총사령관'||
-        role==='관리자'||
-        role==='도우미'
-    );
+    // 청소·상점 역할은 해당 업무만 맡는다. isHelper/role 값을 출결 관리자
+    // 권한과 공유하면 학생에게 등교 로그와 좌석 관리 화면이 노출된다.
+    return window.isAdmin===true;
 }
 
 
@@ -345,7 +323,8 @@ function isCheckinAdminUser(){
 
 function switchCheckinSub(subId){
     const adminView=isCheckinAdminUser();
-    if(adminView)subId='checkin-logs';
+    // 교사는 로그 화면, 모든 학생은 역할과 무관하게 암호 입력 화면으로 고정한다.
+    subId=adminView?'checkin-logs':'checkin-main';
     const main=
         document.getElementById('sub-checkin-main');
 

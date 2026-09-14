@@ -29,7 +29,7 @@ test('login uses tab-session persistence and inactivity logout limits', () => {
     const auth = read('js/auth.js');
     assert.match(auth, /Auth\.Persistence\.SESSION/);
     assert.doesNotMatch(auth, /Auth\.Persistence\.LOCAL/);
-    assert.match(auth, /ADMIN_INACTIVITY_MS=30\*60\*1000/);
+    assert.match(auth, /ADMIN_INACTIVITY_MS=3\*60\*60\*1000/);
     assert.match(auth, /STUDENT_INACTIVITY_MS=2\*60\*60\*1000/);
 });
 
@@ -64,4 +64,38 @@ test('batch point editor uses compact horizontal rows and an isolated scroll are
     assert.match(global, /class="batch-check-cell"[\s\S]*?batch-card-name[\s\S]*?batch-card-current-point[\s\S]*?batch-p-input[\s\S]*?batch-exp-input/);
     assert.match(global, /\.batch-student-grid[\s\S]*?flex: 1 1 360px[\s\S]*?max-height: calc\(100dvh - 330px\)[\s\S]*?overflow-y: auto/);
     assert.match(global, /\.batch-action-buttons[\s\S]*?position: static/);
+});
+
+test('only the teacher can open attendance logs regardless of student duty role', () => {
+    const global = read('js/global.js');
+    const start = global.indexOf('function isCheckinAdminUser');
+    const end = global.indexOf('function switchCheckinSub', start);
+    const block = global.slice(start, end);
+    assert.match(block, /return window\.isAdmin===true/);
+    assert.doesNotMatch(block, /const helper=|currentUser\?\.role|\|\|\s*window\.isHelper/);
+    assert.match(global, /subId=adminView\?'checkin-logs':'checkin-main'/);
+});
+
+test('student attendance view always keeps only the password form visible', () => {
+    const checkin = read('js/checkin-seat.js');
+    const start = checkin.indexOf('window.renderMyCheckinCard');
+    const end = checkin.indexOf('window.refreshCheckinGuide', start);
+    const block = checkin.slice(start, end);
+    assert.match(block, /panel\.hidden=true/);
+    assert.match(block, /panel\.replaceChildren\(\)/);
+    assert.match(block, /form\.hidden=false/);
+    assert.doesNotMatch(block, /findMyCheckinToday|sub-checkin-logs/);
+});
+
+test('student inventory backfills legacy own orders through a secure callable', () => {
+    const guide = read('js/point-guide.js');
+    const server = read('functions/index.js');
+    const start = server.indexOf('exports.syncOwnShopInventory');
+    const end = server.indexOf('exports.getPopularShopItems', start);
+    const block = server.slice(start, end);
+    assert.match(guide, /callSecure\('syncOwnShopInventory'/);
+    assert.match(block, /await actor\(request\)/);
+    assert.match(block, /orderByChild\('user'\)\.equalTo\(current\.name\)/);
+    assert.match(block, /ordersByUser\/\$\{current\.name\}/);
+    assert.doesNotMatch(block, /request\.data\?\.name/);
 });

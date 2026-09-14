@@ -239,6 +239,32 @@ exports.mirrorOrder = onValueWritten({ ref:'/orders/{orderId}' }, async event =>
     }
 });
 
+// 복구 이전 구매 내역은 orders에만 있고 ordersByUser에는 없을 수 있다.
+// 학생이 포인트 화면을 열 때 본인의 주문만 서버에서 찾아 개인 인덱스를 보완한다.
+exports.syncOwnShopInventory = callable(async request => {
+    const current=await actor(request);
+    if(current.teacher)return {synced:0,total:0};
+
+    const database=getDatabase();
+    const [legacySnapshot,indexedSnapshot]=await Promise.all([
+        database.ref('orders').orderByChild('user').equalTo(current.name).get(),
+        database.ref(`ordersByUser/${current.name}`).get()
+    ]);
+    const indexed=indexedSnapshot.val()||{};
+    const updates={};
+    let total=0;
+    legacySnapshot.forEach(child=>{
+        const order=child.val()||{};
+        if(String(order.user||'')!==current.name)return;
+        total+=1;
+        if(!indexed[child.key]){
+            updates[`ordersByUser/${current.name}/${child.key}`]=order;
+        }
+    });
+    if(Object.keys(updates).length)await database.ref().update(updates);
+    return {synced:Object.keys(updates).length,total};
+});
+
 exports.getPopularShopItems = callable(async request => {
     await actor(request);
     const database=getDatabase(), now=Date.now();

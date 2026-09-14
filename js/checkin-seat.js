@@ -508,53 +508,16 @@ window.findMyCheckinToday=async function(name){
     return found;
 };
 
-// 학생 등교 카드를 '아직 안 함' 또는 '오늘 이렇게 처리됨' 둘 중 하나로 그린다.
+// 학생 등교 화면에는 역할과 이전 처리 상태에 관계없이 암호 입력창만 표시한다.
+// 본인 출결 결과/학급 로그는 학생 화면에 노출하지 않는다.
 window.renderMyCheckinCard=async function(){
     const panel=document.getElementById('checkin-my-status');
     const form=document.getElementById('checkin-form');
     if(!panel||!form)return;
 
-    if(window.isAdmin===true||!window.myName){
-        panel.hidden=true;
-        form.hidden=false;
-        return;
-    }
-
-    let record=null;
-    try{
-        record=await window.findMyCheckinToday(window.myName);
-    }catch(error){
-        console.error('오늘 등교 기록 조회 오류:',error);
-        panel.hidden=true;
-        form.hidden=false;
-        return;
-    }
-
-    if(!record){
-        panel.hidden=true;
-        form.hidden=false;
-        return;
-    }
-
-    const tone=
-        record.category==='정상'?'is-good':
-        record.category==='지각'?'is-warn':
-        record.category==='결석'?'is-bad':'is-warn';
-
-    const mark=
-        record.category==='정상'?'✅':
-        record.category==='지각'?'⚠️':'📝';
-
-    panel.className='checkin-stamp '+tone;
-    panel.innerHTML=
-        '<div class="checkin-stamp-mark">'+mark+'</div>'+
-        '<div class="checkin-stamp-body">'+
-            '<strong>'+checkinEscape(record.result||record.category)+'</strong>'+
-            '<span>'+checkinEscape(record.time||'')+' 확인</span>'+
-        '</div>';
-
-    panel.hidden=false;
-    form.hidden=true;
+    panel.hidden=true;
+    panel.replaceChildren();
+    form.hidden=false;
 };
 
 window.refreshCheckinGuide=async function(settings){

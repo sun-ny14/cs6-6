@@ -174,6 +174,14 @@ window.initPointsTabListeners = function() {
     };
     ordersRef.on('value',ordersHandler);
 
+    // DB 복구 전 구매가 기존 orders에만 남아 있으면 본인 보관함 인덱스를
+    // 서버가 안전하게 복구한다. 완료되면 위 실시간 리스너가 자동으로 다시 그린다.
+    if(!canManage&&window.myName){
+        window.callSecure('syncOwnShopInventory',{}).catch(error=>{
+            console.error('인벤토리 동기화 오류:',error);
+        });
+    }
+
 
     // 포인트 연대기
     const pointLogQuery = canManage

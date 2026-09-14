@@ -95,6 +95,7 @@
     },
     "orders": {
       ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '상점')",
+      ".indexOn": ["user"],
       "$order": {
         ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
       }
