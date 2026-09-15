@@ -84,6 +84,7 @@
       }
     },
     "studentCheckins": {
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
       "$date": {
         ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
         "$uid": {
@@ -102,17 +103,17 @@
     },
     "classManagement": {
       "cleaningStatus": {
-        ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소')",
+        ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('users').child(root.child('access').child(auth.uid).child('name').val()).child('role').val() == '청소' || root.child('cleaningSettings').child('cleaningAssignments').child(root.child('access').child(auth.uid).child('name').val()).val() == true)",
         "$date": {
           "$userName": {
             ".read": "auth != null && root.child('access').child(auth.uid).child('name').val() == $userName",
-            ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소' || root.child('access').child(auth.uid).child('name').val() == $userName)"
+            ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('users').child(root.child('access').child(auth.uid).child('name').val()).child('role').val() == '청소' || (root.child('access').child(auth.uid).child('name').val() == $userName && (root.child('settings').child('studentRoles').child($userName).exists() || root.child('cleaningSettings').child('cleaningAssignments').child($userName).val() == true)))"
           }
         }
       }
     },
     "orders": {
-      ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '상점')",
+      ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('users').child(root.child('access').child(auth.uid).child('name').val()).child('role').val() == '상점' || root.child('users').child(root.child('access').child(auth.uid).child('name').val()).child('isHelper').val() == true)",
       ".indexOn": ["user"],
       "$order": {
         ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
@@ -120,7 +121,7 @@
     },
     "ordersByUser": {
       "$userName": {
-        ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '상점' || root.child('access').child(auth.uid).child('name').val() == $userName)",
+        ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('users').child(root.child('access').child(auth.uid).child('name').val()).child('role').val() == '상점' || root.child('users').child(root.child('access').child(auth.uid).child('name').val()).child('isHelper').val() == true || root.child('access').child(auth.uid).child('name').val() == $userName)",
         ".write": false
       }
     },
@@ -155,7 +156,7 @@
         "cleaningRoot": {
           "$date": {
             "$userName": {
-              ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소' || root.child('access').child(auth.uid).child('name').val() == $userName)"
+              ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('users').child(root.child('access').child(auth.uid).child('name').val()).child('role').val() == '청소' || (root.child('access').child(auth.uid).child('name').val() == $userName && root.child('cleaningSettings').child('cleaningAssignments').child($userName).val() == true))"
             }
           }
         }

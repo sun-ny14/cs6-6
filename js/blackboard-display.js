@@ -293,7 +293,7 @@
         return `<div class="number-list">${students.map(student=>`${student.number}번`).join(', ')}</div>`;
     }
 
-    function renderDismissal(today) {
+    function renderDismissal(today, item={}) {
         const roster=getRoster();
         const cleaning=state.cleaningRoot?.[today]||{};
         const cleaningIncomplete=roster.filter(student=>!Boolean(cleaning[student.name]?.cleanDone));
@@ -304,7 +304,12 @@
         const tomorrow = nextSchoolDay(today);
         const tomorrowText = noticeText(state.notices?.[tomorrow] || '').trim();
         const tomorrowCard = `<section class="dismissal-card tomorrow-notice"><h3>📅 내일 공지 <small>${escapeHtml(tomorrow)}</small></h3><div class="tomorrow-notice-text">${tomorrowText ? escapeHtml(tomorrowText) : '등록된 내일 공지가 없습니다.'}</div></section>`;
-        const manual=String(state.dismissalNotes?.[today]?.teacherMessage||state.dismissalNotes?.[today]?.manualIncomplete||'');
+        // 전자칠판 관리에서 하교 시간에 입력한 '화면 안내 문구'를
+        // 교사 전달사항의 기본값으로 사용한다. 당일 카드에서 직접 저장한
+        // 전달사항이 있으면 그 값을 우선해 날짜별 수정도 유지한다.
+        const scheduledMessage=String(item.action||'').trim();
+        const savedMessage=String(state.dismissalNotes?.[today]?.teacherMessage||state.dismissalNotes?.[today]?.manualIncomplete||'').trim();
+        const manual=savedMessage||scheduledMessage;
         const manualBody=state.canEdit?`<textarea class="dismissal-input" data-dismissal-note data-note-date="${today}" placeholder="하교 전 학생들에게 전달할 내용을 적으세요.">${escapeHtml(manual)}</textarea><div class="dismissal-status" data-dismissal-status>입력을 멈추면 자동 저장됩니다.</div>`:`<div class="dismissal-view">${manual?escapeHtml(manual):'전달사항 없음'}</div>`;
         return `<div class="dismissal-board"><div class="state-kicker">6교시 이후</div><h2 class="state-title">🏠 하교합니다</h2><p class="state-subtitle">아래 번호의 학생은 할 일을 마치고 하교하세요.</p><div class="dismissal-grid">${tomorrowCard}<section class="dismissal-card clean"><h3>🧹 오늘 청소 미완료</h3>${numbersHtml(cleaningIncomplete)}</section><section class="dismissal-card task"><h3>📝 필수 과제 미완료</h3>${assignmentHtml}</section><section class="dismissal-card manual"><h3>📣 교사 전달사항</h3>${manualBody}</section></div></div>`;
     }
@@ -337,7 +342,7 @@
     function periodHtml(item, now) {
         if (item.name === '아침') return renderSeatGrid('morning', now.date, item);
         if (item.name === '청소시간') return renderSeatGrid('cleaning', now.date, item);
-        if (item.name === '하교') return renderDismissal(now.date);
+        if (item.name === '하교') return renderDismissal(now.date,item);
         if (isClassPeriod(item.name)) return renderLesson(item, now.date);
         return renderSimplePeriod(item);
     }
@@ -401,7 +406,7 @@
         } else if (mode.type === 'break') {
             stage.innerHTML = renderBreak(mode, timeText);
         } else {
-            stage.innerHTML = renderDismissal(now.date);
+            stage.innerHTML = renderDismissal(now.date,schedule['하교']);
         }
         resizeInlineMemo(stage.querySelector('[data-inline-learning-note]'));
     }
