@@ -32,14 +32,6 @@ const publicUser = (name, user={}) => ({
     character:String(user.character || ''), selectedAnimal:String(user.selectedAnimal || ''),
     selectedTitle:String(user.selectedTitle || ''), myRoom:user.myRoom || null
 });
-const publicSettings = settings => ({
-    lateTime:String(settings?.lateTime || '08:40'), closeTime:String(settings?.closeTime || '09:00'),
-    routineText:String(settings?.routineText || ''), giftList:Array.isArray(settings?.giftList) ? settings.giftList : [],
-    housingEnabled:settings?.housingEnabled !== false, defaultBg:String(settings?.defaultBg || '')
-});
-const cleaningSettings = settings => ({
-    studentRoles:settings?.studentRoles || {}, cleaningAssignments:settings?.cleaningAssignments || {}
-});
 const JOURNAL_SESSION_MS = 30 * 60 * 1000;
 const JOURNAL_CATEGORIES = new Set(['교우관계','학교생활','민원','학습','보호자상담','기타']);
 const journalTokenKey = token => createHash('sha256').update(String(token)).digest('hex');
@@ -237,12 +229,28 @@ exports.saveClassJournalDay = callable(async request => {
 });
 
 
-exports.mirrorPublicSettings = onValueWritten({ ref:'/settings' }, async event => {
-    const settings = event.data.after.val();
-    await getDatabase().ref().update({
-        publicSettings:settings ? publicSettings(settings) : null,
-        cleaningSettings:settings ? cleaningSettings(settings) : null
-    });
+// settings/defaultBg에는 base64로 인코딩된 배경 이미지가 통째로 들어갈 수 있다.
+// 예전에는 이 트리거가 /settings 노드 전체를 감시해서, 비밀번호처럼 작은 필드
+// 하나만 바꿔도 defaultBg 때문에 이벤트 페이로드가 한도를 넘어 클라이언트 쓰기가
+// TRIGGER_PAYLOAD_TOO_LARGE로 거부됐다. 필드 단위로 감시해 서로 영향을 주지 않게 한다.
+const PUBLIC_SETTINGS_FIELDS = new Set(['lateTime','closeTime','routineText','giftList','housingEnabled','defaultBg']);
+const CLEANING_SETTINGS_FIELDS = new Set(['studentRoles','cleaningAssignments']);
+const PUBLIC_SETTINGS_DEFAULTS = { lateTime:'08:40', closeTime:'09:00', routineText:'', giftList:[], housingEnabled:true, defaultBg:'' };
+
+exports.mirrorPublicSettings = onValueWritten({ ref:'/settings/{field}' }, async event => {
+    const field = event.params.field;
+    if (!PUBLIC_SETTINGS_FIELDS.has(field) && !CLEANING_SETTINGS_FIELDS.has(field)) return;
+    const value = event.data.after.val();
+    const updates = {};
+    if (PUBLIC_SETTINGS_FIELDS.has(field)) {
+        updates[`publicSettings/${field}`] = field === 'housingEnabled'
+            ? value !== false
+            : (value ?? PUBLIC_SETTINGS_DEFAULTS[field]);
+    }
+    if (CLEANING_SETTINGS_FIELDS.has(field)) {
+        updates[`cleaningSettings/${field}`] = value || {};
+    }
+    await getDatabase().ref().update(updates);
 });
 
 // 이미 로그인한 상점·청소 담당 학생도 역할 변경을 즉시 반영한다.

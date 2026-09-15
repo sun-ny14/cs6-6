@@ -307,12 +307,17 @@ window.approveSingleItem = async function(key) {
         return;
     }
 
-    const order=(await db.ref('orders/'+key).once('value')).val();
-    if(!order)return alert('주문 정보를 찾을 수 없습니다.');
-    const user=String(order.user||''), item=String(order.item||'');
-    if(confirm(`${user} 용사의 [${item}] 1개를 승인하시겠습니까?`)) {
-        await window.callSecure('manageShopOrder',{orderKey:key,action:'approve'});
-        alert("✅ 개별 승인 완료!");
+    try {
+        const order=(await db.ref('orders/'+key).once('value')).val();
+        if(!order)return alert('주문 정보를 찾을 수 없습니다.');
+        const user=String(order.user||''), item=String(order.item||'');
+        if(confirm(`${user} 용사의 [${item}] 1개를 승인하시겠습니까?`)) {
+            await window.callSecure('manageShopOrder',{orderKey:key,action:'approve'});
+            alert("✅ 개별 승인 완료!");
+        }
+    } catch (error) {
+        console.error('구매 승인 오류:', error);
+        alert(error?.message || '승인 처리 중 오류가 발생했습니다.');
     }
 };
 
@@ -324,10 +329,19 @@ window.approveUserAll = async function(keyStr, user) {
         return;
     }
 
-    if(confirm(`${user} 용사의 모든 사용 요청을 승인하시겠습니까?`)) {
-        const keys = keyStr.split(',').filter(Boolean);
-        for (const key of keys) await window.callSecure('manageShopOrder',{orderKey:key,action:'approve'});
+    if(!confirm(`${user} 용사의 모든 사용 요청을 승인하시겠습니까?`)) return;
+
+    const keys = keyStr.split(',').filter(Boolean);
+    let completed = 0;
+    try {
+        for (const key of keys) {
+            await window.callSecure('manageShopOrder',{orderKey:key,action:'approve'});
+            completed += 1;
+        }
         alert("✅ 일괄 승인 및 자동 리셋, 연대기 기록까지 완벽하게 처리되었습니다!");
+    } catch (error) {
+        console.error('일괄 승인 오류:', error);
+        alert(`${completed}건 승인 후 멈췄습니다. ${error?.message || '다시 확인해 주세요.'}`);
     }
 };
 
@@ -393,12 +407,17 @@ window.rejectSingleItem = async function(key) {
         return;
     }
 
-    const order=(await db.ref('orders/'+key).once('value')).val();
-    if(!order)return alert('주문 정보를 찾을 수 없습니다.');
-    const user=String(order.user||''), item=String(order.item||'');
-    if(confirm(`${user} 용사의 [${item}] 요청을 거절하고 포인트를 환불하시겠습니까?`)) {
-        await window.callSecure('manageShopOrder',{orderKey:key,action:'reject'});
-        alert(`✅ 거절 및 환불 처리가 완료되었습니다.`);
+    try {
+        const order=(await db.ref('orders/'+key).once('value')).val();
+        if(!order)return alert('주문 정보를 찾을 수 없습니다.');
+        const user=String(order.user||''), item=String(order.item||'');
+        if(confirm(`${user} 용사의 [${item}] 요청을 거절하고 포인트를 환불하시겠습니까?`)) {
+            await window.callSecure('manageShopOrder',{orderKey:key,action:'reject'});
+            alert(`✅ 거절 및 환불 처리가 완료되었습니다.`);
+        }
+    } catch (error) {
+        console.error('구매 거절 오류:', error);
+        alert(error?.message || '거절 처리 중 오류가 발생했습니다.');
     }
 };
 
