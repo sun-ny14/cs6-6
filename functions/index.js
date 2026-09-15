@@ -83,6 +83,27 @@ exports.getSecureSession = callable(async request => {
         user:current.teacher ? { name:current.name, role:'교사' } : current.user };
 });
 
+// publicProfiles를 채우던 미러 트리거가 한동안 꺼져 있었어서(대용량 사용자 미러링
+// 트리거 제거), 이미 있던 학생들의 publicProfiles는 그 필드가 다시 쓰이기 전까지
+// 계속 비어 있다. 관리자가 한 번 실행하면 users 전체를 읽어 채워 주고,
+// 이후에는 마커를 보고 곧바로 건너뛴다.
+exports.backfillPublicProfiles = callable(async request => {
+    const current = await actor(request);
+    if (!current.teacher) throw new HttpsError('permission-denied', '관리자만 실행할 수 있습니다.');
+    const database = getDatabase();
+    const doneSnapshot = await database.ref('migrations/publicProfilesBackfilled').get();
+    if (doneSnapshot.val() === true) return { count: 0, alreadyDone: true };
+    const usersSnapshot = await database.ref('users').get();
+    const users = usersSnapshot.val() || {};
+    const updates = { 'migrations/publicProfilesBackfilled': true };
+    Object.entries(users).forEach(([name, user]) => {
+        if (name === '총사령관') return;
+        updates[`publicProfiles/${name}`] = publicUser(name, user);
+    });
+    await database.ref().update(updates);
+    return { count: Object.keys(updates).length - 1 };
+});
+
 async function journalTeacher(request){
     const current=await actor(request);
     if(!current.teacher)throw new HttpsError('permission-denied','관리자만 학급일지를 사용할 수 있습니다.');
@@ -251,6 +272,26 @@ exports.mirrorPublicSettings = onValueWritten({ ref:'/settings/{field}' }, async
         updates[`cleaningSettings/${field}`] = value || {};
     }
     await getDatabase().ref().update(updates);
+});
+
+// 학생 화면은 users 전체를 못 읽고 publicProfiles만 읽는다(규칙 참고).
+// 예전에는 /users/{userName} 전체를 감시해 publicProfiles를 채웠는데, myRoom 등
+// 큰 필드가 포함된 학생 레코드에서 TRIGGER_PAYLOAD_TOO_LARGE가 나서 트리거 자체를
+// 삭제했었다(대용량 사용자 미러링 트리거 제거 커밋). 그 결과 publicProfiles가 계속
+// 비어 있어 학생 화면의 용사 목록·방 등이 아예 안 뜨는 상태였다. 필요한 필드만
+// 개별적으로 감시해 같은 문제 없이 다시 채운다.
+const PUBLIC_PROFILE_FIELDS = new Set(['name','no','number','character','selectedAnimal','selectedTitle','myRoom']);
+
+exports.mirrorPublicUser = onValueWritten({ ref:'/users/{userName}/{field}' }, async event => {
+    const { userName, field } = event.params;
+    if (!PUBLIC_PROFILE_FIELDS.has(field)) return;
+    const value = event.data.after.val();
+    const outKey = field === 'number' ? 'no' : field;
+    const outValue = outKey === 'no' ? (Number(value) || 0)
+        : outKey === 'name' ? String(value || userName)
+        : outKey === 'myRoom' ? (value ?? null)
+        : String(value || '');
+    await getDatabase().ref(`publicProfiles/${userName}/${outKey}`).set(outValue);
 });
 
 // 이미 로그인한 상점·청소 담당 학생도 역할 변경을 즉시 반영한다.
@@ -533,7 +574,11 @@ exports.purchaseHousingItem = callable(async request => {
     if (!Number.isSafeInteger(price) || price < 0) throw new HttpsError('failed-precondition', '아이템 가격이 올바르지 않습니다.');
     let reason = '';
     const result = await database.ref(`users/${current.name}`).transaction(user => {
-        if (!user && !current.teacher) { reason='missing'; return; }
+        // Admin SDK 트랜잭션의 첫 콜백은 서버에 데이터가 있어도 null로 시작할 수 있다.
+        // actor()에서 이미 확인한 학생 데이터로 첫 시도를 이어 가야 곧장 'missing'으로
+        // 중단되지 않는다.
+        if (user === null && !current.teacher) user = JSON.parse(JSON.stringify(current.user || {}));
+        if ((!user || !Object.keys(user).length) && !current.teacher) { reason='missing'; return; }
         user ||= { name:current.name, roomCoins:0 };
         if (user.housingPurchases?.[purchaseId]) return user;
         const level = Math.max(1, Number(user.level || user.lv) || 1);
@@ -846,7 +891,11 @@ exports.syncHousingRewards = callable(async request => {
     const current = await actor(request);
     const database = getDatabase();
     const result = await database.ref(`users/${current.name}`).transaction(user => {
-        if (!user && !current.teacher) return;
+        // Admin SDK 트랜잭션의 첫 콜백은 서버에 데이터가 있어도 null로 시작할 수 있다.
+        // actor()에서 이미 확인한 학생 데이터로 첫 시도를 이어 가야 곧장 not-found로
+        // 중단되지 않는다.
+        if (user === null && !current.teacher) user = JSON.parse(JSON.stringify(current.user || {}));
+        if ((!user || !Object.keys(user).length) && !current.teacher) return;
         user ||= { name:current.name };
         const level=Math.max(1,Number(user.level||user.lv)||1);
         const coins=Number(user.roomCoins), rewarded=Number(user.roomRewardedLevel);
@@ -882,7 +931,11 @@ exports.setCheckinRoomReward = callable(async request => {
     const record=(await database.ref(`studentCheckins/${date}/${current.uid}`).get()).val();
     const normal=String(record?.category||record?.result||'').includes('정상');
     const result=await database.ref(`users/${current.name}`).transaction(user=>{
-        if(!user)return;
+        // Admin SDK 트랜잭션의 첫 콜백은 서버에 데이터가 있어도 null로 시작할 수 있다.
+        // actor()에서 이미 확인한 학생 데이터로 첫 시도를 이어 가야 곧장 not-found로
+        // 중단되지 않는다.
+        if(user===null)user=JSON.parse(JSON.stringify(current.user||{}));
+        if(!user||!Object.keys(user).length)return;
         user.roomCoins=Number.isFinite(Number(user.roomCoins))?Number(user.roomCoins):10;
         user.roomCoinRewards||={}; user.roomCoinRewards.checkin||={};
         const previous=user.roomCoinRewards.checkin[date];
@@ -946,8 +999,15 @@ exports.manageShopOrder = callable(async request => {
     const allowedStatuses=['요청','사용요청','대기'];
     const timestamp=Date.now();
     let failure='';
+    // Admin SDK 트랜잭션의 첫 콜백은 서버에 주문이 있어도 null로 시작할 수 있다.
+    // 그대로 두면 존재하는 주문도 첫 시도에서 곧장 'missing'으로 중단돼 버리므로,
+    // 미리 읽어 둔 값으로 첫 비교를 진행하고 충돌 시 자동 재시도되게 한다.
+    const initialOrderSnapshot=await orderRef.get();
+    if(!initialOrderSnapshot.exists())throw new HttpsError('not-found','주문 정보를 찾을 수 없습니다.');
+    const initialOrder=initialOrderSnapshot.val();
     const claimResult=await orderRef.transaction(order=>{
-        if(order===null){failure='missing';return;}
+        if(order===null)order=JSON.parse(JSON.stringify(initialOrder));
+        if(!order||typeof order!=='object'){failure='missing';return;}
         const status=String(order.status||'');
         if(action==='approve'&&status==='완료')return order;
         if(action==='reject'&&status==='거절처리중')return order;

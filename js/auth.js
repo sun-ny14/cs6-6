@@ -61,10 +61,12 @@ window.canUseCleaningTab=function(){
             ''
         ).trim();
 
+    // "역할이 있으면 무조건" 이 아니라, 청소 관련 1인 1역일 때만 청소 탭을 추가로 준다.
+    // js/cleaning.js의 isCleaningStudent()와 판정 기준을 동일하게 맞춘다.
     return saved===true||
         saved==='true'||
         (saved&&typeof saved==='object'&&saved.enabled===true)||
-        Boolean(role);
+        /청소|쓸기|닦기|분리수거|쓰레기|정리/.test(role);
 };
 
 window.canManageCleaningChecks=function(){
@@ -277,6 +279,14 @@ auth.onAuthStateChanged(async user=>{
 
         resetInactivityTimer();
         applyAccessControl();
+
+        // publicProfiles가 비어 있던 기존 학생 데이터를 한 번만 채운다.
+        // 이미 채워진 뒤에는 서버가 즉시 alreadyDone으로 응답하고 끝낸다.
+        if(admin){
+            window.callSecure('backfillPublicProfiles').catch(error=>{
+                console.warn('공개 프로필 백필 오류:',error);
+            });
+        }
 
         if(loginScreen){
             loginScreen.style.setProperty(

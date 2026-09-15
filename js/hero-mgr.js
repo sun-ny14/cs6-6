@@ -686,7 +686,7 @@ window.renderHeroes = function(usersFromListener) {
      * 로그인 직후 currentUsers가 아직 없을 경우
      */
 
-    db.ref("users").once("value").then(snapshot => {
+    db.ref(heroIsAdmin() ? "users" : "publicProfiles").once("value").then(snapshot => {
         const users = [];
 
         snapshot.forEach(child => {
