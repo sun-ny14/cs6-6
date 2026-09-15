@@ -248,6 +248,15 @@ auth.onAuthStateChanged(async user=>{
             name:userData.name||studentName
         };
 
+        // 청소 역할명과 별개로 교사가 '청소 담당 학생' 체크박스로
+        // 지정한 학생도 메뉴를 열 수 있게 로그인 세션의 판정을 보관합니다.
+        if(session.cleaningAssigned===true){
+            window.cleaningAssignments={
+                ...(window.cleaningAssignments||{}),
+                [studentName]:true
+            };
+        }
+
         const accessRef=db.ref(`access/${user.uid}`);
         const receiveAccess=snapshot=>{
             const access=snapshot.val()||{};

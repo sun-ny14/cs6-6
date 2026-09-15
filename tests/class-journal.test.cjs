@@ -51,13 +51,23 @@ test('journal editor uses timetable periods and extracts related students',()=>{
 test('journal uses a mobile PIN keypad, large filtered calendar and typed entry picker',()=>{
     const client=read('js/class-journal.js');
     assert.match(client,/data-pin-key/);
-    assert.match(client,/input\.value\.length===4\)unlock\(\)/);
+    assert.match(client,/input\.value\.length===4&&previousLength<4\)unlock\(\)/);
     assert.match(client,/data-journal-filter/);
     assert.match(client,/\['all','전체'\]/);
     assert.match(client,/\['schedule','일정'\]/);
     assert.match(client,/\['counsel','상담'\]/);
     assert.match(client,/\['lesson','수업일지'\]/);
     assert.match(client,/min-height:125px/);
+});
+
+test('journal PIN also accepts a physical keyboard',()=>{
+    const client=read('js/class-journal.js');
+    assert.match(client,/lockIsActive/);
+    assert.match(client,/\/\^\\d\$\/.test\(event\.key\)/);
+    assert.match(client,/event\.key==='Backspace'/);
+    assert.match(client,/event\.key==='Delete'/);
+    assert.match(client,/event\.key==='Enter'/);
+    assert.match(client,/state\.unlocking=true/);
 });
 
 test('only checked work schedules are copied to teacher alerts',()=>{

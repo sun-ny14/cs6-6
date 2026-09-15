@@ -2,7 +2,7 @@
     'use strict';
     const CATEGORIES=['교우관계','학교생활','민원','학습','보호자상담','기타'];
     const PERIODS=['1교시','2교시','3교시','4교시','5교시','6교시'];
-    const state={token:'',month:'',selectedDate:'',days:{},notices:{},drafts:{},loading:false,filter:'all',entryMode:'all'};
+    const state={token:'',month:'',selectedDate:'',days:{},notices:{},drafts:{},loading:false,unlocking:false,filter:'all',entryMode:'all'};
     const root=()=>document.getElementById('class-journal-container');
     const esc=value=>String(value==null?'':value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const todayKst=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -96,8 +96,10 @@
         catch(error){console.error('학급일지 조회 오류:',error);window.lockClassJournal(errorText(error));}finally{state.loading=false;}
     }
     async function unlock(){
+        if(state.unlocking)return;
         const password=String(document.getElementById('journal-password')?.value||''),status=document.getElementById('journal-lock-status');if(!/^\d{4}$/.test(password)){if(status)status.textContent='숫자 4자리를 입력해 주세요.';return;}if(status)status.textContent='확인 중…';
-        try{const month=todayKst().slice(0,7),result=await window.callSecure('unlockClassJournal',{password,month});state.token=result.journalToken;state.month=result.month||month;state.selectedDate=todayKst();state.days=result.days||{};state.notices=result.notices||{};state.drafts={};renderJournal();}catch(error){if(status)status.textContent=errorText(error);updatePin('');}
+        state.unlocking=true;
+        try{const month=todayKst().slice(0,7),result=await window.callSecure('unlockClassJournal',{password,month});state.token=result.journalToken;state.month=result.month||month;state.selectedDate=todayKst();state.days=result.days||{};state.notices=result.notices||{};state.drafts={};renderJournal();}catch(error){if(status)status.textContent=errorText(error);updatePin('');}finally{state.unlocking=false;}
     }
     async function savePassword(){
         const currentPassword=String(document.getElementById('journal-current-password')?.value||''),newPassword=String(document.getElementById('journal-new-password')?.value||''),confirm=String(document.getElementById('journal-confirm-password')?.value||''),status=document.getElementById('journal-lock-status');if(!/^\d{4}$/.test(newPassword)){status.textContent='숫자 4자리를 입력해 주세요.';return;}if(newPassword!==confirm){status.textContent='새 비밀번호 확인이 일치하지 않습니다.';return;}status.textContent='저장 중…';
@@ -120,9 +122,10 @@
 
     function updatePin(value){
         const input=document.getElementById('journal-password');if(!input)return;
+        const previousLength=input.value.length;
         input.value=String(value||'').replace(/\D/g,'').slice(0,4);
         document.querySelectorAll('[data-pin-dot]').forEach((dot,index)=>dot.classList.toggle('is-filled',index<input.value.length));
-        if(input.value.length===4)unlock();
+        if(input.value.length===4&&previousLength<4)unlock();
     }
 
     window.lockClassJournal=function(message){state.token='';state.days={};state.notices={};state.drafts={};renderLock(message);};
@@ -138,5 +141,32 @@
         const remove=event.target.closest('[data-remove-row]');if(remove){remove.closest('[data-work-row],[data-counsel-row]')?.remove();captureModal();renderCalendar();return;}if(event.target.closest('[data-save-journal]'))await saveDay();
     });
     document.addEventListener('input',event=>{if(event.target?.id==='journal-notice-text'){renderNoticeChecks();return;}const row=event.target.closest?.('[data-counsel-row]');if(row)updateRelated(row);});
-    document.addEventListener('keydown',event=>{if(event.key==='Enter'&&event.target?.id==='journal-password'){event.preventDefault();unlock();}if(event.key==='Escape'&&document.getElementById('journal-modal-backdrop'))closeModal();});
+    document.addEventListener('keydown',event=>{
+        const input=document.getElementById('journal-password');
+        const journalTab=document.getElementById('tab-class-journal');
+        const lockIsActive=input&&(window.currentTab==='class-journal'||journalTab?.classList.contains('active'));
+        if(lockIsActive&&!event.ctrlKey&&!event.metaKey&&!event.altKey){
+            if(/^\d$/.test(event.key)){
+                event.preventDefault();
+                updatePin(input.value+event.key);
+                return;
+            }
+            if(event.key==='Backspace'){
+                event.preventDefault();
+                updatePin(input.value.slice(0,-1));
+                return;
+            }
+            if(event.key==='Delete'){
+                event.preventDefault();
+                updatePin('');
+                return;
+            }
+            if(event.key==='Enter'){
+                event.preventDefault();
+                unlock();
+                return;
+            }
+        }
+        if(event.key==='Escape'&&document.getElementById('journal-modal-backdrop'))closeModal();
+    });
 })();

@@ -78,6 +78,24 @@ test('attendance date queries are indexed in realtime database rules', () => {
     assert.deepEqual(rules.checkinLogs['.indexOn'], ['date']);
 });
 
+test('monthly attendance can read all student submissions and always opens a status popup', () => {
+    const rules = JSON.parse(read('database.rules.json')).rules;
+    const source = read('js/checkin-seat.js');
+    assert.match(rules.studentCheckins['.read'], /ksosuny@cberi\.go\.kr/);
+    assert.match(source, /월간 출석부를 불러오는 중/);
+    assert.match(source, /\.catch\(error=>/);
+    assert.match(source, /window\.openCheckinPopup\(title,content,\{force\}\)/);
+});
+
+test('attendance detail popup protects unsaved typing from incidental refresh closes', () => {
+    const popup = read('js/global.js');
+    const editor = read('js/checkin-seat.js');
+    assert.match(editor, /data-checkin-popup-kind="attendance-detail"/);
+    assert.match(editor, /window\.closeCheckinPopup\(true\)/);
+    assert.match(popup, /overlay\.dataset\.dirty === 'true'/);
+    assert.match(popup, /closeCheckinPopup\(true\)/);
+});
+
 test('teacher inactivity logout is three hours while student remains two hours', () => {
     const source = read('js/auth.js');
     assert.match(source, /const ADMIN_INACTIVITY_MS=3\*60\*60\*1000/);
@@ -208,4 +226,27 @@ test('late and absent attendance use clearly different colors and borders', () =
     assert.match(source, /stateClass='is-bad attendance-absent'/);
     assert.match(css, /\.checkin-card\.is-late\s*\{[\s\S]*?border:\s*2px solid var\(--ui-warn\)/);
     assert.match(css, /\.checkin-card\.is-absent\s*\{[\s\S]*?border:\s*3px solid var\(--ui-bad\)/);
+});
+
+test('cleaning students load the saved seat layout and retain checkbox-based access', () => {
+    const cleaning=read('js/cleaning.js');
+    const auth=read('js/auth.js');
+    const global=read('js/global.js');
+    const server=read('functions/index.js');
+    assert.match(cleaning,/db\.ref\('seatLayoutData'\)\.once\('value'\)/);
+    assert.match(cleaning,/getSeatInformation\(settings, seatData\)/);
+    assert.match(server,/cleaningAssigned/);
+    assert.match(auth,/session\.cleaningAssigned===true/);
+    assert.match(global,/s\.cleaningAssignments\|\|window\.cleaningAssignments\|\|\{\}/);
+});
+
+test('shop order management avoids a restored-database root transaction', () => {
+    const server=read('functions/index.js');
+    const start=server.indexOf('exports.manageShopOrder');
+    const block=server.slice(start);
+    assert.match(block,/database\.ref\(`orders\/\$\{orderKey\}`\)/);
+    assert.match(block,/orderRef\.transaction/);
+    assert.match(block,/userRef\.transaction/);
+    assert.match(block,/shopOrderRefunds/);
+    assert.doesNotMatch(block,/database\.ref\(\)\.transaction/);
 });

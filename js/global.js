@@ -466,8 +466,10 @@ function startApp(){
 
         const s=snap.val()||{};
 
-        window.studentRoles=s.studentRoles||{};
-        window.cleaningAssignments=s.cleaningAssignments||{};
+        // 학생용 publicSettings에는 청소 권한 정보가 의도적으로 없습니다.
+        // 로그인 함수가 확인한 본인 청소 배치를 빈 객체로 덮어쓰지 않습니다.
+        window.studentRoles=s.studentRoles||window.studentRoles||{};
+        window.cleaningAssignments=s.cleaningAssignments||window.cleaningAssignments||{};
 
         if(typeof window.applyAccessControl==='function'){
             window.applyAccessControl();
@@ -1212,8 +1214,19 @@ window.closePointPopup=function(){
         `;
 
         overlay.addEventListener('click', event => {
-            if (event.target === overlay || event.target.closest('[data-checkin-popup-close]')) {
-                closeCheckinPopup();
+            // 출결 상세 사유를 작성하다가 팝업 바깥을 잘못 눌러도
+            // 입력창이 사라지지 않게 닫기 버튼으로만 닫습니다.
+            if (event.target.closest('[data-checkin-popup-close]')) {
+                closeCheckinPopup(true);
+            }
+        });
+
+        overlay.addEventListener('input', event => {
+            if (
+                overlay.dataset.popupKind === 'attendance-detail' &&
+                event.target.closest('input,select,textarea')
+            ) {
+                overlay.dataset.dirty = 'true';
             }
         });
 
@@ -1221,12 +1234,32 @@ window.closePointPopup=function(){
         return overlay;
     }
 
-    function openCheckinPopup(title, content) {
+    function popupKind(title, content) {
+        if (/data-checkin-popup-kind=["']attendance-detail["']/.test(String(content || ''))) {
+            return 'attendance-detail';
+        }
+        if (/학급 출석부/.test(String(title || ''))) return 'attendance-month';
+        return 'attendance-other';
+    }
+
+    function openCheckinPopup(title, content, options = {}) {
         installStyle();
         const overlay = ensureOverlay();
         const titleElement = overlay.querySelector('.checkin-popup-title');
         const contentElement = overlay.querySelector('.checkin-popup-content');
         const oldOverlay = document.getElementById('common-overlay');
+        const nextKind = popupKind(title, content);
+
+        // 실시간 새로고침이나 늦게 끝난 비동기 요청이 작성 중인
+        // 출결 상세창을 다시 그려 입력 내용을 지우지 못하게 합니다.
+        if (
+            !overlay.hidden &&
+            overlay.dataset.popupKind === 'attendance-detail' &&
+            overlay.dataset.dirty === 'true' &&
+            options.force !== true
+        ) {
+            return false;
+        }
 
         if (oldOverlay) oldOverlay.style.display = 'none';
         if (titleElement) titleElement.textContent = title || '등교 기록';
@@ -1237,18 +1270,33 @@ window.closePointPopup=function(){
         }
 
         overlay.dataset.previousOverflow = document.body.style.overflow || '';
+        overlay.dataset.popupKind = nextKind;
+        overlay.dataset.dirty = 'false';
         overlay.hidden = false;
         document.body.style.overflow = 'hidden';
         overlay.querySelector('.checkin-popup-close')?.focus();
+        return true;
     }
 
-    function closeCheckinPopup() {
+    function closeCheckinPopup(force = false) {
         const overlay = document.getElementById(OVERLAY_ID);
         if (!overlay || overlay.hidden) return false;
+
+        // 저장·닫기 버튼처럼 명시적인 종료가 아닌 일반 closePopup 호출은
+        // 작성 중인 상세창을 닫지 않습니다.
+        if (
+            force !== true &&
+            overlay.dataset.popupKind === 'attendance-detail' &&
+            overlay.dataset.dirty === 'true'
+        ) {
+            return true;
+        }
 
         overlay.hidden = true;
         const content = overlay.querySelector('.checkin-popup-content');
         if (content) content.innerHTML = '';
+        overlay.dataset.popupKind = '';
+        overlay.dataset.dirty = 'false';
         document.body.style.overflow = overlay.dataset.previousOverflow || '';
         return true;
     }
@@ -1276,7 +1324,7 @@ window.closePointPopup=function(){
     };
 
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape') closeCheckinPopup();
+        if (event.key === 'Escape') closeCheckinPopup(true);
     });
 })();
 // 용사 상세창 V5: 왼쪽 프로필 / 오른쪽 포인트 증감 내역

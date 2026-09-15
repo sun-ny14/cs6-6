@@ -171,6 +171,21 @@ test('lunch, cleaning, afternoon lesson and dismissal switch at the expected bou
     app.tick('2026-09-02T14:50:00+09:00'); assert.match(app.stage(), /하교합니다/);
 });
 
+test('dismissal shows the scheduled action in teacher message and keeps a dated override', () => {
+    const app = board('2026-09-02T15:00:00+09:00');
+    app.emit('blackboard/baseSchedule', {
+        '3': { '하교': { subject:'하교', action:'문을 닫고 차례로 이동하세요.' } }
+    });
+    assert.match(app.stage(), /교사 전달사항/);
+    assert.match(app.stage(), /문을 닫고 차례로 이동하세요\./);
+
+    app.emit('blackboard/dismissalNotes', {
+        '2026-09-02': { teacherMessage:'오늘은 운동장으로 모이세요.' }
+    });
+    assert.match(app.stage(), /오늘은 운동장으로 모이세요\./);
+    assert.doesNotMatch(app.stage(), /문을 닫고 차례로 이동하세요\./);
+});
+
 test('a fresh device only subscribes to public board data and the server clock', () => {
     const app = board(undefined, false);
     assert.deepEqual(Object.keys(app.subscriptions).sort(), ['.info/serverTimeOffset', 'blackboardDisplay']);

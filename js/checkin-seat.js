@@ -1698,10 +1698,10 @@ window.openLogEditPopup=function(
 
         const h=`
 
-            <div class="stack">
+            <div class="stack" data-checkin-popup-kind="attendance-detail">
 
                 <h3 class="center">
-                    ${name} 등교 상세 기록
+                    ${checkinEscape(name)} 등교 상세 기록
                 </h3>
 
                 <label class="field-label">
@@ -1814,7 +1814,7 @@ window.openLogEditPopup=function(
                     id="edit-desc"
                     rows="3"
                     placeholder="예: 아침 방과후 농구팀, 독감으로 인한 결석 등"
-                >${log.reason||''}</textarea>
+                >${checkinEscape(log.reason||'')}</textarea>
 
 
                 <button
@@ -2379,10 +2379,9 @@ window.saveDetailLog=async function(
         }
 
 
-        if(
-            typeof closePopup===
-            'function'
-        ){
+        if(typeof window.closeCheckinPopup==='function'){
+            window.closeCheckinPopup(true);
+        }else if(typeof closePopup==='function'){
             closePopup();
         }
 
@@ -2633,6 +2632,20 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
 
     const year=now.getFullYear();
     const month=now.getMonth();
+    const requestId=(window.__monthlyAttendanceRequest||0)+1;
+    window.__monthlyAttendanceRequest=requestId;
+
+    const showMonthlyPopup=(content,force=false)=>{
+        const title=`${month+1}월 학급 출석부`;
+        if(typeof window.openCheckinPopup==='function'){
+            window.openCheckinPopup(title,content,{force});
+        }else if(typeof openPopup==='function'){
+            openPopup(title,content);
+        }
+    };
+
+    // 데이터 읽기가 끝날 때까지 아무 반응이 없던 문제를 막습니다.
+    showMonthlyPopup('<div class="well center">월간 출석부를 불러오는 중…</div>',true);
 
     const daysInMonth=
         new Date(
@@ -2681,6 +2694,7 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
 
     ])
     .then(snaps=>{
+        if(requestId!==window.__monthlyAttendanceRequest)return;
 
         const usersSet=new Set();
 
@@ -3024,15 +3038,17 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
         `;
 
 
-        if(
-            typeof openPopup==='function'
-        ){
-
-            openPopup(
-                `${month+1}월 학급 출석부`,
-                tableHtml
-            );
-        }
+        showMonthlyPopup(tableHtml,true);
+    })
+    .catch(error=>{
+        if(requestId!==window.__monthlyAttendanceRequest)return;
+        console.error('월간 출석부 로드 오류:',error);
+        showMonthlyPopup(`
+            <div class="well center">
+                <p class="strong">월간 출석부를 불러오지 못했습니다.</p>
+                <p class="muted small">잠시 후 다시 시도하거나 데이터베이스 규칙 배포 여부를 확인해 주세요.</p>
+            </div>
+        `,true);
     });
 };
 

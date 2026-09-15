@@ -77,6 +77,9 @@ async function actor(request) {
 exports.getSecureSession = callable(async request => {
     const current = await actor(request);
     const database = getDatabase();
+    const cleaningAssigned=current.teacher
+        ?false
+        :(await database.ref(`settings/cleaningAssignments/${current.name}`).get()).val()===true;
     // Login must stay small and deterministic.  Rebuilding every public profile,
     // setting and order here made a restored classroom database exceed the
     // callable container's memory/request limits, causing an HTTP 500 before
@@ -84,7 +87,7 @@ exports.getSecureSession = callable(async request => {
     await database.ref(`access/${current.uid}`).set({
         name:current.name, role:current.role, teacher:current.teacher, updatedAt:Date.now()
     });
-    return { name:current.name, role:current.role, teacher:current.teacher,
+    return { name:current.name, role:current.role, teacher:current.teacher, cleaningAssigned,
         user:current.teacher ? { name:current.name, role:'교사' } : current.user };
 });
 
@@ -903,46 +906,86 @@ exports.requestOrderUse = callable(async request => {
 
 exports.manageShopOrder = callable(async request => {
     const current=await actor(request);
-    if(!current.teacher&&current.role!=='상점')throw new HttpsError('permission-denied','상점 역할만 주문을 처리할 수 있습니다.');
+    const database=getDatabase();
+    let assignedRole='';
+    if(!current.teacher&&current.role!=='상점'&&current.user?.isHelper!==true){
+        const roleValue=(await database.ref(`settings/studentRoles/${current.name}`).get()).val();
+        assignedRole=typeof roleValue==='string'
+            ?roleValue.trim()
+            :String(roleValue?.role||roleValue?.name||roleValue?.title||'').trim();
+    }
+    if(!current.teacher&&current.role!=='상점'&&current.user?.isHelper!==true&&assignedRole!=='상점'){
+        throw new HttpsError('permission-denied','상점 역할만 주문을 처리할 수 있습니다.');
+    }
     const orderKey=request.data?.orderKey, action=String(request.data?.action||'');
     if(!safeKey(orderKey)||!['approve','reject'].includes(action))throw new HttpsError('invalid-argument','주문 처리 정보가 올바르지 않습니다.');
-    const database=getDatabase();
-    let missing=false;
-    const logKey=database.ref('pointLogs').push().key;
-    const result=await database.ref().transaction(root=>{
-        const order=root?.orders?.[orderKey];
-        if(!order){missing=true;return;}
-        if(action==='approve'){
-            const match=/\(요청:\s*(.+)\)/.exec(String(order.item||''));
-            if(match){
-                const target=match[1];
-                Object.values(root.orders||{}).forEach(past=>{
-                    if(past?.user===order.user&&String(past.item||'').replace(' (한도리셋)','')===target){
-                        past.item=`${target} (한도리셋)`;past.limitReset=true;
-                    }
-                });
-            }
-            order.status='완료';order.processedAt=Date.now();order.processedBy=current.name;
-        }else{
-            const user=root.users?.[order.user];
-            const refund=Math.max(0,Number(order.price)||0);
-            if(user&&refund){
-                const timestamp=Date.now();
-                const nextPoints=(Number(user.points)||0)+refund;
-                const reason=`[환불] ${String(order.item||'')} 승인 거절`;
-                user.points=nextPoints;
-                root.pointLogs||={};
-                root.pointLogs[logKey]={name:order.user,pAmt:refund,reason,timestamp};
-                root.pointHistory||={};
-                root.pointHistory[order.user]||={};
-                root.pointHistory[order.user][logKey]={date:kstDate(timestamp),reason,
-                    change:refund,pChange:refund,expChange:0,result:nextPoints,
-                    pointResult:nextPoints,timestamp};
-            }
-            delete root.orders[orderKey];
-        }
-        return root;
+    const orderRef=database.ref(`orders/${orderKey}`);
+    const allowedStatuses=['요청','사용요청','대기','환불'];
+    const timestamp=Date.now();
+    let failure='';
+    const claimResult=await orderRef.transaction(order=>{
+        if(order===null){failure='missing';return;}
+        const status=String(order.status||'');
+        if(action==='approve'&&status==='완료')return order;
+        if(action==='reject'&&status==='거절처리중')return order;
+        if(!allowedStatuses.includes(status)){failure='processed';return;}
+        return {
+            ...order,
+            status:action==='approve'?'완료':'거절처리중',
+            processedAt:timestamp,
+            processedBy:current.name
+        };
     },undefined,false);
-    if(!result.committed||missing)throw new HttpsError('not-found','주문 정보를 찾을 수 없습니다.');
-    return {ok:true};
+    if(!claimResult.committed){
+        if(failure==='missing')throw new HttpsError('not-found','주문 정보를 찾을 수 없습니다.');
+        throw new HttpsError('failed-precondition','이미 처리된 주문입니다.');
+    }
+    const before=claimResult.snapshot.val()||{};
+
+    if(action==='approve'){
+        const updates={};
+        const match=/\(요청:\s*(.+)\)/.exec(String(before.item||''));
+        if(match){
+            const target=match[1];
+            const owned=await database.ref('orders').orderByChild('user').equalTo(before.user).get();
+            owned.forEach(child=>{
+                const past=child.val()||{};
+                if(String(past.item||'').replace(' (한도리셋)','')===target){
+                    updates[`orders/${child.key}/item`]=`${target} (한도리셋)`;
+                    updates[`orders/${child.key}/limitReset`]=true;
+                }
+            });
+        }
+        if(Object.keys(updates).length)await database.ref().update(updates);
+        return {ok:true};
+    }
+
+    const refund=Math.max(0,Number(before.price)||0);
+    const userRef=database.ref(`users/${before.user}`);
+    let userMissing=false;
+    const userResult=await userRef.transaction(user=>{
+        if(user===null){userMissing=true;return;}
+        user.shopOrderRefunds||={};
+        if(!user.shopOrderRefunds[orderKey]){
+            user.points=(Number(user.points)||0)+refund;
+            user.shopOrderRefunds[orderKey]={amount:refund,timestamp};
+        }
+        return user;
+    },undefined,false);
+    if(!userResult.committed||userMissing){
+        await orderRef.update({status:before.status||'요청',processedAt:null,processedBy:null});
+        throw new HttpsError('not-found','주문 학생 정보를 찾을 수 없습니다.');
+    }
+    const savedUser=userResult.snapshot.val()||{};
+    const nextPoints=Number(savedUser.points)||0;
+    const logKey=`shop_refund_${orderKey}`;
+    const reason=`[환불] ${String(before.item||'')} 승인 거절`;
+    await database.ref().update({
+        [`pointLogs/${logKey}`]:refund?{name:before.user,pAmt:refund,reason,timestamp}:null,
+        [`pointHistory/${before.user}/${logKey}`]:refund?{date:kstDate(timestamp),reason,
+            change:refund,pChange:refund,expChange:0,result:nextPoints,
+            pointResult:nextPoints,timestamp}:null,
+        [`orders/${orderKey}`]:null
+    });
+    return {ok:true,points:nextPoints};
 });

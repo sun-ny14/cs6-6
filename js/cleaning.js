@@ -99,14 +99,15 @@
         });
     }
 
-    function getSeatInformation(settings) {
-        const globalLayout =
+    function getSeatInformation(settings, savedSeatData = {}) {
+        const runtimeLayout =
             (typeof currentLayout !== 'undefined' && currentLayout)
                 ? currentLayout
                 : window.currentLayout;
 
         const layout =
-            globalLayout ||
+            savedSeatData.layout ||
+            runtimeLayout ||
             settings.currentLayout ||
             settings.seatLayout ||
             settings.seatingLayout ||
@@ -114,6 +115,7 @@
             {};
 
         const rows = Number(
+            savedSeatData.config?.rows ||
             (typeof currentRows !== 'undefined' && currentRows) ||
             window.currentRows ||
             settings.currentRows ||
@@ -123,6 +125,7 @@
         ) || 6;
 
         const cols = Number(
+            savedSeatData.config?.cols ||
             (typeof currentCols !== 'undefined' && currentCols) ||
             window.currentCols ||
             settings.currentCols ||
@@ -496,13 +499,15 @@
 
         Promise.all([
             db.ref(readableSettingsRoot()).once('value'),
-            db.ref(`${STATUS_ROOT}/${today}`).once('value')
-        ]).then(([settingsSnapshot, statusSnapshot]) => {
+            db.ref(`${STATUS_ROOT}/${today}`).once('value'),
+            db.ref('seatLayoutData').once('value')
+        ]).then(([settingsSnapshot, statusSnapshot, seatSnapshot]) => {
             const settings = settingsSnapshot.val() || {};
+            const seatData = seatSnapshot.val() || {};
             const roles = settings.studentRoles || {};
             const cleaningAssignments = settings.cleaningAssignments || {};
             const statuses = statusSnapshot.val() || {};
-            const seatInfo = getSeatInformation(settings);
+            const seatInfo = getSeatInformation(settings, seatData);
             const students = getStudentList(seatInfo.seats);
             const admin = isCleaningAdmin();
             const checker = canCheckCleaning();
