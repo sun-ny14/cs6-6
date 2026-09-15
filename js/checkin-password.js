@@ -112,7 +112,9 @@
         offset = Number(snapshot.val()) || 0; offsetReady = true; refresh();
     });
     db.ref('.info/connected').on('value', snapshot => {
-        if (!AUTO_ROTATION_ENABLED) return;
+        // connected 상태는 수동 저장(publish)의 canWrite() 판정에도 쓰이므로
+        // AUTO_ROTATION_ENABLED와 무관하게 항상 갱신해야 한다. 자동 회전 자체는
+        // refresh() 내부에서 따로 막혀 있다.
         const next = snapshot.val() === true;
         if (next && !connected) connectedAt = Date.now();
         connected = next;
