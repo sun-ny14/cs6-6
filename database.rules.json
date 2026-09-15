@@ -26,8 +26,8 @@
       ".write": false
     },
     "cleaningSettings": {
-      ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소')",
-      ".write": false
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
     },
     "settings": {
       ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
@@ -105,7 +105,8 @@
         ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소')",
         "$date": {
           "$userName": {
-        ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소')"
+            ".read": "auth != null && root.child('access').child(auth.uid).child('name').val() == $userName",
+            ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소' || root.child('access').child(auth.uid).child('name').val() == $userName)"
           }
         }
       }
@@ -154,7 +155,7 @@
         "cleaningRoot": {
           "$date": {
             "$userName": {
-            ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소')"
+              ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('role').val() == '청소' || root.child('access').child(auth.uid).child('name').val() == $userName)"
             }
           }
         }

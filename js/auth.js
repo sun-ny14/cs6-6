@@ -64,7 +64,7 @@ window.canUseCleaningTab=function(){
     return saved===true||
         saved==='true'||
         (saved&&typeof saved==='object'&&saved.enabled===true)||
-        /청소|쓸기|닦기|분리수거|쓰레기|정리/.test(role);
+        Boolean(role);
 };
 
 window.canManageCleaningChecks=function(){
@@ -251,9 +251,15 @@ auth.onAuthStateChanged(async user=>{
         const accessRef=db.ref(`access/${user.uid}`);
         const receiveAccess=snapshot=>{
             const access=snapshot.val()||{};
-            if(window.currentUser)window.currentUser.role=String(access.role||window.currentUser.role||'');
+            if(window.currentUser&&Object.prototype.hasOwnProperty.call(access,'role')){
+                window.currentUser.role=String(access.role||'');
+            }
             window.isHelper=window.currentUser?.role==='상점';
             applyAccessControl();
+            if(['shop','points'].includes(window.currentTab)&&
+                typeof window.initPointsTabListeners==='function'){
+                window.initPointsTabListeners();
+            }
         };
         accessRef.on('value',receiveAccess);
         stopAccessListener=()=>accessRef.off('value',receiveAccess);

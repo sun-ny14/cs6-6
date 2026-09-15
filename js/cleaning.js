@@ -7,7 +7,17 @@
 
     const STATUS_ROOT = 'classManagement/cleaningStatus';
     const SETTINGS_ROOT = 'settings';
-    const readableSettingsRoot = () => isCleaningAdmin() ? SETTINGS_ROOT : 'cleaningSettings';
+    async function readCleaningSettings(){
+        if(!isCleaningAdmin()){
+            const snap=await db.ref('cleaningSettings').once('value');
+            return snap.val()||{};
+        }
+        const [roles,assignments]=await Promise.all([
+            db.ref(`${SETTINGS_ROOT}/studentRoles`).once('value'),
+            db.ref(`${SETTINGS_ROOT}/cleaningAssignments`).once('value')
+        ]);
+        return {studentRoles:roles.val()||{},cleaningAssignments:assignments.val()||{}};
+    }
 
     window.cleaningSubTab =
         window.cleaningSubTab ||
@@ -99,13 +109,14 @@
         });
     }
 
-    function getSeatInformation(settings) {
+    function getSeatInformation(settings, seatData = {}) {
         const globalLayout =
             (typeof currentLayout !== 'undefined' && currentLayout)
                 ? currentLayout
                 : window.currentLayout;
 
         const layout =
+            seatData.layout ||
             globalLayout ||
             settings.currentLayout ||
             settings.seatLayout ||
@@ -114,6 +125,7 @@
             {};
 
         const rows = Number(
+            seatData.config?.rows ||
             (typeof currentRows !== 'undefined' && currentRows) ||
             window.currentRows ||
             settings.currentRows ||
@@ -123,6 +135,7 @@
         ) || 6;
 
         const cols = Number(
+            seatData.config?.cols ||
             (typeof currentCols !== 'undefined' && currentCols) ||
             window.currentCols ||
             settings.currentCols ||
@@ -347,9 +360,17 @@
 
     function renderCleaningView(data) {
         const assignedSeatCount = data.seatInfo.seats.filter(seat => seat.name).length;
+        const mineAssigned=isCleaningStudent(
+            data.loginName,readRole(data.roles[data.loginName]),data.cleaningAssignments
+        );
+        const mineHasSeat=data.seatInfo.seats.some(seat=>seat.name===data.loginName);
+        const missingOwnSeat=!data.checker&&mineAssigned&&!mineHasSeat
+            ?`<div class="well is-warn">청소 담당으로 배정됐지만 좌석 배치표에 ${escapeHtml(data.loginName)} 학생의 자리가 없습니다. 선생님이 등교로그 좌석 배치를 확인해 주세요.</div>`
+            :'';
 
         if (!assignedSeatCount) {
             return `
+                ${missingOwnSeat}
                 <div class="well">
                     설정에 저장된 좌석 배치도를 그대로 불러옵니다.
                 </div>
@@ -431,6 +452,7 @@
         ).length;
 
         return `
+            ${missingOwnSeat}
             <div class="well">
                 ${data.checker
                     ? '각 학생의 자리를 확인한 뒤 자리 청소 확인 버튼을 눌러 주세요.'
@@ -494,18 +516,23 @@
 
         const today = getTodayKey();
 
+        const checker=canCheckCleaning();
+        const statusRef=checker
+            ?db.ref(`${STATUS_ROOT}/${today}`)
+            :db.ref(`${STATUS_ROOT}/${today}/${getLoginName()}`);
         Promise.all([
-            db.ref(readableSettingsRoot()).once('value'),
-            db.ref(`${STATUS_ROOT}/${today}`).once('value')
-        ]).then(([settingsSnapshot, statusSnapshot]) => {
-            const settings = settingsSnapshot.val() || {};
+            readCleaningSettings(),
+            statusRef.once('value'),
+            db.ref('seatLayoutData').once('value')
+        ]).then(([settings, statusSnapshot, seatSnapshot]) => {
             const roles = settings.studentRoles || {};
             const cleaningAssignments = settings.cleaningAssignments || {};
-            const statuses = statusSnapshot.val() || {};
-            const seatInfo = getSeatInformation(settings);
+            const statuses = checker
+                ?statusSnapshot.val() || {}
+                :{[getLoginName()]:statusSnapshot.val() || {}};
+            const seatInfo = getSeatInformation(settings,seatSnapshot.val() || {});
             const students = getStudentList(seatInfo.seats);
             const admin = isCleaningAdmin();
-            const checker = canCheckCleaning();
 
             const data = {
                 admin:admin,
@@ -541,7 +568,7 @@
                 </header>
                 ${renderSubTabs()}
                 <div class="empty">
-                    <span>정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</span>
+                    <span>정보를 불러오지 못했습니다: ${escapeHtml(error?.message||'연결 상태를 확인해 주세요.')}</span>
                 </div>
             `;
             bindCleaningEvents(container);
@@ -567,18 +594,29 @@
             updates[`${SETTINGS_ROOT}/studentRoles/${name}`] = role || null;
             updates[`${SETTINGS_ROOT}/cleaningAssignments/${name}`] =
                 cleaner ? true : null;
+            updates[`cleaningSettings/studentRoles/${name}`]=role||null;
+            updates[`cleaningSettings/cleaningAssignments/${name}`]=cleaner?true:null;
         });
 
         button.disabled = true;
         button.textContent = '저장 중...';
 
         try {
+            // 경로별 작은 원자적 업데이트이며 DB 루트 전체를 읽거나 다시 쓰지 않는다.
             await db.ref().update(updates);
+            window.studentRoles=Object.fromEntries(rows.map(row=>[
+                String(row.dataset.studentName||'').trim(),
+                String(row.querySelector('.role-edit-input')?.value||'').trim()
+            ]));
+            window.cleaningAssignments=Object.fromEntries(rows.map(row=>[
+                String(row.dataset.studentName||'').trim(),
+                Boolean(row.querySelector('.role-cleaner-input')?.checked)
+            ]));
             alert('학생별 역할 설정을 저장했습니다.');
             window.renderRoleCleaning();
         } catch (error) {
             console.error('역할 설정 저장 오류:', error);
-            alert('역할 설정을 저장하지 못했습니다.');
+            alert(`역할 설정을 저장하지 못했습니다: ${error?.message||'권한과 연결 상태를 확인해 주세요.'}`);
             button.disabled = false;
             button.textContent = '역할 설정 저장';
         }
@@ -596,8 +634,7 @@
         }
 
         try {
-            const settingsSnapshot = await db.ref(readableSettingsRoot()).once('value');
-            const settings = settingsSnapshot.val() || {};
+            const settings=await readCleaningSettings();
             const role = readRole((settings.studentRoles || {})[name]);
             const cleaner = isCleaningStudent(
                 name,
@@ -639,7 +676,7 @@
             window.renderRoleCleaning();
         } catch (error) {
             console.error('완료 상태 변경 오류:', error);
-            alert('완료 상태를 변경하지 못했습니다.');
+            alert(`완료 상태를 변경하지 못했습니다: ${error?.message||'권한과 연결 상태를 확인해 주세요.'}`);
         }
     };
 

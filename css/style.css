@@ -2526,3 +2526,49 @@ body.role-student textarea::placeholder { color: var(--ui-faint); }
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: var(--ui-space-2);
 }
+
+/* 여러 학생을 한 창에서 빠르게 기록하는 평가 입력 화면 */
+.popup-box:has(.grade-editor) { width: min(980px, 100%); }
+.grade-editor-head { display: flex; flex-wrap: wrap; align-items: end; gap: var(--ui-space-3); }
+.grade-editor-head .field { flex: 1 1 320px; }
+.grade-editor-head input { width: 100%; }
+.grade-student-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--ui-space-2);
+}
+.grade-student-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ui-space-2);
+    min-height: 58px;
+    padding: var(--ui-space-2) var(--ui-space-3);
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-surface-soft);
+}
+.grade-student-name { flex: 1; min-width: 0; font-weight: 800; white-space: nowrap; }
+.grade-student-name small { display: inline-block; min-width: 22px; }
+.grade-state {
+    min-width: 112px;
+    min-height: 38px;
+    padding: 6px 10px;
+    border: 2px solid var(--ui-line);
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+.grade-state--empty { border-style: dashed; color: var(--ui-muted); }
+.grade-state--excellent { border-color: var(--ui-good); background: var(--ui-good-soft); color: var(--ui-good); }
+.grade-state--good { border-color: var(--ui-accent); background: var(--ui-accent-soft); color: var(--ui-accent); }
+.grade-state--effort { border-color: var(--ui-warn); background: var(--ui-warn-soft); color: var(--ui-warn); }
+.grade-student-card .score-input { width: 112px; }
+@media (max-width: 540px) {
+    .grade-student-grid { grid-template-columns: 1fr; }
+    .grade-student-card { min-height: 50px; }
+}

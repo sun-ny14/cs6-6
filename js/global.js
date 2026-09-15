@@ -264,13 +264,7 @@ if(typeof renderHeroes==='function'){
             renderShop();
         }
 
-        if(
-            typeof loadOrderRecords==='function'&&
-            typeof window.canManageShopRequests==='function'&&
-            window.canManageShopRequests()
-        ){
-            loadOrderRecords();
-        }
+        if(typeof initPointsTabListeners==='function')initPointsTabListeners();
     }
 
 
@@ -466,8 +460,10 @@ function startApp(){
 
         const s=snap.val()||{};
 
-        window.studentRoles=s.studentRoles||{};
-        window.cleaningAssignments=s.cleaningAssignments||{};
+        if(admin){
+            window.studentRoles=s.studentRoles||{};
+            window.cleaningAssignments=s.cleaningAssignments||{};
+        }
 
         if(typeof window.applyAccessControl==='function'){
             window.applyAccessControl();
@@ -541,6 +537,15 @@ if (typeof refreshCheckinGuide === 'function') {
     refreshCheckinGuide(s);
 }
     });
+
+    if(!admin){
+        db.ref('cleaningSettings').on('value',snap=>{
+            const cleaning=snap.val()||{};
+            window.studentRoles=cleaning.studentRoles||{};
+            window.cleaningAssignments=cleaning.cleaningAssignments||{};
+            if(typeof window.applyAccessControl==='function')window.applyAccessControl();
+        });
+    }
 
 
     db.ref(admin?'users':'publicProfiles').on('value',snap=>{

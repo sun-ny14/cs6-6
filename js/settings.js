@@ -526,7 +526,17 @@ window.saveSettings = async function() {
         const now = window.CheckinPassword.now();
 
         const settingsRef = db.ref('settings');
-        const current = (await settingsRef.once('value')).val() || {};
+        // 복구된 settings 전체를 가져오지 않고 암호 메타데이터만 읽는다.
+        const [passwordSnap,dateSnap,revisionSnap] = await Promise.all([
+            settingsRef.child('password').once('value'),
+            settingsRef.child('passwordDate').once('value'),
+            settingsRef.child('passwordRevision').once('value')
+        ]);
+        const current = {
+            password:passwordSnap.val(),
+            passwordDate:dateSnap.val(),
+            passwordRevision:revisionSnap.val()
+        };
         const updates = { ...otherSettings };
 
         // 암호가 실제로 바뀐 경우에만 암호 필드를 갱신한다. /settings 전체
@@ -541,11 +551,15 @@ window.saveSettings = async function() {
 
         await settingsRef.update(updates);
         const saved = { ...current, ...updates };
-        await window.CheckinPassword.publish(saved);
-
         passInput.value = String(saved.password);
         passInput.dataset.savedPassword = String(saved.password);
-        alert('💾 시스템 설정과 전자칠판 암호가 저장되었습니다!');
+        try{
+            await window.CheckinPassword.publish(saved);
+            alert('💾 시스템 설정과 전자칠판 암호가 저장되었습니다!');
+        }catch(publishError){
+            console.error('전자칠판 암호 동기화 오류:',publishError);
+            alert('설정은 저장됐지만 전자칠판 동기화가 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        }
     } catch (error) {
         console.error('시스템 설정 저장 실패:', error);
         alert(error.message || '설정을 저장하지 못했습니다. 연결 후 다시 시도해 주세요.');

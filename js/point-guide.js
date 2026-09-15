@@ -41,6 +41,7 @@ window.initPointsTabListeners = function() {
     const canManage=Boolean(
         window.canManageShopRequests&&window.canManageShopRequests()
     );
+    const canViewClassLogs=window.isAdmin===true;
     const listenerKey=`${canManage?'manager':'student'}:${String(window.myName||'')}`;
     if(window.pointsListenerState?.key===listenerKey)return;
 
@@ -59,6 +60,7 @@ window.initPointsTabListeners = function() {
         let uHtml = "";
         let wHtml = "";
         let adminOrderHtml = "";
+        const pendingByUser=new Map();
 
         snap.forEach(c => {
             const o = c.val();
@@ -72,20 +74,13 @@ window.initPointsTabListeners = function() {
                 isMyItem &&
                 (
                     o.status === '대기' ||
-                    o.status === '요청' ||
-                    o.status === '환불'
+                    o.status === '요청'
                 )
             ) {
-                const refundTag =
-                    o.status === '환불'
-                        ? '<span class="list-item-sub badge badge--bad">환불/반려됨</span>'
-                        : '';
-
                 uHtml += `
                     <div class="list-item">
                         <div class="list-item-main">
                             <span class="list-item-title">📦 ${pointGuideEscapeHtml(o.item)}</span>
-                            ${refundTag}
                         </div>
 
                         <div class="btn-row">
@@ -118,6 +113,9 @@ window.initPointsTabListeners = function() {
                 canManageItemUseRequests() &&
                 o.status === '사용요청'
             ) {
+                const userName=String(o.user||'').trim();
+                if(!pendingByUser.has(userName))pendingByUser.set(userName,[]);
+                pendingByUser.get(userName).push(key);
                 adminOrderHtml += `
                     <div class="list-item">
                         <span>
@@ -144,6 +142,15 @@ window.initPointsTabListeners = function() {
                 `;
             }
         });
+
+        if(canManageItemUseRequests()&&pendingByUser.size){
+            const bulkButtons=Array.from(pendingByUser,([user,keys])=>`
+                <button class="btn btn--primary btn--sm"
+                    onclick="approveUserRequests(decodeURIComponent('${pointGuideEncoded(user)}'),decodeURIComponent('${pointGuideEncoded(keys.join(','))}'))">
+                    ${pointGuideEscapeHtml(user)} ${keys.length}건 일괄승인
+                </button>`).join('');
+            adminOrderHtml=`<div class="btn-row shop-approval-toolbar">${bulkButtons}</div>${adminOrderHtml}`;
+        }
 
         const uEl = document.getElementById('inv-unused');
 
@@ -184,7 +191,7 @@ window.initPointsTabListeners = function() {
 
 
     // 포인트 연대기
-    const pointLogQuery = canManage
+    const pointLogQuery = canViewClassLogs
         ? db.ref('pointLogs').orderByChild('timestamp').limitToLast(50)
         : db.ref(`pointHistory/${window.myName}`).orderByChild('timestamp').limitToLast(50);
 
@@ -208,7 +215,7 @@ window.initPointsTabListeners = function() {
                     );
 
             historyArr.push({
-                user: canManage
+                user: canViewClassLogs
                     ? (val.name || val.user || "알 수 없음")
                     : window.myName,
                 p: parseInt(pointVal) || 0,
@@ -317,6 +324,23 @@ window.approveItem = async function(key, user, item) {
     }
 };
 
+window.approveUserRequests=async function(user,keyList){
+    if(!canManageItemUseRequests())return;
+    const keys=String(keyList||'').split(',').filter(Boolean);
+    if(!keys.length||!confirm(`${user} 학생의 사용 요청 ${keys.length}건을 승인할까요?`))return;
+    let completed=0;
+    try{
+        for(const key of keys){
+            await window.callSecure('manageShopOrder',{orderKey:key,action:'approve'});
+            completed+=1;
+        }
+        alert(`${user} 학생의 요청 ${completed}건을 승인했습니다.`);
+    }catch(error){
+        console.error('일괄 승인 오류:',error);
+        alert(`${completed}건 승인 후 멈췄습니다. ${error?.message||'다시 확인해 주세요.'}`);
+    }
+};
+
 
 window.rejectItemUseRequest = async function(key, user, item) {
     if (!canManageItemUseRequests()) {
@@ -327,7 +351,7 @@ window.rejectItemUseRequest = async function(key, user, item) {
     if (
         confirm(
             `[${user}] 학생의 [${item}] 사용을 반려(환불)하시겠습니까?\n` +
-            `(학생의 미사용 보관함으로 다시 돌아갑니다)`
+            `(구매 포인트를 환불하고 해당 주문은 사용할 수 없게 됩니다)`
         )
     ) {
         try {

@@ -12,7 +12,10 @@ function setup({input='1234',baseline='1234',current='5678'}={}) {
     const ctx={CheckinPasswordCore:core,
         CheckinPassword:{ensureCurrent:async()=>settings,now:()=>now,randomInt:()=>0,publish:async value=>published.push(value)},
         document:{getElementById:id=>nodes[id]},alert:value=>alerts.push(value),console,
-        db:{ref:()=>({transaction:async update=>{settings=update(settings);return{snapshot:{val:()=>settings}};}})}
+        db:{ref:()=>({
+            child:key=>({once:async()=>({val:()=>settings[key]})}),
+            update:async values=>{settings={...settings,...values};}
+        })}
     };ctx.window=ctx;
     const source=fs.readFileSync(require.resolve('../js/settings.js'),'utf8');
     vm.runInNewContext(source.slice(source.indexOf('window.saveSettings ='),source.indexOf('window.loadSystemSettings')),ctx);

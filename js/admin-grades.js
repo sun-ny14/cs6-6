@@ -14,7 +14,7 @@ window.renderManagementSub = function(subType) {
         subContentEl.innerHTML = `
             <div class="card stack">
                 <h2>📝 성적 및 평가 관리</h2>
-                <p>학생들의 성적과 수행평가 기록을 관리하는 공간입니다.</p>
+                <p>학생 결과를 한 번 눌러 4단계로 바꿉니다. 빈칸은 아직 평가하지 않은 상태입니다.</p>
                 <div class="chip-group" id="grades-subject-buttons">
                 </div>
                 <div id="grades-content-area"></div>
@@ -70,6 +70,21 @@ window.renderGradesMain = function() {
 
 const SUBJECTS = ['국어', '수학', '사회', '과학', '미술', '도덕', '음악', '체육', '실과'];
 let currentGradeSubject = '국어';
+const gradeEscapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+})[char]);
+const PERF_STATES=['','매우 잘함','잘함','노력 요함'];
+const normalizePerfGrade=value=>{
+    const text=String(value??'').trim().replace(/[◎○△]/g,'').replace(/\s/g,'');
+    if(text==='매우잘함')return '매우 잘함';
+    if(text==='잘함')return '잘함';
+    if(text==='노력요함'||text==='보통')return '노력 요함';
+    return '';
+};
+const perfStateClass=value=>({
+    '매우 잘함':'grade-state--excellent','잘함':'grade-state--good',
+    '노력 요함':'grade-state--effort','':'grade-state--empty'
+})[value]||'grade-state--empty';
 
 // 선택한 과목의 '평가 목록' 불러오기
 window.loadSubjectGrades = function(subject) {
@@ -93,8 +108,7 @@ window.loadSubjectGrades = function(subject) {
             <div class="panel-head">
                 <h3>📘 ${subject} 평가 목록</h3>
                 <div class="panel-head-actions">
-                    <button class="btn btn--good btn--sm" onclick="openNewGradePopup('${subject}', 'perf')">+ 수행평가 추가</button>
-                    <button class="btn btn--outline btn--sm" onclick="openNewGradePopup('${subject}', 'score')">+ 일반평가 추가</button>
+                    <button class="btn btn--good btn--sm" onclick="openNewGradePopup('${subject}', 'perf')">+ 평가 만들기</button>
                 </div>
             </div>
             <div class="stack stack--sm">
@@ -112,7 +126,7 @@ window.loadSubjectGrades = function(subject) {
                 const typeClass = a.type === 'perf' ? 'card--good' : 'card--accent';
                 html += `
                     <div onclick="openGradeEditor('${subject}', '${a.key}')" class="card ${typeClass} row row--between" style="cursor:pointer;">
-                        <span><strong>${typeIcon}</strong> &nbsp;|&nbsp; <b>${a.title}</b></span>
+                        <span><strong>${typeIcon}</strong> &nbsp;|&nbsp; <b>${gradeEscapeHtml(a.title)}</b></span>
                         <small class="muted">${a.date}</small>
                     </div>
                 `;
@@ -123,139 +137,94 @@ window.loadSubjectGrades = function(subject) {
     });
 };
 
-// 새 평가 만들기 (제목 입력)
+// 새 평가를 먼저 열고 제목은 같은 창 안에서 바로 입력한다.
 window.openNewGradePopup = function(subject, type) {
-    const title = prompt(`[${subject}] 평가의 제목을 입력하세요.\n(예: 1단원 덧셈과 뺄셈, 시 낭송하기 등)`);
-    if (!title) return;
-
     const key = db.ref(`grades/${subject}`).push().key;
-    db.ref(`grades/${subject}/${key}`).set({
-        title: title,
-        type: type,
-        date: new Date().toISOString().split('T')[0],
+    const draft={
+        title:`${subject} 새 평가`,
+        type: 'perf',
+        date: typeof window.getTodayKST==='function'
+            ?window.getTodayKST():new Date().toISOString().split('T')[0],
         scores: {}
-    }).then(() => {
-        openGradeEditor(subject, key);
-    });
+    };
+    openGradeEditor(subject,key,draft);
 };
 
-// 평가 입력 창 (DB 등록 순서 100% 보장)
-window.openGradeEditor = function(subject, key) {
-    db.ref(`grades/${subject}/${key}`).once('value', snap => {
-        const data = snap.val();
-        if (!data) return;
-        
-        db.ref('users').once('value', userSnap => {
-            // 이름만 나열돼 종이 출석부와 눈으로 대조해야 했던 부분입니다.
-            // 번호를 함께 싣고 번호순으로 세우며, 선생님 계정은 학생 행에서 뺍니다.
-            let users = [];
-            userSnap.forEach(u => {
-                const value = u.val() || {};
-                const name = String(value.name || u.key || '').trim();
-
-                if (!name || name === '총사령관' || name.includes('선생님')) return;
-
-                const no = parseInt(value.no ?? value.number, 10);
-
-                users.push({
-                    key: u.key,
-                    no: Number.isFinite(no) && no > 0 ? no : null
-                });
-            });
-
-            users.sort((a, b) =>
-                (a.no ?? 999) - (b.no ?? 999) ||
-                String(a.key).localeCompare(String(b.key), 'ko')
-            );
-
-            let h = `
-                <div class="stack">
-                    <h3>
-                        ${data.title} <small class="muted small">(${data.type === 'perf' ? '수행평가' : '일반평가'})</small>
-                    </h3>
-                    <div class="scroll-y" style="max-height:400px;">
-                        <div class="table-wrap">
-                        <table class="table center">
-                            <thead>
-                                <tr>
-                                    <th style="width:14%;">번호</th>
-                                    <th style="width:34%;">이름</th>
-                                    <th>${data.type === 'perf' ? '결과 <small>(더블클릭으로 변경)</small>' : '점수 입력'}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-
-            let scores = data.scores || {};
-
-            users.forEach((student, index) => {
-                const u = student.key;
-                const no = student.no ?? '–';
-                let val = scores[u] || (data.type === 'perf' ? '매우잘함◎' : '');
-
-                if (data.type === 'perf') {
-                    let stateClass = val.includes('매우') ? 'btn--good' : (val.includes('보통') ? 'btn--warn' : 'btn--outline');
-                    h += `
-                        <tr>
-                            <td class="num muted">${no}</td>
-                            <td class="strong">${u}</td>
-                            <td>
-                                <button id="grade-${u}" class="btn btn--block ${stateClass}" ondblclick="togglePerfGrade('${u}')">
-                                    ${val}
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                } else {
-                    h += `
-                        <tr>
-                            <td class="num muted">${no}</td>
-                            <td class="strong">${u}</td>
-                            <td>
-                                <input type="number" id="grade-${u}" class="score-input input--num" value="${val}" tabindex="${index + 1}" oninput="calcAvg()" placeholder="점수">
-                            </td>
-                        </tr>
-                    `;
-                }
-            });
-
-            h += `</tbody></table></div></div>`;
-
-            if (data.type === 'score') {
-                h += `<div class="well row row--end strong">평균: <span id="score-average" class="num">0.0점</span></div>`;
-            }
-
-            h += `
-                <div class="btn-row">
-                    <button class="btn btn--primary btn--lg" style="flex:2;" onclick="saveGrades('${subject}', '${key}', '${data.type}')">💾 성적 저장하기</button>
-                    <button class="btn btn--danger btn--lg" style="flex:1;" onclick="deleteGrade('${subject}', '${key}')">🗑️ 삭제</button>
-                </div>
-            </div>`;
-            
-            if (typeof openPopup === 'function') openPopup("평가 기록", h);
-            if (data.type === 'score') setTimeout(calcAvg, 100); 
+// 기존 점수형 평가는 유지하고, 새 수행평가는 한 화면에서 원클릭 4단계로 입력한다.
+window.openGradeEditor = async function(subject, key, draft=null) {
+    try {
+        const gradeSnap=draft?null:await db.ref(`grades/${subject}/${key}`).once('value');
+        const data=draft||gradeSnap.val();
+        if(!data)return alert('평가를 찾을 수 없습니다.');
+        const unique=new Map();
+        const cached=Array.isArray(window.currentUsers)?window.currentUsers:[];
+        let roster=cached.map(value=>({key:value.__firebaseKey||value.name,value}));
+        if(!roster.length){
+            const rosterSnap=await db.ref('users').once('value');
+            roster=[];
+            rosterSnap.forEach(child=>roster.push({key:child.key,value:child.val()||{}}));
+        }
+        roster.forEach(({key:studentKey,value})=>{
+            const name=String(value.name||studentKey||'').trim();
+            if(!name||name==='총사령관'||name.includes('선생님'))return;
+            const no=parseInt(value.no??value.number,10);
+            unique.set(name,{key:studentKey,name,no:Number.isFinite(no)&&no>0?no:null});
         });
-    });
+        const users=Array.from(unique.values()).sort((a,b)=>
+            (a.no??999)-(b.no??999)||a.name.localeCompare(b.name,'ko'));
+        const scores=data.scores||{};
+        let h=`<div class="grade-editor stack">
+            <div class="grade-editor-head">
+                <label class="field"><span class="field-label">평가 제목</span>
+                    <input id="grade-editor-title" class="input" type="text" maxlength="80"
+                        value="${gradeEscapeHtml(data.title)}" placeholder="평가 제목을 입력하세요"></label>
+                <span class="muted small">${gradeEscapeHtml(subject)} · ${data.type==='perf'?'4단계 평가':'기존 점수 평가'} · ${gradeEscapeHtml(data.date||'')}</span>
+            </div>
+            <p class="muted small">${data.type==='perf'
+                ?'학생 결과를 한 번 누를 때마다 빈칸 → 매우 잘함 → 잘함 → 노력 요함 순서로 바뀝니다.'
+                :'점수를 입력해 주세요. 빈칸은 미평가입니다.'}</p>
+            <div class="grade-student-grid">`;
+        users.forEach((student,index)=>{
+            const u=student.key,no=student.no??'–';
+            const label=`<span class="grade-student-name"><small class="num muted">${gradeEscapeHtml(no)}</small> ${gradeEscapeHtml(student.name)}</span>`;
+            if(data.type==='perf'){
+                const val=normalizePerfGrade(scores[u]);
+                h+=`<div class="grade-student-card">${label}
+                    <button type="button" class="grade-state ${perfStateClass(val)}"
+                        data-grade-student="${gradeEscapeHtml(u)}" data-grade-value="${gradeEscapeHtml(val)}"
+                        onclick="togglePerfGrade(decodeURIComponent('${encodeURIComponent(u)}'))">${val||'빈칸 · 미평가'}</button>
+                    </div>`;
+            }else{
+                const val=Object.prototype.hasOwnProperty.call(scores,u)?scores[u]:'';
+                h+=`<div class="grade-student-card">${label}
+                    <input type="number" data-grade-student="${gradeEscapeHtml(u)}" class="score-input input--num"
+                        value="${gradeEscapeHtml(val)}" tabindex="${index+1}" oninput="calcAvg()" placeholder="미평가">
+                    </div>`;
+            }
+        });
+        h+='</div>';
+        if(data.type==='score')h+='<div class="well row row--end strong">평균: <span id="score-average" class="num">0.0점</span></div>';
+        h+=`<div class="btn-row">
+            <button class="btn btn--primary btn--lg" style="flex:2" onclick="saveGrades('${subject}','${key}','${data.type}','${data.date}')">💾 평가 저장</button>
+            <button class="btn btn--outline btn--lg" style="flex:1" onclick="${draft?'closePopup()':`deleteGrade('${subject}','${key}')`}">${draft?'취소':'🗑️ 삭제'}</button>
+            </div></div>`;
+        if(typeof openPopup==='function')openPopup('평가 기록',h);
+        if(data.type==='score')setTimeout(calcAvg,100);
+    }catch(error){
+        console.error('평가 입력창 로딩 오류:',error);
+        alert(error?.message||'평가를 불러오지 못했습니다.');
+    }
 };
 
-// 수행평가 더블클릭 순환 로직
+// 한 번 클릭할 때마다 미평가 포함 4단계로 이동한다.
 window.togglePerfGrade = function(u) {
-    if (window.getSelection) window.getSelection().removeAllRanges();
-    
-    const el = document.getElementById(`grade-${u}`);
+    const el=Array.from(document.querySelectorAll('.grade-state'))
+        .find(button=>button.dataset.gradeStudent===u);
     if (!el) return;
-
-    el.classList.remove('btn--good', 'btn--warn', 'btn--outline');
-    if (el.innerText.includes('매우잘함')) {
-        el.innerText = '잘함○';
-        el.classList.add('btn--outline');
-    } else if (el.innerText.includes('잘함')) {
-        el.innerText = '보통△';
-        el.classList.add('btn--warn');
-    } else {
-        el.innerText = '매우잘함◎';
-        el.classList.add('btn--good');
-    }
+    const next=PERF_STATES[(PERF_STATES.indexOf(el.dataset.gradeValue)+1)%PERF_STATES.length];
+    el.dataset.gradeValue=next;
+    el.textContent=next||'빈칸 · 미평가';
+    el.className=`grade-state ${perfStateClass(next)}`;
 };
 
 // 일반평가 실시간 평균 계산기
@@ -274,21 +243,25 @@ window.calcAvg = function() {
 };
 
 // 성적 DB 저장
-window.saveGrades = function(subject, key, type) {
-    let scores = {};
-    db.ref('users').once('value', snap => {
-        snap.forEach(child => {
-            const u = child.key;
-            const el = document.getElementById(`grade-${u}`);
-            if (el) {
-                scores[u] = type === 'perf' ? el.innerText.trim() : (el.value ? parseFloat(el.value) : '');
-            }
-        });
-        db.ref(`grades/${subject}/${key}/scores`).set(scores).then(() => {
+window.saveGrades = function(subject, key, type, date) {
+    const title=String(document.getElementById('grade-editor-title')?.value||'').trim();
+    if(!title)return alert('평가 제목을 입력해 주세요.');
+    const scores={};
+    document.querySelectorAll('.grade-editor [data-grade-student]').forEach(el=>{
+        const name=el.dataset.gradeStudent;
+        scores[name]=type==='perf' ? el.dataset.gradeValue||''
+            :el.value ? Number(el.value) : '';
+    });
+    const savedDate=String(date||(
+        typeof window.getTodayKST==='function'?window.getTodayKST():new Date().toISOString().split('T')[0]
+    ));
+    db.ref(`grades/${subject}/${key}`).update({title,type,date:savedDate,scores}).then(() => {
             alert("성적 데이터가 안전하게 저장되었습니다! ✅");
             if (typeof closePopup === 'function') closePopup();
             loadSubjectGrades(subject); 
-        });
+        }).catch(error=>{
+            console.error('성적 저장 오류:',error);
+            alert(error?.message||'성적을 저장하지 못했습니다.');
     });
 };
 

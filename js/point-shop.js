@@ -481,47 +481,7 @@ auth.onAuthStateChanged(function(user) {
         window.shopData = [];
     }
 });
-// 12. 관리자: 상점 주문 및 포인트 연대기(orders) 데이터 실시간 렌더링 함수
-window.loadOrderRecords = function() {
-    if(!(window.canManageShopRequests&&window.canManageShopRequests()))return;
-    if(window.adminOrdersRef&&window.adminOrdersHandler)return;
-    const ordersRef=db.ref('orders');
-    const ordersHandler=snap => {
-        const orderListEl = document.getElementById('admin-order-list'); // 👈 HTML 상의 주문 목록 테이블 tbody ID
-        if (!orderListEl) return;
-
-        if (!snap.exists()) {
-            orderListEl.innerHTML = "<tr><td colspan='5' class='center muted'>주문 및 사용 내역이 없습니다.</td></tr>";
-            return;
-        }
-
-        let html = "";
-        snap.forEach(child => {
-            const key = child.key;
-            const item = child.val();
-
-            let statusClass = item.status === '완료' ? 'badge--good' : 'badge--warn';
-            let timeFormatted = item.time ? new Date(item.time).toLocaleString('ko-KR') : (item.timeStr || '-');
-
-            html += `
-                <tr>
-                    <td class="strong">${shopEscapeHtml(item.user || '')}</td>
-                    <td>${shopEscapeHtml(item.item || '')}</td>
-                    <td><span class="badge ${statusClass}">${shopEscapeHtml(item.status || '대기중')}</span></td>
-                    <td class="small muted">${shopEscapeHtml(timeFormatted)}</td>
-                    <td>
-                        <div class="btn-row">
-                            <button onclick="approveSingleItem('${shopEscapeHtml(key)}')" class="btn btn--sm btn--good">승인</button>
-                            <button onclick="rejectSingleItem('${shopEscapeHtml(key)}')" class="btn btn--sm btn--danger">거절</button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        });
-
-        orderListEl.innerHTML = html;
-    };
-    window.adminOrdersRef=ordersRef;
-    window.adminOrdersHandler=ordersHandler;
-    ordersRef.on('value',ordersHandler);
+// 사용 요청 목록은 point-guide.js의 한 리스너가 상점/포인트 화면에 공통으로 그린다.
+window.loadOrderRecords=function(){
+    if(typeof window.initPointsTabListeners==='function')window.initPointsTabListeners();
 };
