@@ -169,7 +169,7 @@ window.openGradeEditor = async function(subject, key, draft=null) {
         if(!roster.length){
             const rosterSnap=await db.ref('users').once('value');
             roster=[];
-            rosterSnap.forEach(child=>roster.push({key:child.key,value:child.val()||{}}));
+            rosterSnap.forEach(child=>{roster.push({key:child.key,value:child.val()||{}});});
         }
         roster.forEach(({key:studentKey,value})=>{
             const name=String(value.name||studentKey||'').trim();
@@ -319,7 +319,7 @@ window.exportGradesExcel = async function() {
     for (const subject of SUBJECTS) {
         const snap = await db.ref('grades/' + subject).once('value');
         const assessments = [];
-        snap.forEach(child => assessments.push({ key: child.key, ...child.val() }));
+        snap.forEach(child => { assessments.push({ key: child.key, ...child.val() }); });
         if (!assessments.length) continue;
         hadAnyData = true;
 
@@ -387,7 +387,7 @@ window.initBudgetManager = function() {
 
         // 등록한 순서(키 순서)가 아니라 날짜 기준 최신순으로 정리한다.
         const items = [];
-        snap.forEach(child => items.push({ key: child.key, ...child.val() }));
+        snap.forEach(child => { items.push({ key: child.key, ...child.val() }); });
         items.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 
         items.forEach(item => {

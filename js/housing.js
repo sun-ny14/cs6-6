@@ -1398,7 +1398,7 @@ try {
             if (!window.canManageHousing() || !window.isCurrentHousingView(owner,version)) return;
             const level=roomLevel({level:levelSnapshot.val(),lv:legacyLevelSnapshot.val()});
             const items=[];
-            snapshot.forEach(child=>items.push({key:child.key,item:normalizeFurnitureItem(child.val())}));
+            snapshot.forEach(child=>{items.push({key:child.key,item:normalizeFurnitureItem(child.val())});});
             const savedImages=new Set(items.map(entry=>entry.item.img).filter(Boolean));
             Object.entries(DEFAULT_FURNITURE).forEach(([key,item])=>{if(!savedImages.has(item.img))items.push({key,item});});
 
