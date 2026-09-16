@@ -160,8 +160,7 @@ function showTab(t, housingOwner){
     const adminOnlyTabs=[
         'blackboard-admin',
         'attendance-admin',
-        'class-journal',
-        'management',
+        'class-ops',
         'admin'
     ];
 
@@ -197,8 +196,9 @@ function showTab(t, housingOwner){
     }
 
     if(typeof window.leaveHousingTab==='function') window.leaveHousingTab();
-    if(window.currentTab==='class-journal'&&t!=='class-journal'&&
-        typeof window.lockClassJournal==='function')window.lockClassJournal();
+    // 예전엔 다른 탭으로 이동하기만 해도 곧바로 다시 잠갔는데, 그래서 세션을
+    // 길게 늘려도 체감상 계속 다시 잠기는 것처럼 느껴졌다. 이제는 실제로
+    // 서버 세션이 만료됐을 때(요청이 실패할 때)만 다시 잠근다.
     window.currentTab=t;
 
     try{
@@ -283,10 +283,8 @@ if(typeof renderHeroes==='function'){
     }
 
 
-    if(t==='management'){
-        if(typeof renderManagementSub==='function'){
-            renderManagementSub('grades');
-        }
+    if(t==='class-ops'&&typeof window.initClassOpsPane==='function'){
+        window.initClassOpsPane();
     }
 }
 

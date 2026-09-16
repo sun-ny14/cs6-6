@@ -13,7 +13,12 @@ window.renderManagementSub = function(subType) {
     if (subType === 'grades') {
         subContentEl.innerHTML = `
             <div class="card stack">
-                <h2>📝 성적 및 평가 관리</h2>
+                <div class="panel-head">
+                    <h2>📝 성적 및 평가 관리</h2>
+                    <div class="panel-head-actions">
+                        <button class="btn btn--outline btn--sm" onclick="exportGradesExcel()">📊 엑셀로 내보내기</button>
+                    </div>
+                </div>
                 <p>학생 결과를 한 번 눌러 4단계로 바꿉니다. 빈칸은 아직 평가하지 않은 상태입니다.</p>
                 <div class="chip-group" id="grades-subject-buttons">
                 </div>
@@ -108,7 +113,8 @@ window.loadSubjectGrades = function(subject) {
             <div class="panel-head">
                 <h3>📘 ${subject} 평가 목록</h3>
                 <div class="panel-head-actions">
-                    <button class="btn btn--good btn--sm" onclick="openNewGradePopup('${subject}', 'perf')">+ 평가 만들기</button>
+                    <button class="btn btn--good btn--sm" onclick="openNewGradePopup('${subject}', 'perf')">+ 수행평가 만들기</button>
+                    <button class="btn btn--outline btn--sm" onclick="openNewGradePopup('${subject}', 'score')">+ 단원평가 만들기</button>
                 </div>
             </div>
             <div class="stack stack--sm">
@@ -122,11 +128,11 @@ window.loadSubjectGrades = function(subject) {
             html += `<div class="empty"><strong>등록된 평가가 없습니다.</strong><span>오른쪽 위의 [+ 추가] 버튼을 이용해 주세요.</span></div>`;
         } else {
             assessments.forEach(a => {
-                const typeIcon = a.type === 'perf' ? '📋 수행' : '💯 일반';
+                const typeIcon = a.type === 'perf' ? '📋 수행' : '💯 단원';
                 const typeClass = a.type === 'perf' ? 'card--good' : 'card--accent';
                 html += `
                     <div onclick="openGradeEditor('${subject}', '${a.key}')" class="card ${typeClass} row row--between" style="cursor:pointer;">
-                        <span><strong>${typeIcon}</strong> &nbsp;|&nbsp; <b>${gradeEscapeHtml(a.title)}</b></span>
+                        <span><strong>${typeIcon}</strong> &nbsp;|&nbsp; ${a.unit?`<span class="muted">[${gradeEscapeHtml(a.unit)}]</span> `:''}<b>${gradeEscapeHtml(a.title)}</b></span>
                         <small class="muted">${a.date}</small>
                     </div>
                 `;
@@ -142,7 +148,8 @@ window.openNewGradePopup = function(subject, type) {
     const key = db.ref(`grades/${subject}`).push().key;
     const draft={
         title:`${subject} 새 평가`,
-        type: 'perf',
+        type: type === 'score' ? 'score' : 'perf',
+        unit: '',
         date: typeof window.getTodayKST==='function'
             ?window.getTodayKST():new Date().toISOString().split('T')[0],
         scores: {}
@@ -178,7 +185,10 @@ window.openGradeEditor = async function(subject, key, draft=null) {
                 <label class="field"><span class="field-label">평가 제목</span>
                     <input id="grade-editor-title" class="input" type="text" maxlength="80"
                         value="${gradeEscapeHtml(data.title)}" placeholder="평가 제목을 입력하세요"></label>
-                <span class="muted small">${gradeEscapeHtml(subject)} · ${data.type==='perf'?'4단계 평가':'기존 점수 평가'} · ${gradeEscapeHtml(data.date||'')}</span>
+                <label class="field"><span class="field-label">단원</span>
+                    <input id="grade-editor-unit" class="input" type="text" maxlength="40"
+                        value="${gradeEscapeHtml(data.unit||'')}" placeholder="예: 2단원 소수의 곱셈"></label>
+                <span class="muted small">${gradeEscapeHtml(subject)} · ${data.type==='perf'?'수행평가 · 4단계 평가':'단원평가 · 점수 평가'} · ${gradeEscapeHtml(data.date||'')}</span>
             </div>
             <p class="muted small">${data.type==='perf'
                 ?'학생 결과를 한 번 누를 때마다 빈칸 → 매우 잘함 → 잘함 → 노력 요함 순서로 바뀝니다.'
@@ -246,6 +256,7 @@ window.calcAvg = function() {
 window.saveGrades = function(subject, key, type, date) {
     const title=String(document.getElementById('grade-editor-title')?.value||'').trim();
     if(!title)return alert('평가 제목을 입력해 주세요.');
+    const unit=String(document.getElementById('grade-editor-unit')?.value||'').trim();
     const scores={};
     document.querySelectorAll('.grade-editor [data-grade-student]').forEach(el=>{
         const name=el.dataset.gradeStudent;
@@ -255,7 +266,7 @@ window.saveGrades = function(subject, key, type, date) {
     const savedDate=String(date||(
         typeof window.getTodayKST==='function'?window.getTodayKST():new Date().toISOString().split('T')[0]
     ));
-    db.ref(`grades/${subject}/${key}`).update({title,type,date:savedDate,scores}).then(() => {
+    db.ref(`grades/${subject}/${key}`).update({title,type,unit,date:savedDate,scores}).then(() => {
             alert("성적 데이터가 안전하게 저장되었습니다! ✅");
             if (typeof closePopup === 'function') closePopup();
             loadSubjectGrades(subject); 
@@ -291,6 +302,69 @@ window.deleteGrade = function(subject, key) {
     });
 };
 
+// 과목별 시트, 시트 안에서는 단원별로 묶어서 평가·학생 결과를 정리한 엑셀 파일을 내려받는다.
+window.exportGradesExcel = async function() {
+    if (typeof XLSX === 'undefined') {
+        alert('엑셀 내보내기 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
+        return;
+    }
+    const roster = (Array.isArray(window.currentUsers) ? window.currentUsers : [])
+        .map(u => ({ name: String(u?.name || '').trim(), no: parseInt(u?.no ?? u?.number, 10) }))
+        .filter(u => u.name && u.name !== '총사령관' && !u.name.includes('선생님'))
+        .sort((a, b) => (Number.isFinite(a.no) ? a.no : 999) - (Number.isFinite(b.no) ? b.no : 999) || a.name.localeCompare(b.name, 'ko'));
+
+    const workbook = XLSX.utils.book_new();
+    let hadAnyData = false;
+
+    for (const subject of SUBJECTS) {
+        const snap = await db.ref('grades/' + subject).once('value');
+        const assessments = [];
+        snap.forEach(child => assessments.push({ key: child.key, ...child.val() }));
+        if (!assessments.length) continue;
+        hadAnyData = true;
+
+        const byUnit = new Map();
+        assessments.forEach(a => {
+            const unit = String(a.unit || '').trim() || '(단원 미지정)';
+            if (!byUnit.has(unit)) byUnit.set(unit, []);
+            byUnit.get(unit).push(a);
+        });
+
+        const rows = [];
+        Array.from(byUnit.keys()).sort((a, b) => a.localeCompare(b, 'ko')).forEach(unit => {
+            rows.push([`[단원] ${unit}`]);
+            byUnit.get(unit)
+                .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+                .forEach(a => {
+                    const kind = a.type === 'perf' ? '수행평가' : '단원평가';
+                    rows.push([`${gradeEscapeHtml(a.title)} (${kind} · ${a.date || ''})`]);
+                    rows.push(['번호', '이름', a.type === 'perf' ? '결과' : '점수']);
+                    const scores = a.scores || {};
+                    roster.forEach(student => {
+                        const raw = scores[student.name];
+                        const value = a.type === 'perf'
+                            ? String(raw || '')
+                            : (raw === '' || raw === undefined ? '' : Number(raw));
+                        rows.push([Number.isFinite(student.no) ? student.no : '', student.name, value]);
+                    });
+                    rows.push([]);
+                });
+        });
+
+        const sheet = XLSX.utils.aoa_to_sheet(rows);
+        sheet['!cols'] = [{ wch: 6 }, { wch: 12 }, { wch: 14 }];
+        // 시트 이름은 31자 제한과 일부 특수문자 제약이 있어 과목명을 그대로 써도 안전하다.
+        XLSX.utils.book_append_sheet(workbook, sheet, subject);
+    }
+
+    if (!hadAnyData) {
+        alert('내보낼 성적 데이터가 없습니다.');
+        return;
+    }
+    const today = typeof window.getTodayKST === 'function' ? window.getTodayKST() : new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `성적_${today}.xlsx`);
+};
+
 
 // ==========================================
 // 2. 학급 운영비 및 예산 관리 시스템
@@ -310,16 +384,26 @@ window.initBudgetManager = function() {
     db.ref('budgetRecords').on('value', snap => {
         let h = "";
         let totalSpent = 0;
-        
-        snap.forEach(child => {
-            const item = child.val();
+
+        // 등록한 순서(키 순서)가 아니라 날짜 기준 최신순으로 정리한다.
+        const items = [];
+        snap.forEach(child => items.push({ key: child.key, ...child.val() }));
+        items.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+        items.forEach(item => {
             totalSpent += parseInt(item.amount || 0);
+            const attachments = Array.isArray(item.attachments) ? item.attachments : [];
+            const attachmentsHtml = attachments.length
+                ? `<div class="row-actions">${attachments.map(file =>
+                    `<a href="${gradeEscapeHtml(file.url)}" target="_blank" rel="noopener" class="btn btn--quiet btn--xs">📎 ${gradeEscapeHtml(file.name || '파일')}</a>`
+                  ).join('')}</div>`
+                : '';
             h += `<tr>
                     <td>${item.date}</td>
                     <td>${item.mall}</td>
-                    <td>${item.purpose}</td>
+                    <td>${item.purpose}${attachmentsHtml}</td>
                     <td><span class="badge badge--bad">${parseInt(item.amount).toLocaleString()}원</span></td>
-                    <td><button class="btn btn--quiet btn--xs" onclick="deleteBudget('${child.key}')">삭제</button></td>
+                    <td><button class="btn btn--quiet btn--xs" onclick="deleteBudget('${item.key}')">삭제</button></td>
                   </tr>`;
         });
 
@@ -348,6 +432,9 @@ window.openAddBudgetPopup = function() {
             <div class="field"><span class="field-label">쇼핑몰</span><input type="text" id="bg-mall" placeholder="예: 쿠팡, 다이소"></div>
             <div class="field"><span class="field-label">용도</span><input type="text" id="bg-purpose" placeholder="예: 창의적 체험활동 재료"></div>
             <div class="field"><span class="field-label">금액</span><input type="number" id="bg-amount" placeholder="숫자만 입력"></div>
+            <div class="field"><span class="field-label">영수증·첨부파일 (선택, 파일당 8MB 이하)</span>
+                <input type="file" id="bg-receipts" accept="image/*,application/pdf" multiple></div>
+            <p id="bg-save-status" class="muted small"></p>
             <button class="btn btn--primary btn--block" onclick="saveBudget()">저장하기</button>
             <hr class="divider">
             <span class="small strong muted">총 예산 변경:</span>
@@ -370,24 +457,53 @@ window.updateTotalBudget = function() {
     });
 };
 
-window.saveBudget = function() {
+window.saveBudget = async function() {
     const date = document.getElementById('bg-date').value;
     const mall = document.getElementById('bg-mall').value;
     const purpose = document.getElementById('bg-purpose').value;
     const amount = document.getElementById('bg-amount').value;
-    
-    if (date && mall && purpose && amount) {
-        db.ref('budgetRecords').push({ 
-            date, 
-            mall, 
-            purpose, 
-            amount: parseInt(amount) 
-        }).then(() => { 
-            alert("✅ 저장되었습니다."); 
-            if (typeof closePopup === 'function') closePopup(); 
-        });
-    } else {
+    const fileInput = document.getElementById('bg-receipts');
+    const statusEl = document.getElementById('bg-save-status');
+
+    if (!(date && mall && purpose && amount)) {
         alert("⚠️ 모든 항목을 입력해주세요.");
+        return;
+    }
+
+    const files = Array.from(fileInput?.files || []);
+    const oversized = files.find(file => file.size > 8 * 1024 * 1024);
+    if (oversized) {
+        alert(`⚠️ [${oversized.name}] 파일이 8MB를 넘습니다. 더 작은 파일로 올려주세요.`);
+        return;
+    }
+
+    const recordRef = db.ref('budgetRecords').push();
+    try {
+        await recordRef.set({ date, mall, purpose, amount: parseInt(amount) });
+
+        if (files.length) {
+            if (!window.storage) {
+                if (statusEl) statusEl.textContent = '내역은 저장됐지만, 파일 저장(Storage)이 아직 설정되지 않아 첨부는 건너뛰었습니다.';
+            } else {
+                if (statusEl) statusEl.textContent = `첨부파일 업로드 중… (0/${files.length})`;
+                const attachments = [];
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileRef = window.storage.ref(`budgetReceipts/${recordRef.key}/${Date.now()}_${file.name}`);
+                    await fileRef.put(file);
+                    const url = await fileRef.getDownloadURL();
+                    attachments.push({ name: file.name, url, path: fileRef.fullPath });
+                    if (statusEl) statusEl.textContent = `첨부파일 업로드 중… (${i + 1}/${files.length})`;
+                }
+                await recordRef.update({ attachments });
+            }
+        }
+
+        alert("✅ 저장되었습니다.");
+        if (typeof closePopup === 'function') closePopup();
+    } catch (error) {
+        console.error('운영비 저장 오류:', error);
+        alert(error?.message || '저장하지 못했습니다.');
     }
 };
 

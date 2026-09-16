@@ -117,10 +117,9 @@ function applyAccessControl(){
     [
         'btn-logs',
         'btn-budget',
-        'btn-management',
         'btn-blackboard-admin',
         'btn-attendance-admin',
-        'btn-class-journal',
+        'btn-class-ops',
         'btn-admin',
         'btn-add-point-guide',
         'floating-point-btn',

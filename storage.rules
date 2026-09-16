@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 운영비 영수증·첨부파일: 교사만 올리고 지울 수 있고, 교사만 열람 가능.
+    match /budgetReceipts/{recordKey}/{fileName} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email == 'ksosuny@cberi.go.kr';
+    }
+
+    // 학급 공용 배경 이미지: 교사만 올리고, 로그인한 사람이면 누구나 볼 수 있음
+    // (하우징 배경으로 모든 학생 화면에 쓰이므로).
+    match /classAssets/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'ksosuny@cberi.go.kr';
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -4,6 +4,15 @@
     const PERIODS=['1교시','2교시','3교시','4교시','5교시','6교시'];
     const state={token:'',month:'',selectedDate:'',days:{},notices:{},drafts:{},loading:false,unlocking:false,filter:'all',entryMode:'all'};
     const root=()=>document.getElementById('class-journal-container');
+    const lockRoot=()=>document.getElementById('class-ops-lock-area');
+    function showLockArea(){
+        const lock=document.getElementById('class-ops-lock-area'),shell=document.getElementById('class-ops-shell');
+        if(lock)lock.hidden=false;if(shell)shell.hidden=true;
+    }
+    function showShellArea(){
+        const lock=document.getElementById('class-ops-lock-area'),shell=document.getElementById('class-ops-shell');
+        if(lock)lock.hidden=true;if(shell)shell.hidden=false;
+    }
     const esc=value=>String(value==null?'':value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const todayKst=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
     const makeId=prefix=>`${prefix}_${Date.now()}_${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
@@ -29,13 +38,13 @@
         return {text,items:text.split(/\r?\n/).map(line=>({text:line.trim(),showOnHome:true})).filter(item=>item.text)};
     }
 
-    function renderLock(message='학급일지는 관리자 전용입니다. 비밀번호를 다시 확인해 주세요.'){
-        ensureStyles();const container=root();if(!container)return;
-        container.innerHTML=`<div class="journal-lock"><h2>🔐 학급일지</h2><p>${esc(message)}</p><input id="journal-password" type="hidden" value=""><div class="journal-pin-dots" aria-label="비밀번호 네 자리">${[0,1,2,3].map(i=>`<span class="journal-pin-dot" data-pin-dot="${i}"></span>`).join('')}</div><div class="journal-keypad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="journal-key" type="button" data-pin-key="${n}">${n}</button>`).join('')}<button class="journal-key" type="button" data-pin-clear>전체삭제</button><button class="journal-key" type="button" data-pin-key="0">0</button><button class="journal-key" type="button" data-pin-back>⌫</button></div><div class="journal-lock-actions"><button class="btn btn--outline" data-journal-password-setup>비밀번호 설정·변경</button></div><p id="journal-lock-status" class="journal-status"></p></div>`;
+    function renderLock(message='학급일지·성적·운영비는 관리자 전용입니다. 비밀번호를 다시 확인해 주세요.'){
+        ensureStyles();showLockArea();const container=lockRoot();if(!container)return;
+        container.innerHTML=`<div class="journal-lock"><h2>🔐 학급 운영</h2><p>${esc(message)}</p><p class="tiny muted">학급일지 · 성적 관리 · 운영비를 하나의 비밀번호로 엽니다</p><input id="journal-password" type="hidden" value=""><div class="journal-pin-dots" aria-label="비밀번호 네 자리">${[0,1,2,3].map(i=>`<span class="journal-pin-dot" data-pin-dot="${i}"></span>`).join('')}</div><div class="journal-keypad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="journal-key" type="button" data-pin-key="${n}">${n}</button>`).join('')}<button class="journal-key" type="button" data-pin-clear>전체삭제</button><button class="journal-key" type="button" data-pin-key="0">0</button><button class="journal-key" type="button" data-pin-back>⌫</button></div><label class="check-row well--line"><input type="checkbox" id="journal-keep-today"> 이 기기에서 오늘 하루 계속 열어두기</label><div class="journal-lock-actions"><button class="btn btn--outline" data-journal-password-setup>비밀번호 설정·변경</button></div><p id="journal-lock-status" class="journal-status"></p></div>`;
     }
     function renderPasswordSetup(){
-        const container=root();if(!container)return;
-        container.innerHTML=`<div class="journal-lock"><h2>🔑 학급일지 비밀번호 설정</h2><p>처음 설정할 때는 현재 비밀번호를 비워 두세요. 변경할 때는 현재 비밀번호가 필요합니다.</p><input id="journal-current-password" type="password" inputmode="numeric" maxlength="4" placeholder="현재 숫자 4자리 (처음 설정이면 비움)"><input id="journal-new-password" type="password" inputmode="numeric" maxlength="4" placeholder="새 숫자 4자리"><input id="journal-confirm-password" type="password" inputmode="numeric" maxlength="4" placeholder="새 비밀번호 확인"><div class="journal-lock-actions"><button class="btn btn--primary" data-journal-save-password>저장</button><button class="btn btn--outline" data-journal-back-lock>취소</button></div><p id="journal-lock-status" class="journal-status"></p></div>`;
+        showLockArea();const container=lockRoot();if(!container)return;
+        container.innerHTML=`<div class="journal-lock"><h2>🔑 학급 운영 비밀번호 설정</h2><p>처음 설정할 때는 현재 비밀번호를 비워 두세요. 변경할 때는 현재 비밀번호가 필요합니다.</p><input id="journal-current-password" type="password" inputmode="numeric" maxlength="4" placeholder="현재 숫자 4자리 (처음 설정이면 비움)"><input id="journal-new-password" type="password" inputmode="numeric" maxlength="4" placeholder="새 숫자 4자리"><input id="journal-confirm-password" type="password" inputmode="numeric" maxlength="4" placeholder="새 비밀번호 확인"><div class="journal-lock-actions"><button class="btn btn--primary" data-journal-save-password>저장</button><button class="btn btn--outline" data-journal-back-lock>취소</button></div><p id="journal-lock-status" class="journal-status"></p></div>`;
     }
     function mondayOf(dateString){const date=new Date(`${dateString}T00:00:00Z`),day=date.getUTCDay();date.setUTCDate(date.getUTCDate()+(day===0?-6:1-day));return date.toISOString().slice(0,10);}
     function timetableFor(date,value){
@@ -60,7 +69,7 @@
         calendar.innerHTML=['일','월','화','수','목','금','토'].map(day=>`<div class="journal-weekday">${day}</div>`).join('')+calendarDays().map(date=>{const summary=recordSummary(date),other=date.slice(0,7)!==state.month;return `<div class="journal-day${other?' is-other':''}${date===today?' is-today':''}${date===state.selectedDate?' active':''}"><button type="button" class="journal-day-open" data-journal-date="${date}"><b>${Number(date.slice(8))}</b>${summary.length?`<span class="journal-day-summary">${esc(summary.join(' · '))}</span>`:''}</button><button type="button" class="journal-day-add" data-journal-add="${date}" aria-label="${date} 기록 추가">+</button></div>`;}).join('');
         document.getElementById('journal-month-label').textContent=`${state.month.slice(0,4)}년 ${Number(state.month.slice(5))}월`;
     }
-    function renderJournal(){const container=root();if(!container)return;container.innerHTML=`<div class="journal-shell"><header class="journal-head"><div><h2>📚 학급일지</h2><p>날짜는 전체 기록, + 버튼은 원하는 종류의 입력창을 엽니다.</p></div><div class="journal-head-actions"><button class="btn btn--outline" data-journal-change-password>비밀번호 변경</button><button class="btn btn--danger" data-journal-lock>잠그고 나가기</button></div></header><section class="journal-card"><div class="journal-calendar-head"><button class="btn btn--sm" data-journal-month="-1">◀</button><strong id="journal-month-label"></strong><button class="btn btn--sm" data-journal-month="1">▶</button></div><div class="journal-filter" aria-label="학급일지 종류 필터">${[['all','전체'],['schedule','일정'],['counsel','상담'],['lesson','수업일지']].map(([key,label])=>`<button type="button" class="btn btn--outline ${state.filter===key?'active':''}" data-journal-filter="${key}">${label}</button>`).join('')}</div><div id="journal-calendar" class="journal-calendar"></div><div id="journal-loading" class="journal-loading" hidden>불러오는 중…</div></section></div>`;renderCalendar();}
+    function renderJournal(){const container=root();if(!container)return;container.innerHTML=`<div class="journal-shell"><section class="journal-card"><div class="journal-calendar-head"><button class="btn btn--sm" data-journal-month="-1">◀</button><strong id="journal-month-label"></strong><button class="btn btn--sm" data-journal-month="1">▶</button></div><div class="journal-filter" aria-label="학급일지 종류 필터">${[['all','전체'],['schedule','일정'],['counsel','상담'],['lesson','수업일지']].map(([key,label])=>`<button type="button" class="btn btn--outline ${state.filter===key?'active':''}" data-journal-filter="${key}">${label}</button>`).join('')}</div><div id="journal-calendar" class="journal-calendar"></div><div id="journal-loading" class="journal-loading" hidden>불러오는 중…</div></section></div>`;renderCalendar();}
 
     function counselingRow(item={}){const id=item.id||makeId('c'),related=relatedStudents(item);return `<div class="journal-row journal-row-counsel" data-counsel-row data-id="${esc(id)}"><select data-counsel-category>${CATEGORIES.map(category=>`<option ${category===(item.category||'학교생활')?'selected':''}>${category}</option>`).join('')}</select><input data-counsel-student value="${esc(item.studentName||'')}" placeholder="상담 대상(선택 입력)"><button class="btn btn--xs btn--danger" data-remove-row type="button">삭제</button><textarea data-counsel-content rows="4" placeholder="상담 내용을 작성하면 본문에 등장한 학생 이름을 자동으로 연결합니다.">${esc(item.content||'')}</textarea><div class="journal-related" data-related-students>${related.length?`<span>관련 학생</span>${related.map(name=>`<b class="journal-chip">${esc(name)}</b>`).join('')}`:'<span>본문에서 학생 이름을 찾으면 여기에 표시됩니다.</span>'}</div></div>`;}
     function workRow(item={}){const id=item.id||makeId('w');return `<div class="journal-row journal-row-work" data-work-row data-id="${esc(id)}"><input type="time" data-work-time value="${esc(item.time||'')}"><input data-work-title value="${esc(item.title||'')}" placeholder="교사 업무 일정"><button class="btn btn--xs btn--danger" data-remove-row type="button">삭제</button><textarea data-work-details rows="2" placeholder="업무 내용·준비물·메모">${esc(item.details||'')}</textarea><div class="journal-row-options"><label><input type="checkbox" data-work-notify ${item.notify?'checked':''}> 교사용 오늘의 알림에 표시</label><label><input type="checkbox" data-work-completed ${item.completed?'checked':''}> 업무 완료</label></div></div>`;}
@@ -99,7 +108,8 @@
         if(state.unlocking)return;
         const password=String(document.getElementById('journal-password')?.value||''),status=document.getElementById('journal-lock-status');if(!/^\d{4}$/.test(password)){if(status)status.textContent='숫자 4자리를 입력해 주세요.';return;}if(status)status.textContent='확인 중…';
         state.unlocking=true;
-        try{const month=todayKst().slice(0,7),result=await window.callSecure('unlockClassJournal',{password,month});state.token=result.journalToken;state.month=result.month||month;state.selectedDate=todayKst();state.days=result.days||{};state.notices=result.notices||{};state.drafts={};renderJournal();}catch(error){if(status)status.textContent=errorText(error);updatePin('');}finally{state.unlocking=false;}
+        const keepToday=document.getElementById('journal-keep-today')?.checked===true;
+        try{const month=todayKst().slice(0,7),result=await window.callSecure('unlockClassJournal',{password,month,keepToday});state.token=result.journalToken;state.month=result.month||month;state.selectedDate=todayKst();state.days=result.days||{};state.notices=result.notices||{};state.drafts={};renderJournal();showShellArea();window.classOpsOnUnlock?.();}catch(error){if(status)status.textContent=errorText(error);updatePin('');}finally{state.unlocking=false;}
     }
     async function savePassword(){
         const currentPassword=String(document.getElementById('journal-current-password')?.value||''),newPassword=String(document.getElementById('journal-new-password')?.value||''),confirm=String(document.getElementById('journal-confirm-password')?.value||''),status=document.getElementById('journal-lock-status');if(!/^\d{4}$/.test(newPassword)){status.textContent='숫자 4자리를 입력해 주세요.';return;}if(newPassword!==confirm){status.textContent='새 비밀번호 확인이 일치하지 않습니다.';return;}status.textContent='저장 중…';
@@ -128,12 +138,17 @@
         if(input.value.length===4&&previousLength<4)unlock();
     }
 
-    window.lockClassJournal=function(message){state.token='';state.days={};state.notices={};state.drafts={};renderLock(message);};
-    window.openClassJournalEntry=function(){if(window.isAdmin!==true)return alert('관리자만 학급일지를 사용할 수 있습니다.');showTab('class-journal');window.lockClassJournal();};
-    window.initClassJournal=function(){ensureStyles();if(!state.token)renderLock();};
+    window.lockClassJournal=function(message){
+        state.token='';state.days={};state.notices={};state.drafts={};
+        renderLock(message);
+        window.classOpsOnLock?.();
+    };
+    window.isClassOpsUnlocked=()=>Boolean(state.token);
+    window.renderClassJournalPane=function(){if(state.token)renderJournal();};
+    window.classOpsChangePassword=function(){renderPasswordSetup();};
     document.addEventListener('click',async event=>{
-        if(!event.target.closest('#tab-class-journal'))return;
-        if(event.target.closest('[data-journal-unlock]')){await unlock();return;}if(event.target.closest('[data-journal-password-setup],[data-journal-change-password]')){renderPasswordSetup();return;}if(event.target.closest('[data-journal-save-password]')){await savePassword();return;}if(event.target.closest('[data-journal-back-lock]')){renderLock();return;}if(event.target.closest('[data-journal-lock]')){showTab('main');window.lockClassJournal();return;}
+        if(!event.target.closest('#tab-class-ops'))return;
+        if(event.target.closest('[data-journal-unlock]')){await unlock();return;}if(event.target.closest('[data-journal-password-setup],[data-journal-change-password]')){renderPasswordSetup();return;}if(event.target.closest('[data-journal-save-password]')){await savePassword();return;}if(event.target.closest('[data-journal-back-lock]')){if(state.token){showShellArea();window.classOpsOnUnlock?.();}else renderLock();return;}if(event.target.closest('[data-journal-lock]')){showTab('main');window.lockClassJournal();return;}
         const pin=event.target.closest('[data-pin-key]');if(pin){updatePin((document.getElementById('journal-password')?.value||'')+pin.dataset.pinKey);return;}if(event.target.closest('[data-pin-back]')){updatePin((document.getElementById('journal-password')?.value||'').slice(0,-1));return;}if(event.target.closest('[data-pin-clear]')){updatePin('');return;}
         const filter=event.target.closest('[data-journal-filter]');if(filter){state.filter=filter.dataset.journalFilter;renderJournal();return;}
         const month=event.target.closest('[data-journal-month]');if(month){changeMonth(Number(month.dataset.journalMonth));return;}const addButton=event.target.closest('[data-journal-add]');if(addButton){await openDate(addButton.dataset.journalAdd,'picker');return;}const dateButton=event.target.closest('[data-journal-date]');if(dateButton){await openDate(dateButton.dataset.journalDate,'all');return;}const entry=event.target.closest('[data-journal-entry]');if(entry){renderModal(state.selectedDate,entry.dataset.journalEntry);return;}if(event.target.closest('[data-journal-close]')){closeModal();return;}
@@ -143,8 +158,8 @@
     document.addEventListener('input',event=>{if(event.target?.id==='journal-notice-text'){renderNoticeChecks();return;}const row=event.target.closest?.('[data-counsel-row]');if(row)updateRelated(row);});
     document.addEventListener('keydown',event=>{
         const input=document.getElementById('journal-password');
-        const journalTab=document.getElementById('tab-class-journal');
-        const lockIsActive=input&&(window.currentTab==='class-journal'||journalTab?.classList.contains('active'));
+        const journalTab=document.getElementById('tab-class-ops');
+        const lockIsActive=input&&(window.currentTab==='class-ops'||journalTab?.classList.contains('active'))&&lockRoot()&&!lockRoot().hidden;
         if(lockIsActive&&!event.ctrlKey&&!event.metaKey&&!event.altKey){
             if(/^\d$/.test(event.key)){
                 event.preventDefault();

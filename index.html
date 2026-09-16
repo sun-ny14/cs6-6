@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -139,12 +140,8 @@ function toggleSidebar(){
             🏫 전자칠판 관리
         </button>
 
-        <button id="btn-class-journal" hidden onclick="openClassJournalEntry();">
-            📚 학급일지
-        </button>
-
-        <button id="btn-management" hidden onclick="showTab('management');renderManagementSub('grades');">
-            🛡️ 학급관리
+        <button id="btn-class-ops" hidden onclick="openClassOpsEntry();">
+            🗂️ 학급 운영
         </button>
 
         <button id="btn-cleaning" hidden onclick="showTab('cleaning');renderRoleCleaning();">
@@ -437,9 +434,25 @@ function toggleSidebar(){
 
         </section>
 
-        <!-- 관리자 전용 학급일지 -->
-        <section id="tab-class-journal" class="tab-content">
-            <div id="class-journal-container"></div>
+        <!-- 관리자 전용: 학급일지 + 학급관리(성적·운영비) 통합, 잠금 하나로 공유 -->
+        <section id="tab-class-ops" class="tab-content">
+            <div id="class-ops-lock-area"></div>
+            <div id="class-ops-shell" hidden>
+                <header class="page-head">
+                    <div><h2>🗂️ 학급 운영</h2></div>
+                    <div class="page-head-actions">
+                        <button class="btn btn--outline btn--sm" onclick="window.classOpsChangePassword&&window.classOpsChangePassword()">비밀번호 변경</button>
+                        <button class="btn btn--danger btn--sm" onclick="window.lockClassJournal&&window.lockClassJournal()">잠그고 나가기</button>
+                    </div>
+                </header>
+                <div class="seg">
+                    <button type="button" id="class-ops-sub-journal" class="active" onclick="window.switchClassOpsSub('journal')">📚 학급일지</button>
+                    <button type="button" id="class-ops-sub-grades" onclick="window.switchClassOpsSub('grades')">📝 성적 관리</button>
+                    <button type="button" id="class-ops-sub-budget" onclick="window.switchClassOpsSub('budget')">💵 운영비</button>
+                </div>
+                <div id="class-journal-container"></div>
+                <div id="management-sub-container" hidden></div>
+            </div>
         </section>
 
         <!-- 7. 하우징 -->
@@ -513,29 +526,6 @@ function toggleSidebar(){
                 </div>
 
             </div>
-
-        </section>
-
-        <!-- 8. 학급관리 -->
-        <section id="tab-management" class="tab-content">
-
-            <header class="page-head">
-                <div>
-                    <h2>🛡️ 학급관리</h2>
-                </div>
-            </header>
-
-            <div class="seg">
-                <button onclick="renderManagementSub('grades')" id="sub-btn-grades" class="active">
-                    📝 성적 관리
-                </button>
-
-                <button onclick="renderManagementSub('budget')" id="sub-btn-budget">
-                    💵 학급 운영비
-                </button>
-            </div>
-
-            <div id="management-sub-container"></div>
 
         </section>
 
@@ -721,7 +711,8 @@ function toggleSidebar(){
 <script src="js/housing.js?v=20260911-final-2"></script>
 <script src="js/admin-grades.js?v=20260915-stability-1"></script>
 <script src="js/blackboard-admin.js?v=20260913-journal-1"></script>
-<script src="js/class-journal.js?v=20260915-journal-keyboard-1"></script>
+<script src="js/class-journal.js?v=20260916-class-ops-1"></script>
+<script src="js/class-ops.js?v=20260916-class-ops-1"></script>
 <script src="js/assignments.js?v=20260913-readability-1"></script>
 <script src="js/settings.js?v=20260915-stability-1"></script>
 <script src="js/cleaning.js?v=20260915-merge-1"></script>

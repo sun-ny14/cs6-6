@@ -95,20 +95,33 @@ window.openHousingTab = function() {
 };
 
 // 3. 기본 방 배경 업로드 (관리자 전용)
+// 예전엔 이미지를 base64로 통째로 Realtime Database에 저장했는데, 그러면 이
+// 값을 구독하는 모든 화면이 매번 이미지 전체를 다운로드하고(트래픽 낭비),
+// 큰 값 때문에 설정 저장 트리거가 TRIGGER_PAYLOAD_TOO_LARGE로 실패하기도
+// 했다. 이제 Storage에 올리고 짧은 다운로드 URL만 저장한다.
 window.uploadDefaultBackground = function(input) {
     if (!isAdmin) return;
-    if (input.files && input.files[0]) {
-        const r = new FileReader();
-        r.onload = function(e) {
-            const base64Img = e.target.result;
-            db.ref('settings/defaultBg').set(base64Img).then(() => {
-                alert("기본 배경이 저장되었습니다! 모든 용사의 방에 적용됩니다. ✨");
-                window.currentDefaultBg = base64Img;
-                renderMyRoom(); 
-            }).catch(err => alert("❌ 이미지 용량이 너무 커서 실패했습니다. (가급적 해상도를 낮춰주세요)"));
-        };
-        r.readAsDataURL(input.files[0]);
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (!window.storage) {
+        alert('파일 저장(Storage)이 아직 설정되지 않았습니다. Firebase 콘솔에서 Storage를 먼저 시작해 주세요.');
+        return;
     }
+    if (file.size > 5 * 1024 * 1024) {
+        alert('이미지가 5MB를 넘습니다. 더 작은 이미지로 올려주세요.');
+        return;
+    }
+    const fileRef = window.storage.ref(`classAssets/defaultBg_${Date.now()}_${file.name}`);
+    fileRef.put(file).then(() => fileRef.getDownloadURL()).then(url => {
+        return db.ref('settings/defaultBg').set(url).then(() => {
+            alert("기본 배경이 저장되었습니다! 모든 용사의 방에 적용됩니다. ✨");
+            window.currentDefaultBg = url;
+            renderMyRoom();
+        });
+    }).catch(err => {
+        console.error('배경 업로드 오류:', err);
+        alert("❌ 배경 이미지를 저장하지 못했습니다: " + (err?.message || ''));
+    });
 };
 
 // 4. 내 방 렌더링 (모바일 터치, 실시간 저장, 투명 배경, 크기 조절 통합)

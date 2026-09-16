@@ -12,14 +12,18 @@ initializeApp({databaseURL:'https://cs6-6class-default-rtdb.firebaseio.com'});
 
 const REGION = 'asia-northeast3';
 const TEACHER_EMAIL = 'ksosuny@cberi.go.kr';
-// 복구된 DB의 큰 학생 레코드도 안정적으로 처리하도록 호출 함수에 여유를 둔다.
-const callable = handler => onCall({
+// 대부분의 호출 함수는 사용자 한두 명 분량의 작은 문서만 다뤄서 256MiB로 충분하다.
+// DB 복구 직후엔 큰 레코드를 처리하려고 전부 1GiB로 올려뒀었는데, 그 상태로 두면
+// Blaze 무료 제공량(GB-초)을 필요 이상으로 빨리 소모한다. 여러 사용자를 한 번에
+// 읽는 소수의 함수만 callableHeavy로 더 큰 메모리를 쓴다.
+const callable = (handler, memory = '256MiB') => onCall({
     region: REGION,
-    memory: '1GiB',
+    memory,
     timeoutSeconds: 60,
     maxInstances: 3,
     enforceAppCheck: false
 }, handler);
+const callableHeavy = handler => callable(handler, '512MiB');
 const cleanEmail = value => String(value || '').trim().toLowerCase();
 const safeKey = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(value);
 const kstDate = timestamp => new Date(timestamp + 9 * 3600000).toISOString().slice(0, 10);
@@ -32,7 +36,15 @@ const publicUser = (name, user={}) => ({
     character:String(user.character || ''), selectedAnimal:String(user.selectedAnimal || ''),
     selectedTitle:String(user.selectedTitle || ''), myRoom:user.myRoom || null
 });
-const JOURNAL_SESSION_MS = 30 * 60 * 1000;
+// "학급 운영" 통합 잠금(학급일지·성적·운영비 공용)의 세션 길이.
+// 예전엔 30분이라 수업 중에도 자꾸 다시 잠겨서 번거롭다는 피드백이 있었다.
+// 기본 4시간으로 늘리고, keepToday를 선택하면 그날 자정까지 유지한다.
+const ADMIN_LOCK_SESSION_MS = 4 * 60 * 60 * 1000;
+const endOfDayKst = timestamp => {
+    const kst = timestamp + 9 * 3600000;
+    const endOfDayKstMs = Math.floor(kst / 86400000) * 86400000 + 86400000;
+    return endOfDayKstMs - 9 * 3600000;
+};
 const JOURNAL_CATEGORIES = new Set(['교우관계','학교생활','민원','학습','보호자상담','기타']);
 const journalTokenKey = token => createHash('sha256').update(String(token)).digest('hex');
 const journalPasswordHash = (password,salt) => scryptSync(password,salt,64).toString('hex');
@@ -87,7 +99,7 @@ exports.getSecureSession = callable(async request => {
 // 트리거 제거), 이미 있던 학생들의 publicProfiles는 그 필드가 다시 쓰이기 전까지
 // 계속 비어 있다. 관리자가 한 번 실행하면 users 전체를 읽어 채워 주고,
 // 이후에는 마커를 보고 곧바로 건너뛴다.
-exports.backfillPublicProfiles = callable(async request => {
+exports.backfillPublicProfiles = callableHeavy(async request => {
     const current = await actor(request);
     if (!current.teacher) throw new HttpsError('permission-denied', '관리자만 실행할 수 있습니다.');
     const database = getDatabase();
@@ -178,7 +190,10 @@ exports.unlockClassJournal = callable(async request => {
         throw new HttpsError('permission-denied','학급일지 비밀번호가 맞지 않습니다.');
     }
     const token=randomBytes(32).toString('base64url');
-    const expiresAt=Date.now()+JOURNAL_SESSION_MS;
+    const now=Date.now();
+    const expiresAt=request.data?.keepToday===true
+        ?Math.max(endOfDayKst(now),now+ADMIN_LOCK_SESSION_MS)
+        :now+ADMIN_LOCK_SESSION_MS;
     const [monthData]=await Promise.all([
         readJournalMonth(database,requestedMonth),
         failureRef.remove(),
@@ -364,7 +379,7 @@ exports.syncOwnShopInventory = callable(async request => {
     return {synced:Object.keys(updates).length,total};
 });
 
-exports.getPopularShopItems = callable(async request => {
+exports.getPopularShopItems = callableHeavy(async request => {
     await actor(request);
     const database=getDatabase(), now=Date.now();
     const cacheRef=database.ref('publicShopStats');
