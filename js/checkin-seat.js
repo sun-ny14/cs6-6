@@ -1266,14 +1266,12 @@ window.renderSeatMap=function(rows,cols){
 
                     if(cell.dataset.saving==='true')return;
                     cell.dataset.saving='true';
-                    cell.setAttribute('aria-busy','true');
 
-                    try{
-                        await window.checkinWithUndo(name,'정상 등교');
-                    }finally{
-                        delete cell.dataset.saving;
-                        cell.removeAttribute('aria-busy');
-                    }
+                    // 시간을 확인·수정할 수 있는 팝업을 띄운다. 실제 처리는 팝업의
+                    // "등교 처리" 버튼(submitQuickCheckin)에서 일어나므로 여기서는
+                    // 팝업이 뜨자마자 셀을 다시 클릭할 수 있게 바쁨 표시만 짧게 푼다.
+                    window.promptQuickCheckin(name);
+                    setTimeout(()=>{delete cell.dataset.saving;},300);
                 };
 
                 // 상세 수정은 명시적 버튼으로만 연다. 단일/더블클릭
@@ -1434,10 +1432,10 @@ window.attendanceClickTimer=null;
 
 // 좌석 클릭 한 번으로 기록되는 출결에 되돌릴 기회를 붙인다.
 // 좌석 격자와 예전 진입점 두 곳이 같은 동작을 쓰도록 여기 모은다.
-window.checkinWithUndo=async function(user,reason){
+window.checkinWithUndo=async function(user,reason,time){
     const label=reason||'정상 등교';
     const result=window.isAdmin===true&&label.includes('정상')
-        ?await window.callSecure('teacherQuickCheckin',{name:user,date:checkinGetToday()})
+        ?await window.callSecure('teacherQuickCheckin',{name:user,date:checkinGetToday(),time:time||''})
         :await submitCheckin(user,label);
 
     if(window.isAdmin===true){
@@ -1451,8 +1449,11 @@ window.checkinWithUndo=async function(user,reason){
 
     if(!result||typeof window.showUndoBar!=='function')return result;
 
+    const resultLabel=result.category
+        ?`${result.category} 등교${result.lateMinutes?` (${result.lateMinutes}분 지각)`:''}`
+        :label;
     window.showUndoBar(
-        `${user} · ${label} 처리했습니다.`,
+        `${user} · ${resultLabel} 처리했습니다.`,
         async()=>{
             const updates={};
 
@@ -1511,9 +1512,43 @@ window.handleCheckinClick=function(user){
 
             window.attendanceClickTimer=null;
 
-            window.checkinWithUndo(user,'정상 등교');
+            window.promptQuickCheckin(user);
 
         },300);
+};
+
+// 원클릭 등교: 시간은 지금 시간이 기본값이고, 그대로 두면 바로 처리된다.
+// 시간을 고치면 그 시간 기준으로 지각 여부와 포인트 차감이 자동 계산된다.
+window.promptQuickCheckin=function(user){
+    if(window.isAdmin!==true){
+        window.checkinWithUndo(user,'정상 등교');
+        return;
+    }
+    const now=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
+    const displayName=checkinEscape(user);
+    const jsSafeUser=String(user).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const h=`<div class="stack">
+        <h3>⚔️ ${displayName} 등교 처리</h3>
+        <div class="field"><span class="field-label">등교 시간</span>
+            <input type="time" id="quick-checkin-time" value="${now}"></div>
+        <p class="tiny muted">수정하지 않으면 이 시간 그대로 처리됩니다. 지각 기준을 넘으면 자동으로 포인트가 차감돼요.</p>
+        <button class="btn btn--primary btn--block" onclick="submitQuickCheckin('${jsSafeUser}')">등교 처리</button>
+    </div>`;
+    if(typeof openPopup==='function')openPopup('원클릭 등교',h);
+    setTimeout(()=>{
+        const input=document.getElementById('quick-checkin-time');
+        if(!input)return;
+        input.focus();
+        input.addEventListener('keydown',event=>{
+            if(event.key==='Enter'){event.preventDefault();window.submitQuickCheckin(user);}
+        });
+    },50);
+};
+
+window.submitQuickCheckin=async function(user){
+    const time=document.getElementById('quick-checkin-time')?.value||'';
+    if(typeof closePopup==='function')closePopup();
+    await window.checkinWithUndo(user,'정상 등교',time);
 };
 
 
@@ -1807,6 +1842,18 @@ window.openLogEditPopup=function(
 
 
                 <label class="field-label">
+                    ⏱️ 몇 교시부터 (지각·조퇴만 해당)
+                </label>
+
+                <select
+                    id="edit-from-period"
+                >
+                    <option value="" ${!log.fromPeriod?'selected':''}>-</option>
+                    ${[1,2,3,4,5,6].map(n=>`<option value="${n}교시" ${log.fromPeriod===`${n}교시`?'selected':''}>${n}교시</option>`).join('')}
+                </select>
+
+
+                <label class="field-label">
                     📝 구체적 사유
                 </label>
 
@@ -1881,6 +1928,11 @@ window.saveDetailLog=async function(
             'edit-desc'
         );
 
+    const fromPeriodEl=
+        document.getElementById(
+            'edit-from-period'
+        );
+
 
     if(
         !catEl||
@@ -1899,6 +1951,12 @@ window.saveDetailLog=async function(
 
     const reason=
         descEl.value.trim();
+
+    // 지각은 교시부터, 조퇴는 모든 사유에서 교시부터를 기록한다.
+    const fromPeriod=
+        (category==='지각'||category==='조퇴')
+            ?String(fromPeriodEl?.value||'')
+            :'';
 
 
     const result=
@@ -2030,13 +2088,16 @@ window.saveDetailLog=async function(
         // ======================================
         // 담임 직접 지각
         //
-        // 지각 = 무조건 총 -9P
+        // 지각 중 사유 구분이 "-"(해당없음)일 때만 -9P.
+        // 질병/인정/미인정/기타처럼 나이스에 기록되는 사유는
+        // 이미 공식적으로 처리되는 사유라 포인트를 차감하지 않는다.
         //
-        // 다른 상태 = 지각 패널티 0P
+        // 조퇴는 결석과 달리 등교 자체는 한 것이므로 포인트를
+        // 건드리지 않는다(항상 0P, 기존과 동일).
         // ======================================
 
         const desiredPenalty=
-            category==='지각'
+            category==='지각'&&subCategory==='해당없음'
                 ?-9
                 :0;
 
@@ -2128,6 +2189,9 @@ window.saveDetailLog=async function(
             subCategory:
                 subCategory,
 
+            fromPeriod:
+                fromPeriod,
+
             reason:
                 reason,
 
@@ -2147,7 +2211,7 @@ window.saveDetailLog=async function(
                 desiredPenalty,
 
             penaltySource:
-                category==='지각'
+                desiredPenalty
                     ?'teacher'
                     :'none',
 

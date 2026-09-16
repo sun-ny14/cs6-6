@@ -637,8 +637,26 @@ exports.teacherQuickCheckin = callable(async request => {
     }
     const database=getDatabase();
     const userRef=database.ref(`users/${name}`);
-    const userSnapshot=await userRef.get();
+    const now=Date.now();
+    // 담임이 시간을 직접 입력하지 않으면 지금 시간을 그대로 쓴다.
+    const requestedTime=String(request.data?.time||'').trim();
+    const nowTime=new Date(now+9*3600000).toISOString().slice(11,16);
+    const time=/^([01]\d|2[0-3]):[0-5]\d$/.test(requestedTime)?requestedTime:nowTime;
+
+    const [userSnapshot,lateTimeSnapshot]=await Promise.all([
+        userRef.get(),database.ref('settings/lateTime').get()
+    ]);
     if(!userSnapshot.exists())throw new HttpsError('not-found','학생 정보를 찾을 수 없습니다.');
+
+    // 학생이 QR로 직접 등교할 때와 같은 기준(지각 기준 시간, 분당 -1P, 최대 -9P)으로
+    // 담임이 입력한 시간이 지각인지 판단한다.
+    const toMinutes=(value,fallback)=>{
+        const match=/^(\d{1,2}):(\d{2})$/.exec(String(value||''));
+        return match?Number(match[1])*60+Number(match[2]):fallback;
+    };
+    const lateBy=Math.max(0,toMinutes(time,0)-toMinutes(lateTimeSnapshot.val(),8*60+40));
+    const category=lateBy>0?'지각':'정상';
+    const desiredPenalty=lateBy>0?-Math.min(9,lateBy):0;
 
     const finalRef=database.ref(`attendanceRecords/${date}/${name}`);
     const [finalSnapshot,submissionsSnapshot]=await Promise.all([
@@ -654,7 +672,7 @@ exports.teacherQuickCheckin = callable(async request => {
         previousData=Object.values(legacy).find(record=>String(record?.name||record?.user||'')===name)||null;
     }
     const previousPenalty=Number(previousData?.pointPenalty)||0;
-    const pointDelta=-previousPenalty;
+    const pointDelta=desiredPenalty-previousPenalty;
     const previousPoints=Number(userSnapshot.val()?.points)||0;
     let points=previousPoints;
 
@@ -670,18 +688,17 @@ exports.teacherQuickCheckin = callable(async request => {
     }
 
     const recordKey=name;
-    const now=Date.now();
-    const time=new Date(now+9*3600000).toISOString().slice(11,16);
-    const record={...(previousData||{}),name,user:name,date,time,category:'정상',
-        reason:'정상 등교',result:'정상 등교',pointPenalty:0,penaltySource:'none',
-        lateMinutes:0,docSubmitted:Boolean(previousData?.docSubmitted),timestamp:now};
+    const record={...(previousData||{}),name,user:name,date,time,category,
+        reason:`${category} 등교`,result:`${category} 등교`,pointPenalty:desiredPenalty,
+        penaltySource:desiredPenalty?'teacher':'none',
+        lateMinutes:lateBy,docSubmitted:Boolean(previousData?.docSubmitted),timestamp:now};
     const updates={
         [`attendanceRecords/${date}/${name}`]:record,
         [`blackboardDisplay/data/checkins/${attendanceBoardKey(name)}`]:{name,date,attended:true}
     };
     if(pointDelta){
         const logKey=`teacher_checkin_${recordKey}_${now}`;
-        const reason='출결 수정에 따른 지각 차감 복구';
+        const reason=pointDelta<0?`담임 등교 처리 (${lateBy}분 지각)`:'출결 수정에 따른 지각 차감 복구';
         updates[`pointLogs/${logKey}`]={name,pAmt:pointDelta,reason,timestamp:now};
         updates[`pointHistory/${name}/${logKey}`]={date,time,reason,change:pointDelta,
             pChange:pointDelta,expChange:0,result:points,pointResult:points,timestamp:now};
@@ -692,7 +709,7 @@ exports.teacherQuickCheckin = callable(async request => {
         if(pointDelta)await userRef.child('points').transaction(value=>(Number(value)||0)-pointDelta);
         throw error;
     }
-    return {recordKey,category:'정상',source:'teacher',lateMinutes:0,penalty:0,
+    return {recordKey,category,source:'teacher',lateMinutes:lateBy,penalty:desiredPenalty,
         pointDelta,points,hadPrevious:Boolean(previousData),previousData,previousPoints};
 });
 
