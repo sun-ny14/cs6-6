@@ -20,12 +20,22 @@ async function handleLogin(){
     const provider=new firebase.auth.GoogleAuthProvider();
     try{
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-        await auth.signInWithPopup(provider);
+        // GitHub Pages가 모든 페이지에 Cross-Origin-Opener-Policy: same-origin을
+        // 붙여서 내보내는데(직접 끌 수 없음), 이게 signInWithPopup이 팝업 창의
+        // 닫힘 여부를 확인하는 걸 막아 콘솔 에러가 난다. 리다이렉트 방식은 팝업
+        // 창을 안 띄우니 이 문제 자체가 없다.
+        await auth.signInWithRedirect(provider);
     }catch(error){
         console.error('로그인 오류:',error);
         alert('로그인에 실패했습니다.');
     }
 }
+
+auth.getRedirectResult?.().catch(error=>{
+    if(error?.code==='auth/no-current-user'||!error)return;
+    console.error('로그인 리다이렉트 오류:',error);
+    alert('로그인에 실패했습니다. 다시 시도해 주세요.');
+});
 
 function setMenuVisible(id,visible,displayType='block'){
     const element=document.getElementById(id);
