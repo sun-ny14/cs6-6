@@ -1046,9 +1046,20 @@ exports.manageShopOrder = callable(async request => {
 
     const refund=Math.max(0,Number(before.price)||0);
     const userRef=database.ref(`users/${before.user}`);
+    // 승인 트랜잭션과 같은 이유(Admin SDK 트랜잭션의 첫 콜백이 null로 시작할 수 있음)로
+    // 환불이 거의 매번 "학생 정보를 찾을 수 없습니다"로 실패하던 버그. 미리 읽어 둔
+    // 값으로 첫 시도를 이어 가야 실제로 존재하는 학생을 곧장 놓치지 않는다.
+    const initialUserSnapshot=await userRef.get();
+    if(!initialUserSnapshot.exists()){
+        await orderRef.update({status:before.statusBeforeRejection||'사용요청',
+            statusBeforeRejection:null,processedAt:null,processedBy:null});
+        throw new HttpsError('not-found','주문 학생 정보를 찾을 수 없습니다.');
+    }
+    const initialUser=initialUserSnapshot.val();
     let userMissing=false;
     const userResult=await userRef.transaction(user=>{
-        if(user===null){userMissing=true;return;}
+        if(user===null)user=JSON.parse(JSON.stringify(initialUser));
+        if(!user||typeof user!=='object'){userMissing=true;return;}
         user.shopOrderRefunds||={};
         if(!user.shopOrderRefunds[orderKey]){
             user.points=(Number(user.points)||0)+refund;
