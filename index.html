@@ -19,20 +19,6 @@
 <link rel="stylesheet" href="css/style.css?v=20260915-stability-1">
 <link rel="stylesheet" href="css/classroom-dashboard.css?v=20260911-student-board-hide-1">
 
-<script>
-function toggleSidebar(){
-    const sidebar=document.getElementById('sidebar-menu');
-    const toggleBtn=document.getElementById('sidebar-toggle-btn');
-
-    if(sidebar&&toggleBtn){
-        sidebar.classList.toggle('collapsed');
-        toggleBtn.classList.toggle('collapsed');
-
-        toggleBtn.innerText=
-            sidebar.classList.contains('collapsed')?'▶':'◀';
-    }
-}
-</script>
 </head>
 
 <body class="role-teacher">
@@ -55,7 +41,7 @@ function toggleSidebar(){
     <div class="popup-box">
         <h2 id="pop-title">알림</h2>
         <div id="pop-content"></div>
-        <button onclick="closePopup()" id="pop-close-btn">확인 (닫기)</button>
+        <button id="pop-close-btn">확인 (닫기)</button>
     </div>
 </div>
 
@@ -75,8 +61,8 @@ function toggleSidebar(){
         </div>
 
         <div class="point-bulk-actions">
-            <button class="btn" onclick="closePointPopup()">닫기</button>
-            <button class="btn btn--good" id="point-apply-btn" onclick="submitPointPopupCustom()">
+            <button class="btn" id="point-popup-close-btn">닫기</button>
+            <button class="btn btn--good" id="point-apply-btn">
                 선택한 학생에게 반영
             </button>
         </div>
@@ -87,7 +73,7 @@ function toggleSidebar(){
     <div class="login-box">
         <h1>🏰 6-6 본부</h1>
         <p>학교 구글 계정으로 들어오세요.</p>
-        <button class="btn btn--primary btn--lg btn--block" onclick="handleLogin()">
+        <button class="btn btn--primary btn--lg btn--block" id="login-btn">
             Google 계정으로 로그인
         </button>
     </div>
@@ -95,7 +81,7 @@ function toggleSidebar(){
 
 <div id="main-app">
 
-    <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="메뉴 열기/닫기" aria-label="메뉴 열기/닫기">
+    <button id="sidebar-toggle-btn" title="메뉴 열기/닫기" aria-label="메뉴 열기/닫기">
         ◀
     </button>
 
@@ -106,49 +92,49 @@ function toggleSidebar(){
             <span id="nav-role-label">용사 관리 시스템</span>
         </div>
 
-        <button id="btn-main" onclick="showTab('main')">
+        <button id="btn-main">
             🤺 용사들
         </button>
 
-        <button id="btn-shop" onclick="showTab('shop');renderShop();">
+        <button id="btn-shop">
             🛍️ 상점
         </button>
 
-        <button id="btn-student-checkin" onclick="showTab('student-checkin')">
+        <button id="btn-student-checkin">
             ⚔️ 등교
         </button>
 
-        <button id="btn-assignments" onclick="showTab('assignments');initAssignmentsTab();">
+        <button id="btn-assignments">
             📝 과제
         </button>
 
-        <button id="btn-points" onclick="showTab('points')">
+        <button id="btn-points">
             💰 포인트·도감
         </button>
 
-        <button id="btn-housing" onclick="showTab('housing');">
+        <button id="btn-housing">
             🏰 방
         </button>
 
         <div class="nav-section" id="nav-admin-section" hidden>선생님 메뉴</div>
 
-        <button id="btn-attendance-admin" hidden onclick="showTab('attendance-admin')">
+        <button id="btn-attendance-admin" hidden>
             📅 등교로그·좌석
         </button>
 
-        <button id="btn-blackboard-admin" hidden onclick="showTab('blackboard-admin');initBlackboardAdmin();">
+        <button id="btn-blackboard-admin" hidden>
             🏫 전자칠판 관리
         </button>
 
-        <button id="btn-class-ops" hidden onclick="openClassOpsEntry();">
+        <button id="btn-class-ops" hidden>
             🗂️ 학급 운영
         </button>
 
-        <button id="btn-cleaning" hidden onclick="showTab('cleaning');renderRoleCleaning();">
+        <button id="btn-cleaning" hidden>
             🧹 1인 1역·청소
         </button>
 
-        <button id="btn-admin" hidden onclick="showTab('admin');initSettings();">
+        <button id="btn-admin" hidden>
             ⚙️ 설정
         </button>
 
@@ -166,8 +152,7 @@ function toggleSidebar(){
                         <h2>우리 반의 오늘</h2>
                         <p id="home-welcome-copy">함께 배우고, 서로의 성장을 응원해요.</p>
                     </div>
-                    <button class="home-board-button" type="button"
-                            onclick="window.open('blackboard.html','_blank','fullscreen=yes')">
+                    <button class="home-board-button" type="button" id="home-board-open-btn">
                         <span aria-hidden="true">▣</span> 전자칠판 열기
                     </button>
                 </header>
@@ -189,12 +174,12 @@ function toggleSidebar(){
 
                     <aside class="home-side-column">
                         <section class="home-info-card">
-                            <div class="home-card-head"><h3>📣 오늘의 알림</h3><button class="home-board-link" type="button" onclick="window.open('blackboard.html','_blank','fullscreen=yes')">전자칠판 보기 ›</button></div>
+                            <div class="home-card-head"><h3>📣 오늘의 알림</h3><button class="home-board-link" type="button" id="home-notice-board-link">전자칠판 보기 ›</button></div>
                             <div id="home-notice-list" class="home-notice-list"><div class="home-empty">알림을 불러오는 중이에요.</div></div>
                         </section>
 
                         <section class="home-info-card">
-                            <div class="home-card-head"><h3 id="home-task-title">📝 미완료 과제</h3><button type="button" onclick="showTab('assignments');initAssignmentsTab();">과제 탭 보기 ›</button></div>
+                            <div class="home-card-head"><h3 id="home-task-title">📝 미완료 과제</h3><button type="button" id="home-task-tab-link">과제 탭 보기 ›</button></div>
                             <div id="home-task-list" class="home-task-list"><div class="home-empty">과제를 불러오는 중이에요.</div></div>
                         </section>
                     </aside>
@@ -202,12 +187,12 @@ function toggleSidebar(){
 
                 <div class="home-extras-grid">
                     <section class="home-info-card home-shop-preview">
-                        <div class="home-card-head"><h3>🛍️ 학급 상점</h3><button type="button" onclick="showTab('shop');renderShop();">전체 보기 ›</button></div>
+                        <div class="home-card-head"><h3>🛍️ 학급 상점</h3><button type="button" id="home-shop-tab-link">전체 보기 ›</button></div>
                         <div id="home-shop-list" class="home-shop-list"><div class="home-empty">상품을 불러오는 중이에요.</div></div>
                     </section>
 
                     <section class="home-info-card home-clean-preview">
-                        <div class="home-card-head"><h3>🧹 오늘 청소</h3><button type="button" onclick="showTab('cleaning');renderRoleCleaning();">확인하기 ›</button></div>
+                        <div class="home-card-head"><h3>🧹 오늘 청소</h3><button type="button" id="home-clean-tab-link">확인하기 ›</button></div>
                         <div id="home-clean-summary" class="home-clean-summary"><div class="home-empty">청소 현황을 불러오는 중이에요.</div></div>
                     </section>
                 </div>
@@ -265,7 +250,7 @@ function toggleSidebar(){
                             <input type="text" id="checkin-pass" class="input--num" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="숫자 4자리">
                         </div>
 
-                        <button id="checkin-btn" class="btn btn--primary btn--lg btn--block" onclick="submitCheckIn()">
+                        <button id="checkin-btn" class="btn btn--primary btn--lg btn--block">
                             본부 소환!
                         </button>
                     </div>
@@ -297,17 +282,17 @@ function toggleSidebar(){
 
                         <label class="field-label" for="checkin-date-filter">조회 날짜</label>
 
-                        <input type="date" id="checkin-date-filter" class="input--sm" onchange="refreshCheckinManagement()">
+                        <input type="date" id="checkin-date-filter" class="input--sm">
 
-                        <button class="btn btn--sm" onclick="refreshCheckinManagement()">
+                        <button class="btn btn--sm" id="checkin-refresh-btn">
                             🔄 새로고침
                         </button>
 
-                        <button class="btn btn--sm" onclick="openExclusionPopup()">
+                        <button class="btn btn--sm" id="checkin-exclusion-btn">
                             🚫 등교 제외 설정
                         </button>
 
-                        <button class="btn btn--sm btn--outline" onclick="openMonthlyCalendar()">
+                        <button class="btn btn--sm btn--outline" id="checkin-monthly-calendar-btn">
                             📊 월간 출석부
                         </button>
 
@@ -365,7 +350,7 @@ function toggleSidebar(){
                 <div class="panel-head">
                     <h3>📜 포인트 도감</h3>
                     <div class="panel-head-actions">
-                        <button id="btn-add-point-guide" class="btn btn--sm" hidden onclick="openPointGuideModal()">
+                        <button id="btn-add-point-guide" class="btn btn--sm" hidden>
                             + 항목 추가
                         </button>
                     </div>
@@ -416,7 +401,7 @@ function toggleSidebar(){
                     <p id="bb-share-status" role="status">전자칠판 공유 자료를 준비하고 있습니다…</p>
                 </div>
                 <div class="page-head-actions">
-                    <button class="btn btn--primary" onclick="window.open('blackboard.html','_blank','fullscreen=yes')">
+                    <button class="btn btn--primary" id="bb-admin-open-btn">
                         📺 전자칠판 새 창
                     </button>
                 </div>
@@ -441,14 +426,14 @@ function toggleSidebar(){
                 <header class="page-head">
                     <div><h2>🗂️ 학급 운영</h2></div>
                     <div class="page-head-actions">
-                        <button class="btn btn--outline btn--sm" onclick="window.classOpsChangePassword&&window.classOpsChangePassword()">비밀번호 변경</button>
-                        <button class="btn btn--danger btn--sm" onclick="window.lockClassJournal&&window.lockClassJournal()">잠그고 나가기</button>
+                        <button class="btn btn--outline btn--sm" id="class-ops-change-password-btn">비밀번호 변경</button>
+                        <button class="btn btn--danger btn--sm" id="class-ops-lock-btn">잠그고 나가기</button>
                     </div>
                 </header>
                 <div class="seg">
-                    <button type="button" id="class-ops-sub-journal" class="active" onclick="window.switchClassOpsSub('journal')">📚 학급일지</button>
-                    <button type="button" id="class-ops-sub-grades" onclick="window.switchClassOpsSub('grades')">📝 성적 관리</button>
-                    <button type="button" id="class-ops-sub-budget" onclick="window.switchClassOpsSub('budget')">💵 운영비</button>
+                    <button type="button" id="class-ops-sub-journal" class="active">📚 학급일지</button>
+                    <button type="button" id="class-ops-sub-grades">📝 성적 관리</button>
+                    <button type="button" id="class-ops-sub-budget">💵 운영비</button>
                 </div>
                 <div id="class-journal-container"></div>
                 <div id="management-sub-container" hidden></div>
@@ -463,7 +448,7 @@ function toggleSidebar(){
                 <div class="panel-head">
                     <h3>👑 용사의 방 관리</h3>
                     <div class="panel-head-actions">
-                        <button id="housing-toggle-btn" class="btn btn--warn btn--sm" onclick="toggleHousing()">
+                        <button id="housing-toggle-btn" class="btn btn--warn btn--sm">
                             상태 변경
                         </button>
                     </div>
@@ -481,11 +466,11 @@ function toggleSidebar(){
                     <h2 id="housing-room-title">🏰 용사의 방</h2>
 
                     <div class="btn-row">
-                        <button id="housing-purchase-history-button" class="btn btn--sm" type="button" hidden onclick="openHousingPurchaseHistory()">
+                        <button id="housing-purchase-history-button" class="btn btn--sm" type="button" hidden>
                             🧾 구매 내역
                         </button>
 
-                        <button id="housing-shop-button" class="btn btn--gold" hidden onclick="openHousingShopPopup()">
+                        <button id="housing-shop-button" class="btn btn--gold" hidden>
                             🛒 하우징 상점 열기
                         </button>
                     </div>
@@ -501,7 +486,7 @@ function toggleSidebar(){
                     <div id="housing-reactions" class="chip-row" hidden aria-label="친구에게 이모지 반응 남기기"></div>
                     <p id="housing-reaction-status" class="muted small" role="status" aria-live="polite"></p>
                     <div>
-                        <button type="button" id="housing-guestbook-button" class="btn btn--sm" aria-expanded="false" aria-controls="housing-guestbook" onclick="toggleRoomGuestbook()">
+                        <button type="button" id="housing-guestbook-button" class="btn btn--sm" aria-expanded="false" aria-controls="housing-guestbook">
                             📖 방명록 확인
                         </button>
                     </div>
@@ -545,7 +530,7 @@ function toggleSidebar(){
                     <p>좌석·명단·등교 암호·보상을 여기서 관리합니다.</p>
                 </div>
                 <div class="page-head-actions">
-                    <button class="btn" onclick="toggleSeatBuilder()">
+                    <button class="btn" id="seat-builder-toggle-btn">
                         ⚙️ 좌석 표 만들기
                     </button>
                 </div>
@@ -576,14 +561,14 @@ function toggleSidebar(){
                         <label class="field-label" for="seat-rows">세로</label>
                         <input type="number" id="seat-rows" class="input--sm input--num" value="6">
 
-                        <button class="btn btn--sm" onclick="generateSeatInputs()">
+                        <button class="btn btn--sm" id="seat-generate-inputs-btn">
                             표 만들기
                         </button>
                     </div>
 
                     <div id="seat-input-container"></div>
 
-                    <button class="btn btn--good btn--block" onclick="saveSeatSettings()">
+                    <button class="btn btn--good btn--block" id="seat-save-settings-btn">
                         배치 저장
                     </button>
 
@@ -613,7 +598,7 @@ function toggleSidebar(){
                         <label class="field-label" for="conf-pass">등교 암호</label>
                         <div class="row">
                             <input type="text" id="conf-pass" class="input--num" inputmode="numeric" maxlength="4" pattern="[0-9]{4}">
-                            <button class="btn btn--warn btn--sm" onclick="generateRandomPassword()">
+                            <button class="btn btn--warn btn--sm" id="checkin-password-random-btn">
                                 🎲 난수 생성
                             </button>
                         </div>
@@ -640,7 +625,7 @@ function toggleSidebar(){
                     </div>
 
                     <div class="btn-row btn-row--end">
-                        <button class="btn btn--primary" onclick="saveSettings()">
+                        <button class="btn btn--primary" id="settings-save-btn">
                             시스템 저장
                         </button>
                     </div>
@@ -662,7 +647,7 @@ function toggleSidebar(){
                     </div>
 
                     <div class="btn-row btn-row--end">
-                        <button class="btn btn--primary" onclick="saveGifts()">
+                        <button class="btn btn--primary" id="gifts-save-btn">
                             보상 저장
                         </button>
                     </div>
@@ -683,7 +668,7 @@ function toggleSidebar(){
                     </div>
 
                     <div class="btn-row btn-row--end">
-                        <button class="btn btn--primary" onclick="bulkReg()">
+                        <button class="btn btn--primary" id="bulk-reg-btn">
                             주입
                         </button>
                     </div>
@@ -716,6 +701,7 @@ function toggleSidebar(){
 <script src="js/assignments.js?v=20260913-readability-1"></script>
 <script src="js/settings.js?v=20260915-stability-1"></script>
 <script src="js/cleaning.js?v=20260915-merge-1"></script>
+<script src="js/inline-handlers.js?v=20260917-csp-fix-1"></script>
 
 </body>
 </html>
