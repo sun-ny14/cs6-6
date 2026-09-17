@@ -691,12 +691,21 @@ window.bulkReg = function() {
         db.ref('users').once('value', snapshot => {
             const existing = snapshot.val() || {};
             const updates = {};
+            // 로그인 시 구글 이메일로 학생을 찾는 실제 매핑(functions/index.js의
+            // actor())은 users/{name}/email이 아니라 userEmails/{이메일키}를
+            // 본다. 여기서 같이 채우지 않으면 새로 등록/이메일이 바뀐 학생은
+            // users에는 저장되지만 로그인은 계속 "등록된 학생 계정이 아닙니다"로
+            // 막힌다.
+            const userEmailUpdates = {};
 
             let created = 0;
             let updated = 0;
 
             parsed.forEach((entry, index) => {
                 const no = index + 1;
+                const emailKey = entry.email
+                    ? entry.email.trim().toLowerCase().replace(/\./g, ',')
+                    : '';
 
                 if (existing[entry.name]) {
                     updates[`${entry.name}/no`] = no;
@@ -704,6 +713,7 @@ window.bulkReg = function() {
 
                     if (entry.email) {
                         updates[`${entry.name}/email`] = entry.email;
+                        userEmailUpdates[emailKey] = entry.name;
                     }
 
                     updated++;
@@ -717,12 +727,21 @@ window.bulkReg = function() {
                         no: no
                     };
 
+                    if (entry.email) {
+                        userEmailUpdates[emailKey] = entry.name;
+                    }
+
                     created++;
                 }
             });
 
             db.ref('users')
                 .update(updates)
+                .then(() => {
+                    return Object.keys(userEmailUpdates).length
+                        ? db.ref('userEmails').update(userEmailUpdates)
+                        : null;
+                })
                 .then(() => {
                     alert(
                         `✅ 명단을 반영했습니다.\n\n` +

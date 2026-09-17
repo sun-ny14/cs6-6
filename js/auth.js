@@ -20,12 +20,31 @@ async function handleLogin(){
     const provider=new firebase.auth.GoogleAuthProvider();
     try{
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-        // GitHub Pages가 모든 페이지에 Cross-Origin-Opener-Policy: same-origin을
-        // 붙여서 내보내는데(직접 끌 수 없음), 이게 signInWithPopup이 팝업 창의
-        // 닫힘 여부를 확인하는 걸 막아 콘솔 에러가 난다. 리다이렉트 방식은 팝업
-        // 창을 안 띄우니 이 문제 자체가 없다.
-        await auth.signInWithRedirect(provider);
+        // 팝업 방식을 기본으로 쓴다. GitHub Pages가 모든 페이지에
+        // Cross-Origin-Opener-Policy: same-origin을 붙여서(직접 끌 수 없음)
+        // 팝업이 닫혔는지 확인하는 내부 폴링이 콘솔 에러를 내지만, 로그인
+        // 자체(postMessage로 오가는 인증 결과)는 이 에러와 무관하게 완료된다.
+        //
+        // 리다이렉트 방식(2026-09-16~09-17 한때 사용)은 authDomain
+        // (cs6-6class.firebaseapp.com)과 이 사이트 사이에서 스토리지를 주고받아
+        // 로그인 결과를 전달해야 하는데, 브라우저/기기별로 서드파티 스토리지
+        // 접근이 막혀 있으면 "구글 계정 선택까지는 되고 결과를 못 받아 로그인
+        // 화면으로 되돌아가는" 증상이 생긴다 — 기기마다 다르게 나타나 "일부
+        // 계정만 안 되는" 것처럼 보였던 원인. 그래서 팝업이 막힌 경우에만
+        // 리다이렉트로 폴백한다.
+        try{
+            await auth.signInWithPopup(provider);
+        }catch(popupError){
+            if(popupError?.code==='auth/popup-blocked'||
+                popupError?.code==='auth/operation-not-supported-in-this-environment'){
+                await auth.signInWithRedirect(provider);
+                return;
+            }
+            throw popupError;
+        }
     }catch(error){
+        if(error?.code==='auth/popup-closed-by-user'||
+            error?.code==='auth/cancelled-popup-request')return;
         console.error('로그인 오류:',error);
         alert('로그인에 실패했습니다.');
     }

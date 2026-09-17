@@ -12,6 +12,7 @@ body{font-family:system-ui,sans-serif;background:#f5f7fa;color:#172b4d;margin:0;
 <script defer src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script defer src="js/firebase-config.js?v=20260827-2"></script>
 <script defer src="js/connection-check.js?v=20260902-1"></script>
+<script defer src="js/connection-check-reload.js?v=20260917-csp-fix-1"></script>
 </head>
 <body><main>
 <h1>학급 앱 연결 확인</h1>
@@ -27,7 +28,7 @@ body{font-family:system-ui,sans-serif;background:#f5f7fa;color:#172b4d;margin:0;
 <dt>로그인 후 설정 읽기</dt><dd id="check-read">확인 대기</dd>
 </dl>
 <p id="summary" role="status">연결 상태를 확인하고 있습니다.</p>
-<button type="button" onclick="location.reload()">다시 확인</button>
+<button type="button" id="reload-check-btn">다시 확인</button>
 <a href="index.html">학급 화면으로 돌아가기</a>
 <p>결과 화면을 캡처해서 보내주세요. 이 검사는 데이터베이스를 변경하지 않습니다.</p>
 </main></body></html>
