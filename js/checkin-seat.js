@@ -1179,7 +1179,7 @@ window.renderSeatMap=function(rows,cols){
                         }else if(
                             statusText.includes('조퇴')
                         ){
-                            stateClass='is-warn';
+                            stateClass='is-warn is-early';
 
                         }else if(
                             statusText.includes('제외')

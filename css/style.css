@@ -1457,11 +1457,18 @@ body.role-student .hero-points {
 .is-bad   { border-color: var(--ui-bad-line);  background: var(--ui-bad-soft);  color: var(--ui-bad); }
 .is-empty { border-style: dashed; background: transparent; color: var(--ui-faint); cursor: default; }
 
-/* 지각과 결석을 멀리서도 혼동하지 않도록 색과 테두리를 분리합니다. */
+/* 지각·조퇴·결석을 멀리서도 혼동하지 않도록 색과 테두리를 분리합니다.
+   등교로그 표의 배지 색(지각=보라, 조퇴=분홍)과 맞춥니다. */
 .checkin-card.is-late {
-    border: 2px solid var(--ui-warn);
-    background: var(--ui-warn-soft);
-    color: var(--ui-warn);
+    border: 2px solid #8b5cf6;
+    background: rgba(139,92,246,.10);
+    color: #6d28d9;
+}
+
+.checkin-card.is-early {
+    border: 2px solid #ec4899;
+    background: rgba(236,72,153,.10);
+    color: #be185d;
 }
 
 .checkin-card.is-absent {
