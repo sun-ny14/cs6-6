@@ -1209,8 +1209,10 @@ input[type="radio"] {
 
 .hero-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-    gap: var(--ui-gap);
+    /* 230px 짜리 카드는 한 줄에 4~5장만 들어가 반 전체가 한눈에 안 들어왔다.
+       카드를 더 작게 키워 8장 안팎이 한 줄에 보이게 한다. */
+    grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+    gap: var(--ui-space-3);
 }
 
 .hero-card {
@@ -1218,8 +1220,8 @@ input[type="radio"] {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--ui-space-2);
-    padding: var(--ui-space-5) var(--ui-space-4) var(--ui-space-4);
+    gap: var(--ui-space-1);
+    padding: var(--ui-space-4) var(--ui-space-2) var(--ui-space-3);
     border: 1px solid var(--ui-line);
     border-radius: var(--ui-radius);
     background: var(--ui-surface);
@@ -1240,13 +1242,13 @@ body.role-student .hero-card:hover {
 
 .hero-card-level {
     position: absolute;
-    top: 10px;
-    left: 10px;
-    padding: 2px 9px;
+    top: 7px;
+    left: 7px;
+    padding: 1px 7px;
     border-radius: var(--ui-radius-pill);
     background: var(--ui-accent);
     color: var(--ui-on-accent);
-    font-size: var(--ui-tiny-size);
+    font-size: 11px;
     font-weight: 800;
     letter-spacing: .02em;
 }
@@ -1282,9 +1284,10 @@ body.role-student .hero-card-level {
 
 .hero-name {
     font-family: var(--ui-font-display);
-    font-size: var(--ui-heading-size);
+    font-size: var(--ui-small-size);
     font-weight: 800;
     letter-spacing: -0.02em;
+    line-height: 1.25;
 }
 
 .hero-card-item {
@@ -1297,12 +1300,12 @@ body.role-student .hero-card-level {
 .hero-points {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 14px;
+    gap: 4px;
+    padding: 3px 10px;
     border-radius: var(--ui-radius-pill);
     background: var(--ui-accent-soft);
     color: var(--ui-accent-deep);
-    font-size: var(--ui-small-size);
+    font-size: 12px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
 }
@@ -2306,8 +2309,8 @@ body.role-student .hero-self-badge {
     position: relative;
     display: grid;
     place-items: center;
-    width: 108px;
-    height: 108px;
+    width: 76px;
+    height: 76px;
     margin: 0 auto;
     border-radius: 50%;
     background:
@@ -2317,7 +2320,7 @@ body.role-student .hero-self-badge {
 .hero-ring::after {
     content: "";
     position: absolute;
-    inset: 5px;
+    inset: 4px;
     border-radius: 50%;
     background: var(--gm-panel-bot);
 }
@@ -2336,12 +2339,12 @@ body.role-student .hero-name {
 
 /* 포인트를 화면에서 가장 큰 숫자로 */
 body.role-student .hero-points {
-    padding: 5px 16px;
+    padding: 4px 12px;
     background: linear-gradient(180deg, rgba(240, 180, 41, .22), rgba(240, 180, 41, .08));
     border: 1px solid var(--ui-accent-line);
     color: var(--gm-gold-hi);
     font-family: var(--ui-font-display);
-    font-size: var(--ui-heading-size);
+    font-size: 14px;
     letter-spacing: -.02em;
     text-shadow: 0 0 14px rgba(240, 180, 41, .45);
 }
@@ -2470,8 +2473,8 @@ body.role-student textarea::placeholder { color: var(--ui-faint); }
 
     .page-head { align-items: flex-start; flex-direction: column; }
 
-    .grid--cards,
-    .hero-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .grid--cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .hero-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
 
     .popup-box { max-height: 92vh; }
 }
