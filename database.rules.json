@@ -66,7 +66,14 @@
       "$userName": {
         ".read": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('name').val() == $userName)",
         ".write": "auth != null && (auth.token.email == 'ksosuny@cberi.go.kr' || root.child('access').child(auth.uid).child('name').val() == $userName)",
-        ".validate": "auth.token.email == 'ksosuny@cberi.go.kr' || (newData.exists() && newData.child('email').val() == data.child('email').val() && newData.child('name').val() == data.child('name').val() && newData.child('no').val() == data.child('no').val() && newData.child('role').val() == data.child('role').val() && newData.child('isHelper').val() == data.child('isHelper').val() && newData.child('points').val() == data.child('points').val() && newData.child('exp').val() == data.child('exp').val() && newData.child('level').val() == data.child('level').val() && newData.child('lv').val() == data.child('lv').val() && newData.child('roomCoins').val() == data.child('roomCoins').val() && newData.child('roomRewardedLevel').val() == data.child('roomRewardedLevel').val() && newData.child('roomCoinRewards').val() == data.child('roomCoinRewards').val() && newData.child('housingInventory').val() == data.child('housingInventory').val() && newData.child('housingPurchases').val() == data.child('housingPurchases').val() && newData.child('attendanceState').val() == data.child('attendanceState').val())"
+        ".validate": "auth.token.email == 'ksosuny@cberi.go.kr' || (newData.exists() && newData.child('email').val() == data.child('email').val() && newData.child('name').val() == data.child('name').val() && newData.child('no').val() == data.child('no').val() && newData.child('role').val() == data.child('role').val() && newData.child('isHelper').val() == data.child('isHelper').val() && newData.child('points').val() == data.child('points').val() && newData.child('exp').val() == data.child('exp').val() && newData.child('level').val() == data.child('level').val() && newData.child('lv').val() == data.child('lv').val() && newData.child('roomCoins').val() == data.child('roomCoins').val() && newData.child('roomRewardedLevel').val() == data.child('roomRewardedLevel').val() && newData.child('roomCoinRewards').val() == data.child('roomCoinRewards').val() && newData.child('housingInventory').val() == data.child('housingInventory').val() && newData.child('housingPurchases').val() == data.child('housingPurchases').val() && newData.child('attendanceState').val() == data.child('attendanceState').val())",
+        "myRoom": {
+          "objects": {
+            "$objectId": {
+              ".validate": "auth.token.email == 'ksosuny@cberi.go.kr' || data.exists()"
+            }
+          }
+        }
       }
     },
     "checkins": {

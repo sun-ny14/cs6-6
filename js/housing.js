@@ -312,9 +312,11 @@ window.resizeRoomItem = function(key, newW, newH, limitW, limitH, dir) {
 window.deleteRoomItem = function(key) {
     if (!window.canManageHousing()) return;
     if (confirm("정말 방에서 이 아이템을 치우시겠습니까?")) {
-        db.ref(`users/${myName}/myRoom/objects/${key}`).remove().then(() => {
-            renderMyRoom(); 
+        window.callSecure('removeHousingItem', {objectId: key}).then(() => {
+            renderMyRoom();
             if (typeof closePopup === 'function') closePopup();
+        }).catch(error => {
+            alert(error?.message || '제거하지 못했습니다.');
         });
     }
 };
@@ -333,30 +335,34 @@ window.renderHousingInventory = function() {
         let hasItems = false;
         for (let k in inv) {
             hasItems = true; const i = inv[k];
+            const isBackground = i.category === '배경';
+            const isPlaced = !isBackground && Boolean(i.placedObjectId);
             list.innerHTML += `<div class="shop-card">
                 <div class="tiny muted strong">${i.category}</div>
                 <img src="${i.img}" style="width:40px; height:40px; object-fit:contain; image-rendering:pixelated;">
                 <div class="small strong nowrap" style="overflow:hidden; text-overflow:ellipsis;">${i.name}</div>
-                <button class="btn btn--primary btn--sm btn--block" onclick="placeOrApplyHousingItem('${i.img}', '${i.category}')">${i.category==='배경'?'배경적용':'배치하기'}</button>
+                <button class="btn btn--primary btn--sm btn--block" ${isPlaced?'disabled':''} onclick="placeOrApplyHousingItem('${k}', '${i.img}', '${i.category}')">${isBackground?'배경적용':isPlaced?'배치됨':'배치하기'}</button>
             </div>`;
         }
         if (!hasItems) list.innerHTML = `<div class="empty"><strong>아직 구매한 하우징 아이템이 없습니다.</strong></div>`;
     });
 };
 
-window.placeOrApplyHousingItem = function(img, category) {
+window.placeOrApplyHousingItem = function(purchaseId, img, category) {
     if (!window.canManageHousing()) return;
     if (category === '배경') {
         if (confirm("방 전체 배경을 이 이미지로 바꾸시겠습니까?")) {
             db.ref(`users/${myName}/myRoom/background`).set(img).then(() => renderMyRoom());
         }
-    } else {
-        const objId = Date.now();
-        db.ref(`users/${myName}/myRoom/objects/${objId}`).set({
-            img: img, type: category, x: 290, y: 210 
-        }).then(() => renderMyRoom());
-        alert("방 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
+        return;
     }
+    window.callSecure('placeHousingItem', {purchaseId}).then(() => {
+        renderMyRoom();
+        renderHousingInventory();
+        alert("방 중앙에 배치되었습니다! 클릭해서 원하는 위치로 이동시키세요.");
+    }).catch(error => {
+        alert(error?.message || '배치하지 못했습니다.');
+    });
 };
 
 // 7. 하우징 상점 및 관리 로직

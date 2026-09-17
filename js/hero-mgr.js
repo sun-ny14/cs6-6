@@ -65,13 +65,35 @@ window.getAvatar = getAvatar;
 /* 레벨별 기본 칭호. 기존 프로젝트에서 같은 변수를 정의하면 그 설정을 우선 사용한다. */
 window.HERO_TITLE_LEVELS = window.HERO_TITLE_LEVELS || [
     { level:1,  name:"모험가" },
+    { level:2,  name:"씩씩한 용사" },
     { level:3,  name:"견습 용사" },
+    { level:4,  name:"용감한 초보" },
     { level:5,  name:"용감한 용사" },
+    { level:6,  name:"믿음직한 동료" },
     { level:7,  name:"정예 용사" },
+    { level:8,  name:"노련한 전사" },
+    { level:9,  name:"빛나는 유망주" },
     { level:10, name:"빛나는 용사" },
     { level:12, name:"왕국 수호자" },
+    { level:14, name:"백전노장" },
     { level:15, name:"전설의 용사" },
+    { level:18, name:"신화의 계승자" },
     { level:20, name:"마스터 용사" }
+];
+
+// 3-4번째 레벨업마다 카드 이펙트를 하나씩 풀어준다. 이미지 없이 CSS 애니메이션으로만
+// 구현하므로 새 에셋을 추가할 필요가 없다.
+window.HERO_DECORATION_LEVELS = window.HERO_DECORATION_LEVELS || [
+    { level:2,  key:"confetti", icon:"🎊", name:"꽃가루" },
+    { level:4,  key:"sparkle",  icon:"✨", name:"반짝임" },
+    { level:6,  key:"hearts",   icon:"💖", name:"하트" },
+    { level:8,  key:"leaves",   icon:"🍃", name:"나뭇잎" },
+    { level:10, key:"rainbow",  icon:"🌈", name:"무지개 테두리" },
+    { level:12, key:"stardust", icon:"❄️", name:"별가루" },
+    { level:14, key:"bubbles",  icon:"🫧", name:"비눗방울" },
+    { level:16, key:"flame",    icon:"🔥", name:"불꽃 테두리" },
+    { level:18, key:"lightning",icon:"⚡", name:"번개" },
+    { level:20, key:"aura",     icon:"👑", name:"골드 오라" }
 ];
 
 function heroEscape(value) {
@@ -124,6 +146,10 @@ function heroUnlockedTitles(user, level) {
                 .map(String)
         )
     );
+}
+
+function heroUnlockedDecorations(level) {
+    return window.HERO_DECORATION_LEVELS.filter(item => level >= item.level);
 }
 
 function heroFindUser(userName) {
@@ -337,6 +363,36 @@ function ensureHeroProfileEditorStyle() {
             border-color: var(--ui-gold);
             background: var(--ui-gold-soft);
         }
+        #hero-profile-editor-overlay .hpe-deco-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+            gap: 10px;
+        }
+        #hero-profile-editor-overlay .hpe-deco-option {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 12px 6px;
+            color: var(--ui-text);
+            background: var(--ui-surface);
+            border: 2px solid var(--ui-line);
+            border-radius: 12px;
+            font-size: var(--ui-tiny-size);
+            font-weight: 850;
+            cursor: pointer;
+        }
+        #hero-profile-editor-overlay .hpe-deco-option:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+        #hero-profile-editor-overlay .hpe-deco-icon { font-size: 22px; }
+        #hero-profile-editor-overlay .hpe-deco-option.is-selected {
+            color: var(--ui-accent-deep);
+            border-color: var(--ui-gold);
+            background: var(--ui-gold-soft);
+        }
         #hero-profile-editor-overlay .hpe-actions {
             position: sticky;
             bottom: -20px;
@@ -444,6 +500,11 @@ function showHeroProfileEditor(user, userKey) {
     let selectedTitle = unlockedTitles.includes(currentTitle)
         ? currentTitle
         : unlockedTitles[unlockedTitles.length - 1];
+    const unlockedDecorations = heroUnlockedDecorations(level);
+    const currentDecoration = user.selectedDecoration || "";
+    let selectedDecoration = unlockedDecorations.some(item => item.key === currentDecoration)
+        ? currentDecoration
+        : "";
 
     const overlay = document.createElement("div");
     overlay.id = "hero-profile-editor-overlay";
@@ -475,6 +536,27 @@ function showHeroProfileEditor(user, userKey) {
         </button>
     `).join("");
 
+    const decorationOptions = `
+        <button type="button"
+            class="hpe-deco-option${selectedDecoration === "" ? " is-selected" : ""}"
+            data-decoration-key="">
+            <span class="hpe-deco-icon">🚫</span>
+            <span class="hpe-deco-name">효과 없음</span>
+        </button>
+    ` + window.HERO_DECORATION_LEVELS.map(item => {
+        const unlocked = level >= item.level;
+        return `
+            <button type="button"
+                class="hpe-deco-option${item.key === selectedDecoration ? " is-selected" : ""}"
+                data-decoration-key="${item.key}"
+                ${unlocked ? "" : "disabled"}>
+                <span class="hpe-deco-icon">${item.icon}</span>
+                <span class="hpe-deco-name">${heroEscape(item.name)}</span>
+                ${unlocked ? "" : `<span class="hpe-lock-level">Lv.${item.level}</span>`}
+            </button>
+        `;
+    }).join("");
+
     overlay.innerHTML = `
         <section class="hpe-dialog">
             <header class="hpe-head">
@@ -483,7 +565,7 @@ function showHeroProfileEditor(user, userKey) {
             </header>
             <div class="hpe-body">
                 <aside class="hpe-preview">
-                    <div class="hpe-avatar-stage" data-profile-preview>
+                    <div class="hpe-avatar-stage hero-deco-${selectedDecoration || "none"}" data-profile-preview data-deco-stage>
                         ${getAvatar(level, selectedAnimal, 148)}
                     </div>
                     <p class="hpe-preview-title" data-title-preview>
@@ -504,6 +586,11 @@ function showHeroProfileEditor(user, userKey) {
                         <h3>칭호 선택</h3>
                         <p class="hpe-help">획득했거나 현재 레벨에서 해금된 칭호입니다.</p>
                         <div class="hpe-title-list">${titleOptions}</div>
+                    </section>
+                    <section class="hpe-section">
+                        <h3>카드 효과</h3>
+                        <p class="hpe-help">2레벨마다 새 효과가 열려요. 잠긴 효과는 레벨을 올리면 풀립니다.</p>
+                        <div class="hpe-deco-grid">${decorationOptions}</div>
                     </section>
                     <div class="hpe-actions">
                         <button type="button" class="hpe-cancel">취소</button>
@@ -539,6 +626,19 @@ function showHeroProfileEditor(user, userKey) {
         });
     });
 
+    const decoStage = overlay.querySelector("[data-deco-stage]");
+    overlay.querySelectorAll(".hpe-deco-option:not(:disabled)").forEach(button => {
+        button.addEventListener("click", () => {
+            selectedDecoration = button.dataset.decorationKey;
+            overlay.querySelectorAll(".hpe-deco-option").forEach(item => {
+                item.classList.toggle("is-selected", item === button);
+            });
+            if (decoStage) {
+                decoStage.className = `hpe-avatar-stage hero-deco-${selectedDecoration || "none"}`;
+            }
+        });
+    });
+
     const close = () => window.closeHeroProfileEditor();
     overlay.querySelector(".hpe-close").addEventListener("click", close);
     overlay.querySelector(".hpe-cancel").addEventListener("click", close);
@@ -550,8 +650,9 @@ function showHeroProfileEditor(user, userKey) {
         const button = event.currentTarget;
 
         if (!unlockedAnimals.includes(selectedAnimal) ||
-            !unlockedTitles.includes(selectedTitle)) {
-            alert("현재 해금된 캐릭터와 칭호만 선택할 수 있습니다.");
+            !unlockedTitles.includes(selectedTitle) ||
+            (selectedDecoration && !unlockedDecorations.some(item => item.key === selectedDecoration))) {
+            alert("현재 해금된 캐릭터·칭호·효과만 선택할 수 있습니다.");
             return;
         }
 
@@ -563,7 +664,8 @@ function showHeroProfileEditor(user, userKey) {
         selectedAnimal: selectedAnimal,
         animal: selectedAnimal,
         selectedTitle: selectedTitle,
-        title: selectedTitle
+        title: selectedTitle,
+        selectedDecoration: selectedDecoration || null
     };
 
     await db.ref(`users/${userKey}`).update(savedProfile);
@@ -885,9 +987,12 @@ const clickAction =
             lv >= 5  ? 2 : 1;
 
 
+        const decorationKey = String(user.selectedDecoration || "").trim();
+        const decorationClass = decorationKey ? ` hero-deco-${heroEscape(decorationKey)}` : "";
+
         html += `
             <div
-                class="hero-card${isMySelf ? " hero-card-self" : ""}"
+                class="hero-card${isMySelf ? " hero-card-self" : ""}${decorationClass}"
                 data-name="${heroEscape(name)}"
                 data-firebase-key="${heroEscape(user.__firebaseKey || name)}"
                 data-tier="${heroTier}"

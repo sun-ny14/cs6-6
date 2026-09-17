@@ -34,7 +34,9 @@ const attendanceBoardKey = name =>
 const publicUser = (name, user={}) => ({
     name:String(user.name || name), no:Number(user.no || user.number || 0),
     character:String(user.character || ''), selectedAnimal:String(user.selectedAnimal || ''),
-    selectedTitle:String(user.selectedTitle || ''), myRoom:user.myRoom || null
+    selectedTitle:String(user.selectedTitle || ''),
+    selectedDecoration:user.selectedDecoration ? String(user.selectedDecoration) : null,
+    myRoom:user.myRoom || null
 });
 // "학급 운영" 통합 잠금(학급일지·성적·운영비 공용)의 세션 길이.
 // 예전엔 30분이라 수업 중에도 자꾸 다시 잠겨서 번거롭다는 피드백이 있었다.
@@ -295,7 +297,7 @@ exports.mirrorPublicSettings = onValueWritten({ ref:'/settings/{field}' }, async
 // 삭제했었다(대용량 사용자 미러링 트리거 제거 커밋). 그 결과 publicProfiles가 계속
 // 비어 있어 학생 화면의 용사 목록·방 등이 아예 안 뜨는 상태였다. 필요한 필드만
 // 개별적으로 감시해 같은 문제 없이 다시 채운다.
-const PUBLIC_PROFILE_FIELDS = new Set(['name','no','number','character','selectedAnimal','selectedTitle','myRoom']);
+const PUBLIC_PROFILE_FIELDS = new Set(['name','no','number','character','selectedAnimal','selectedTitle','selectedDecoration','myRoom']);
 
 exports.mirrorPublicUser = onValueWritten({ ref:'/users/{userName}/{field}' }, async event => {
     const { userName, field } = event.params;
@@ -305,6 +307,7 @@ exports.mirrorPublicUser = onValueWritten({ ref:'/users/{userName}/{field}' }, a
     const outValue = outKey === 'no' ? (Number(value) || 0)
         : outKey === 'name' ? String(value || userName)
         : outKey === 'myRoom' ? (value ?? null)
+        : outKey === 'selectedDecoration' ? (value ? String(value) : null)
         : String(value || '');
     await getDatabase().ref(`publicProfiles/${userName}/${outKey}`).set(outValue);
 });
@@ -616,6 +619,113 @@ exports.purchaseHousingItem = callable(async request => {
     }
     const user=result.snapshot.val();
     return { receipt:user.housingPurchases[purchaseId], roomCoins:user.roomCoins };
+});
+
+// 배치 개수를 확인 없이 클라이언트가 방에 직접 오브젝트를 추가할 수 있어서,
+// 구매 1개짜리 아이템을 "배치하기"를 여러 번 눌러 무한 증식시킬 수 있던 취약점을
+// 막는다. 이제 배치는 서버에서 "구매했고 아직 배치 안 한" 것만 허용하고,
+// database.rules.json에서도 클라이언트가 myRoom/objects에 새 키를 직접 만들지
+// 못하게 막아 두었다(기존 오브젝트 이동·크기조절만 허용).
+exports.placeHousingItem = callable(async request => {
+    const current = await actor(request);
+    if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 배치해 주세요.');
+    const purchaseId = request.data?.purchaseId;
+    if (!safeKey(purchaseId)) throw new HttpsError('invalid-argument', '배치 정보가 올바르지 않습니다.');
+    const database = getDatabase();
+    const now = Date.now();
+    let reason = '', objectId = '', placedItem = null;
+    const result = await database.ref(`users/${current.name}`).transaction(user => {
+        if (user === null) user = JSON.parse(JSON.stringify(current.user || {}));
+        if (!user || !Object.keys(user).length) { reason = 'missing'; return; }
+        const entry = user.housingInventory?.[purchaseId];
+        if (!entry) { reason = 'not-owned'; return; }
+        if (entry.placedObjectId) { reason = 'already-placed'; return; }
+        if (String(entry.category || '').includes('배경')) { reason = 'background'; return; }
+        objectId = `obj_${now}_${purchaseId}`;
+        user.myRoom ||= {};
+        user.myRoom.objects ||= {};
+        user.myRoom.objects[objectId] = { img: entry.img, type: entry.category, x: 290, y: 210, purchaseId };
+        user.housingInventory[purchaseId] = { ...entry, placedObjectId: objectId };
+        placedItem = user.myRoom.objects[objectId];
+        return user;
+    }, undefined, false);
+    if (!result.committed) {
+        const messages = { missing:'학생 정보를 찾을 수 없습니다.', 'not-owned':'구매하지 않은 아이템입니다.',
+            'already-placed':'이미 배치된 아이템입니다.', background:'배경은 배치가 아니라 적용으로 처리해 주세요.' };
+        throw new HttpsError('failed-precondition', messages[reason] || '배치를 완료하지 못했습니다.');
+    }
+    return { objectId, item: placedItem };
+});
+
+// 방에서 오브젝트를 제거하면 대응하는 구매 항목을 다시 "배치 가능" 상태로 돌린다.
+// (버그 수정 전에 만들어진 오브젝트는 purchaseId가 없어 인벤토리 연결 없이 제거만 된다.)
+exports.removeHousingItem = callable(async request => {
+    const current = await actor(request);
+    if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 제거해 주세요.');
+    const objectId = String(request.data?.objectId || '');
+    if (!objectId || !safeKey(objectId)) throw new HttpsError('invalid-argument', '제거 정보가 올바르지 않습니다.');
+    const database = getDatabase();
+    let reason = '';
+    const result = await database.ref(`users/${current.name}`).transaction(user => {
+        if (user === null) user = JSON.parse(JSON.stringify(current.user || {}));
+        if (!user || !Object.keys(user).length) { reason = 'missing'; return; }
+        if (!user.myRoom?.objects?.[objectId]) { reason = 'not-found'; return; }
+        const purchaseId = user.myRoom.objects[objectId].purchaseId;
+        delete user.myRoom.objects[objectId];
+        if (purchaseId && user.housingInventory?.[purchaseId]) {
+            user.housingInventory[purchaseId] = { ...user.housingInventory[purchaseId], placedObjectId: null };
+        }
+        return user;
+    }, undefined, false);
+    if (!result.committed) {
+        throw new HttpsError('failed-precondition', reason === 'not-found' ? '오브젝트를 찾을 수 없습니다.' : '제거하지 못했습니다.');
+    }
+    return { ok: true };
+});
+
+// 배치 개수 제한 없이 무한 증식이 가능했던 예전 버그로 이미 만들어진 초과분을
+// 한 번만 정리한다(관리자 로그인 시 자동 실행, 이미 정리됐으면 즉시 종료).
+// 오브젝트에는 어떤 구매 건에서 왔는지 기록이 없던 시절 데이터라 이미지 기준으로만
+// "실제 구매 개수"와 맞춰, 초과분(나중에 배치된 것부터)을 제거한다.
+exports.cleanupDuplicateHousingItems = callableHeavy(async request => {
+    const current = await actor(request);
+    if (!current.teacher) throw new HttpsError('permission-denied', '관리자만 실행할 수 있습니다.');
+    const database = getDatabase();
+    const doneSnapshot = await database.ref('migrations/housingDuplicatesCleaned').get();
+    if (doneSnapshot.val() === true) return { alreadyDone: true, removed: 0 };
+    const usersSnapshot = await database.ref('users').get();
+    const users = usersSnapshot.val() || {};
+    const updates = { 'migrations/housingDuplicatesCleaned': true };
+    let removed = 0, affectedStudents = 0;
+    Object.entries(users).forEach(([name, user]) => {
+        if (!user || name === '총사령관') return;
+        const inventory = user.housingInventory || {};
+        const objects = user.myRoom?.objects || {};
+        const ownedCountByImg = {};
+        Object.values(inventory).forEach(item => {
+            const img = String(item?.img || '');
+            if (img) ownedCountByImg[img] = (ownedCountByImg[img] || 0) + 1;
+        });
+        const objectIdsByImg = {};
+        Object.entries(objects).forEach(([objId, obj]) => {
+            const img = String(obj?.img || '');
+            if (img) (objectIdsByImg[img] ||= []).push(objId);
+        });
+        let studentAffected = false;
+        Object.entries(objectIdsByImg).forEach(([img, ids]) => {
+            const allowed = ownedCountByImg[img] || 0;
+            if (ids.length <= allowed) return;
+            ids.sort();
+            ids.slice(allowed).forEach(objId => {
+                updates[`users/${name}/myRoom/objects/${objId}`] = null;
+                removed += 1;
+            });
+            studentAffected = true;
+        });
+        if (studentAffected) affectedStudents += 1;
+    });
+    await database.ref().update(updates);
+    return { removed, affectedStudents };
 });
 
 exports.verifyCheckinPassword = callable(async request => {

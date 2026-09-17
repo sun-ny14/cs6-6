@@ -316,6 +316,13 @@ auth.onAuthStateChanged(async user=>{
             window.callSecure('backfillPublicProfiles').catch(error=>{
                 console.warn('공개 프로필 백필 오류:',error);
             });
+            // 배치 개수 검증 없이 무한 배치할 수 있던 버그로 생긴 중복 하우징
+            // 오브젝트를 한 번만 정리한다. 이미 정리됐으면 서버가 곧장 종료한다.
+            window.callSecure('cleanupDuplicateHousingItems').then(result=>{
+                if(result?.removed)console.info(`중복 하우징 아이템 ${result.removed}개 정리(학생 ${result.affectedStudents}명)`);
+            }).catch(error=>{
+                console.warn('중복 하우징 아이템 정리 오류:',error);
+            });
         }
 
         if(loginScreen){
