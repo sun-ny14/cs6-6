@@ -336,7 +336,10 @@
             message = '수업 준비하세요.';
             tone = 'prepare';
         }
-        return `<div class="break-clock">${timeText.slice(0,5)}</div><div class="break-message ${tone}">${message}</div><div class="next-class">다음 시간 · ${escapeHtml(next.name)} ${escapeHtml(next.subject || next.name)} · ${escapeHtml(next.startTime)}</div>`;
+        // 쉬는 시간 화면에도 다음 교시에 등록된 화면 안내 문구를 보여준다.
+        // 별도의 쉬는 시간 전용 공지는 만들지 않고, 다음 교시 안내를 재사용한다.
+        const nextAction = String(next.action || '').trim();
+        return `<div class="break-clock">${timeText.slice(0,5)}</div><div class="break-message ${tone}">${message}</div><div class="next-class">다음 시간 · ${escapeHtml(next.name)} ${escapeHtml(next.subject || next.name)} · ${escapeHtml(next.startTime)}</div>${nextAction ? `<div class="action">${escapeHtml(nextAction)}</div>` : ''}`;
     }
 
     function periodHtml(item, now) {
