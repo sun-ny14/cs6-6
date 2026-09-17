@@ -163,6 +163,23 @@
                     <div class="home-stat"><span class="home-stat-icon is-amber">✎</span><span><small id="home-stat-task-label">미완료 과제</small><strong id="home-stat-tasks">-</strong></span></div>
                 </section>
 
+                <div class="home-quick-grid">
+                    <section class="home-info-card home-quick-card">
+                        <div class="home-card-head"><h3>📣 오늘의 알림</h3><button class="home-board-link" type="button" id="home-notice-board-link">전자칠판 보기 ›</button></div>
+                        <div id="home-notice-list" class="home-notice-list"><div class="home-empty">알림을 불러오는 중이에요.</div></div>
+                    </section>
+
+                    <section class="home-info-card home-quick-card">
+                        <div class="home-card-head"><h3 id="home-task-title">📝 미완료 과제</h3><button type="button" id="home-task-tab-link">과제 탭 보기 ›</button></div>
+                        <div id="home-task-list" class="home-task-list"><div class="home-empty">과제를 불러오는 중이에요.</div></div>
+                    </section>
+
+                    <section class="home-info-card home-quick-card" id="home-duty-card">
+                        <div class="home-card-head"><h3>🧹 1인 1역·청소</h3><button type="button" id="home-duty-tab-link">확인하기 ›</button></div>
+                        <div id="home-duty-summary" class="home-notice-list"><div class="home-empty">불러오는 중이에요.</div></div>
+                    </section>
+                </div>
+
                 <div class="home-dashboard-grid">
                     <section class="home-hero-panel">
                         <div class="home-panel-head">
@@ -171,18 +188,6 @@
                         </div>
                         <div id="hero-grid" class="hero-grid"></div>
                     </section>
-
-                    <aside class="home-side-column">
-                        <section class="home-info-card">
-                            <div class="home-card-head"><h3>📣 오늘의 알림</h3><button class="home-board-link" type="button" id="home-notice-board-link">전자칠판 보기 ›</button></div>
-                            <div id="home-notice-list" class="home-notice-list"><div class="home-empty">알림을 불러오는 중이에요.</div></div>
-                        </section>
-
-                        <section class="home-info-card">
-                            <div class="home-card-head"><h3 id="home-task-title">📝 미완료 과제</h3><button type="button" id="home-task-tab-link">과제 탭 보기 ›</button></div>
-                            <div id="home-task-list" class="home-task-list"><div class="home-empty">과제를 불러오는 중이에요.</div></div>
-                        </section>
-                    </aside>
                 </div>
 
                 <div class="home-extras-grid">
@@ -687,12 +692,12 @@
 <script src="js/checkin-password.js?v=20260915-connected-fix-1"></script>
 <script src="js/blackboard-share.js?v=20260914-attendance-split-1"></script>
 <script src="js/global.js?v=20260915-merge-1"></script>
-<script src="js/home-dashboard.js?v=20260914-journal-final-1"></script>
-<script src="js/auth.js?v=20260917-popup-login-1"></script>
+<script src="js/home-dashboard.js?v=20260917-quick-grid-duty-1"></script>
+<script src="js/auth.js?v=20260917-cleaning-tab-role-fix-1"></script>
 <script src="js/checkin-seat.js?v=20260916-attendance-rules-1"></script>
 <script src="js/hero-mgr.js?v=20260917-hero-card-compact-1"></script>
-<script src="js/point-shop.js?v=20260915-merge-1"></script>
-<script src="js/point-guide.js?v=20260915-merge-1"></script>
+<script src="js/point-shop.js?v=20260917-parallel-approve-1"></script>
+<script src="js/point-guide.js?v=20260917-parallel-approve-1"></script>
 <script src="js/housing.js?v=20260916-foreach-fix-1"></script>
 <script src="js/admin-grades.js?v=20260916-foreach-fix-1"></script>
 <script src="js/blackboard-admin.js?v=20260913-journal-1"></script>
@@ -701,7 +706,7 @@
 <script src="js/assignments.js?v=20260913-readability-1"></script>
 <script src="js/settings.js?v=20260915-stability-1"></script>
 <script src="js/cleaning.js?v=20260915-merge-1"></script>
-<script src="js/inline-handlers.js?v=20260917-csp-fix-1"></script>
+<script src="js/inline-handlers.js?v=20260917-duty-card-1"></script>
 
 </body>
 </html>

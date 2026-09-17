@@ -1220,6 +1220,7 @@ input[type="radio"] {
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-width: 0;
     gap: var(--ui-space-1);
     padding: var(--ui-space-4) var(--ui-space-2) var(--ui-space-3);
     border: 1px solid var(--ui-line);
@@ -2309,8 +2310,8 @@ body.role-student .hero-self-badge {
     position: relative;
     display: grid;
     place-items: center;
-    width: 76px;
-    height: 76px;
+    width: 66px;
+    height: 66px;
     margin: 0 auto;
     border-radius: 50%;
     background:
@@ -2320,7 +2321,7 @@ body.role-student .hero-self-badge {
 .hero-ring::after {
     content: "";
     position: absolute;
-    inset: 4px;
+    inset: 3px;
     border-radius: 50%;
     background: var(--gm-panel-bot);
 }

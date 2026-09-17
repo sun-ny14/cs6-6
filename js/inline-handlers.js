@@ -57,6 +57,7 @@ bindClick('home-notice-board-link',openBlackboardWindow);
 bindClick('home-task-tab-link',()=>{showTab('assignments');initAssignmentsTab();});
 bindClick('home-shop-tab-link',()=>{showTab('shop');renderShop();});
 bindClick('home-clean-tab-link',()=>{showTab('cleaning');renderRoleCleaning();});
+bindClick('home-duty-tab-link',()=>{showTab('cleaning');renderRoleCleaning();});
 
 bindClick('checkin-btn',()=>submitCheckIn());
 

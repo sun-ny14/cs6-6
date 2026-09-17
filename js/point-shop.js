@@ -332,16 +332,19 @@ window.approveUserAll = async function(keyStr, user) {
     if(!confirm(`${user} 용사의 모든 사용 요청을 승인하시겠습니까?`)) return;
 
     const keys = keyStr.split(',').filter(Boolean);
-    let completed = 0;
-    try {
-        for (const key of keys) {
-            await window.callSecure('manageShopOrder',{orderKey:key,action:'approve'});
-            completed += 1;
-        }
+    // 요청을 한 건씩 순서대로 기다리면 건수만큼 대기 시간이 그대로 쌓인다.
+    // 서로 독립된 주문이므로 한꺼번에 보내고 결과만 모아서 처리한다.
+    const results = await Promise.allSettled(
+        keys.map(key => window.callSecure('manageShopOrder',{orderKey:key,action:'approve'}))
+    );
+    const completed = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.length - completed;
+    if (!failed) {
         alert("✅ 일괄 승인 및 자동 리셋, 연대기 기록까지 완벽하게 처리되었습니다!");
-    } catch (error) {
-        console.error('일괄 승인 오류:', error);
-        alert(`${completed}건 승인 후 멈췄습니다. ${error?.message || '다시 확인해 주세요.'}`);
+    } else {
+        const firstError = results.find(r => r.status === 'rejected')?.reason;
+        console.error('일괄 승인 오류:', firstError);
+        alert(`${completed}건 승인 완료, ${failed}건 실패. ${firstError?.message || '실패한 건은 다시 확인해 주세요.'}`);
     }
 };
 

@@ -328,16 +328,18 @@ window.approveUserRequests=async function(user,keyList){
     if(!canManageItemUseRequests())return;
     const keys=String(keyList||'').split(',').filter(Boolean);
     if(!keys.length||!confirm(`${user} 학생의 사용 요청 ${keys.length}건을 승인할까요?`))return;
-    let completed=0;
-    try{
-        for(const key of keys){
-            await window.callSecure('manageShopOrder',{orderKey:key,action:'approve'});
-            completed+=1;
-        }
+    // 순차 대기 대신 병렬로 보내서 건수만큼 대기 시간이 쌓이지 않게 한다.
+    const results=await Promise.allSettled(
+        keys.map(key=>window.callSecure('manageShopOrder',{orderKey:key,action:'approve'}))
+    );
+    const completed=results.filter(r=>r.status==='fulfilled').length;
+    const failed=results.length-completed;
+    if(!failed){
         alert(`${user} 학생의 요청 ${completed}건을 승인했습니다.`);
-    }catch(error){
-        console.error('일괄 승인 오류:',error);
-        alert(`${completed}건 승인 후 멈췄습니다. ${error?.message||'다시 확인해 주세요.'}`);
+    }else{
+        const firstError=results.find(r=>r.status==='rejected')?.reason;
+        console.error('일괄 승인 오류:',firstError);
+        alert(`${completed}건 승인 완료, ${failed}건 실패. ${firstError?.message||'다시 확인해 주세요.'}`);
     }
 };
 

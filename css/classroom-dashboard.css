@@ -1,7 +1,8 @@
 /* 6-6 홈 대시보드 시각 개편
-   데이터 경로와 기능은 유지하고, 학생·교사 화면에 같은 밝은 교실 톤을 적용한다. */
+   데이터 경로와 기능은 유지한다. 교사 화면은 밝은 교실 톤으로,
+   학생 화면은 style.css 에 이미 있는 밤하늘+금빛 다크 테마를 그대로 쓴다
+   (여기서 role-student 를 다시 밝게 덮어쓰지 않는다). */
 
-body.role-student,
 body.role-teacher {
     color-scheme: light;
     --ui-bg: #f3f7ff;
@@ -43,39 +44,32 @@ body.role-teacher {
         linear-gradient(180deg, #f7faff 0%, var(--ui-bg) 42%, #eef4fc 100%);
 }
 
-body.role-student #main-app,
 body.role-teacher #main-app { background: transparent; }
 
-body.role-student .sidebar-menu,
 body.role-teacher .sidebar-menu {
     background: linear-gradient(180deg, #112744 0%, #0d1d34 100%);
     border-right-color: rgba(255,255,255,.08);
     box-shadow: 10px 0 32px rgba(22, 49, 84, .10);
 }
 
-body.role-student .nav-brand,
 body.role-teacher .nav-brand {
     border-bottom: 1px solid rgba(255,255,255,.08);
     background: transparent;
 }
 
-body.role-student .nav-brand strong,
 body.role-teacher .nav-brand strong { color: #fff; text-shadow: none; }
 
-body.role-student .sidebar-menu button,
 body.role-teacher .sidebar-menu button {
     border: 0;
     color: var(--ui-nav-text);
     background: transparent;
 }
 
-body.role-student .sidebar-menu button:hover,
 body.role-teacher .sidebar-menu button:hover {
     color: #fff;
     background: rgba(255,255,255,.07);
 }
 
-body.role-student .sidebar-menu button.active,
 body.role-teacher .sidebar-menu button.active {
     color: #fff;
     background: linear-gradient(135deg, #2f80ed, #256dcc);
@@ -94,9 +88,7 @@ body.role-student .home-board-link {
     display: none !important;
 }
 
-body.role-student .card,
 body.role-teacher .card,
-body.role-student .page-head,
 body.role-teacher .page-head {
     border-color: var(--ui-line);
     background: rgba(255,255,255,.92);
@@ -182,10 +174,23 @@ body.role-teacher .page-head {
 
 .home-dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.65fr) minmax(290px, .85fr);
+    grid-template-columns: 1fr;
     gap: 18px;
     align-items: start;
 }
+
+/* 알림/과제/1인 1역·청소를 용사 패널 위에 한 줄로 보여주는 빠른 확인 카드 */
+.home-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.home-quick-card { min-width: 0; }
+
+/* 개인용 1인 1역·청소 카드는 학생 전용, 반 전체 청소 현황 카드는 교사 전용 */
+body.role-teacher #home-duty-card { display: none; }
+body.role-student .home-clean-preview { display: none; }
 
 .home-hero-panel {
     position: relative;
@@ -247,9 +252,10 @@ body.role-teacher .page-head {
 
 .home-hero-panel .hero-card,
 body.role-student .home-hero-panel .hero-card {
+    min-width: 0;
     gap: 3px;
-    min-height: 148px;
-    padding: 18px 8px 10px;
+    min-height: 138px;
+    padding: 16px 6px 8px;
     border: 1px solid rgba(133, 174, 229, .16);
     border-radius: 12px;
     background: rgba(37, 69, 113, .66);
@@ -273,7 +279,6 @@ body.role-student .home-hero-panel .hero-card:hover {
 .home-hero-panel .hero-exp-bar { width: 80%; height: 4px; }
 .home-hero-panel .hero-self-badge { font-size: .62rem; }
 
-.home-side-column { display: grid; gap: 18px; }
 .home-info-card { padding: 18px; border: 1px solid var(--ui-line); border-radius: 16px; background: rgba(255,255,255,.96); box-shadow: var(--ui-shadow-sm); }
 .home-card-head { margin-bottom: 12px; }
 .home-card-head button { padding: 5px; border: 0; background: transparent; color: #2b73d1; font: inherit; font-size: .72rem; font-weight: 850; cursor: pointer; }
@@ -334,10 +339,25 @@ body.role-student .home-hero-panel .hero-card:hover {
 .home-clean-row b { color: var(--ui-text); }
 .home-clean-names { margin: 8px 0 0; color: var(--ui-muted); font-size: .67rem; line-height: 1.45; }
 
+/* 학생 화면 전용: 위 위젯들은 대부분 --ui-* 토큰을 쓰고 있어 role-student 의
+   다크+금빛 토큰이 자동으로 반영되지만, 하드코딩된 흰 배경/파란 강조색만
+   골드 톤으로 바꿔준다. */
+body.role-student .home-info-card { background: linear-gradient(180deg, var(--gm-panel-top), var(--gm-panel-bot)); box-shadow: var(--gm-bevel), var(--ui-shadow-sm); }
+body.role-student .home-card-head button { color: var(--ui-gold); }
+body.role-student .home-notice-item span { background: var(--ui-accent-soft); color: var(--ui-accent); }
+body.role-student .home-task-item:hover strong { color: var(--ui-gold); }
+body.role-student .home-task-mark { background: var(--ui-accent-soft); }
+body.role-student .home-shop-item { background: var(--gm-panel-bot); border-color: var(--ui-line); }
+body.role-student .home-shop-item:hover { border-color: var(--ui-accent-line); background: var(--gm-panel-top); }
+body.role-student .home-shop-icon { background: var(--ui-accent-soft); }
+body.role-student .home-shop-item small { color: var(--ui-gold); }
+body.role-student .home-clean-count span { color: var(--ui-gold); }
+body.role-student .home-clean-track { background: var(--ui-surface-sunk); }
+body.role-student .home-clean-track i { background: linear-gradient(90deg, var(--gm-gold-lo), var(--gm-gold)); }
+
 @media (max-width: 1080px) {
-    .home-dashboard-grid { grid-template-columns: 1fr; }
     .home-extras-grid { grid-template-columns: 1fr; }
-    .home-side-column { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .home-quick-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
     .home-hero-panel .hero-grid { max-height: none; grid-template-columns: repeat(4, minmax(0,1fr)); }
 }
 
@@ -347,7 +367,7 @@ body.role-student .home-hero-panel .hero-card:hover {
     .home-stats { grid-template-columns: 1fr; padding: 6px 14px; }
     .home-stat { justify-content: flex-start; border-right: 0; border-bottom: 1px solid var(--ui-line-soft); }
     .home-stat:last-child { border-bottom: 0; }
-    .home-side-column { grid-template-columns: 1fr; }
+    .home-quick-grid { grid-template-columns: 1fr; }
     .home-shop-list { grid-template-columns: 1fr; }
     .home-panel-hint { display: none; }
     .home-hero-panel { padding: 13px; }

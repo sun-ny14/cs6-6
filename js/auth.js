@@ -90,12 +90,14 @@ window.canUseCleaningTab=function(){
             ''
         ).trim();
 
-    // "역할이 있으면 무조건" 이 아니라, 청소 관련 1인 1역일 때만 청소 탭을 추가로 준다.
     // js/cleaning.js의 isCleaningStudent()와 판정 기준을 동일하게 맞춘다.
-    return saved===true||
+    const isCleaner=saved===true||
         saved==='true'||
         (saved&&typeof saved==='object'&&saved.enabled===true)||
         /청소|쓸기|닦기|분리수거|쓰레기|정리/.test(role);
+
+    // 청소 담당이 아니어도 1인 1역이 배정된 학생은 자기 역할 확인을 위해 탭에 들어갈 수 있어야 한다.
+    return isCleaner||Boolean(role);
 };
 
 window.canManageCleaningChecks=function(){

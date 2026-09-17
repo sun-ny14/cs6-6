@@ -1,7 +1,7 @@
 (function(){
     'use strict';
 
-    const state={started:false,data:{},popularItems:[],teacherAlerts:{}};
+    const state={started:false,data:{},popularItems:[],teacherAlerts:{},myDuty:null};
     const esc=value=>String(value==null?'':value)
         .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
         .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -120,6 +120,51 @@
         target.innerHTML=`<div class="home-clean-count"><strong>${done} / ${total}</strong><span>${percent}% 완료</span></div><div class="home-clean-track"><i style="width:${percent}%"></i></div><div class="home-clean-row"><span>✅ 완료</span><b>${done}명</b></div><div class="home-clean-row"><span>🕒 남음</span><b>${Math.max(0,total-done)}명</b></div><p class="home-clean-names">${waiting.length?`확인할 용사: ${waiting.map(esc).join(', ')}${total-done>4?' 외':''}`:'모두 완료했어요! 🎉'}</p>`;
     }
 
+    // 학생 홈에는 반 전체 통계 대신 "나"의 1인 1역·청소 배정/완료 여부만 보여준다.
+    // 역할·청소 배정은 자주 바뀌지 않으므로 탭을 열 때 한 번만 읽고, 완료 여부는
+    // 이미 구독 중인 blackboardDisplay 데이터의 cleaningRoot 를 그대로 재사용한다.
+    async function loadMyDuty(){
+        const myName=String(window.myName||'').trim();
+        if(!myName){state.myDuty={role:'',isCleaner:false};return;}
+        try{
+            const [roleSnap,cleanerSnap]=await Promise.all([
+                db.ref(`cleaningSettings/studentRoles/${myName}`).once('value'),
+                db.ref(`cleaningSettings/cleaningAssignments/${myName}`).once('value')
+            ]);
+            const roleValue=roleSnap.val();
+            const role=typeof roleValue==='string'
+                ?roleValue.trim()
+                :String(roleValue&&(roleValue.role||roleValue.name||roleValue.title)||'').trim();
+            const assignValue=cleanerSnap.val();
+            const isCleaner=assignValue===true||assignValue==='true'||
+                (assignValue&&typeof assignValue==='object'&&assignValue.enabled===true)||
+                /청소|쓸기|닦기|분리수거|쓰레기|정리/.test(role);
+            state.myDuty={role,isCleaner};
+        }catch(error){
+            console.error('내 1인 1역·청소 배정 조회 오류:',error);
+            state.myDuty={role:'',isCleaner:false,error:true};
+        }
+        render();
+    }
+
+    function renderMyDuty(data,today){
+        const target=document.getElementById('home-duty-summary');
+        if(!target||window.isAdmin===true)return;
+        const duty=state.myDuty;
+        if(!duty){target.innerHTML='<div class="home-empty">불러오는 중이에요.</div>';return;}
+        if(duty.error){target.innerHTML='<div class="home-empty">불러오지 못했어요.</div>';return;}
+        const myName=String(window.myName||'').trim();
+        const status=data.cleaningRoot?.[today]?.[myName]||{};
+        const rows=[];
+        if(duty.role){
+            rows.push(`<div class="home-notice-item"><span>${status.roleDone?'✅':'🧺'}</span><p><strong>1인 1역</strong> · ${esc(duty.role)} — ${status.roleDone?'완료':'미완료'}</p></div>`);
+        }
+        if(duty.isCleaner){
+            rows.push(`<div class="home-notice-item"><span>${status.cleanDone?'✅':'🧹'}</span><p><strong>청소</strong> — ${status.cleanDone?'완료':'미완료'}</p></div>`);
+        }
+        target.innerHTML=rows.length?rows.join(''):'<div class="home-empty">오늘 배정된 1인 1역·청소가 없어요.</div>';
+    }
+
     function render(){
         const data=state.data||{};
         const today=todayKst();
@@ -150,6 +195,7 @@
         renderTasks(data);
         window.renderHomeShop();
         renderCleaning(data,today,students);
+        renderMyDuty(data,today);
     }
 
     window.initHomeDashboard=function(){
@@ -157,6 +203,7 @@
         state.started=true;
         loadPopularShop();
         window.refreshTeacherAlerts();
+        if(window.isAdmin!==true)loadMyDuty();
         db.ref('blackboardDisplay/data').on('value',snapshot=>{
             state.data=snapshot.val()||{};
             render();

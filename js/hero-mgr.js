@@ -908,7 +908,7 @@ const clickAction =
                         lv,
                         user.selectedAnimal ||
                         user.animal,
-                        60
+                        56
                     )}
                 </div>
                 ${heroTitle ? `
