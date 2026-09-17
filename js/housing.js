@@ -1059,7 +1059,7 @@ window.sendRoomReaction = async function(targetUser, type) {
 
             wallet.innerHTML=`
                 <span>
-                    🪙 방꾸미기 코인
+                    💰 방꾸미기 코인
                 </span>
 
                 <strong class="housing-coin-value">
@@ -1301,7 +1301,7 @@ try {
                 <p id="housing-purchase-status" role="status" aria-live="polite"></p>
                 <div class="housing-coin">
                     <span>
-                        🪙 내 방꾸미기 코인
+                        💰 내 방꾸미기 코인
                     </span>
 
                     <strong class="housing-coin-value">

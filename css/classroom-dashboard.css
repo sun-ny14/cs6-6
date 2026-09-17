@@ -191,6 +191,7 @@ body.role-teacher .page-head {
 /* 개인용 1인 1역·청소 카드는 학생 전용, 반 전체 청소 현황 카드는 교사 전용 */
 body.role-teacher #home-duty-card { display: none; }
 body.role-student .home-clean-preview { display: none; }
+body.role-teacher .home-shop-preview { display: none; }
 
 .home-hero-panel {
     position: relative;
@@ -321,7 +322,7 @@ body.role-student .home-hero-panel .hero-card:hover {
 .home-task-item b { color: #8d9bae; }
 .home-empty { padding: 24px 8px; color: var(--ui-muted); text-align: center; font-size: .8rem; font-weight: 750; }
 
-.home-extras-grid { display: grid; grid-template-columns: minmax(0,1.65fr) minmax(290px,.85fr); gap: 18px; }
+.home-extras-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
 .home-shop-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
 .home-shop-item { display: grid; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 76px; padding: 11px; border: 1px solid var(--ui-line-soft); border-radius: 13px; background: #fff; color: var(--ui-text); text-align: left; font: inherit; cursor: pointer; }
 .home-shop-item:hover { border-color: #a9c9f2; background: #f8fbff; transform: translateY(-1px); }

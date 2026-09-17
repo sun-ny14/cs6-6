@@ -844,7 +844,7 @@ const clickAction =
             const heroPointsValue = user.points || 0;
             pointsHtml = `
                 <div class="hero-points${heroPointsValue < 0 ? " is-negative" : ""}">
-                    🪙 ${heroPointsValue} P
+                    💰 ${heroPointsValue} P
                 </div>
             `;
         } else {
