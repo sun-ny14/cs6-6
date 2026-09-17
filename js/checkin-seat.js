@@ -394,8 +394,13 @@ const attendanceStudentNames=new Set(
                             </thead>
 
                             <tbody>
-                                ${records.map(log=>`
-                                    <tr>
+                                ${records.map(log=>{
+                                    const catSlug={
+                                        '정상':'normal','지각':'late','조퇴':'early',
+                                        '결석':'absent','제외':'excluded'
+                                    }[log.category]||'plain';
+                                    return `
+                                    <tr class="cat-${catSlug}">
                                         <td class="num muted">
                                             ${numberByName.get(log.name)||'–'}
                                         </td>
@@ -405,7 +410,7 @@ const attendanceStudentNames=new Set(
                                         </td>
 
                                         <td>
-                                            ${checkinEscape(log.result)}
+                                            <span class="checkin-log-badge cat-${catSlug}">${checkinEscape(log.result)}</span>
                                         </td>
 
                                         <td>
@@ -415,8 +420,8 @@ const attendanceStudentNames=new Set(
                                         <td>
                                             ${checkinEscape(log.reason||'-')}
                                         </td>
-                                    </tr>
-                                `).join('')}
+                                    </tr>`;
+                                }).join('')}
                             </tbody>
                         </table>
                     </div>

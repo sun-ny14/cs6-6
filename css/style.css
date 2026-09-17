@@ -1517,6 +1517,28 @@ body.role-student .hero-points {
     font-weight: 700;
 }
 
+/* 등교로그 한눈에 보기: 상태별 왼쪽 색상 바 + 배지 */
+.checkin-log-table tbody tr { border-left: 4px solid transparent; }
+.checkin-log-table tbody tr.cat-late { border-left-color: #8b5cf6; background: rgba(139,92,246,.06); }
+.checkin-log-table tbody tr.cat-early { border-left-color: #ec4899; background: rgba(236,72,153,.06); }
+.checkin-log-table tbody tr.cat-absent { border-left-color: var(--ui-bad); background: var(--ui-bad-soft); }
+.checkin-log-table tbody tr.cat-normal { border-left-color: var(--ui-good); }
+.checkin-log-table tbody tr.cat-excluded { border-left-color: var(--ui-faint); opacity: .7; }
+.checkin-log-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: var(--ui-radius-pill);
+    font-size: var(--ui-tiny-size);
+    font-weight: 800;
+    white-space: nowrap;
+}
+.checkin-log-badge.cat-late { background: rgba(139,92,246,.14); color: #6d28d9; }
+.checkin-log-badge.cat-early { background: rgba(236,72,153,.14); color: #be185d; }
+.checkin-log-badge.cat-absent { background: var(--ui-bad-soft); color: var(--ui-bad); }
+.checkin-log-badge.cat-normal { background: var(--ui-good-soft); color: var(--ui-good); }
+.checkin-log-badge.cat-excluded { background: var(--ui-surface-sunk); color: var(--ui-faint); }
+.checkin-log-badge.cat-plain { background: var(--ui-surface-sunk); color: var(--ui-text-soft); }
+
 /* 오늘의 등교 도장 — 제출 결과를 화면에 남긴다 */
 .checkin-stamp {
     display: flex;
