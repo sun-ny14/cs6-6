@@ -14,8 +14,15 @@
     window.getHomeDashboardData=()=>state.data||{};
 
     function assignmentRows(data){
+        const myName=String(window.myName||'').trim();
+        const admin=window.isAdmin===true;
+        // 특정 학생 대상 과제/제출자료(js/assignments.js)는 그 대상이 아닌
+        // 학생 홈 화면에는 노출하지 않는다. 함수가 아직 안 실렸으면(로딩 순서)
+        // 안전하게 "전체 대상"으로 취급한다.
+        const isTargeted=window.assignmentsIsTargeted||(()=>true);
         return Object.entries(data.assignments||{})
             .filter(([,item])=>item&&item.active!==false)
+            .filter(([,item])=>admin||isTargeted(item,myName))
             .sort((a,b)=>String(a[1].dueDate||'9999').localeCompare(String(b[1].dueDate||'9999')));
     }
 

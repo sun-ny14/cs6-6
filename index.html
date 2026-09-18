@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- GitHub Pages/브라우저가 index.html 자체를 캐시해서, 기능을 배포해도
+     일부 학생 브라우저가 옛날 페이지(옛날 hero-mgr.js 버전 등)를 계속 쓰는
+     문제가 있었다. 매번 서버에 새로고침 여부를 확인하게 강제한다. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>6-6 용사 본부</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -16,8 +22,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@500;700;800;900&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 
-<link rel="stylesheet" href="css/style.css?v=20260918-seat-card-colors-1">
-<link rel="stylesheet" href="css/classroom-dashboard.css?v=20260917-teacher-quickgrid-1">
+<link rel="stylesheet" href="css/style.css?v=20260918-readability-1">
+<link rel="stylesheet" href="css/classroom-dashboard.css?v=20260918-readability-1">
 
 </head>
 
@@ -164,7 +170,7 @@
                 </section>
 
                 <div class="home-quick-grid">
-                    <section class="home-info-card home-quick-card">
+                    <section class="home-info-card home-quick-card home-notice-card">
                         <div class="home-card-head"><h3>📣 오늘의 알림</h3><button class="home-board-link" type="button" id="home-notice-board-link">전자칠판 보기 ›</button></div>
                         <div id="home-notice-list" class="home-notice-list"><div class="home-empty">알림을 불러오는 중이에요.</div></div>
                     </section>
@@ -215,7 +221,7 @@
                 </div>
             </header>
 
-            <div class="card">
+            <div class="card shop-page-card">
                 <div id="shop-list"></div>
             </div>
 
@@ -240,7 +246,7 @@
 
             <div id="sub-checkin-main" class="sub-checkin-content">
 
-                <div class="card">
+                <div class="card checkin-card">
 
                     <div class="panel-head">
                         <h3>⚔️ 등교 확인</h3>
@@ -691,11 +697,11 @@
 <script src="functions/checkin-password-core.js?v=20260911-final-2"></script>
 <script src="js/checkin-password.js?v=20260915-connected-fix-1"></script>
 <script src="js/blackboard-share.js?v=20260914-attendance-split-1"></script>
-<script src="js/global.js?v=20260915-merge-1"></script>
-<script src="js/home-dashboard.js?v=20260917-quick-grid-duty-1"></script>
-<script src="js/auth.js?v=20260917-housing-cleanup-1"></script>
-<script src="js/checkin-seat.js?v=20260918-seat-card-colors-1"></script>
-<script src="js/hero-mgr.js?v=20260919-server-save-1"></script>
+<script src="js/global.js?v=20260918-main-tab-hook-1"></script>
+<script src="js/home-dashboard.js?v=20260919-merge-1"></script>
+<script src="js/auth.js?v=20260919-merge-1"></script>
+<script src="js/checkin-seat.js?v=20260919-merge-1"></script>
+<script src="js/hero-mgr.js?v=20260919-merge-1"></script>
 <script src="js/point-shop.js?v=20260917-parallel-approve-1"></script>
 <script src="js/point-guide.js?v=20260917-parallel-approve-1"></script>
 <script src="js/housing.js?v=20260917-place-secure-1"></script>
@@ -703,9 +709,10 @@
 <script src="js/blackboard-admin.js?v=20260917-today-default-1"></script>
 <script src="js/class-journal.js?v=20260918-modal-scroll-fix-1"></script>
 <script src="js/class-ops.js?v=20260916-class-ops-1"></script>
-<script src="js/assignments.js?v=20260913-readability-1"></script>
+<script src="js/assignments.js?v=20260918-category-target-1"></script>
 <script src="js/settings.js?v=20260915-stability-1"></script>
 <script src="js/cleaning.js?v=20260915-merge-1"></script>
+<script src="js/daily-briefing.js?v=20260918-daily-briefing-1"></script>
 <script src="js/inline-handlers.js?v=20260917-duty-card-1"></script>
 
 </body>

@@ -368,6 +368,13 @@ auth.onAuthStateChanged(async user=>{
             showTab('main');
         }
 
+        // 로그인 직후에는 window.currentTab의 기본값이 이미 'main'이라
+        // showTab('main')의 "탭이 바뀔 때만" 훅이 안 걸린다. 로그인 진입은
+        // 여기서 별도로 한 번 불러준다(오늘의 브리핑 팝업용).
+        if(typeof window.onEnterMainTab==='function'){
+            window.onEnterMainTab();
+        }
+
     }catch(error){
         console.error('로그인 정보 처리 오류:',error);
         alert('로그인 정보를 불러오지 못했습니다.');

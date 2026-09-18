@@ -199,11 +199,16 @@ function showTab(t, housingOwner){
     // 예전엔 다른 탭으로 이동하기만 해도 곧바로 다시 잠갔는데, 그래서 세션을
     // 길게 늘려도 체감상 계속 다시 잠기는 것처럼 느껴졌다. 이제는 실제로
     // 서버 세션이 만료됐을 때(요청이 실패할 때)만 다시 잠근다.
+    const wasOnMain=window.currentTab==='main';
     window.currentTab=t;
 
     try{
         sessionStorage.setItem('activeTab',t);
     }catch(e){}
+
+    if(t==='main'&&!wasOnMain&&typeof window.onEnterMainTab==='function'){
+        window.onEnterMainTab();
+    }
 
     document.querySelectorAll('.tab-content').forEach(el=>{
         el.classList.remove('active');
