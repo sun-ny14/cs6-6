@@ -12,6 +12,16 @@ initializeApp({databaseURL:'https://cs6-6class-default-rtdb.firebaseio.com'});
 
 const REGION = 'asia-northeast3';
 const TEACHER_EMAIL = 'ksosuny@cberi.go.kr';
+// js/hero-mgr.js의 AVATAR_NAMES/HERO_TITLE_LEVELS/HERO_DECORATION_LEVELS와
+// 목록을 맞춰서 유지한다(둘 중 하나만 바뀌면 서버 검증과 화면이 어긋난다).
+const HERO_AVATAR_NAMES = ['귀여운','신사','사랑스러운','패셔니스타','밥먹는','날쌘돌이','즐거운','행복한',
+    '정의로운','천사','닌자','왕자','공주','근육맨','마법사','용사','공부하는','춤추는','노래하는','무지개'];
+const HERO_TITLE_NAMES = ['모험가','씩씩한 용사','견습 용사','용감한 초보','용감한 용사','믿음직한 동료',
+    '정예 용사','노련한 전사','빛나는 유망주','빛나는 용사','왕국 수호자','백전노장','전설의 용사',
+    '신화의 계승자','마스터 용사'];
+const HERO_TITLE_LEVELS = [1,2,3,4,5,6,7,8,9,10,12,14,15,18,20];
+const HERO_DECORATION_KEYS = ['confetti','sparkle','hearts','leaves','rainbow','stardust','bubbles','flame','lightning','aura'];
+const HERO_DECORATION_LEVELS = [2,4,6,8,10,12,14,16,18,20];
 // 대부분의 호출 함수는 사용자 한두 명 분량의 작은 문서만 다뤄서 256MiB로 충분하다.
 // DB 복구 직후엔 큰 레코드를 처리하려고 전부 1GiB로 올려뒀었는데, 그 상태로 두면
 // Blaze 무료 제공량(GB-초)을 필요 이상으로 빨리 소모한다. 여러 사용자를 한 번에
@@ -726,6 +736,47 @@ exports.cleanupDuplicateHousingItems = callableHeavy(async request => {
     });
     await database.ref().update(updates);
     return { removed, affectedStudents };
+});
+
+// 캐릭터·칭호·카드 효과 선택은 원래 클라이언트가 users/{name}에 직접 썼는데,
+// 보안 규칙 쪽에서 원인을 특정하기 어려운 PERMISSION_DENIED가 발생했다.
+// Admin SDK로 서버에서 처리하면 그 문제를 완전히 피하면서, 레벨 해금 여부도
+// 클라이언트를 신뢰하지 않고 서버에서 다시 검증할 수 있어 더 안전하다.
+exports.saveHeroProfile = callable(async request => {
+    const current = await actor(request);
+    if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 변경해 주세요.');
+    const selectedAnimal = String(request.data?.selectedAnimal || '').trim();
+    const selectedTitle = String(request.data?.selectedTitle || '').trim();
+    const selectedDecoration = String(request.data?.selectedDecoration || '').trim();
+    const database = getDatabase();
+    let reason = '';
+    const result = await database.ref(`users/${current.name}`).transaction(user => {
+        if (user === null) user = JSON.parse(JSON.stringify(current.user || {}));
+        if (!user || !Object.keys(user).length) { reason = 'missing'; return; }
+        const level = Math.max(1, parseInt(user.level || user.lv, 10) || 1);
+        const unlockedAnimals = HERO_AVATAR_NAMES.slice(0, Math.min(HERO_AVATAR_NAMES.length, Math.max(1, level)));
+        if (!selectedAnimal || !unlockedAnimals.includes(selectedAnimal)) { reason = 'animal'; return; }
+        const savedTitles = [user.unlockedTitles, user.earnedTitles, user.titles].find(Array.isArray) || [];
+        const unlockedTitles = HERO_TITLE_NAMES.filter((_, index) => level >= HERO_TITLE_LEVELS[index])
+            .concat(savedTitles);
+        if (!selectedTitle || !unlockedTitles.includes(selectedTitle)) { reason = 'title'; return; }
+        if (selectedDecoration) {
+            const decoIndex = HERO_DECORATION_KEYS.indexOf(selectedDecoration);
+            if (decoIndex === -1 || level < HERO_DECORATION_LEVELS[decoIndex]) { reason = 'decoration'; return; }
+        }
+        user.selectedAnimal = selectedAnimal;
+        user.animal = selectedAnimal;
+        user.selectedTitle = selectedTitle;
+        user.title = selectedTitle;
+        user.selectedDecoration = selectedDecoration || null;
+        return user;
+    }, undefined, false);
+    if (!result.committed) {
+        const messages = { missing:'학생 정보를 찾을 수 없습니다.', animal:'현재 해금된 캐릭터만 선택할 수 있습니다.',
+            title:'현재 해금된 칭호만 선택할 수 있습니다.', decoration:'현재 해금된 효과만 선택할 수 있습니다.' };
+        throw new HttpsError('failed-precondition', messages[reason] || '저장하지 못했습니다.');
+    }
+    return { ok: true };
 });
 
 exports.verifyCheckinPassword = callable(async request => {

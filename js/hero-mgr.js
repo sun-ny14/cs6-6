@@ -668,7 +668,11 @@ function showHeroProfileEditor(user, userKey) {
         selectedDecoration: selectedDecoration || null
     };
 
-    await db.ref(`users/${userKey}`).update(savedProfile);
+    // 클라이언트가 users/{name}에 직접 쓰면 보안 규칙 조합에 따라 원인을 알기
+    // 어려운 PERMISSION_DENIED가 날 수 있어, 서버(Admin SDK)에서 처리한다.
+    await window.callSecure('saveHeroProfile', {
+        selectedAnimal, selectedTitle, selectedDecoration: selectedDecoration || ''
+    });
 
     if (Array.isArray(window.currentUsers)) {
         const savedUser = window.currentUsers.find(item =>
@@ -728,9 +732,10 @@ window.selectAvatar = async function(name) {
         return;
     }
 
-    await db.ref(`users/${found.key}`).update({
-        selectedAnimal:name,
-        animal:name
+    await window.callSecure('saveHeroProfile', {
+        selectedAnimal: name,
+        selectedTitle: found.data.selectedTitle || found.data.title || '',
+        selectedDecoration: found.data.selectedDecoration || ''
     });
     window.renderHeroes();
 };
