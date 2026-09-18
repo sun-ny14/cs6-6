@@ -38,7 +38,7 @@ body.role-teacher {
     --ui-shadow-lg: 0 24px 60px rgba(25, 52, 91, .18);
     --ui-radius: 16px;
     --ui-radius-lg: 22px;
-    --ui-font-display: "Gothic A1", "IBM Plex Sans KR", "Noto Sans KR", system-ui, sans-serif;
+    --ui-font-display: "Gowun Dodum", "IBM Plex Sans KR", "Noto Sans KR", system-ui, sans-serif;
     background:
         radial-gradient(circle at 86% 6%, rgba(191, 215, 255, .5), transparent 25rem),
         linear-gradient(180deg, #f7faff 0%, var(--ui-bg) 42%, #eef4fc 100%);
