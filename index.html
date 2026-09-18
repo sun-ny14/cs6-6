@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- GitHub Pages/브라우저가 index.html 자체를 캐시해서, 기능을 배포해도
+     일부 학생 브라우저가 옛날 페이지(옛날 hero-mgr.js 버전 등)를 계속 쓰는
+     문제가 있었다. 매번 서버에 새로고침 여부를 확인하게 강제한다. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>6-6 용사 본부</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
