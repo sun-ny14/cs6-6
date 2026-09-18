@@ -237,26 +237,27 @@ body.role-teacher .home-shop-preview { display: none; }
 .home-panel-head { margin-bottom: 14px; }
 .home-panel-head > div { display: flex; align-items: baseline; gap: 9px; }
 .home-panel-head h3,
-.home-card-head h3 { margin: 0; font-size: 1rem; font-weight: 950; }
+.home-card-head h3 { margin: 0; font-size: 1rem; font-weight: 800; }
 .home-panel-head small { color: #91a9c7; font-size: .72rem; font-weight: 800; }
 .home-panel-hint { color: #91a9c7; font-size: .7rem; font-weight: 700; }
 
 .home-hero-panel .hero-grid {
-    /* 창 너비와 무관하게 항상 한 줄에 8명이 보이도록 고정 컬럼을 쓴다 (auto-fill은 옆 패널
-       때문에 실제 폭이 줄어들면 7장 이하로 떨어졌다). */
-    grid-template-columns: repeat(8, 1fr);
+    /* 예전엔 화면 폭과 무관하게 항상 8열을 강제해서, 창이 좁아지면 카드가
+       읽기 힘들 만큼 작아졌다(이름·EXP 글자가 한 글자씩 줄바꿈). 최소
+       128px를 보장하는 반응형 컬럼으로 바꿔 좁을 땐 줄 수가 줄어드는
+       대신 카드 자체는 항상 읽을 수 있는 크기를 유지한다. */
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
     gap: 10px;
-    max-height: 650px;
+    max-height: none;
     padding-right: 3px;
-    overflow: auto;
 }
 
 .home-hero-panel .hero-card,
 body.role-student .home-hero-panel .hero-card {
     min-width: 0;
-    gap: 3px;
-    min-height: 138px;
-    padding: 16px 6px 8px;
+    gap: 6px;
+    min-height: 168px;
+    padding: 20px 10px 12px;
     border: 1px solid rgba(133, 174, 229, .16);
     border-radius: 12px;
     background: rgba(37, 69, 113, .66);
@@ -272,13 +273,13 @@ body.role-student .home-hero-panel .hero-card:hover {
 }
 
 .home-hero-panel .hero-avatar-frame { border-color: rgba(255,255,255,.14); background: rgba(5,19,38,.32); }
-.home-hero-panel .hero-name { margin: 2px 0 0; color: #fff; font-size: .78rem; line-height: 1.25; }
-.home-hero-panel .hero-card-level { top: 6px; left: 6px; padding: 1px 6px; background: #eaf3ff; color: #1c5ba8; font-size: .62rem; }
-.home-hero-panel .hero-card-title { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .63rem; }
-.home-hero-panel .hero-points { padding: 2px 9px; background: rgba(255,216,112,.13); color: #ffdd7d; font-size: .68rem; }
-.home-hero-panel .hero-exp { color: #9eb4d1; font-size: .6rem; }
+.home-hero-panel .hero-name { margin: 2px 0 0; color: #fff; font-size: .98rem; font-weight: 800; line-height: 1.25; }
+.home-hero-panel .hero-card-level { top: 6px; left: 6px; padding: 1px 6px; background: #eaf3ff; color: #1c5ba8; font-size: .68rem; }
+.home-hero-panel .hero-card-title { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; }
+.home-hero-panel .hero-points { padding: 3px 11px; background: rgba(255,216,112,.13); color: #ffdd7d; font-size: .85rem; font-weight: 800; }
+.home-hero-panel .hero-exp { color: #9eb4d1; font-size: .76rem; }
 .home-hero-panel .hero-exp-bar { width: 80%; height: 4px; }
-.home-hero-panel .hero-self-badge { font-size: .62rem; }
+.home-hero-panel .hero-self-badge { font-size: .68rem; }
 
 .home-info-card { padding: 18px; border: 1px solid var(--ui-line); border-radius: 16px; background: rgba(255,255,255,.96); box-shadow: var(--ui-shadow-sm); }
 .home-card-head { margin-bottom: 12px; }
@@ -295,7 +296,7 @@ body.role-student .home-hero-panel .hero-card:hover {
     border-top: 1px solid var(--ui-line-soft);
 }
 
-.home-notice-item span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #eef4ff; color: #2a72d3; font-size: .75rem; font-weight: 950; }
+.home-notice-item span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #eef4ff; color: #2a72d3; font-size: .75rem; font-weight: 800; }
 .home-notice-item p { margin: 0; color: var(--ui-text-soft); font-size: .82rem; line-height: 1.4; }
 
 .home-task-item {
@@ -323,13 +324,15 @@ body.role-student .home-hero-panel .hero-card:hover {
 .home-empty { padding: 24px 8px; color: var(--ui-muted); text-align: center; font-size: .8rem; font-weight: 750; }
 
 .home-extras-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
-.home-shop-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
-.home-shop-item { display: grid; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 76px; padding: 11px; border: 1px solid var(--ui-line-soft); border-radius: 13px; background: #fff; color: var(--ui-text); text-align: left; font: inherit; cursor: pointer; }
+/* 예전엔 이 좁은 카드 안에서 3열로 억지로 쪼개서 "간식 교환권" 같은 이름이
+   "간." 처럼 한 글자만 남고 줄바꿈됐다. 목록형 1열로 바꿔 항상 온전히 읽힌다. */
+.home-shop-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.home-shop-item { display: grid; grid-template-columns: 40px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 56px; padding: 10px 12px; border: 1px solid var(--ui-line-soft); border-radius: 13px; background: #fff; color: var(--ui-text); text-align: left; font: inherit; cursor: pointer; }
 .home-shop-item:hover { border-color: #a9c9f2; background: #f8fbff; transform: translateY(-1px); }
-.home-shop-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: #fff3d9; font-size: 1.55rem; }
+.home-shop-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #fff3d9; font-size: 1.3rem; }
 .home-shop-item > span:nth-child(2) { display: grid; min-width: 0; }
-.home-shop-item strong { overflow: hidden; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
-.home-shop-item small { margin-top: 4px; color: #2474d0; font-size: .72rem; font-weight: 950; }
+.home-shop-item strong { overflow: hidden; font-size: .95rem; text-overflow: ellipsis; white-space: nowrap; }
+.home-shop-item small { margin-top: 2px; color: #2474d0; font-size: .82rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-shop-item b { color: #a0acba; }
 .home-clean-count { display: flex; align-items: end; justify-content: space-between; }
 .home-clean-count strong { color: var(--ui-text); font-size: 1.18rem; }
@@ -353,13 +356,35 @@ body.role-student .home-shop-item:hover { border-color: var(--ui-accent-line); b
 body.role-student .home-shop-icon { background: var(--ui-accent-soft); }
 body.role-student .home-shop-item small { color: var(--ui-gold); }
 body.role-student .home-clean-count span { color: var(--ui-gold); }
+
+/* 알림/상점은 다크 테마에서도 "한눈에 보이게" 다른 카드와 달리 밝은 양피지
+   톤으로 둔다. 일정·청소 같은 다른 홈 카드는 어두운 테마 그대로 유지. */
+body.role-student .home-notice-card,
+body.role-student .home-shop-preview {
+    background: linear-gradient(180deg, #fffaf0, #fbf3df);
+    border: 1px solid #e2c988;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+}
+body.role-student .home-notice-card .home-card-head h3,
+body.role-student .home-shop-preview .home-card-head h3 { color: #2b2313; }
+body.role-student .home-notice-card .home-card-head button,
+body.role-student .home-shop-preview .home-card-head button { color: #9a6a12; }
+body.role-student .home-notice-card .home-notice-item { background: rgba(255,255,255,.55); border-radius: 10px; border-top: 0; }
+body.role-student .home-notice-card .home-notice-item span { background: #fff1cf; color: #9a6a12; }
+body.role-student .home-notice-card .home-notice-item p { color: #5a4d2c; }
+body.role-student .home-shop-preview .home-shop-item { background: #fff; border-color: #e2c988; }
+body.role-student .home-shop-preview .home-shop-item:hover { background: #fffaf0; border-color: #cf9612; }
+body.role-student .home-shop-preview .home-shop-item strong { color: #2b2313; }
+body.role-student .home-shop-preview .home-shop-item small { color: #b9790f; }
+body.role-student .home-shop-preview .home-shop-icon { background: #fff1cf; }
+body.role-student .home-notice-card .home-empty,
+body.role-student .home-shop-preview .home-empty { color: #8a7a4e; }
 body.role-student .home-clean-track { background: var(--ui-surface-sunk); }
 body.role-student .home-clean-track i { background: linear-gradient(90deg, var(--gm-gold-lo), var(--gm-gold)); }
 
 @media (max-width: 1080px) {
     .home-extras-grid { grid-template-columns: 1fr; }
     .home-quick-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-    .home-hero-panel .hero-grid { max-height: none; grid-template-columns: repeat(4, minmax(0,1fr)); }
 }
 
 @media (max-width: 720px) {
@@ -369,12 +394,6 @@ body.role-student .home-clean-track i { background: linear-gradient(90deg, var(-
     .home-stat { justify-content: flex-start; border-right: 0; border-bottom: 1px solid var(--ui-line-soft); }
     .home-stat:last-child { border-bottom: 0; }
     .home-quick-grid { grid-template-columns: 1fr; }
-    .home-shop-list { grid-template-columns: 1fr; }
     .home-panel-hint { display: none; }
     .home-hero-panel { padding: 13px; }
-    .home-hero-panel .hero-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-}
-
-@media (max-width: 390px) {
-    .home-hero-panel .hero-grid { grid-template-columns: 1fr; }
 }
