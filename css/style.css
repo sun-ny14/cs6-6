@@ -2374,6 +2374,14 @@ body.role-student .hero-name {
    ========================================================= */
 .hero-card[class*="hero-deco-"],
 .hpe-avatar-stage[class*="hero-deco-"] { position: relative; overflow: visible; }
+/* body.role-student .hero-card::before/::after(용사 카드 네 귀퉁이 금색 각인, 아래쪽에
+   따로 정의됨)가 클래스 2개+엘리먼트/가상요소 2개라 이 규칙보다 우선순위가 높았다.
+   그래서 효과가 실제로는 13x13px짜리 귀퉁이 각인 박스 안에 눌려 들어가 제대로 안
+   보였다(카드 효과 전체가 다 이 문제였음). body.role-student를 그대로 앞에 붙여
+   우선순위를 맞추고, 귀퉁이 각인이 정하는 위치·크기·테두리를 전부 명시적으로
+   되돌린다. */
+body.role-student .hero-card[class*="hero-deco-"]::before,
+body.role-student .hero-card[class*="hero-deco-"]::after,
 .hero-card[class*="hero-deco-"]::before,
 .hero-card[class*="hero-deco-"]::after,
 .hpe-avatar-stage[class*="hero-deco-"]::before,
@@ -2381,6 +2389,14 @@ body.role-student .hero-name {
     content: "";
     position: absolute;
     inset: -3px;
+    top: -3px;
+    right: -3px;
+    bottom: -3px;
+    left: -3px;
+    width: auto;
+    height: auto;
+    border: 0;
+    opacity: 1;
     z-index: 2;
     pointer-events: none;
     border-radius: inherit;
@@ -2418,14 +2434,35 @@ body.role-student .hero-name {
     animation: deco-twinkle 1.6s ease-in-out infinite;
 }
 
-/* Lv.6 하트 */
-.hero-deco-hearts::before {
-    background-image:
-        radial-gradient(2.6px 2.6px at 20% 0%, #ff8fab, transparent),
-        radial-gradient(2.6px 2.6px at 50% 0%, #ffb3c6, transparent),
-        radial-gradient(2.6px 2.6px at 78% 0%, #ff8fab, transparent);
-    background-size: 100% 220%;
-    animation: deco-float-up 2.8s ease-in-out infinite;
+/* Lv.6 하트 — 점 3개가 아니라 실제 하트 모양 입자가 통통 튀며 떠오른다 */
+.hero-deco-hearts {
+    --heart-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' fill='white'/%3E%3C/svg%3E");
+}
+.hero-deco-hearts::before,
+.hero-deco-hearts::after {
+    background: linear-gradient(160deg, #ffc2d1, #ff4d6d 75%, #e63950);
+    -webkit-mask-image: var(--heart-svg), var(--heart-svg), var(--heart-svg), var(--heart-svg), var(--heart-svg);
+    mask-image: var(--heart-svg), var(--heart-svg), var(--heart-svg), var(--heart-svg), var(--heart-svg);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 11px 11px, 7px 7px, 9px 9px, 6px 6px, 8px 8px;
+    mask-size: 11px 11px, 7px 7px, 9px 9px, 6px 6px, 8px 8px;
+    -webkit-mask-position: 10% 100%, 32% 100%, 52% 100%, 74% 100%, 90% 100%;
+    mask-position: 10% 100%, 32% 100%, 52% 100%, 74% 100%, 90% 100%;
+    filter: drop-shadow(0 0 4px rgba(255, 77, 109, .55));
+    transform-origin: 50% 100%;
+}
+.hero-deco-hearts::before { animation: deco-hearts-rise 3s ease-in infinite; }
+.hero-deco-hearts::after {
+    animation: deco-hearts-rise 3s ease-in infinite 1.5s;
+    filter: drop-shadow(0 0 4px rgba(255, 142, 173, .5)) brightness(1.15);
+}
+@keyframes deco-hearts-rise {
+    0%   { transform: translateY(8%) scale(.55); opacity: 0; }
+    15%  { opacity: 1; }
+    55%  { transform: translateY(-55%) scale(1.05); }
+    85%  { opacity: .9; }
+    100% { transform: translateY(-120%) scale(.8); opacity: 0; }
 }
 
 /* Lv.8 나뭇잎 */
