@@ -2561,6 +2561,49 @@ body.role-student .checkin-stamp-body strong {
     text-shadow: 0 0 16px rgba(77, 220, 154, .5);
 }
 
+/* 등교 카드와 보급소(상점) 카드는 다크 테마에서도 밝은 톤으로 둬서
+   한눈에 들어오게 한다. 다른 카드(용사 카드 등)는 어두운 테마 그대로. */
+body.role-student .checkin-card,
+body.role-student .shop-page-card {
+    background: linear-gradient(180deg, #fffaf0, #fbf3df);
+    border: 1px solid #e2c988;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+}
+body.role-student .checkin-card .panel-head h3,
+body.role-student .checkin-card .field-label {
+    color: #2b2313;
+}
+body.role-student .checkin-card input {
+    background: #fff;
+    border-color: #e2c988;
+    color: #2b2313;
+}
+body.role-student .checkin-card .checkin-stamp {
+    background: #fff;
+    border-color: #e2c988;
+}
+body.role-student .checkin-card .checkin-stamp.is-good {
+    background: #eefaf1;
+    border-color: #8fd6ab;
+}
+body.role-student .checkin-card .checkin-stamp-body span {
+    color: #5a4d2c;
+}
+body.role-student .shop-page-card .shop-card {
+    background: #fff;
+    border-color: #e2c988;
+    color: #2b2313;
+}
+body.role-student .shop-page-card .shop-card h3 {
+    color: #2b2313;
+}
+body.role-student .shop-page-card .shop-card .tiny.muted {
+    color: #8a7a4e;
+}
+body.role-student .shop-page-card .shop-price {
+    color: #b9790f;
+}
+
 /* 하우징 방 액자 */
 body.role-student .room-canvas {
     border: 6px solid #2a3355;
