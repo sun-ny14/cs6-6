@@ -19,10 +19,10 @@ function resetInactivityTimer(){
 async function handleLogin(){
     const provider=new firebase.auth.GoogleAuthProvider();
     try{
-        // SESSION으로 해뒀더니 새로고침할 때마다(같은 탭이어도) 다시 로그인해야
-        // 했다는 피드백으로 LOCAL로 바꿨다. 로그인 결과 전달 방식(팝업/리다이렉트)과는
-        // 무관한 설정이라 아래 팝업 관련 대응에는 영향이 없다.
-        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        // LOCAL로 바꿨다가 되돌림: 새로고침 시 재로그인 문제의 원인은 SESSION이
+        // 아니라 다른 곳(로딩 화면 초기화 로직)이었다. 브라우저를 껐다 켜면
+        // 로그아웃되는 동작은 의도한 것이라 SESSION을 유지한다.
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         // 팝업 방식을 기본으로 쓴다. GitHub Pages가 모든 페이지에
         // Cross-Origin-Opener-Policy: same-origin을 붙여서(직접 끌 수 없음)
         // 팝업이 닫혔는지 확인하는 내부 폴링이 콘솔 에러를 내지만, 로그인
