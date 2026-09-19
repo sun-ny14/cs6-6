@@ -367,8 +367,14 @@ auth.onAuthStateChanged(async user=>{
         // startApp 실행 후 다시 한번 권한 적용
         applyAccessControl();
 
+        // 로그인 상태 확인은 새로고침할 때마다 다시 실행되는데, 여기서 항상
+        // 'main'으로 보내버리면 다른 탭(등교로그 등)에서 새로고침해도 매번
+        // 용사들 탭으로 튕겼다. global.js가 로드 시점에 sessionStorage의
+        // activeTab을 window.currentTab으로 이미 복원해 두므로, 그 값으로
+        // 보내면 첫 로그인(저장된 탭 없음)은 그대로 'main'이 되고, 새로고침은
+        // 있던 탭에 그대로 남는다.
         if(typeof showTab==='function'){
-            showTab('main');
+            showTab(window.currentTab||'main');
         }
 
         // 로그인 직후에는 window.currentTab의 기본값이 이미 'main'이라
