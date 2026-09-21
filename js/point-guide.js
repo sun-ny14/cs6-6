@@ -289,24 +289,6 @@ window.initPointsTabListeners = function() {
 // 2. 인벤토리 액션
 // ============================================================
 
-window.requestUseItem = async function(key, itemName) {
-    if (
-        confirm(
-            `[${itemName}] 물품을 사용하시겠습니까?\n` +
-            `선생님께 사용 승인 요청이 전송됩니다.`
-        )
-    ) {
-        try {
-            await window.callSecure('requestOrderUse', {orderKey:key});
-            alert('사용 요청이 전송되었습니다.');
-        } catch (error) {
-            console.error('사용 요청 오류:', error);
-            alert(error?.message || '사용 요청을 처리하지 못했습니다.');
-        }
-    }
-};
-
-
 window.approveItem = async function(key, user, item) {
     if (!canManageItemUseRequests()) {
         alert('상점 역할 학생과 선생님만 사용 요청을 승인할 수 있습니다.');
