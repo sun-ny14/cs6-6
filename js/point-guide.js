@@ -85,7 +85,7 @@ window.initPointsTabListeners = function() {
 
                         <div class="btn-row">
                             <button
-                                onclick="requestUseItem(decodeURIComponent('${pointGuideEncoded(key)}'),decodeURIComponent('${pointGuideEncoded(o.item)}'))"
+                                onclick="useInventoryItem(decodeURIComponent('${pointGuideEncoded(key)}'),decodeURIComponent('${pointGuideEncoded(o.item)}'))"
                                 class="btn btn--primary"
                             >
                                 사용하기
