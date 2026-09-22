@@ -326,6 +326,13 @@ auth.onAuthStateChanged(async user=>{
             }).catch(error=>{
                 console.warn('중복 하우징 아이템 정리 오류:',error);
             });
+            // 리셋 쿠폰 승인이 orders만 표시하고 pointShopPurchases는 안 풀어주던
+            // 버그로, 승인은 됐지만 실제로는 한도가 안 풀린 과거 건들을 한 번만 보정한다.
+            window.callSecure('backfillShopLimitResets').then(result=>{
+                if(result?.count)console.info(`상점 구매 한도 리셋 보정 ${result.count}건`);
+            }).catch(error=>{
+                console.warn('상점 구매 한도 리셋 보정 오류:',error);
+            });
         }
 
         if(loginScreen){

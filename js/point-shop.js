@@ -231,10 +231,62 @@ window.openEditShopPopup = function(k) {
                     <button onclick="saveEditShop('${k}')" class="btn btn--primary btn--lg">저장</button>
                     <button onclick="deleteShopItem('${k}')" class="btn btn--danger btn--lg">삭제</button>
                 </div>
+
+                <div class="field">
+                    <label class="field-label">학생별 구매 한도 리셋:</label>
+                    <div id="edit-shop-limit-reset-list" class="well">불러오는 중…</div>
+                </div>
             </div>`;
 
         if (typeof openPopup === 'function') openPopup("보급품 관리", h);
+        window.renderShopLimitResetList(k);
     });
+};
+
+// 이 상품을 산 학생별로 아직 리셋 안 된 구매 건수를 세어, 교사가 바로 리셋할 수 있게 보여준다.
+window.renderShopLimitResetList = async function(itemKey) {
+    const target = document.getElementById('edit-shop-limit-reset-list');
+    if (!target) return;
+    try {
+        const snap = await db.ref('orders').once('value');
+        const counts = new Map();
+        snap.forEach(child => {
+            const o = child.val();
+            if (o?.shopKey === itemKey && o?.limitReset !== true && o?.user) {
+                counts.set(o.user, (counts.get(o.user) || 0) + 1);
+            }
+        });
+        if (!counts.size) {
+            target.innerHTML = '<span class="muted small">구매한 학생이 없습니다.</span>';
+            return;
+        }
+        target.innerHTML = Array.from(counts, ([user, count]) => `
+            <div class="list-item">
+                <span>${shopEscapeHtml(user)} · ${count}회 구매</span>
+                <button
+                    class="btn btn--xs btn--warn"
+                    onclick="resetShopItemLimitForStudent('${shopEscapeHtml(itemKey)}',decodeURIComponent('${encodeURIComponent(user)}'))"
+                >한도 리셋</button>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('학생별 구매 현황 조회 오류:', error);
+        target.innerHTML = '<span class="muted small">불러오지 못했습니다.</span>';
+    }
+};
+
+// 교사가 물품 수정 팝업에서 특정 학생의 구매 한도를 바로 리셋한다.
+// 학생이 리셋 쿠폰으로 요청 → 승인하는 흐름과는 별개의 경로(교사가 직접 처리).
+window.resetShopItemLimitForStudent = async function(itemKey, studentName) {
+    if (!confirm(`${studentName} 용사의 이 상품 구매 한도를 리셋할까요?\n과거 구매 내역(연대기)은 그대로 남고, 다시 구매할 수 있게 됩니다.`)) return;
+    try {
+        const result = await window.callSecure('resetShopPurchaseLimit', {itemKey, studentName});
+        alert(`✅ ${studentName} 용사의 한도를 리셋했습니다. (적용 ${result?.count || 0}건)`);
+        window.renderShopLimitResetList(itemKey);
+    } catch (error) {
+        console.error('구매 한도 리셋 오류:', error);
+        alert(error?.message || '한도 리셋을 처리하지 못했습니다.');
+    }
 };
 
 window.saveEditShop = function(k) { 
@@ -261,34 +313,9 @@ window.deleteShopItem = function(k) {
     }
 };
 
-// 5. 관리자: 특정 학생의 특정 아이템 구매 한도 초기화 함수
-window.resetUserItemLimit = async function(userName) {
-    const itemName = prompt(`${userName} 학생의 구매 한도를 리셋할 '상품명'을 정확히 입력하세요.\n(주의: 띄어쓰기까지 상점에 등록된 이름과 똑같아야 합니다.)`);
-    if (!itemName) return;
-
-    if (!confirm(`${userName} 용사의 [${itemName}] 구매 기록을 초기화하시겠습니까?\n과거 구매 내역(연대기)은 보존되며, 상점에서 다시 구매할 수 있게 됩니다.`)) return;
-
-    const ordersSnap = await db.ref('orders').once('value');
-    let resetCount = 0;
-    const updates = {};
-
-    ordersSnap.forEach(child => {
-        const o = child.val();
-        if (o.user === userName && o.item === itemName) {
-            updates[`orders/${child.key}/item`] = `${itemName} (한도리셋)`;
-            updates[`orders/${child.key}/limitReset`] = true;
-            resetCount++;
-        }
-    });
-
-    if (resetCount > 0) {
-        await db.ref().update(updates);
-        alert(`✅ 완료! ${userName} 용사의 [${itemName}] 한도가 초기화되었습니다. (적용 횟수: ${resetCount}건)`);
-        if (typeof closePopup === 'function') closePopup();
-    } else {
-        alert(`⚠️ 해당 학생이 [${itemName}]을(를) 구매한 기록을 찾을 수 없습니다. 이름을 다시 확인해 주세요.`);
-    }
-};
+// 5. 관리자: 특정 학생의 특정 아이템 구매 한도 초기화는 "보급품 관리"(물품 수정)
+// 팝업의 "학생별 구매 한도 리셋" 목록으로 대체됨 — renderShopLimitResetList,
+// resetShopItemLimitForStudent 참고.
 
 // 6. 품절 상품 환불 처리 함수
 window.refundSoldOutItem = async function(orderKey, itemName, price) {
