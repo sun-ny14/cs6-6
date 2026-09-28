@@ -2289,7 +2289,8 @@ window.saveDetailLog=async function(
             date:date,
             attended:category!=='결석',
             category:category,
-            result:result
+            result:result,
+            fromPeriod:fromPeriod
         };
 
 

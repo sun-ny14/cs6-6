@@ -83,6 +83,26 @@
         ).trim();
     }
 
+    // 결석·조퇴는 청소시간에 자리에 없으므로 제외한다. 지각도 5교시 이후에나
+    // 등교하는 경우(늦은 지각)는 청소시간까지 도착하지 못하므로 함께 제외한다.
+    function fromPeriodNumber(value) {
+        const match = /^(\d+)/.exec(String(value || ''));
+        return match ? Number(match[1]) : 0;
+    }
+
+    function cleaningExclusion(record) {
+        if (!record) return null;
+        const category = String(record.category || '').trim();
+
+        if (category === '결석') return { label: '🚫 결석' };
+        if (category === '조퇴') return { label: '🚪 조퇴' };
+        if (category === '지각' && fromPeriodNumber(record.fromPeriod) >= 5) {
+            return { label: `⏰ ${record.fromPeriod || '5교시'} 지각` };
+        }
+
+        return null;
+    }
+
     function isCleaningStudent(name, role, assignments) {
         const saved = assignments && assignments[name];
 
@@ -242,7 +262,7 @@
                 number:student.number,
                 role:readRole(data.roles[student.name])
             }))
-            .filter(item => item.role);
+            .filter(item => item.role && !data.exclusions[item.name]);
 
         if (!checker) {
             const mine = assigned.find(item => item.name === loginName);
@@ -390,6 +410,17 @@
                 `;
             }
 
+            const exclusion = data.exclusions[seat.name];
+            if (exclusion) {
+                return `
+                    <article class="seat-cell is-empty">
+                        <span class="seat-no">${seat.row + 1}-${seat.col + 1}</span>
+                        <strong class="seat-name">${escapeHtml(seat.name)}</strong>
+                        <span class="seat-state small">${escapeHtml(exclusion.label)}</span>
+                    </article>
+                `;
+            }
+
             const role = readRole(data.roles[seat.name]);
             const cleaner = isCleaningStudent(
                 seat.name,
@@ -442,6 +473,7 @@
         const cleanerNames = data.seatInfo.seats
             .filter(seat => {
                 if (!seat.name) return false;
+                if (data.exclusions[seat.name]) return false;
                 if (data.checker) return true;
                 const role = readRole(data.roles[seat.name]);
                 return isCleaningStudent(seat.name, role, data.cleaningAssignments);
@@ -523,8 +555,12 @@
         Promise.all([
             readCleaningSettings(),
             statusRef.once('value'),
-            db.ref('seatLayoutData').once('value')
-        ]).then(([settings, statusSnapshot, seatSnapshot]) => {
+            db.ref('seatLayoutData').once('value'),
+            // 결석·조퇴·늦은 지각(5교시 이후) 학생을 제외하기 위한 오늘 출결 현황.
+            // attendanceRecords는 교사만 읽을 수 있어서, 누구나 읽을 수 있는
+            // 공개 좌석판 미러(blackboardDisplay)를 대신 사용한다.
+            db.ref('blackboardDisplay/data/checkins').once('value')
+        ]).then(([settings, statusSnapshot, seatSnapshot, checkinsSnapshot]) => {
             const roles = settings.studentRoles || {};
             const cleaningAssignments = settings.cleaningAssignments || {};
             const statuses = checker
@@ -533,6 +569,15 @@
             const seatInfo = getSeatInformation(settings,seatSnapshot.val() || {});
             const students = getStudentList(seatInfo.seats);
             const admin = isCleaningAdmin();
+
+            const exclusions = {};
+            (checkinsSnapshot.val() ? Object.values(checkinsSnapshot.val()) : []).forEach(record => {
+                if (!record || record.date !== today) return;
+                const name = String(record.name || '').trim();
+                if (!name) return;
+                const exclusion = cleaningExclusion(record);
+                if (exclusion) exclusions[name] = exclusion;
+            });
 
             const data = {
                 admin:admin,
@@ -544,7 +589,8 @@
                 cleaningAssignments:cleaningAssignments,
                 statuses:statuses,
                 seatInfo:seatInfo,
-                students:students
+                students:students,
+                exclusions:exclusions
             };
 
             const content = window.cleaningSubTab === 'cleaning'
