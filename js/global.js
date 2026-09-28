@@ -414,14 +414,8 @@ function startApp(){
         ?window.canManageShopRequests()
         :admin||commander;
 
-    const orderMgr=
-        document.getElementById('admin-order-mgr');
-
-    if(orderMgr){
-        orderMgr.style.display=
-            canManage?'block':'none';
-    }
-
+    // 상점 주문 관리 카드는 항상 숨겨두고, 상점 탭 배너의 "승인 대기 내역"
+    // 버튼을 눌렀을 때만 팝업으로 띄운다 (openApprovalPopup, js/point-shop.js).
 
     const blackboard=
         document.getElementById('btn-blackboard-admin');
@@ -1671,19 +1665,34 @@ async function loadHistory(name, firebaseKey) {
         .slice(0, 50);
 }
 
+    // 별도 필드 없이 기존 reason 문구로 탭을 나눈다.
+    // 상점 구매 로그는 "[상점 구매] 물품명" 형태로 저장되는 걸 코드에서 확인했다 (functions/index.js).
+    function historyAmount(item) {
+        return Number(
+            item.pChange ??
+            item.change ??
+            item.pAmt ??
+            item.amount ??
+            item.p ??
+            item.pointDelta ??
+            0
+        ) || 0;
+    }
+
+    function historyCategory(item) {
+        const reason = String(first(item, ['reason', 'title', 'memo'], ''));
+        if (reason.startsWith('[상점 구매]')) return 'shop';
+        const amount = historyAmount(item);
+        if (amount > 0) return 'praise';
+        if (amount < 0) return 'minus';
+        return 'point';
+    }
+
     function renderHistory(items) {
         if (!items.length) return '<div class="hd-empty">아직 포인트 증감 내역이 없습니다.</div>';
 
         return items.map(item => {
-            const amount = Number(
-    item.pChange ??
-    item.change ??
-    item.pAmt ??
-    item.amount ??
-    item.p ??
-    item.pointDelta ??
-    0
-) || 0;
+            const amount = historyAmount(item);
             const expAmount = Number(first(item, ['eAmt', 'expAmt', 'expChange'], 0)) || 0;
             const reason = first(item, ['reason', 'title', 'memo'], '포인트 변경');
             const time = [item.date, item.time].filter(Boolean).join(' ') ||
@@ -1716,7 +1725,8 @@ async function loadHistory(name, firebaseKey) {
             #${OVERLAY_ID} .hd-name{margin:0;color:var(--ui-text);font-family:var(--ui-font-display);font-size:var(--ui-title-size);line-height:1.2;font-weight:950}#${OVERLAY_ID} .hd-role{margin:8px 0 4px;color:var(--ui-muted);font-size:var(--ui-text-size);font-weight:750}#${OVERLAY_ID} .hd-meta{margin:0 0 22px;color:var(--ui-faint);font-size:var(--ui-small-size);font-weight:800}
             #${OVERLAY_ID} .hd-profile-stats{display:grid;flex-shrink:0;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:auto}#${OVERLAY_ID} .hd-profile-stat{padding:17px 9px;background:var(--ui-surface);border:1px solid var(--ui-gold-line);border-radius:15px}
             #${OVERLAY_ID} .hd-profile-stat span{display:block;color:var(--ui-muted);font-size:var(--ui-small-size);font-weight:800}#${OVERLAY_ID} .hd-profile-stat strong{display:block;margin-top:5px;color:var(--ui-text);font-size:var(--ui-heading-size);font-weight:950}
-            #${OVERLAY_ID} .hd-history{display:flex;min-width:0;min-height:0;flex-direction:column;padding:36px 32px 28px;background:var(--ui-surface-soft)}#${OVERLAY_ID} .hd-history-head{flex-shrink:0;padding-right:48px;margin-bottom:18px}
+            #${OVERLAY_ID} .hd-history{display:flex;min-width:0;min-height:0;flex-direction:column;padding:36px 32px 28px;background:var(--ui-surface-soft)}#${OVERLAY_ID} .hd-history-head{flex-shrink:0;padding-right:48px;margin-bottom:14px}
+            #${OVERLAY_ID} .hd-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px}#${OVERLAY_ID} .hd-tabs button{padding:6px 14px;border:1px solid var(--ui-line);border-radius:999px;background:var(--ui-surface);font-size:var(--ui-tiny-size);font-weight:800;cursor:pointer;color:var(--ui-muted)}#${OVERLAY_ID} .hd-tabs button.active{background:var(--ui-accent);color:var(--ui-on-accent);border-color:var(--ui-accent)}
             #${OVERLAY_ID} .hd-history-head h3{margin:0;color:var(--ui-text);font-family:var(--ui-font-display);font-size:var(--ui-subtitle-size);font-weight:950}#${OVERLAY_ID} .hd-history-head p{margin:7px 0 0;color:var(--ui-muted);font-size:var(--ui-small-size)}
             #${OVERLAY_ID} .hd-log-list{flex:1;min-height:0;overflow-y:auto;padding-right:5px}#${OVERLAY_ID} .hd-log-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;margin-bottom:10px;background:var(--ui-surface);border:1px solid var(--ui-line);border-radius:14px}
             #${OVERLAY_ID} .hd-log-copy{min-width:0}#${OVERLAY_ID} .hd-log-copy>strong{display:block;overflow:hidden;color:var(--ui-accent);font-size:var(--ui-text-size);text-overflow:ellipsis;white-space:nowrap}#${OVERLAY_ID} .hd-log-copy time{display:block;margin:5px 0;color:var(--ui-faint);font-size:var(--ui-small-size)}
@@ -1769,7 +1779,14 @@ async function loadHistory(name, firebaseKey) {
                 <div class="hd-profile-stats"><div class="hd-profile-stat"><span>포인트</span><strong>${points.toLocaleString('ko-KR')} P</strong></div><div class="hd-profile-stat"><span>경험치</span><strong>${exp.toLocaleString('ko-KR')} EXP</strong></div></div>
                 <button type="button" class="hd-room-button" data-hd-room>🏠 학생 방 방문하기</button>
             </aside>
-            <main class="hd-history"><header class="hd-history-head"><h3>포인트 증감 내역</h3><p>최근 기록부터 표시됩니다.</p></header><div class="hd-log-list"><div class="hd-loading">내역을 불러오는 중입니다.</div></div></main>
+            <main class="hd-history"><header class="hd-history-head"><h3>기록</h3>
+                <div class="hd-tabs">
+                    <button type="button" class="active" data-hd-tab="all">💰 포인트 내역</button>
+                    <button type="button" data-hd-tab="shop">🛍️ 구매 내역</button>
+                    <button type="button" data-hd-tab="praise">✨ 칭찬 로그</button>
+                    <button type="button" data-hd-tab="minus">⚠️ 감점 내역</button>
+                </div>
+            </header><div class="hd-log-list"><div class="hd-loading">내역을 불러오는 중입니다.</div></div></main>
         </section>`;
         overlay.querySelector('[data-hd-room]').onclick = () => {
             const owner = String(first(user, ['__firebaseKey', 'firebaseKey', 'userKey'], name));
@@ -1784,8 +1801,25 @@ async function loadHistory(name, firebaseKey) {
     first(user, ['__firebaseKey', 'firebaseKey', 'userKey'], name)
 );
         if (requestId !== activeRequest || overlay.hidden) return;
+
+        let activeTab = 'all';
         const list = overlay.querySelector('.hd-log-list');
-        if (list) list.innerHTML = renderHistory(items);
+        const renderActiveTab = () => {
+            if (!list) return;
+            const filtered = activeTab === 'all'
+                ? items
+                : items.filter(item => historyCategory(item) === activeTab);
+            list.innerHTML = renderHistory(filtered);
+        };
+        renderActiveTab();
+
+        overlay.querySelectorAll('[data-hd-tab]').forEach(button => {
+            button.onclick = () => {
+                activeTab = button.dataset.hdTab;
+                overlay.querySelectorAll('[data-hd-tab]').forEach(b => b.classList.toggle('active', b === button));
+                renderActiveTab();
+            };
+        });
     }
 
     // window 캡처 단계에서 먼저 처리하여 이전 상세창 클릭 코드를 확실히 막습니다.

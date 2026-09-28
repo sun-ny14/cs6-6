@@ -166,11 +166,8 @@ function applyAccessControl(){
     // 나의 인벤토리와 개인 포인트 내역은 아래에서 기존대로 표시된다.
     setMenuVisible('point-guide-panel',admin);
 
-    // 상점 주문 관리
-    setMenuVisible(
-        'admin-order-mgr',
-        window.canManageShopRequests()
-    );
+    // 상점 주문 관리 카드는 항상 숨겨두고, 상점 탭 배너의 "승인 대기 내역"
+    // 버튼을 눌렀을 때만 팝업으로 띄운다 (openApprovalPopup, js/point-shop.js).
 
     // 학생 등교와 교사 최종 출결은 메뉴와 탭을 공유하지 않는다.
     setMenuVisible('btn-student-checkin',!admin);

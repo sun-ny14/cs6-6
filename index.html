@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poor+Story&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 
-<link rel="stylesheet" href="css/style.css?v=20260919-font-swap-1">
+<link rel="stylesheet" href="css/style.css?v=20260928-shop-redesign-1">
 <link rel="stylesheet" href="css/classroom-dashboard.css?v=20260919-font-swap-1">
 
 </head>
@@ -214,12 +214,17 @@
         <!-- 2. 상점 -->
         <section id="tab-shop" class="tab-content">
 
-            <header class="page-head">
-                <div>
+            <div class="shop-banner">
+                <div class="shop-banner-title">
                     <h2>🛍️ 용사 보급소</h2>
-                    <p>모은 포인트로 교환합니다.</p>
+                    <p class="shop-banner-desc">모은 포인트로 교환합니다.</p>
                 </div>
-            </header>
+                <div class="shop-banner-actions">
+                    <button id="shop-bulk-stock-btn" onclick="openBulkStockPopup()" class="btn btn--outline" hidden>📦 재고 일괄 수정</button>
+                    <button id="shop-approval-btn" onclick="openApprovalPopup()" class="btn btn--outline" hidden>🔔 승인 대기 내역<span id="shop-approval-badge" class="shop-badge-count" hidden>0</span></button>
+                    <button id="shop-add-item-btn" onclick="openAddShopPopup()" class="btn btn--primary" hidden>+ 새 물품 등록</button>
+                </div>
+            </div>
 
             <div class="card shop-page-card">
                 <div id="shop-list"></div>
@@ -697,13 +702,13 @@
 <script src="functions/checkin-password-core.js?v=20260911-final-2"></script>
 <script src="js/checkin-password.js?v=20260915-connected-fix-1"></script>
 <script src="js/blackboard-share.js?v=20260914-attendance-split-1"></script>
-<script src="js/global.js?v=20260918-main-tab-hook-1"></script>
+<script src="js/global.js?v=20260928-shop-banner-1"></script>
 <script src="js/home-dashboard.js?v=20260919-merge-1"></script>
-<script src="js/auth.js?v=20260919-restore-tab-1"></script>
+<script src="js/auth.js?v=20260928-shop-banner-1"></script>
 <script src="js/checkin-seat.js?v=20260919-merge-1"></script>
-<script src="js/hero-mgr.js?v=20260919-merge-1"></script>
-<script src="js/point-shop.js?v=20260917-parallel-approve-1"></script>
-<script src="js/point-guide.js?v=20260917-parallel-approve-1"></script>
+<script src="js/hero-mgr.js?v=20260928-hamster-heroes-1"></script>
+<script src="js/point-shop.js?v=20260928-shop-redesign-1"></script>
+<script src="js/point-guide.js?v=20260928-shop-banner-1"></script>
 <script src="js/housing.js?v=20260917-place-secure-1"></script>
 <script src="js/admin-grades.js?v=20260916-foreach-fix-1"></script>
 <script src="js/blackboard-admin.js?v=20260917-today-default-1"></script>

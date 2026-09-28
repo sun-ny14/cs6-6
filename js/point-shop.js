@@ -12,15 +12,40 @@ window.changeShopCat = (cat) => {
     window.renderShop(); 
 };
 
+// 카테고리별 아이콘·톤 (Stitch 시안 참고 — 이미지 없이 이모지+그라디언트로 표현)
+const SHOP_CAT_META = {
+    "🍕 먹거리": { icon: "🍕", tone: "food" },
+    "🎫 쿠폰": { icon: "🎫", tone: "coupon" },
+    "🎲 뽑기": { icon: "🎲", tone: "draw" },
+    "✏️ 학용품": { icon: "✏️", tone: "supply" },
+    "✨ 기타": { icon: "✨", tone: "etc" }
+};
+function shopCatMeta(cat) {
+    return SHOP_CAT_META[cat] || { icon: "🛍️", tone: "etc" };
+}
+
+// 상점 배너의 관리 버튼(재고 일괄 수정/승인 대기 내역/새 물품 등록)은
+// 역할에 따라 보이고 숨는다. 새 물품 등록·재고 일괄 수정은 교사만, 승인 대기 내역은
+// 교사 + 상점 역할 학생까지 볼 수 있다 (canManageShopRequests와 동일한 기준).
+function updateShopBannerButtons() {
+    const admin = typeof isAdmin !== 'undefined' && isAdmin === true;
+    const canManage = typeof window.canManageShopRequests === 'function' && window.canManageShopRequests();
+    const addBtn = document.getElementById('shop-add-item-btn');
+    const bulkBtn = document.getElementById('shop-bulk-stock-btn');
+    const approvalBtn = document.getElementById('shop-approval-btn');
+    if (addBtn) addBtn.hidden = !admin;
+    if (bulkBtn) bulkBtn.hidden = !admin;
+    if (approvalBtn) approvalBtn.hidden = !canManage;
+}
+
 // 1. 상점 렌더링 (진열)
 window.renderShop = function() {
-    const shopDiv = document.getElementById('shop-list'); 
+    const shopDiv = document.getElementById('shop-list');
     if (!shopDiv) return;
-    
+
+    updateShopBannerButtons();
+
     let html = `<div class="stack">`;
-    if (typeof isAdmin !== 'undefined' && isAdmin) {
-        html += `<button onclick="openAddShopPopup()" class="btn btn--outline btn--block">+ 새 물품 등록</button>`;
-    }
 
     const categories = ["전체", "🍕 먹거리", "🎫 쿠폰", "🎲 뽑기", "✏️ 학용품", "✨ 기타"];
     html += `<div class="chip-group">`;
@@ -40,32 +65,48 @@ window.renderShop = function() {
             hasItems = true;
 
             const isSoldOut = item.isSoldOut === true || (item.stock !== null && item.stock <= 0 && item.stock !== -1);
-            let stockDisplay = (item.stock !== null && item.stock !== undefined && item.stock !== -1) ? `<span class="badge">남은 수량: ${shopEscapeHtml(item.stock)}개</span>` : "";
-            if (isSoldOut) {
-                stockDisplay = `<span class="badge badge--bad">🚫 품절된 상품입니다</span>`;
-            }
+            const hasStock = item.stock !== null && item.stock !== undefined && item.stock !== -1;
+            const lowStock = hasStock && !isSoldOut && Number(item.stock) <= 5;
+            const meta = shopCatMeta(item.cat);
+
+            let statusBadge = "";
+            if (isSoldOut) statusBadge = `<span class="shop-status is-bad">품절</span>`;
+            else if (lowStock) statusBadge = `<span class="shop-status is-warn">품절임박</span>`;
+
+            let stockDisplay = hasStock
+                ? `<div class="shop-stock-pill${lowStock ? ' is-low' : ''}"><span>남은 수량</span><b>${shopEscapeHtml(item.stock)}개</b></div>`
+                : `<div class="shop-stock-pill is-unlimited"><span>재고</span><b>넉넉함</b></div>`;
 
             let btnHtml = isSoldOut
                 ? `<button disabled class="btn btn--block is-disabled">품절 🚫</button>`
                 : `<button onclick="buyItem('${shopEscapeHtml(k)}', this)" class="btn btn--primary btn--block">구매하기</button>`;
 
             let adminBtnHtml = (typeof isAdmin !== 'undefined' && isAdmin)
-                ? `<div class="row-actions"><button onclick="openEditShopPopup('${shopEscapeHtml(k)}')" class="btn btn--xs">⚙️ 수정/삭제</button></div>` : "";
+                ? `<button onclick="openEditShopPopup('${shopEscapeHtml(k)}')" class="shop-edit-link">⚙️ 수정/삭제</button>` : "";
 
             let limitText = (item.limit > 0) ? `최대 ${shopEscapeHtml(item.limit)}회 구매` : '무제한 구매';
 
             cardsHtml += `
-                <div class="shop-card${isSoldOut ? ' is-soldout' : ''} center">
-                    <div class="tiny muted">${shopEscapeHtml(item.cat || '미분류')}</div>
-                    <h3>${shopEscapeHtml(item.name)}</h3>
-                    ${stockDisplay}
-                    <p class="shop-price">💰 ${shopEscapeHtml(item.price)} P</p>
-                    <p class="tiny muted">🔄 ${limitText}</p>
-                    <div class="stack stack--sm">
-                        ${btnHtml}
-                        ${adminBtnHtml}
+                <article class="shop-card tone-${meta.tone}${isSoldOut ? ' is-soldout' : ''}">
+                    <div class="shop-card-visual">
+                        <span class="shop-card-icon">${meta.icon}</span>
+                        <span class="shop-cat-tag">${shopEscapeHtml(item.cat || '미분류')}</span>
+                        ${statusBadge}
                     </div>
-                </div>`;
+                    <div class="shop-card-body">
+                        <h3>${shopEscapeHtml(item.name)}</h3>
+                        ${stockDisplay}
+                        <div class="shop-price-row">
+                            <span class="shop-price">💰 ${shopEscapeHtml(item.price)}</span>
+                            <span class="shop-price-unit">P</span>
+                        </div>
+                        <p class="shop-limit-note">🔄 ${limitText}</p>
+                        <div class="shop-card-actions">
+                            ${btnHtml}
+                            ${adminBtnHtml}
+                        </div>
+                    </div>
+                </article>`;
         });
     }
 
@@ -423,6 +464,75 @@ window.rejectSingleItem = async function(key) {
         alert(error?.message || '거절 처리 중 오류가 발생했습니다.');
     }
 };
+
+// 12. 관리자: 재고 일괄 수정 팝업 (여러 물품의 재고를 한 화면에서 한번에 수정)
+window.openBulkStockPopup = function() {
+    if (!window.shopData || !window.shopData.length) {
+        alert('등록된 물품이 없습니다.');
+        return;
+    }
+
+    const rows = window.shopData.map(child => {
+        const k = child.key, item = child.val();
+        const stockVal = (item.stock !== undefined && item.stock !== null) ? item.stock : "";
+        return `
+            <div class="field">
+                <label class="field-label">${shopEscapeHtml(item.name)} <span class="tiny muted">(${shopEscapeHtml(item.cat || '미분류')})</span></label>
+                <input type="number" class="bulk-stock-input" data-key="${shopEscapeHtml(k)}" value="${shopEscapeHtml(stockVal)}" placeholder="빈칸이면 무제한">
+            </div>`;
+    }).join('');
+
+    const h = `<div class="stack">
+        <h3>📦 재고 일괄 수정</h3>
+        <p class="tiny muted">숫자를 비워두면 무제한 재고로 처리됩니다.</p>
+        <div class="stack">${rows}</div>
+        <button onclick="saveBulkStock()" class="btn btn--primary btn--block">전체 저장</button>
+    </div>`;
+    if (typeof openPopup === 'function') openPopup('재고 일괄 수정', h);
+};
+
+window.saveBulkStock = function() {
+    const inputs = document.querySelectorAll('.bulk-stock-input');
+    if (!inputs.length) return;
+    const updates = {};
+    inputs.forEach(input => {
+        const k = input.dataset.key;
+        const raw = input.value;
+        updates[`shop/${k}/stock`] = raw !== "" ? parseInt(raw) : null;
+    });
+    db.ref().update(updates).then(() => {
+        alert('✅ 재고가 일괄 수정되었습니다!');
+        if (typeof closePopup === 'function') closePopup();
+    });
+};
+
+// 13. 관리자 / 상점 역할: 승인 대기 내역 팝업
+// 별도 화면을 새로 만드는 대신, 기존 #order-list(사용 요청 승인 카드)가
+// point-guide.js의 실시간 리스너로 계속 갱신하는 내용을 그대로 팝업에 띄운다.
+window.openApprovalPopup = function() {
+    window.shopApprovalPopupOpen = true;
+    const listEl = document.getElementById('order-list');
+    const html = listEl ? listEl.innerHTML : '';
+    if (typeof openPopup === 'function') {
+        openPopup('📜 사용 요청 승인', html || "<div class='empty'><strong>대기 중인 사용 요청이 없습니다.</strong></div>");
+    }
+};
+
+// 승인 팝업이 열려있는 동안에는 point-guide.js의 주문 리스너가 팝업 내용도
+// 같이 갱신해야 한다. 다른 팝업이 뜨거나 닫히면 플래그를 꺼서 엉뚱한 팝업
+// 내용을 덮어쓰지 않게 한다.
+(function() {
+    const baseOpenPopup = window.openPopup;
+    const baseClosePopup = window.closePopup;
+    window.openPopup = function(title, content) {
+        if (title !== '📜 사용 요청 승인') window.shopApprovalPopupOpen = false;
+        return baseOpenPopup.apply(this, arguments);
+    };
+    window.closePopup = function() {
+        window.shopApprovalPopupOpen = false;
+        return baseClosePopup.apply(this, arguments);
+    };
+})();
 
 // 로그인 후 상점 실시간 데이터 연결
 window.shopRef = null;

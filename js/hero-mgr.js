@@ -6,15 +6,33 @@
    ========================================================= */
 
 window.AVATAR_NAMES = [
-    "귀여운", "신사", "사랑스러운", "패셔니스타", "밥먹는",
-    "날쌘돌이", "즐거운", "행복한", "정의로운", "천사",
-    "닌자", "왕자", "공주", "근육맨", "마법사",
-    "용사", "공부하는", "춤추는", "노래하는", "무지개"
+    "용사", "날쌘돌이", "신사", "사랑스러운", "마법사",
+    "닌자", "천사", "왕자", "용맹한 기사", "공부하는",
+    "요리하는", "그림그리는", "우주비행사", "해적", "정원사",
+    "노래하는", "탐정", "잠꾸러기", "무지개", "행복한"
+];
+
+// hamster-heroes.png는 7열 x 3행(21마리) 캐릭터 시트에서 골라 쓴다.
+// [열, 행] 좌표는 AVATAR_NAMES와 같은 순서. (원본 시트에 마법사가 2번 나와서
+// 하나는 제외하고, 천사 자리를 하나 더 써서 "행복한"에 배정했다.)
+const AVATAR_GRID_POS = [
+    [0, 0], [1, 0], [2, 0], [3, 0], [4, 0],
+    [5, 0], [6, 0], [1, 1], [3, 1], [4, 1],
+    [5, 1], [6, 1], [0, 2], [1, 2], [2, 2],
+    [3, 2], [4, 2], [5, 2], [6, 2], [2, 1]
 ];
 
 function getAvatar(lv, selectedAnimal, size) {
-    const githubImageUrl =
-        "https://github.com/sun-ny14/cs6-6/blob/main/%EC%9C%A1%EC%9C%A1%EC%9D%B4.png?raw=true";
+    const imageUrl = "hamster-heroes.png";
+    const IMAGE_W = 1376;
+    const IMAGE_H = 768;
+    // 원본 시트에서 캐릭터 한 마리가 차지하는 칸의 중심 좌표(px).
+    const COL_STEP = 192;
+    const COL_START = 108;
+    const ROW_CENTERS = [166, 388, 610];
+    // 캐릭터 원 하나를 이 픽셀 폭만큼만 오려서 보여준다 (이름 캡션과
+    // 옆 캐릭터가 잘려나가도록 살짝 확대해서 자른다).
+    const CROP_PX = 130;
 
     const animals = window.AVATAR_NAMES;
 
@@ -22,22 +40,25 @@ function getAvatar(lv, selectedAnimal, size) {
 
     const name =
         selectedAnimal ||
-        animals[Math.min(Math.max(level - 1, 0), 19)];
+        animals[Math.min(Math.max(level - 1, 0), animals.length - 1)];
 
     const index =
         animals.indexOf(name) === -1
             ? 0
             : animals.indexOf(name);
 
-    const col = index % 5;
-    const row = Math.floor(index / 5);
-
-    const posX = col * 25;
-    const posY = row * 33.33;
-
+    const [col, row] = AVATAR_GRID_POS[index] || [0, 0];
+    const centerX = COL_START + col * COL_STEP;
+    const centerY = ROW_CENTERS[row] || ROW_CENTERS[0];
 
     const avatarSize =
         Math.max(56, parseInt(size, 10) || 86);
+
+    const scale = avatarSize / CROP_PX;
+    const bgW = IMAGE_W * scale;
+    const bgH = IMAGE_H * scale;
+    const posX = -(centerX * scale - avatarSize / 2);
+    const posY = -(centerY * scale - avatarSize / 2);
 
     return `
         <div class="hero-avatar-frame" style="
@@ -47,13 +68,11 @@ function getAvatar(lv, selectedAnimal, size) {
             <div style="
                 width:100%;
                 height:100%;
-                background-image:url('${githubImageUrl}');
-                background-size:500% 400%;
-                background-position:${posX}% ${posY}%;
+                background-image:url('${imageUrl}');
+                background-size:${bgW}px ${bgH}px;
+                background-position:${posX}px ${posY}px;
                 background-repeat:no-repeat;
                 image-rendering:pixelated;
-                transform:scale(1.15);
-                transform-origin:center;
             "></div>
         </div>
     `;

@@ -178,6 +178,24 @@ window.initPointsTabListeners = function() {
                 adminOrderHtml ||
                 "<div class='empty'><strong>대기 중인 사용 요청이 없습니다.</strong></div>";
         }
+
+        const approvalBadge = document.getElementById('shop-approval-badge');
+        if (approvalBadge) {
+            let pendingCount = 0;
+            pendingByUser.forEach(keys => { pendingCount += keys.length; });
+            approvalBadge.textContent = String(pendingCount);
+            approvalBadge.hidden = pendingCount === 0;
+        }
+
+        // 승인 팝업이 열려있는 동안에는 팝업 내용도 실시간으로 같이 갱신한다.
+        if (window.shopApprovalPopupOpen) {
+            const popEl = document.getElementById('pop-content');
+            if (popEl) {
+                popEl.innerHTML =
+                    adminOrderHtml ||
+                    "<div class='empty'><strong>대기 중인 사용 요청이 없습니다.</strong></div>";
+            }
+        }
     };
     ordersRef.on('value',ordersHandler);
 
