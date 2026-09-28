@@ -1224,12 +1224,22 @@ exports.manageShopOrder = callable(async request => {
         const match=/\(요청:\s*(.+)\)/.exec(String(before.item||''));
         if(match){
             const target=match[1];
-            const owned=await database.ref('orders').orderByChild('user').equalTo(before.user).get();
+            const [owned,purchases]=await Promise.all([
+                database.ref('orders').orderByChild('user').equalTo(before.user).get(),
+                database.ref(`users/${before.user}/pointShopPurchases`).get()
+            ]);
             owned.forEach(child=>{
                 const past=child.val()||{};
                 if(String(past.item||'').replace(' (한도리셋)','')===target){
                     updates[`orders/${child.key}/item`]=`${target} (한도리셋)`;
                     updates[`orders/${child.key}/limitReset`]=true;
+                    // orders와 users/{이름}/pointShopPurchases는 구매 시 같은 키
+                    // (purchaseId)로 동시에 기록된다. 구매 한도 체크(purchasePointShop)가
+                    // 두 저장소 중 더 큰 값을 쓰기 때문에, orders만 리셋 표시하면
+                    // 승인은 되어도 실제로는 한도가 안 풀리는 버그가 있었다.
+                    if(purchases.child(child.key).exists()){
+                        updates[`users/${before.user}/pointShopPurchases/${child.key}/limitReset`]=true;
+                    }
                 }
             });
         }
@@ -1279,4 +1289,78 @@ exports.manageShopOrder = callable(async request => {
         [`orders/${orderKey}`]:null
     });
     return {ok:true,points:nextPoints};
+});
+
+// 교사가 상점 "물품 수정" 화면에서 특정 학생의 특정 상품 구매 한도를 직접 리셋한다.
+// (학생이 리셋 쿠폰으로 요청 → 승인하는 흐름과는 별개의, 교사가 바로 처리하는 경로.
+// 둘 다 결국 orders/{키}와 users/{이름}/pointShopPurchases/{키}에 limitReset:true를
+// 남기는 같은 방식이라 구매 한도 체크(purchasePointShop) 쪽에서 동일하게 인식된다.)
+exports.resetShopPurchaseLimit = callable(async request => {
+    const current = await actor(request);
+    if (!current.teacher) throw new HttpsError('permission-denied', '교사만 사용할 수 있습니다.');
+    const itemKey = request.data?.itemKey;
+    const studentName = String(request.data?.studentName || '').trim();
+    if (!safeKey(itemKey)) throw new HttpsError('invalid-argument', '상품 정보를 확인해 주세요.');
+    if (!studentName || studentName.length > 100 || /[.#$\[\]/\u0000-\u001f]/.test(studentName)) {
+        throw new HttpsError('invalid-argument', '학생 이름을 확인해 주세요.');
+    }
+    const database = getDatabase();
+    const item = (await database.ref(`shop/${itemKey}`).get()).val();
+    if (!item) throw new HttpsError('not-found', '상품을 찾을 수 없습니다.');
+    const itemName = String(item.name || '').trim();
+
+    const [ownedSnapshot, purchasesSnapshot] = await Promise.all([
+        database.ref(`ordersByUser/${studentName}`).get(),
+        database.ref(`users/${studentName}/pointShopPurchases`).get()
+    ]);
+    const owned = ownedSnapshot.val() || {};
+    const updates = {};
+    let count = 0;
+    Object.entries(owned).forEach(([orderKey, order]) => {
+        if (order?.shopKey !== itemKey || order?.limitReset === true) return;
+        const baseItem = String(order.item || itemName).replace(' (한도리셋)', '');
+        updates[`orders/${orderKey}/item`] = `${baseItem} (한도리셋)`;
+        updates[`orders/${orderKey}/limitReset`] = true;
+        if (purchasesSnapshot.child(orderKey).exists()) {
+            updates[`users/${studentName}/pointShopPurchases/${orderKey}/limitReset`] = true;
+        }
+        count++;
+    });
+    if (!count) return { count: 0 };
+    await database.ref().update(updates);
+    return { count };
+});
+
+// 위 리셋 버그(orders만 표시되고 pointShopPurchases는 안 풀리던 것) 수정 이전에
+// 이미 "완료"로 승인됐던 요청들을 한 번만 보정한다. 관리자 로그인 시마다 호출해도
+// 두 번째부터는 migrations 마커를 보고 곧장 종료한다.
+exports.backfillShopLimitResets = callableHeavy(async request => {
+    const current = await actor(request);
+    if (!current.teacher) throw new HttpsError('permission-denied', '관리자만 실행할 수 있습니다.');
+    const database = getDatabase();
+    const doneSnapshot = await database.ref('migrations/shopLimitResetsBackfilled').get();
+    if (doneSnapshot.val() === true) return { count: 0, alreadyDone: true };
+
+    const orders = (await database.ref('orders').get()).val() || {};
+    const usersNeeded = new Set();
+    Object.values(orders).forEach(order => {
+        if (order?.limitReset === true && order?.user) usersNeeded.add(order.user);
+    });
+    const purchasesByUser = {};
+    await Promise.all(Array.from(usersNeeded).map(async name => {
+        purchasesByUser[name] = (await database.ref(`users/${name}/pointShopPurchases`).get()).val() || {};
+    }));
+
+    const updates = { 'migrations/shopLimitResetsBackfilled': true };
+    let count = 0;
+    Object.entries(orders).forEach(([orderKey, order]) => {
+        if (order?.limitReset !== true || !order?.user) return;
+        const purchase = purchasesByUser[order.user]?.[orderKey];
+        if (purchase && purchase.limitReset !== true) {
+            updates[`users/${order.user}/pointShopPurchases/${orderKey}/limitReset`] = true;
+            count++;
+        }
+    });
+    await database.ref().update(updates);
+    return { count };
 });
