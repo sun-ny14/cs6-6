@@ -2464,7 +2464,19 @@ window.saveDetailLog=async function(
 
         if(category==='지각'){
 
-            if(pointDelta<0){
+            // 질병/인정/미인정/기타처럼 "-"(해당없음)가 아닌 사유는 이미 공식
+            // 처리되는 사유라 포인트를 차감하지 않는다 — 그 사실을 그대로 알린다.
+            if(subCategory!=='해당없음'){
+
+                alert(
+                    pointDelta>0
+                        ?`✅ 지각 처리 완료\n`+
+                            `${subCategory} 사유로 기존 지각 차감 ${pointDelta}포인트가 복구되었습니다.`
+                        :`✅ 지각 처리 완료\n`+
+                            `${subCategory} 사유로 포인트 차감 없이 처리되었습니다.`
+                );
+
+            }else if(pointDelta<0){
 
                 alert(
                     `⚠️ 지각 처리 완료\n`+
