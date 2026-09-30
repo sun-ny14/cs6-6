@@ -718,6 +718,7 @@
             }
 
             await db.ref().update(updates);
+            if(field==='cleanDone')window.evaluateClassGoal?.();
 
             window.renderRoleCleaning();
         } catch (error) {

@@ -151,6 +151,10 @@
         ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
       }
     },
+    "classGoal": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'"
+    },
     "blackboardDisplay": {
       ".read": true,
       ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",

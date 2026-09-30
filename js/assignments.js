@@ -154,7 +154,7 @@
         await db.ref('blackboard/assignments').push(payload);
     }
 
-    async function toggleStudent(button){const id=button.dataset.assignmentId;const name=button.dataset.studentName;const done=button.dataset.done==='true';await db.ref(`blackboard/assignmentCompletions/${id}/${name}`).set(done?null:{completedAt:firebase.database.ServerValue.TIMESTAMP,completedBy:'admin'});}
+    async function toggleStudent(button){const id=button.dataset.assignmentId;const name=button.dataset.studentName;const done=button.dataset.done==='true';await db.ref(`blackboard/assignmentCompletions/${id}/${name}`).set(done?null:{completedAt:firebase.database.ServerValue.TIMESTAMP,completedBy:'admin'});window.evaluateClassGoal?.();}
     // 25명을 하나씩 누르는 대신 한 번에. 한 번의 update 로 쓰고 되돌리기를 답니다.
     async function setAllStudents(id,done){
         const targets=targetList(state.assignments[id]);
@@ -170,6 +170,7 @@
         });
 
         await db.ref('blackboard/assignmentCompletions').update(updates);
+        window.evaluateClassGoal?.();
 
         const title=String(state.assignments[id]?.title||'과제');
         window.showUndoBar?.(

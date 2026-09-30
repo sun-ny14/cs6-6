@@ -1303,6 +1303,28 @@ body.role-student .hero-name { font-size: 1.05rem; }
     gap: 6px;
 }
 
+/* 학급 공동 목표 위젯 (홈) */
+.goal-progress-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.goal-progress-title { font-family: var(--ui-font-display); font-size: 1.05rem; font-weight: 800; }
+.goal-progress-count { font-family: var(--ui-font-display); font-weight: 800; color: var(--ui-accent-deep); }
+body.role-student .goal-progress-count { color: var(--ui-gold); }
+.goal-bar-track { height: 14px; border-radius: 999px; background: var(--ui-surface-sunk); overflow: hidden; border: 1px solid var(--ui-line); margin-bottom: 12px; }
+.goal-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--ui-accent), var(--ui-accent-deep)); transition: width .4s ease; }
+body.role-student .goal-bar-fill { background: linear-gradient(90deg, var(--gm-gold-lo, #a87c2a), var(--ui-gold)); }
+.goal-cond-list { display: flex; flex-direction: column; gap: 6px; }
+.goal-cond { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--ui-surface-sunk); font-size: .85rem; }
+.goal-cond.is-done { background: rgba(34, 197, 94, .12); }
+.goal-cond-check { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; font-size: .75rem; background: var(--ui-line-soft); color: var(--ui-muted); }
+.goal-cond.is-done .goal-cond-check { background: var(--ui-good); color: #fff; }
+.goal-cond-desc { flex: 1; }
+.goal-cond-pts { font-weight: 800; font-size: .78rem; color: var(--ui-muted); }
+.goal-cond.is-done .goal-cond-pts { color: var(--ui-good); }
+
+/* 학급 공동 목표 관리 패널 (설정 탭, 교사용) */
+.goal-admin-row { display: flex; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--ui-line); border-radius: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.goal-admin-actions { display: flex; gap: 4px; margin-left: auto; }
+.goal-admin-actions .btn--xs { padding: 4px 8px; font-size: .72rem; }
+
 .hero-points {
     display: inline-flex;
     align-items: center;
