@@ -18,9 +18,10 @@
     function rotate(current, timestamp, randomInt) {
         const settings = current || {};
         const day = today(timestamp);
-        // 수동으로 저장한 암호는 날짜가 바뀌어도 그대로 유지한다.
-        // rotate는 기존 데이터에 유효한 암호가 없을 때의 초기 생성에만 사용한다.
-        if (valid(settings.password)) return;
+        // 같은 날짜에 이미 암호가 있으면(수동 저장 포함) 그대로 둔다.
+        // 날짜가 지났거나 암호가 아직 없으면 새로 만든다 — 이 새로 만드는 경로가
+        // 자정마다 실행되는 예약 함수(rotateCheckinPassword)를 통해 매일 자동 회전을 만든다.
+        if (valid(settings.password) && settings.passwordDate === day) return;
         return { ...settings, password: generate(settings.password, randomInt),
             passwordDate: day, passwordRevision: revision(settings.passwordRevision) + 1,
             passwordUpdatedAt: timestamp };
@@ -65,7 +66,7 @@
         const ref = database.ref('settings');
         const snapshot = await ref.once('value');
         let settings = snapshot.val() || {};
-        if (valid(settings.password)) return settings;
+        if (valid(settings.password) && settings.passwordDate === today(now())) return settings;
         if (!canWrite()) throw new Error('checkin/unavailable');
         const result = await ref.transaction(current => canWrite() ? rotate(current, now(), randomInt) : undefined, undefined, false);
         if (!canWrite()) throw new Error('checkin/unavailable');

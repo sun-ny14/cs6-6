@@ -2,9 +2,11 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onValueWritten } = require('firebase-functions/v2/database');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
-const { createHash, randomBytes, scryptSync, timingSafeEqual } = require('node:crypto');
+const { createHash, randomBytes, scryptSync, timingSafeEqual, randomInt: cryptoRandomInt } = require('node:crypto');
+const CheckinPasswordCore = require('./checkin-password-core.js');
 
 // 프로젝트에 복구용 RTDB 인스턴스도 있으므로 운영 DB를 명시한다.
 // 클라이언트가 보는 상점과 Functions가 조회하는 상점이 항상 같아진다.
@@ -14,8 +16,8 @@ const REGION = 'asia-northeast3';
 const TEACHER_EMAIL = 'ksosuny@cberi.go.kr';
 // js/hero-mgr.js의 AVATAR_NAMES/HERO_TITLE_LEVELS/HERO_DECORATION_LEVELS와
 // 목록을 맞춰서 유지한다(둘 중 하나만 바뀌면 서버 검증과 화면이 어긋난다).
-const HERO_AVATAR_NAMES = ['귀여운','신사','사랑스러운','패셔니스타','밥먹는','날쌘돌이','즐거운','행복한',
-    '정의로운','천사','닌자','왕자','공주','근육맨','마법사','용사','공부하는','춤추는','노래하는','무지개'];
+const HERO_AVATAR_NAMES = ['용사','날쌘돌이','신사','사랑스러운','마법사','닌자','천사','왕자',
+    '용맹한 기사','공부하는','요리하는','그림그리는','우주비행사','해적','정원사','노래하는','탐정','잠꾸러기','무지개','행복한'];
 const HERO_TITLE_NAMES = ['모험가','씩씩한 용사','견습 용사','용감한 초보','용감한 용사','믿음직한 동료',
     '정예 용사','노련한 전사','빛나는 유망주','빛나는 용사','왕국 수호자','백전노장','전설의 용사',
     '신화의 계승자','마스터 용사'];
@@ -1363,4 +1365,16 @@ exports.backfillShopLimitResets = callableHeavy(async request => {
     });
     await database.ref().update(updates);
     return { count };
+});
+
+// 매일 자정(한국시간)에 등교 암호를 자동으로 새로 만들어 전자칠판까지 반영한다.
+// 같은 날짜에 교사가 이미 손으로 암호를 저장했다면(core.rotate 참고) 그대로 둔다.
+exports.rotateCheckinPassword = onSchedule({
+    schedule: '0 0 * * *',
+    timeZone: 'Asia/Seoul',
+    region: REGION
+}, async () => {
+    const database = getDatabase();
+    const settings = await CheckinPasswordCore.ensureCurrent(database, () => Date.now(), cryptoRandomInt, () => true);
+    await CheckinPasswordCore.publish(database, settings, () => true);
 });
