@@ -121,10 +121,14 @@
         }
     }
 
+    // assignments.js의 roster()와 같은 기준으로 걸러야 대상 인원 수가 일치한다.
+    // "6-6 선생님"처럼 이름에 "선생님"이 들어간 계정은 currentUsers엔 남아있지만
+    // 과제 대상자는 아니라서, 여기서 안 빼면 그 학생들이 실제로 다 완료해도
+    // 인원수가 영원히 1명 모자라 보여서 "아 맞다"에서 안 사라졌다.
     function classRosterNames(){
         return (Array.isArray(window.currentUsers)?window.currentUsers:[])
             .map(user=>String(user?.name||'').trim())
-            .filter(name=>name&&name!=='총사령관');
+            .filter(name=>name&&name!=='총사령관'&&!name.includes('선생님'));
     }
 
     function progressSummary(){
