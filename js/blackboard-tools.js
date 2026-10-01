@@ -53,6 +53,7 @@
             .bb-qr-input{width:100%;box-sizing:border-box;padding:10px;border:2px solid #dfe6f0;border-radius:10px;font-size:14px;margin-bottom:10px;}
             .bb-qr-generate{padding:10px 20px;border:0;border-radius:12px;background:#27ae60;color:#fff;font-weight:900;font-size:14px;cursor:pointer;margin-bottom:14px;width:100%;}
             .bb-qr-image{width:180px;height:180px;border:6px solid #fff;box-shadow:0 8px 24px rgba(24,40,68,.2);border-radius:10px;display:none;}
+            .bb-qr-copy{margin-top:14px;padding:8px 18px;border:2px solid #27ae60;border-radius:12px;background:#fff;color:#27ae60;font-weight:900;font-size:13px;cursor:pointer;}
 
             @media(max-width:640px){
                 .bb-tool-btn{padding:8px 14px;font-size:12px;}
@@ -89,8 +90,12 @@
         });
         document.addEventListener('mousemove', event => {
             if (!dragging) return;
-            win.style.left = Math.max(0, event.clientX - offX) + 'px';
-            win.style.top = Math.max(0, event.clientY - offY) + 'px';
+            // 창이 화면 밖으로 끌려나가 안 보이는 곳에 갇히지 않도록, 보이는
+            // 화면 영역 안에서만 움직이게 가로/세로 둘 다 최대값도 함께 막는다.
+            const maxLeft = Math.max(0, window.innerWidth - win.offsetWidth);
+            const maxTop = Math.max(0, window.innerHeight - win.offsetHeight);
+            win.style.left = Math.min(maxLeft, Math.max(0, event.clientX - offX)) + 'px';
+            win.style.top = Math.min(maxTop, Math.max(0, event.clientY - offY)) + 'px';
         });
         document.addEventListener('mouseup', () => { dragging = false; });
 
@@ -104,8 +109,12 @@
         if (!win.classList.contains('show')){
             openCount += 1;
             const offset = (openCount % 5) * 24;
-            win.style.top = (70 + offset) + 'px';
-            win.style.left = (70 + offset) + 'px';
+            win.classList.add('show');
+            const maxLeft = Math.max(0, window.innerWidth - win.offsetWidth);
+            const maxTop = Math.max(0, window.innerHeight - win.offsetHeight);
+            win.style.top = Math.min(maxTop, 70 + offset) + 'px';
+            win.style.left = Math.min(maxLeft, 70 + offset) + 'px';
+            return;
         }
         win.classList.add('show');
     }
@@ -360,14 +369,34 @@
             <button type="button" class="bb-qr-generate" id="bb-qr-generate">QR 코드 생성</button>
             <br>
             <img class="bb-qr-image" id="bb-qr-image" alt="QR 코드">
+            <br>
+            <button type="button" class="bb-qr-copy" id="bb-qr-copy" style="display:none;">📋 이미지 복사</button>
         `);
+
+        const img = win.querySelector('#bb-qr-image');
+        const copyBtn = win.querySelector('#bb-qr-copy');
 
         win.querySelector('#bb-qr-generate').addEventListener('click', () => {
             const text = win.querySelector('#bb-qr-input').value.trim();
-            const img = win.querySelector('#bb-qr-image');
-            if (!text){ img.style.display = 'none'; return; }
+            if (!text){ img.style.display = 'none'; copyBtn.style.display = 'none'; return; }
             img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(text);
             img.style.display = 'inline-block';
+            copyBtn.style.display = 'inline-block';
+        });
+
+        copyBtn.addEventListener('click', async () => {
+            if (!img.src){ alert('먼저 QR 코드를 생성해 주세요.'); return; }
+            try{
+                if (!navigator.clipboard || !window.ClipboardItem) throw new Error('clipboard-unsupported');
+                const response = await fetch(img.src);
+                const blob = await response.blob();
+                await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                copyBtn.textContent = '✅ 복사됨!';
+                setTimeout(() => { copyBtn.textContent = '📋 이미지 복사'; }, 1500);
+            }catch(error){
+                console.warn('QR 이미지 복사 실패:', error);
+                alert('이 브라우저에서는 이미지 복사가 지원되지 않아요. 이미지를 길게 눌러(우클릭) 저장해 주세요.');
+            }
         });
 
         document.getElementById('bb-tool-qr-btn').addEventListener('click', () => openWindow(win));
