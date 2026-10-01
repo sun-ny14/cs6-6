@@ -304,6 +304,10 @@
             <button onclick="resetClassGoal()" class="btn btn--danger btn--block" style="margin-top:10px;">🗑️ 공동 목표 초기화</button>
         </div>`;
     }
+    // auth.js의 관리자 판정이 비동기라 이 모듈의 onAuthStateChanged 콜백이
+    // window.isAdmin이 확정되기 전에 먼저 실행될 수 있다. 그래서 admin 여부가
+    // 정해진 직후 auth.js에서 이 함수를 다시 호출해 패널을 그릴 수 있게 노출한다.
+    window.renderClassGoalAdminPanel=renderAdminPanel;
 
     // ---------------------------------------------------------
     // 홈 위젯 (학생·교사 공통 표시) + 달성 축하 연출
