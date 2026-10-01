@@ -271,9 +271,9 @@ auth.onAuthStateChanged(async user=>{
 
         window.myName=studentName;
         window.isAdmin=admin;
-        // class-goal.js의 관리자 패널은 여기서 isAdmin이 정해지기 전에
-        // 먼저 렌더링을 시도했을 수 있으니, 정해진 뒤 다시 그리게 한다.
-        if(typeof window.renderClassGoalAdminPanel==='function')window.renderClassGoalAdminPanel();
+        // class-goal.js의 홈 카드는 여기서 isAdmin이 정해지기 전에 먼저
+        // 그려졌을 수 있으니, 정해진 뒤 다시 그리게 한다.
+        if(typeof window.refreshClassGoalHomeCard==='function')window.refreshClassGoalHomeCard();
 
         window.isHelper=
             userData.isHelper===true||

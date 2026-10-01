@@ -182,9 +182,11 @@ body.role-teacher .page-head {
 /* 알림/과제/1인 1역·청소를 용사 패널 위에 한 줄로 보여주는 빠른 확인 카드 */
 .home-quick-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 18px;
 }
+
+#home-goal-card { cursor: pointer; }
 
 .home-quick-card { min-width: 0; }
 

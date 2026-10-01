@@ -258,21 +258,18 @@
     };
 
     // ---------------------------------------------------------
-    // 관리자용 패널 렌더 (설정 탭)
+    // 관리자용 관리 팝업 (홈 탭 "공동 목표" 카드 클릭 시)
     // ---------------------------------------------------------
-    function renderAdminPanel(){
-        const container=document.getElementById('class-goal-admin-panel');
-        if(!container||!isAdmin())return;
+    function adminPanelHtml(){
         const goal=window.classGoalData;
 
         if(!goal){
-            container.innerHTML=`<div class="stack">
+            return `<div class="stack">
                 <p class="tiny muted">아직 공동 목표가 없어요. 만들어보세요!</p>
                 <div class="field"><label class="field-label">목표 이름 (보상)</label><input type="text" id="goal-admin-title" placeholder="예: 🍪 과자 파티"></div>
                 <div class="field"><label class="field-label">목표 달성도</label><input type="number" id="goal-admin-target" value="10"></div>
                 <button onclick="saveClassGoalBasics()" class="btn btn--primary btn--block">공동 목표 만들기</button>
             </div>`;
-            return;
         }
 
         const conditions=Object.entries(goal.conditions||{});
@@ -293,7 +290,7 @@
             </div>`;
         }).join('')||'<p class="tiny muted">등록된 조건이 없습니다.</p>';
 
-        container.innerHTML=`<div class="stack">
+        return `<div class="stack">
             <p class="tiny muted">조건을 수정/삭제해도 진행도는 항상 "달성된 조건들의 합"으로 자동 재계산돼요.</p>
             <div class="field"><label class="field-label">목표 이름 (보상)</label><input type="text" id="goal-admin-title" value="${esc(goal.title||'')}"></div>
             <div class="field"><label class="field-label">목표 달성도 (현재 ${current})</label><input type="number" id="goal-admin-target" value="${esc(goal.target||0)}"></div>
@@ -304,10 +301,46 @@
             <button onclick="resetClassGoal()" class="btn btn--danger btn--block" style="margin-top:10px;">🗑️ 공동 목표 초기화</button>
         </div>`;
     }
-    // auth.js의 관리자 판정이 비동기라 이 모듈의 onAuthStateChanged 콜백이
-    // window.isAdmin이 확정되기 전에 먼저 실행될 수 있다. 그래서 admin 여부가
-    // 정해진 직후 auth.js에서 이 함수를 다시 호출해 패널을 그릴 수 있게 노출한다.
-    window.renderClassGoalAdminPanel=renderAdminPanel;
+
+    // ---------------------------------------------------------
+    // 학생용 읽기 전용 팝업 (수정 버튼 없이 진행 현황만)
+    // ---------------------------------------------------------
+    function viewPanelHtml(){
+        const goal=window.classGoalData;
+        if(!goal)return '<p class="tiny muted">아직 등록된 공동 목표가 없어요.</p>';
+
+        const current=goalProgress(goal);
+        const target=Number(goal.target)||1;
+        const pct=Math.max(0,Math.min(100,Math.round(current/target*100)));
+        const rows=Object.values(goal.conditions||{}).map(cond=>{
+            const done=cond.achieved===true;
+            return `<div class="goal-cond${done?' is-done':''}">
+                <span class="goal-cond-check">${done?'✓':''}</span>
+                <span class="goal-cond-desc">${esc(cond.desc)}</span>
+                <span class="goal-cond-pts">+${esc(cond.points)}</span>
+            </div>`;
+        }).join('')||'<p class="tiny muted">등록된 조건이 없습니다.</p>';
+
+        return `<div class="stack">
+            <div class="goal-progress-row">
+                <span class="goal-progress-title">${esc(goal.title||'')}</span>
+                <span class="goal-progress-count">${current} / ${target}</span>
+            </div>
+            <div class="goal-bar-track"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
+            <div class="goal-cond-list">${rows}</div>
+        </div>`;
+    }
+
+    window.openClassGoalManagePopup=function(){
+        if(typeof openPopup==='function')openPopup('🎉 공동 목표 관리',adminPanelHtml());
+    };
+    window.openClassGoalViewPopup=function(){
+        if(typeof openPopup==='function')openPopup('🎉 공동 목표',viewPanelHtml());
+    };
+    window.openClassGoalPopup=function(){
+        if(isAdmin())window.openClassGoalManagePopup();
+        else window.openClassGoalViewPopup();
+    };
 
     // ---------------------------------------------------------
     // 홈 위젯 (학생·교사 공통 표시) + 달성 축하 연출
@@ -373,38 +406,44 @@
         showCelebration(goal.title);
     }
 
+    // 홈 탭 퀵그리드 4번째 칸 — 제목 + 진행바만 보여주는 짧은 요약.
+    // 자세한 내용(조건 목록, 관리)은 카드를 눌렀을 때 뜨는 팝업에서 처리한다.
     function renderHomeWidget(){
         const container=document.getElementById('home-goal-widget');
         const section=document.getElementById('home-goal-card');
+        const openBtn=document.getElementById('home-goal-open-btn');
         if(!container||!section)return;
+        if(openBtn)openBtn.textContent=isAdmin()?'관리하기 ›':'자세히 보기 ›';
+
         const goal=window.classGoalData;
         if(!goal||goal.active===false){
-            section.hidden=true;
+            if(isAdmin()){
+                section.hidden=false;
+                container.innerHTML='<p class="tiny muted">아직 목표가 없어요. 눌러서 만들어보세요!</p>';
+            }else{
+                section.hidden=true;
+            }
             return;
         }
         section.hidden=false;
         const current=goalProgress(goal);
         const target=Number(goal.target)||1;
         const pct=Math.max(0,Math.min(100,Math.round(current/target*100)));
-        const conditions=Object.values(goal.conditions||{});
-        const rows=conditions.map(cond=>{
-            const done=cond.achieved===true;
-            return `<div class="goal-cond${done?' is-done':''}">
-                <span class="goal-cond-check">${done?'✓':''}</span>
-                <span class="goal-cond-desc">${esc(cond.desc)}</span>
-                <span class="goal-cond-pts">+${esc(cond.points)}</span>
-            </div>`;
-        }).join('')||'<p class="tiny muted">등록된 조건이 없습니다.</p>';
 
         container.innerHTML=`
             <div class="goal-progress-row">
                 <span class="goal-progress-title">${esc(goal.title||'')}</span>
                 <span class="goal-progress-count">${current} / ${target}</span>
             </div>
-            <div class="goal-bar-track"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
-            <div class="goal-cond-list">${rows}</div>
+            <div class="goal-bar-track" style="margin-bottom:0;"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
         `;
     }
+
+    // auth.js의 관리자 판정이 비동기라, 이 모듈의 onAuthStateChanged 콜백이
+    // window.isAdmin이 확정되기 전에 먼저 카드를 그렸을 수 있다(특히 "목표가
+    // 아직 없어서 교사한테만 보여야 하는" 상태에서). admin 여부가 정해진 직후
+    // auth.js가 다시 호출해서 바로잡을 수 있게 노출해둔다.
+    window.refreshClassGoalHomeCard=renderHomeWidget;
 
     // ---------------------------------------------------------
     // 실시간 리스너
@@ -419,9 +458,18 @@
             window.classGoalData=snapshot.val();
             renderHomeWidget();
             maybeCelebrate(window.classGoalData);
-            renderAdminPanel();
         };
         ref.on('value',handler,error=>console.error('공동 목표 로딩 오류:',error));
         stopListener=()=>ref.off('value',handler);
     });
+
+    document.addEventListener('DOMContentLoaded',()=>{
+        const card=document.getElementById('home-goal-card');
+        if(card)card.addEventListener('click',()=>window.openClassGoalPopup());
+    });
+    // DOMContentLoaded가 이미 지나간 뒤 이 스크립트가 로드됐을 수도 있으니 보강한다.
+    if(document.readyState!=='loading'){
+        const card=document.getElementById('home-goal-card');
+        if(card)card.addEventListener('click',()=>window.openClassGoalPopup());
+    }
 })();
