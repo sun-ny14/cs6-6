@@ -34,7 +34,39 @@
     }
 
     function popupStyle(){
-        return `<style>.briefing-list{display:grid;gap:10px;text-align:left;margin-top:10px}.briefing-item{display:flex;align-items:baseline;gap:8px;padding:12px 14px;border-radius:10px;background:var(--ui-surface-soft)}.briefing-item b{flex:1}.briefing-item small{color:var(--ui-muted);white-space:nowrap}.briefing-section{margin-top:16px;text-align:left}.briefing-section h4{margin:0 0 8px}.briefing-empty{color:var(--ui-muted);text-align:left;margin-top:10px}.briefing-more{color:var(--ui-muted);text-align:left;margin-top:6px;font-size:.92em}</style>`;
+        return `<style>.briefing-list{display:grid;gap:10px;text-align:left;margin-top:10px}.briefing-item{display:flex;align-items:baseline;gap:8px;padding:12px 14px;border-radius:10px;background:var(--ui-surface-soft)}.briefing-item b{flex:1}.briefing-item small{color:var(--ui-muted);white-space:nowrap}.briefing-section{margin-top:16px;text-align:left}.briefing-section h4{margin:0 0 8px}.briefing-empty{color:var(--ui-muted);text-align:left;margin-top:10px}.briefing-more{color:var(--ui-muted);text-align:left;margin-top:6px;font-size:.92em}.briefing-checkable{cursor:pointer;align-items:center}.briefing-checkable input{width:18px;height:18px;flex:none;cursor:pointer}.briefing-checkable:has(input:checked){background:var(--ui-good-soft);opacity:.7}</style>`;
+    }
+
+    // 교사가 다 읽지도 않고 그냥 닫아버리는 경우가 있어서, 체크박스를 전부
+    // 체크해야만 "확인 (닫기)" 버튼이 눌리게 막는다. 이 버튼은 앱 전체가 같이
+    // 쓰는 공용 버튼이라, 다른 팝업이 열릴 때는 반드시 원래 상태로 되돌려야 한다.
+    const CLOSE_BTN_DEFAULT_TEXT='확인 (닫기)';
+    function gateCloseUntilAllChecked(popupTitle){
+        const closeBtn=document.getElementById('pop-close-btn');
+        const checkboxes=Array.from(document.querySelectorAll('#pop-content .briefing-check'));
+        if(!closeBtn||!checkboxes.length)return;
+
+        function update(){
+            const remaining=checkboxes.filter(cb=>!cb.checked).length;
+            closeBtn.disabled=remaining>0;
+            closeBtn.textContent=remaining>0
+                ?`모두 확인하면 닫을 수 있어요 (${remaining}개 남음)`
+                :CLOSE_BTN_DEFAULT_TEXT;
+        }
+        checkboxes.forEach(cb=>cb.addEventListener('change',update));
+        update();
+
+        if(!window.__briefingCloseGateInstalled){
+            window.__briefingCloseGateInstalled=true;
+            const baseOpenPopup=window.openPopup;
+            window.openPopup=function(title,content){
+                if(title!==popupTitle){
+                    const btn=document.getElementById('pop-close-btn');
+                    if(btn){btn.disabled=false;btn.textContent=CLOSE_BTN_DEFAULT_TEXT;}
+                }
+                return baseOpenPopup.apply(this,arguments);
+            };
+        }
     }
 
     /* =========================================================
@@ -162,25 +194,28 @@
         if(!notices.length&&!schedule.length&&!progress.length)return;
 
         const icon=category=>category==='제출자료'?'📎':'📝';
+        const checkable=innerHtml=>`<label class="briefing-item briefing-checkable"><input type="checkbox" class="briefing-check"><span class="briefing-item-body">${innerHtml}</span></label>`;
 
         const noticeHtml=notices.length
-            ?`<div class="briefing-section"><h4>📣 오늘의 공지</h4><div class="briefing-list">${notices.map(line=>`<div class="briefing-item">${esc(line)}</div>`).join('')}</div></div>`
+            ?`<div class="briefing-section"><h4>📣 오늘의 공지</h4><div class="briefing-list">${notices.map(line=>checkable(esc(line))).join('')}</div></div>`
             :'';
 
         const scheduleHtml=schedule.length
-            ?`<div class="briefing-section"><h4>📅 오늘 일정</h4><div class="briefing-list">${schedule.map(line=>`<div class="briefing-item">${esc(line)}</div>`).join('')}</div></div>`
+            ?`<div class="briefing-section"><h4>📅 오늘 일정</h4><div class="briefing-list">${schedule.map(line=>checkable(esc(line))).join('')}</div></div>`
             :'';
 
         const progressHtml=progress.length
             ?`<div class="briefing-section"><h4>📋 과제·제출자료 진행 현황</h4><div class="briefing-list">${progress.map(({item,category,doneCount,total})=>
-                `<div class="briefing-item"><span>${icon(category)}</span><b>${esc(item.title||'제목 없음')}</b><small>완료 ${doneCount}/${total}명</small></div>`
+                checkable(`<span>${icon(category)}</span><b>${esc(item.title||'제목 없음')}</b><small>완료 ${doneCount}/${total}명</small>`)
             ).join('')}</div></div>`
             :'';
 
+        const title='아 맞다! 📋';
         window.openPopup(
-            '아 맞다! 📋',
-            `${popupStyle()}<div>오늘 하루 시작 전에 확인하세요</div>${noticeHtml}${scheduleHtml}${progressHtml}`
+            title,
+            `${popupStyle()}<div>모든 항목을 체크해야 닫을 수 있어요</div>${noticeHtml}${scheduleHtml}${progressHtml}`
         );
+        gateCloseUntilAllChecked(title);
 
         markShownToday();
     }

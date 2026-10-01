@@ -69,7 +69,7 @@
             ?students.map(student=>studentChip(id,student,Boolean(completed[student.name]))).join('')
             :'<span class="an-hint">대상 학생이 없습니다.</span>';
 
-        return{allDone,html:`<article class="assignment-card assignment-admin-card${allDone?' completed':''}"><div><h3>${allDone?'✅ ':''}${esc(item.title||'제목 없음')} · ${required?'🔴 필수':'🔵 선택'}</h3><div class="assignment-meta"><span class="assignment-due">마감 ${esc(item.dueDate||'-')} · 완료 ${doneCount}/${students.length}명</span>${targets?`<span class="assignment-badge targeted">🎯 지정 학생 ${targets.length}명</span>`:''}</div><div class="assignment-note">${item.description?esc(item.description):'참고사항 없음'}</div><div class="assignment-todo"><b>아직 안 낸 학생 ${incomplete.length}명</b>${missing}</div><div class="assignment-students chip-group">${chips}</div><div class="assignment-bulk"><button class="btn btn--xs" data-bulk-id="${esc(id)}" data-bulk-done="true">전원 완료</button><button class="btn btn--xs btn--outline" data-bulk-id="${esc(id)}" data-bulk-done="false">전원 해제</button><span class="an-hint">이름을 눌러 한 명씩 바꿀 수 있습니다.</span></div></div><div class="row-actions"><button class="btn btn--xs btn--danger" data-delete-id="${esc(id)}">삭제</button></div></article>`};
+        return{allDone,html:`<article class="assignment-card assignment-admin-card${allDone?' completed':''}"><div><h3>${allDone?'✅ ':''}${esc(item.title||'제목 없음')} · ${required?'🔴 필수':'🔵 선택'}</h3><div class="assignment-meta"><span class="assignment-due">마감 ${esc(item.dueDate||'-')} · 완료 ${doneCount}/${students.length}명</span>${targets?`<span class="assignment-badge targeted">🎯 지정 학생 ${targets.length}명</span>`:''}</div><div class="assignment-note">${item.description?esc(item.description):'참고사항 없음'}</div><div class="assignment-todo"><b>아직 안 낸 학생 ${incomplete.length}명</b>${missing}</div><div class="assignment-students chip-group">${chips}</div><div class="assignment-bulk"><button class="btn btn--xs" data-bulk-id="${esc(id)}" data-bulk-done="true">전원 완료</button><button class="btn btn--xs btn--outline" data-bulk-id="${esc(id)}" data-bulk-done="false">전원 해제</button><span class="an-hint">이름을 눌러 한 명씩 바꿀 수 있습니다.</span></div></div><div class="row-actions"><button class="btn btn--xs" data-edit-target-id="${esc(id)}">🎯 대상 수정</button><button class="btn btn--xs btn--danger" data-delete-id="${esc(id)}">삭제</button></div></article>`};
     }
 
     // 대상 학생 전원이 완료한 항목은 화면에 계속 떠 있지 않도록 "완료함"으로 접어서 모아둔다.
@@ -96,11 +96,55 @@
         return activeHtml+archivedHtml;
     }
 
-    function targetPickerHtml(){
+    function targetPickerHtml(checkedNames){
         const students=roster();
         if(!students.length)return '<span class="an-hint">학생 명단이 없습니다.</span>';
-        return students.map(student=>`<label><input type="checkbox" class="assignment-target-student" value="${esc(student.name)}"><span class="an-no">${student.number}</span> ${esc(student.name)}</label>`).join('');
+        const checked=checkedNames instanceof Set?checkedNames:null;
+        return students.map(student=>`<label><input type="checkbox" class="assignment-target-student" value="${esc(student.name)}"${checked&&checked.has(student.name)?' checked':''}><span class="an-no">${student.number}</span> ${esc(student.name)}</label>`).join('');
     }
+
+    // 등록할 때 전체/특정 학생 중 하나로 정했어도, 나중에 "이 학생은 이미
+    // 100점이라 안 해도 된다" 같은 이유로 대상을 바꾸고 싶을 수 있다.
+    // 완료 기록은 건드리지 않는다 — 대상에서 빠지면 isTargeted()가 알아서
+    // 걸러주므로 "미완료"로 더 이상 안 뜬다.
+    window.openEditTargetPopup=function(id){
+        const item=state.assignments[id];
+        if(!item)return;
+        const targets=targetList(item);
+        const mode=targets?'custom':'all';
+        const h=`<div class="stack">
+            <h3>🎯 "${esc(item.title||'제목 없음')}" 대상 수정</h3>
+            <div class="assignment-target-row">
+                <label><input type="radio" name="edit-target-mode" value="all" ${mode==='all'?'checked':''}> 전체 학생</label>
+                <label><input type="radio" name="edit-target-mode" value="custom" ${mode==='custom'?'checked':''}> 특정 학생</label>
+            </div>
+            <div id="edit-target-picker" class="assignment-target-picker" ${mode==='custom'?'':'hidden'}>${targetPickerHtml(targets?new Set(targets):null)}</div>
+            <button onclick="saveEditTarget('${esc(id)}')" class="btn btn--primary btn--block">저장</button>
+        </div>`;
+        if(typeof openPopup==='function')openPopup('대상 학생 수정',h);
+
+        document.querySelectorAll('input[name="edit-target-mode"]').forEach(radio=>{
+            radio.addEventListener('change',()=>{
+                const picker=document.getElementById('edit-target-picker');
+                if(picker)picker.hidden=radio.value!=='custom'||!radio.checked;
+            });
+        });
+    };
+
+    window.saveEditTarget=async function(id){
+        const mode=document.querySelector('input[name="edit-target-mode"]:checked')?.value||'all';
+        const updates={};
+        if(mode==='custom'){
+            const targetStudents=Array.from(document.querySelectorAll('#edit-target-picker .assignment-target-student:checked')).map(el=>el.value);
+            if(!targetStudents.length)return alert('특정 학생을 한 명 이상 선택해 주세요.');
+            updates[`blackboard/assignments/${id}/targetStudents`]=targetStudents;
+        }else{
+            updates[`blackboard/assignments/${id}/targetStudents`]=null;
+        }
+        await db.ref().update(updates);
+        window.evaluateClassGoal?.();
+        if(typeof closePopup==='function')closePopup();
+    };
 
     function adminForm(){
         return `<div class="assignment-admin-form">`+
@@ -223,6 +267,8 @@
                 if(bulk)await setAllStudents(bulk.dataset.bulkId,bulk.dataset.bulkDone==='true');
                 const remove=event.target.closest('[data-delete-id]');
                 if(remove)await deleteAssignment(remove.dataset.deleteId);
+                const editTarget=event.target.closest('[data-edit-target-id]');
+                if(editTarget)window.openEditTargetPopup(editTarget.dataset.editTargetId);
             });
             container.addEventListener('change',event=>{
                 if(window.isAdmin!==true)return;
