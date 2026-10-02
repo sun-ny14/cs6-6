@@ -16,6 +16,8 @@ function bindChange(id,handler){
 }
 
 function openBlackboardWindow(){
+    // 전자칠판은 교사만 연다. 학생 화면에서는 버튼도 숨기지만 여기서도 한 번 더 막는다.
+    if(window.isAdmin!==true)return;
     window.open('blackboard.html','_blank','fullscreen=yes');
 }
 

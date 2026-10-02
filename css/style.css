@@ -2215,6 +2215,11 @@ body.role-student .room-canvas {
 
 body.role-teacher #global-blackboard-fab { right: 96px; }
 
+/* 전자칠판 진입은 교사 전용: 학생 화면에서는 플로팅 버튼과 홈의 진입 버튼을 숨긴다. */
+body:not(.role-teacher) #global-blackboard-fab,
+body.role-student #home-board-open-btn,
+body.role-student #home-notice-board-link { display: none !important; }
+
 #global-blackboard-fab:hover { filter: brightness(1.05); }
 
 #floating-point-btn:hover,
