@@ -18,6 +18,7 @@
             .bb-tool-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 22px;border:0;border-radius:16px;color:#fff;font-weight:900;font-size:15px;cursor:pointer;box-shadow:0 6px 16px rgba(24,40,68,.25);font-family:inherit;}
             .bb-tool-btn .bb-emoji{font-size:26px;}
             #bb-tool-timer-btn{background:#3498db;}
+            #bb-tool-stopwatch-btn{background:#e74c3c;}
             #bb-tool-picker-btn{background:#8e44ad;}
             #bb-tool-noise-btn{background:#f39c12;}
             #bb-tool-qr-btn{background:#27ae60;}
@@ -36,6 +37,15 @@
             .bb-timer-controls button{padding:8px 16px;border:0;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;}
             .bb-tc-start{background:#27ae60;color:#fff;}
             .bb-tc-reset{background:#eef1f6;color:#182844;}
+
+            .bb-stopwatch-display{font-size:48px;font-weight:950;font-variant-numeric:tabular-nums;color:#e74c3c;margin-bottom:10px;}
+            .bb-stopwatch-controls{display:flex;gap:8px;justify-content:center;margin-bottom:12px;}
+            .bb-stopwatch-controls button{padding:8px 16px;border:0;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;}
+            .bb-sw-start{background:#27ae60;color:#fff;}
+            .bb-sw-lap{background:#eef1f6;color:#182844;}
+            .bb-sw-reset{background:#eef1f6;color:#182844;}
+            .bb-stopwatch-laps{max-height:120px;overflow-y:auto;text-align:left;font-size:13px;font-weight:700;color:#40525f;}
+            .bb-stopwatch-laps div{display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px dashed #eef1f6;}
 
             .bb-picker-reveal{font-size:44px;font-weight:950;margin:6px 0 14px;padding:20px;border-radius:16px;background:linear-gradient(135deg,#fdf0d5,#ffe6b3);color:#7a4b00;}
             .bb-picker-btn{padding:12px 30px;border:0;border-radius:14px;background:#8e44ad;color:#fff;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:12px;width:100%;}
@@ -203,6 +213,69 @@
         });
 
         document.getElementById('bb-tool-timer-btn').addEventListener('click', () => openWindow(win));
+    }
+
+    // ---------------------------------------------------------
+    // 스톱워치 (발표·활동 시간 재기, 기록 남기기)
+    // ---------------------------------------------------------
+    function setupStopwatch(){
+        const win = createFloatWindow('bb-win-stopwatch', '⏳ 스톱워치', `
+            <div class="bb-stopwatch-display" id="bb-sw-display">00:00.0</div>
+            <div class="bb-stopwatch-controls">
+                <button type="button" class="bb-sw-start" id="bb-sw-toggle">▶ 시작</button>
+                <button type="button" class="bb-sw-lap" id="bb-sw-lap">⚑ 기록</button>
+                <button type="button" class="bb-sw-reset" id="bb-sw-reset">↺ 초기화</button>
+            </div>
+            <div class="bb-stopwatch-laps" id="bb-sw-laps"></div>
+        `);
+
+        const display = win.querySelector('#bb-sw-display');
+        const toggleBtn = win.querySelector('#bb-sw-toggle');
+        const lapBtn = win.querySelector('#bb-sw-lap');
+        const lapsEl = win.querySelector('#bb-sw-laps');
+
+        let elapsedMs = 0, startedAt = 0, tickHandle = null, laps = [];
+
+        function format(ms){
+            const totalTenths = Math.floor(ms / 100);
+            const tenths = totalTenths % 10;
+            const totalSecs = Math.floor(totalTenths / 10);
+            const m = Math.floor(totalSecs / 60), s = totalSecs % 60;
+            return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + '.' + tenths;
+        }
+        function renderTime(){ display.textContent = format(elapsedMs); }
+        function renderLaps(){
+            lapsEl.innerHTML = laps
+                .map((ms, i) => `<div><span>${laps.length - i}번째</span><span>${format(ms)}</span></div>`)
+                .join('');
+        }
+
+        function stopTick(){ if (tickHandle){ clearInterval(tickHandle); tickHandle = null; } }
+        function start(){
+            if (tickHandle) return;
+            startedAt = Date.now() - elapsedMs;
+            toggleBtn.textContent = '⏸ 정지';
+            tickHandle = setInterval(() => {
+                elapsedMs = Date.now() - startedAt;
+                renderTime();
+            }, 100);
+        }
+        function pause(){ stopTick(); toggleBtn.textContent = '▶ 시작'; }
+
+        toggleBtn.addEventListener('click', () => { tickHandle ? pause() : start(); });
+        lapBtn.addEventListener('click', () => {
+            laps.unshift(elapsedMs);
+            renderLaps();
+        });
+        win.querySelector('#bb-sw-reset').addEventListener('click', () => {
+            pause();
+            elapsedMs = 0;
+            laps = [];
+            renderTime();
+            renderLaps();
+        });
+
+        document.getElementById('bb-tool-stopwatch-btn').addEventListener('click', () => openWindow(win));
     }
 
     // ---------------------------------------------------------
@@ -418,6 +491,7 @@
         bar.innerHTML = `
             <button type="button" id="bb-toolbar-handle"><span class="bb-handle-arrow">▾</span><span class="bb-handle-label">도구모음 접기</span></button>
             <button type="button" class="bb-tool-btn" id="bb-tool-timer-btn"><span class="bb-emoji">⏱️</span>타이머</button>
+            <button type="button" class="bb-tool-btn" id="bb-tool-stopwatch-btn"><span class="bb-emoji">⏳</span>스톱워치</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-picker-btn"><span class="bb-emoji">🎲</span>번호 뽑기</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-noise-btn"><span class="bb-emoji">🔊</span>소음계</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-qr-btn"><span class="bb-emoji">🔗</span>QR 만들기</button>
@@ -453,6 +527,7 @@
         injectToolbar();
         setupCollapse();
         setupTimer();
+        setupStopwatch();
         setupPicker();
         setupNoise();
         setupQr();
