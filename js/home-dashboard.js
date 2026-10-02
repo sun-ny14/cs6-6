@@ -62,8 +62,10 @@
         const admin=window.isAdmin===true;
         const myName=String(window.myName||'').trim();
         const all=assignmentRows(data);
+        const isAllDone=window.assignmentsIsAllDone||(()=>false);
+        // 교사: 대상 학생이 전부 완료한 과제는 "진행 중"에서 뺀다(제외한 학생은 세지 않음).
         const rows=admin
-            ?all
+            ?all.filter(([id,item])=>!isAllDone(item,data.assignmentCompletions?.[id]))
             :all.filter(([id])=>!data.assignmentCompletions?.[id]?.[myName]);
         const title=document.getElementById('home-task-title');
         const label=document.getElementById('home-stat-task-label');

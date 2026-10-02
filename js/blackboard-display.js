@@ -297,7 +297,7 @@
         const roster=getRoster();
         const cleaning=state.cleaningRoot?.[today]||{};
         const cleaningIncomplete=roster.filter(student=>!Boolean(cleaning[student.name]?.cleanDone));
-        const dueAssignments=Object.entries(state.assignments||{}).map(([id,item])=>{const completed=state.assignmentCompletions?.[id]||{};const incomplete=roster.filter(student=>!completed[student.name]);return {id,item,incomplete};}).filter(entry=>entry.item&&entry.item.active!==false&&entry.item.required!==false&&entry.incomplete.length>0);
+        const dueAssignments=Object.entries(state.assignments||{}).map(([id,item])=>{const completed=state.assignmentCompletions?.[id]||{};const targets=Array.isArray(item?.targetStudents)&&item.targetStudents.length?item.targetStudents:null;const incomplete=roster.filter(student=>(!targets||targets.includes(student.name))&&!completed[student.name]);return {id,item,incomplete};}).filter(entry=>entry.item&&entry.item.active!==false&&entry.item.required!==false&&entry.incomplete.length>0);
         const assignmentHtml=dueAssignments.length?dueAssignments.map(({item,incomplete})=>{
             return `<div class="task-due-item"><div class="task-due-title">${escapeHtml(item.title||'제목 없는 과제')} · 마감 ${escapeHtml(item.dueDate||'')}</div><div class="task-due-numbers">${incomplete.map(student=>`${student.number}번`).join(', ')}</div></div>`;
         }).join(''):'<div class="number-list all-done" style="font-size:32px">미완료 과제 없음</div>';
