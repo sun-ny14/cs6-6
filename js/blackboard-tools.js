@@ -7,7 +7,14 @@
     function injectStyles(){
         const style = document.createElement('style');
         style.textContent = `
-            #bb-toolbar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:14px;padding:16px;background:rgba(255,255,255,.9);backdrop-filter:blur(6px);box-shadow:0 -8px 30px rgba(24,40,68,.12);z-index:900;flex-wrap:wrap;}
+            #bb-toolbar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:14px;padding:16px;background:rgba(255,255,255,.9);backdrop-filter:blur(6px);box-shadow:0 -8px 30px rgba(24,40,68,.12);z-index:900;flex-wrap:wrap;transition:transform .25s ease;}
+            /* 손잡이는 도구모음의 자식으로 둬서, 접었다 펼 때 도구모음과 같이
+               움직인다(접히면 화면 아래로 내려갔다가 딱 화면 하단에 걸린다). */
+            #bb-toolbar-handle{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:8px 18px;border:0;border-radius:999px 999px 0 0;background:#182844;color:#fff;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 -4px 14px rgba(24,40,68,.2);z-index:901;font-family:inherit;pointer-events:auto;}
+            #bb-toolbar-handle .bb-handle-arrow{display:inline-block;transition:transform .25s ease;}
+            body.bb-tools-collapsed #bb-toolbar{transform:translateY(100%);}
+            body.bb-tools-collapsed #bb-toolbar .bb-tool-btn{visibility:hidden;}
+            body.bb-tools-collapsed #bb-toolbar-handle .bb-handle-arrow{transform:rotate(180deg);}
             .bb-tool-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 22px;border:0;border-radius:16px;color:#fff;font-weight:900;font-size:15px;cursor:pointer;box-shadow:0 6px 16px rgba(24,40,68,.25);font-family:inherit;}
             .bb-tool-btn .bb-emoji{font-size:26px;}
             #bb-tool-timer-btn{background:#3498db;}
@@ -409,6 +416,7 @@
         const bar = document.createElement('div');
         bar.id = 'bb-toolbar';
         bar.innerHTML = `
+            <button type="button" id="bb-toolbar-handle"><span class="bb-handle-arrow">▾</span><span class="bb-handle-label">도구모음 접기</span></button>
             <button type="button" class="bb-tool-btn" id="bb-tool-timer-btn"><span class="bb-emoji">⏱️</span>타이머</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-picker-btn"><span class="bb-emoji">🎲</span>번호 뽑기</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-noise-btn"><span class="bb-emoji">🔊</span>소음계</button>
@@ -417,9 +425,33 @@
         document.body.appendChild(bar);
     }
 
+    // 접힌/펼친 상태를 기기에 기억해 둔다. 처음 켰을 때는 접힌 상태로 시작해서
+    // 평소 화면을 가리지 않다가, 선생님이 필요할 때 펼쳐 쓰는 방식이다.
+    const COLLAPSE_STORAGE_KEY = 'bbToolbarCollapsed';
+    function setupCollapse(){
+        const handle = document.getElementById('bb-toolbar-handle');
+        const label = handle.querySelector('.bb-handle-label');
+
+        function applyState(collapsed){
+            document.body.classList.toggle('bb-tools-collapsed', collapsed);
+            label.textContent = collapsed ? '도구모음 펼치기' : '도구모음 접기';
+            try{ localStorage.setItem(COLLAPSE_STORAGE_KEY, collapsed ? '1' : '0'); }catch(error){}
+        }
+
+        let collapsed = true;
+        try{
+            const saved = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+            if (saved !== null) collapsed = saved === '1';
+        }catch(error){}
+
+        applyState(collapsed);
+        handle.addEventListener('click', () => applyState(!document.body.classList.contains('bb-tools-collapsed')));
+    }
+
     function init(){
         injectStyles();
         injectToolbar();
+        setupCollapse();
         setupTimer();
         setupPicker();
         setupNoise();
