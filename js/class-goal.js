@@ -9,9 +9,9 @@
     // (조건 판정은 매번 다시 계산되므로 하루 이틀 뒤에도 스스로 맞춰진다).
     function kstDateOffset(days){return new Date(Date.now()+9*3600000+days*86400000).toISOString().slice(0,10);}
 
-    function roster(usersObj){
-        return Object.entries(usersObj||{})
-            .map(([key,user])=>String(user?.name||key||'').trim())
+    function roster(usersList){
+        return (Array.isArray(usersList)?usersList:[])
+            .map(user=>String(user?.name||'').trim())
             .filter(name=>name && name!=='총사령관' && !name.includes('선생님'));
     }
 
@@ -26,11 +26,22 @@
     // 과제 완료 처리, 청소 완료 처리 직후 호출된다. 실패해도 화면 흐름을
     // 막지 않도록 내부에서 오류를 모두 잡는다.
     // ---------------------------------------------------------
-    window.evaluateClassGoal = async function(){
+    // 완료 체크를 연달아 누르면(전원 완료 후 한 명씩 해제 등) 판정이 매번 돌면서
+    // 데이터를 계속 읽는다. 마지막 호출 기준으로 한 번만 돌도록 모은다.
+    let evaluateTimer=null;
+    window.evaluateClassGoal = function(){
+        if(!isAdmin())return Promise.resolve();
+        clearTimeout(evaluateTimer);
+        return new Promise(resolve=>{
+            evaluateTimer=setTimeout(()=>{runEvaluateClassGoal().then(resolve,resolve);},1500);
+        });
+    };
+
+    async function runEvaluateClassGoal(){
         if(!isAdmin())return;
         try{
-            const goalSnap=await db.ref(GOAL_PATH).once('value');
-            const goal=goalSnap.val();
+            // 실시간 구독으로 이미 들고 있는 목표 데이터를 쓴다(읽기 추가 없음).
+            const goal=window.classGoalData;
             if(!goal||goal.active===false)return;
             const conditionEntries=Object.entries(goal.conditions||{});
             if(!conditionEntries.length){await refreshCelebration();return;}
@@ -40,12 +51,12 @@
             const updates={};
 
             if(needsAssignments){
-                const [usersSnap,assignmentsSnap,completionsSnap]=await Promise.all([
-                    db.ref('users').once('value'),
+                const [assignmentsSnap,completionsSnap]=await Promise.all([
                     db.ref('blackboard/assignments').once('value'),
                     db.ref('blackboard/assignmentCompletions').once('value')
                 ]);
-                const students=roster(usersSnap.val());
+                // 학생 명단은 이미 구독 중인 window.currentUsers를 쓴다(users 전체를 다시 읽지 않는다).
+                const students=roster(window.currentUsers);
                 const assignments=assignmentsSnap.val()||{};
                 const completions=completionsSnap.val()||{};
 
@@ -73,8 +84,12 @@
             }
 
             if(needsCleaning){
-                const settingsSnap=await db.ref('cleaningSettings').once('value');
-                const assignmentsMap=(settingsSnap.val()||{}).cleaningAssignments||{};
+                // 교사 세션은 settings를 이미 구독해서 청소 담당 명단을 들고 있다.
+                let assignmentsMap=window.cleaningAssignments;
+                if(!assignmentsMap||!Object.keys(assignmentsMap).length){
+                    const settingsSnap=await db.ref('cleaningSettings').once('value');
+                    assignmentsMap=(settingsSnap.val()||{}).cleaningAssignments||{};
+                }
                 const cleaners=Object.keys(assignmentsMap).filter(name=>assignmentsMap[name]===true);
                 const streakEntries=conditionEntries.filter(([,c])=>c&&c.type==='cleaning_streak');
                 if(cleaners.length&&streakEntries.length){
@@ -103,11 +118,10 @@
         }catch(error){
             console.error('공동 목표 자동 판정 오류:',error);
         }
-    };
+    }
 
     async function refreshCelebration(){
-        const snap=await db.ref(GOAL_PATH).once('value');
-        const goal=snap.val();
+        const goal=window.classGoalData||(await db.ref(GOAL_PATH).once('value')).val();
         if(!goal)return;
         const current=goalProgress(goal);
         const target=Number(goal.target)||0;

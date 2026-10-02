@@ -257,7 +257,8 @@
             state.listening=true;
             db.ref('blackboard/assignments').on('value',snapshot=>{state.assignments=snapshot.val()||{};render();});
             db.ref('blackboard/assignmentCompletions').on('value',snapshot=>{state.completions=snapshot.val()||{};render();});
-            db.ref(window.isAdmin===true?'users':'publicProfiles').on('value',snapshot=>{state.users=snapshot.val()||{};render();});
+            // 명단은 global.js의 공유 구독을 같이 쓴다(따로 구독하면 전송량이 구독 수만큼 늘어난다).
+            window.userDirectory.subscribe(snapshot=>{state.users=snapshot.val()||{};render();});
             container.addEventListener('click',async event=>{
                 if(window.isAdmin!==true)return;
                 if(event.target.closest('[data-add-assignment]'))await addAssignment();

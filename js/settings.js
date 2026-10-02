@@ -280,7 +280,10 @@ window.renderCurrentSeatingView = async function() {
 
 // 학생 명단 및 역할 관리
 window.loadStudentAdminList = function() {
-    db.ref('users').on('value', snap => {
+    // 설정 탭을 열 때마다 구독이 하나씩 쌓이지 않도록 이전 구독을 먼저 해제하고,
+    // global.js의 공유 명단 구독을 같이 쓴다.
+    if (window.studentAdminListUnsub) window.studentAdminListUnsub();
+    window.studentAdminListUnsub = window.userDirectory.subscribe(snap => {
         const listEl =
             document.getElementById('student-admin-list');
 

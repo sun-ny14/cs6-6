@@ -394,6 +394,79 @@ function switchCheckinSub(subId){
    앱 시작
    ========================================================= */
 
+/* =========================================================
+   사용자 명단 공유 구독
+   - 예전엔 같은 users(교사)/publicProfiles(학생) 경로를 화면마다 따로
+     .on('value')로 구독해서, 한 명의 데이터만 바뀌어도 전체 명단이 구독 수만큼
+     다시 내려왔다.
+   - 여기서 child_added/child_changed로 한 번만 구독하면 바뀐 학생 한 명분만
+     전송되고, 화면들은 이 저장소를 같이 쓴다.
+   ========================================================= */
+window.userDirectory=(function(){
+    let path=null,ref=null,map={},loaded=false,timer=null,fallbackTimer=null;
+    const subscribers=new Set();
+    const handlers={};
+
+    function snapshot(){
+        const entries=Object.entries(map);
+        return {
+            key:path,
+            exists:()=>entries.length>0,
+            val:()=>({...map}),
+            forEach(callback){
+                entries.forEach(([key,value])=>callback({
+                    key,
+                    val:()=>({...(value||{})})
+                }));
+            }
+        };
+    }
+
+    function notify(){
+        loaded=true;
+        clearTimeout(timer);
+        // 처음 붙을 때 학생 수만큼 이벤트가 몰려오므로 한 번에 모아서 알린다.
+        timer=setTimeout(()=>{
+            const snap=snapshot();
+            subscribers.forEach(callback=>{
+                try{callback(snap);}catch(error){console.error('명단 구독 처리 오류:',error);}
+            });
+        },40);
+    }
+
+    function stop(){
+        if(ref){
+            Object.entries(handlers).forEach(([eventName,handler])=>ref.off(eventName,handler));
+        }
+        clearTimeout(timer);
+        clearTimeout(fallbackTimer);
+        ref=null;path=null;map={};loaded=false;
+    }
+
+    function start(nextPath){
+        if(path===nextPath)return;
+        stop();
+        path=nextPath;
+        ref=db.ref(nextPath);
+        handlers.child_added=snap=>{map[snap.key]=snap.val()||{};notify();};
+        handlers.child_changed=snap=>{map[snap.key]=snap.val()||{};notify();};
+        handlers.child_removed=snap=>{delete map[snap.key];notify();};
+        const failed=error=>console.error('명단 불러오기 실패:',error);
+        Object.entries(handlers).forEach(([eventName,handler])=>ref.on(eventName,handler,failed));
+        // 비어 있는 경로는 child 이벤트가 하나도 안 오므로 빈 명단으로 한 번 알려준다.
+        fallbackTimer=setTimeout(()=>{if(!loaded)notify();},2000);
+    }
+
+    function subscribe(callback){
+        subscribers.add(callback);
+        if(loaded)callback(snapshot());
+        return ()=>subscribers.delete(callback);
+    }
+
+    return {start,stop,subscribe};
+})();
+
+
 function startApp(){
 
     if(window.appStarted)return;
@@ -547,7 +620,9 @@ if (typeof refreshCheckinGuide === 'function') {
     }
 
 
-    db.ref(admin?'users':'publicProfiles').on('value',snap=>{
+    window.userDirectory.start(admin?'users':'publicProfiles');
+    if(window.userDirectoryMainUnsub)window.userDirectoryMainUnsub();
+    window.userDirectoryMainUnsub=window.userDirectory.subscribe(snap=>{
 
         const users=[];
 
