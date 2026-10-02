@@ -53,6 +53,7 @@ bindClick('btn-cleaning',()=>{showTab('cleaning');renderRoleCleaning();});
 bindClick('btn-admin',()=>{showTab('admin');initSettings();});
 
 bindClick('home-board-open-btn',openBlackboardWindow);
+bindClick('global-blackboard-fab',openBlackboardWindow);
 bindClick('home-notice-board-link',openBlackboardWindow);
 bindClick('home-task-tab-link',()=>{showTab('assignments');initAssignmentsTab();});
 bindClick('home-shop-tab-link',()=>{showTab('shop');renderShop();});

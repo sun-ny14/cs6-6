@@ -2189,6 +2189,32 @@ body.role-student .room-canvas {
 #floating-point-btn { bottom: 26px; }
 #floating-multi-btn { bottom: 96px; background: var(--ui-gold); color: #fff; }
 
+/* 어느 탭에 있든 전자칠판을 바로 열 수 있는 플로팅 버튼. 학생·교사 모두에게
+   보이며(기존 홈 탭의 "전자칠판 열기" 버튼과 동일하게), 반대편(왼쪽 아래)에
+   둬서 교사 전용 P 버튼들과 겹치지 않는다. */
+#global-blackboard-fab {
+    position: fixed;
+    left: 26px;
+    bottom: 26px;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ui-surface);
+    color: var(--ui-accent-deep);
+    font-size: 26px;
+    cursor: pointer;
+    box-shadow: var(--ui-shadow);
+    border: 1px solid var(--ui-line);
+}
+
+#global-blackboard-fab:hover { filter: brightness(1.05); }
+
 #floating-point-btn:hover,
 #floating-multi-btn:hover { filter: brightness(1.07); }
 

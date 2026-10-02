@@ -7,10 +7,18 @@
     function injectStyles(){
         const style = document.createElement('style');
         style.textContent = `
-            #bb-toolbar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:14px;padding:16px;background:rgba(255,255,255,.9);backdrop-filter:blur(6px);box-shadow:0 -8px 30px rgba(24,40,68,.12);z-index:900;flex-wrap:wrap;}
+            #bb-toolbar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:14px;padding:16px;background:rgba(255,255,255,.9);backdrop-filter:blur(6px);box-shadow:0 -8px 30px rgba(24,40,68,.12);z-index:900;flex-wrap:wrap;transition:transform .25s ease;}
+            /* 손잡이는 도구모음의 자식으로 둬서, 접었다 펼 때 도구모음과 같이
+               움직인다(접히면 화면 아래로 내려갔다가 딱 화면 하단에 걸린다). */
+            #bb-toolbar-handle{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:8px 18px;border:0;border-radius:999px 999px 0 0;background:#182844;color:#fff;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 -4px 14px rgba(24,40,68,.2);z-index:901;font-family:inherit;pointer-events:auto;}
+            #bb-toolbar-handle .bb-handle-arrow{display:inline-block;transition:transform .25s ease;}
+            body.bb-tools-collapsed #bb-toolbar{transform:translateY(100%);}
+            body.bb-tools-collapsed #bb-toolbar .bb-tool-btn{visibility:hidden;}
+            body.bb-tools-collapsed #bb-toolbar-handle .bb-handle-arrow{transform:rotate(180deg);}
             .bb-tool-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 22px;border:0;border-radius:16px;color:#fff;font-weight:900;font-size:15px;cursor:pointer;box-shadow:0 6px 16px rgba(24,40,68,.25);font-family:inherit;}
             .bb-tool-btn .bb-emoji{font-size:26px;}
             #bb-tool-timer-btn{background:#3498db;}
+            #bb-tool-stopwatch-btn{background:#e74c3c;}
             #bb-tool-picker-btn{background:#8e44ad;}
             #bb-tool-noise-btn{background:#f39c12;}
             #bb-tool-qr-btn{background:#27ae60;}
@@ -29,6 +37,15 @@
             .bb-timer-controls button{padding:8px 16px;border:0;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;}
             .bb-tc-start{background:#27ae60;color:#fff;}
             .bb-tc-reset{background:#eef1f6;color:#182844;}
+
+            .bb-stopwatch-display{font-size:48px;font-weight:950;font-variant-numeric:tabular-nums;color:#e74c3c;margin-bottom:10px;}
+            .bb-stopwatch-controls{display:flex;gap:8px;justify-content:center;margin-bottom:12px;}
+            .bb-stopwatch-controls button{padding:8px 16px;border:0;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;}
+            .bb-sw-start{background:#27ae60;color:#fff;}
+            .bb-sw-lap{background:#eef1f6;color:#182844;}
+            .bb-sw-reset{background:#eef1f6;color:#182844;}
+            .bb-stopwatch-laps{max-height:120px;overflow-y:auto;text-align:left;font-size:13px;font-weight:700;color:#40525f;}
+            .bb-stopwatch-laps div{display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px dashed #eef1f6;}
 
             .bb-picker-reveal{font-size:44px;font-weight:950;margin:6px 0 14px;padding:20px;border-radius:16px;background:linear-gradient(135deg,#fdf0d5,#ffe6b3);color:#7a4b00;}
             .bb-picker-btn{padding:12px 30px;border:0;border-radius:14px;background:#8e44ad;color:#fff;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:12px;width:100%;}
@@ -196,6 +213,69 @@
         });
 
         document.getElementById('bb-tool-timer-btn').addEventListener('click', () => openWindow(win));
+    }
+
+    // ---------------------------------------------------------
+    // 스톱워치 (발표·활동 시간 재기, 기록 남기기)
+    // ---------------------------------------------------------
+    function setupStopwatch(){
+        const win = createFloatWindow('bb-win-stopwatch', '⏳ 스톱워치', `
+            <div class="bb-stopwatch-display" id="bb-sw-display">00:00.0</div>
+            <div class="bb-stopwatch-controls">
+                <button type="button" class="bb-sw-start" id="bb-sw-toggle">▶ 시작</button>
+                <button type="button" class="bb-sw-lap" id="bb-sw-lap">⚑ 기록</button>
+                <button type="button" class="bb-sw-reset" id="bb-sw-reset">↺ 초기화</button>
+            </div>
+            <div class="bb-stopwatch-laps" id="bb-sw-laps"></div>
+        `);
+
+        const display = win.querySelector('#bb-sw-display');
+        const toggleBtn = win.querySelector('#bb-sw-toggle');
+        const lapBtn = win.querySelector('#bb-sw-lap');
+        const lapsEl = win.querySelector('#bb-sw-laps');
+
+        let elapsedMs = 0, startedAt = 0, tickHandle = null, laps = [];
+
+        function format(ms){
+            const totalTenths = Math.floor(ms / 100);
+            const tenths = totalTenths % 10;
+            const totalSecs = Math.floor(totalTenths / 10);
+            const m = Math.floor(totalSecs / 60), s = totalSecs % 60;
+            return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + '.' + tenths;
+        }
+        function renderTime(){ display.textContent = format(elapsedMs); }
+        function renderLaps(){
+            lapsEl.innerHTML = laps
+                .map((ms, i) => `<div><span>${laps.length - i}번째</span><span>${format(ms)}</span></div>`)
+                .join('');
+        }
+
+        function stopTick(){ if (tickHandle){ clearInterval(tickHandle); tickHandle = null; } }
+        function start(){
+            if (tickHandle) return;
+            startedAt = Date.now() - elapsedMs;
+            toggleBtn.textContent = '⏸ 정지';
+            tickHandle = setInterval(() => {
+                elapsedMs = Date.now() - startedAt;
+                renderTime();
+            }, 100);
+        }
+        function pause(){ stopTick(); toggleBtn.textContent = '▶ 시작'; }
+
+        toggleBtn.addEventListener('click', () => { tickHandle ? pause() : start(); });
+        lapBtn.addEventListener('click', () => {
+            laps.unshift(elapsedMs);
+            renderLaps();
+        });
+        win.querySelector('#bb-sw-reset').addEventListener('click', () => {
+            pause();
+            elapsedMs = 0;
+            laps = [];
+            renderTime();
+            renderLaps();
+        });
+
+        document.getElementById('bb-tool-stopwatch-btn').addEventListener('click', () => openWindow(win));
     }
 
     // ---------------------------------------------------------
@@ -409,7 +489,9 @@
         const bar = document.createElement('div');
         bar.id = 'bb-toolbar';
         bar.innerHTML = `
+            <button type="button" id="bb-toolbar-handle"><span class="bb-handle-arrow">▾</span><span class="bb-handle-label">도구모음 접기</span></button>
             <button type="button" class="bb-tool-btn" id="bb-tool-timer-btn"><span class="bb-emoji">⏱️</span>타이머</button>
+            <button type="button" class="bb-tool-btn" id="bb-tool-stopwatch-btn"><span class="bb-emoji">⏳</span>스톱워치</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-picker-btn"><span class="bb-emoji">🎲</span>번호 뽑기</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-noise-btn"><span class="bb-emoji">🔊</span>소음계</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-qr-btn"><span class="bb-emoji">🔗</span>QR 만들기</button>
@@ -417,10 +499,35 @@
         document.body.appendChild(bar);
     }
 
+    // 접힌/펼친 상태를 기기에 기억해 둔다. 처음 켰을 때는 접힌 상태로 시작해서
+    // 평소 화면을 가리지 않다가, 선생님이 필요할 때 펼쳐 쓰는 방식이다.
+    const COLLAPSE_STORAGE_KEY = 'bbToolbarCollapsed';
+    function setupCollapse(){
+        const handle = document.getElementById('bb-toolbar-handle');
+        const label = handle.querySelector('.bb-handle-label');
+
+        function applyState(collapsed){
+            document.body.classList.toggle('bb-tools-collapsed', collapsed);
+            label.textContent = collapsed ? '도구모음 펼치기' : '도구모음 접기';
+            try{ localStorage.setItem(COLLAPSE_STORAGE_KEY, collapsed ? '1' : '0'); }catch(error){}
+        }
+
+        let collapsed = true;
+        try{
+            const saved = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+            if (saved !== null) collapsed = saved === '1';
+        }catch(error){}
+
+        applyState(collapsed);
+        handle.addEventListener('click', () => applyState(!document.body.classList.contains('bb-tools-collapsed')));
+    }
+
     function init(){
         injectStyles();
         injectToolbar();
+        setupCollapse();
         setupTimer();
+        setupStopwatch();
         setupPicker();
         setupNoise();
         setupQr();
