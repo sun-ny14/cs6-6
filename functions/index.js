@@ -47,8 +47,7 @@ const publicUser = (name, user={}) => ({
     name:String(user.name || name), no:Number(user.no || user.number || 0),
     character:String(user.character || ''), selectedAnimal:String(user.selectedAnimal || ''),
     selectedTitle:String(user.selectedTitle || ''),
-    selectedDecoration:user.selectedDecoration ? String(user.selectedDecoration) : null,
-    myRoom:user.myRoom || null
+    selectedDecoration:user.selectedDecoration ? String(user.selectedDecoration) : null
 });
 // "학급 운영" 통합 잠금(학급일지·성적·운영비 공용)의 세션 길이.
 // 예전엔 30분이라 수업 중에도 자꾸 다시 잠겨서 번거롭다는 피드백이 있었다.
@@ -309,16 +308,22 @@ exports.mirrorPublicSettings = onValueWritten({ ref:'/settings/{field}' }, async
 // 삭제했었다(대용량 사용자 미러링 트리거 제거 커밋). 그 결과 publicProfiles가 계속
 // 비어 있어 학생 화면의 용사 목록·방 등이 아예 안 뜨는 상태였다. 필요한 필드만
 // 개별적으로 감시해 같은 문제 없이 다시 채운다.
-const PUBLIC_PROFILE_FIELDS = new Set(['name','no','number','character','selectedAnimal','selectedTitle','selectedDecoration','myRoom']);
+// myRoom(가구 위치·방명록 등)은 크고 자주 바뀌어서 publicProfiles에 같이 두면 모든
+// 학생 기기가 홈 화면에서 전 학생 방 데이터를 계속 받게 된다. 그래서 publicRooms/{이름}
+// 으로 따로 미러링하고, 친구 방을 열 때만 그 한 명분을 읽는다.
+const PUBLIC_PROFILE_FIELDS = new Set(['name','no','number','character','selectedAnimal','selectedTitle','selectedDecoration']);
 
 exports.mirrorPublicUser = onValueWritten({ ref:'/users/{userName}/{field}' }, async event => {
     const { userName, field } = event.params;
+    if (field === 'myRoom') {
+        await getDatabase().ref(`publicRooms/${userName}`).set(event.data.after.val() ?? null);
+        return;
+    }
     if (!PUBLIC_PROFILE_FIELDS.has(field)) return;
     const value = event.data.after.val();
     const outKey = field === 'number' ? 'no' : field;
     const outValue = outKey === 'no' ? (Number(value) || 0)
         : outKey === 'name' ? String(value || userName)
-        : outKey === 'myRoom' ? (value ?? null)
         : outKey === 'selectedDecoration' ? (value ? String(value) : null)
         : String(value || '');
     await getDatabase().ref(`publicProfiles/${userName}/${outKey}`).set(outValue);

@@ -133,7 +133,7 @@ window.renderMyRoom = function() {
     return Promise.all([
         db.ref(window.isAdmin===true?'settings/defaultBg':'publicSettings/defaultBg').once('value'),
         db.ref(owner===window.myName||window.isAdmin===true
-            ?`users/${owner}/myRoom`:`publicProfiles/${owner}/myRoom`).once('value')
+            ?`users/${owner}/myRoom`:`publicRooms/${owner}`).once('value')
     ]).then(([defaultSnap, snap]) => {
             if (!window.isCurrentHousingView(owner, version)) return;
             const defaultBg = defaultSnap.val() || window.currentDefaultBg || 'assets/housing/backgrounds/level-1.png';
@@ -596,7 +596,7 @@ window.toggleRoomGuestbook = async function() {
     if (panel.hidden) return;
     try {
         const snapshot = await db.ref(owner===window.myName||window.isAdmin===true
-            ?`users/${owner}/myRoom`:`publicProfiles/${owner}/myRoom`).once('value');
+            ?`users/${owner}/myRoom`:`publicRooms/${owner}`).once('value');
         if (window.isCurrentHousingView(owner, version) && revision === (window.housingView.socialRevision || 0)) {
             window.renderRoomSocial(snapshot.val() || {});
         }

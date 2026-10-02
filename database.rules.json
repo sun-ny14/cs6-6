@@ -13,6 +13,10 @@
       ".read": "auth != null",
       ".write": false
     },
+    "publicRooms": {
+      ".read": "auth != null",
+      ".write": false
+    },
     "teacherAlerts": {
       ".read": "auth != null && auth.token.email_verified == true && auth.token.email == 'ksosuny@cberi.go.kr'",
       ".write": false
