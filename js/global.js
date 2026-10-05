@@ -723,6 +723,8 @@ if (typeof refreshCheckinGuide === 'function') {
                 );
             });
 
+        if(typeof window.refreshHomeDashboard==='function')window.refreshHomeDashboard();
+
         const loginName=String(window.myName||'').trim();
         const loggedInUser=window.currentUsers.find(user=>
             String(user&&user.name||'').trim()===loginName

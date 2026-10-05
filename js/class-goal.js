@@ -252,14 +252,25 @@
         if(existing)cond.achieved=existing.achieved===true;
 
         await db.ref(`${GOAL_PATH}/conditions/${finalKey}`).set(cond);
-        if(typeof closePopup==='function')closePopup();
+        if(window.classGoalData){(window.classGoalData.conditions=window.classGoalData.conditions||{})[finalKey]=cond;}
+        window.openClassGoalManagePopup();
         if(type!=='manual')window.evaluateClassGoal();
     };
+
+    // 관리 팝업이 열려 있으면 그 자리에서 목록·진행도를 다시 그린다(창을 닫았다 열 필요 없이).
+    function rerenderManagePopup(){
+        const title=document.getElementById('pop-title');
+        const content=document.getElementById('pop-content');
+        if(!title||!content||!/공동 목표 관리/.test(title.textContent||''))return;
+        content.innerHTML=adminPanelHtml();
+    }
 
     window.deleteClassGoalCondition=async function(key){
         if(!isAdmin())return;
         if(!confirm('이 조건을 삭제하시겠습니까? 이미 달성한 조건이면 진행도에서도 빠집니다.'))return;
         await db.ref(`${GOAL_PATH}/conditions/${key}`).remove();
+        if(window.classGoalData?.conditions)delete window.classGoalData.conditions[key];
+        rerenderManagePopup();
         await refreshCelebration();
     };
 
@@ -267,8 +278,13 @@
         if(!isAdmin())return;
         const cond=(window.classGoalData?.conditions||{})[key];
         if(!cond||cond.type!=='manual')return;
-        await db.ref(`${GOAL_PATH}/conditions/${key}/achieved`).set(cond.achieved!==true);
+        const next=cond.achieved!==true;
+        cond.achieved=next; // 서버 응답을 기다리지 않고 바로 버튼/진행도를 갱신한다
+        rerenderManagePopup();
+        try{await db.ref(`${GOAL_PATH}/conditions/${key}/achieved`).set(next);}
+        catch(error){cond.achieved=!next;rerenderManagePopup();alert('저장하지 못했어요. 다시 시도해 주세요.');return;}
         await refreshCelebration();
+        rerenderManagePopup();
     };
 
     // ---------------------------------------------------------

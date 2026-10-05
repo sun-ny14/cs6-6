@@ -207,6 +207,9 @@
         renderMyDuty(data,today);
     }
 
+    // 사용자 명단이 나중에 도착해도 '진행 중 과제'가 전원 완료 여부를 다시 계산하도록.
+    window.refreshHomeDashboard=function(){if(state.started)render();};
+
     window.initHomeDashboard=function(){
         if(state.started){window.refreshTeacherAlerts();render();return;}
         state.started=true;
