@@ -210,6 +210,11 @@ function showTab(t, housingOwner){
         window.onEnterMainTab();
     }
 
+    // 등교로그 탭: 결석신고서 미제출 숫자를 채우고, 하루 한 번은 자동으로 띄운다.
+    if(t==='attendance-admin'&&window.isAdmin===true&&window.AbsenceDocs){
+        window.AbsenceDocs.onLogsTabRendered();
+    }
+
     document.querySelectorAll('.tab-content').forEach(el=>{
         el.classList.remove('active');
         el.style.display='none';

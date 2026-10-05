@@ -3282,27 +3282,6 @@ window.appendExtraLogsUI=function(){
         `;
 
 
-        // 결석신고서 미제출 확인은 absenceDocs 목록(js/absence-docs.js)이 맡는다.
-        // 예전엔 여기서 출결 기록 전체를 훑어 "서류 미제출자"를 찾았다.
-        if(
-            typeof isAdmin!=='undefined'&&
-            isAdmin
-        ){
-            html+=`
-                <div class="center" style="margin-top:12px;">
-                    <button
-                        id="absence-doc-btn"
-                        onclick="AbsenceDocs.openTeacherPopup()"
-                        class="btn btn--danger"
-                    >
-                        📄 결석신고서 미제출
-                        <span id="absence-doc-badge" class="shop-badge-count" hidden>0</span>
-                    </button>
-                </div>
-            `;
-        }
-
-
         html+=`
 
             <h3>
@@ -3357,10 +3336,6 @@ window.appendExtraLogsUI=function(){
         extraDiv.innerHTML=
             html;
 
-        // 새로 그려질 때마다 미제출 숫자를 다시 채우고, 하루 한 번은 자동으로 띄운다.
-        if(typeof isAdmin!=='undefined'&&isAdmin&&window.AbsenceDocs){
-            window.AbsenceDocs.onLogsTabRendered();
-        }
     });
 };
 
