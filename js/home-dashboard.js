@@ -63,6 +63,12 @@
         const myName=String(window.myName||'').trim();
         const all=assignmentRows(data);
         const isAllDone=window.assignmentsIsAllDone||(()=>false);
+        // 교사: 학생 명단이 오기 전에는 전원 완료 여부를 알 수 없다. 완료함에 들어갈 과제가
+        // 잠깐 떴다 사라지지 않도록, 명단이 준비될 때까지는 아무것도 그리지 않는다.
+        if(admin&&!(Array.isArray(window.currentUsers)&&window.currentUsers.length)){
+            target.innerHTML='';
+            return;
+        }
         // 교사: 대상 학생이 전부 완료한 과제는 "진행 중"에서 뺀다(제외한 학생은 세지 않음).
         const rows=admin
             ?all.filter(([id,item])=>!isAllDone(item,data.assignmentCompletions?.[id]))
