@@ -86,6 +86,12 @@
             try{
                 await setSubmitted(box.dataset.name,box.dataset.date,box.dataset.reason,box.checked);
                 row?.classList.toggle('is-absence-done',box.checked);
+                // 제출 확인한 줄은 잠깐 취소선으로 보여준 뒤 목록에서 치운다(그 사이 다시 풀면 남는다).
+                if(box.checked&&row)setTimeout(()=>{
+                    if(!box.checked||!row.isConnected)return;
+                    row.remove();
+                    if(onChange)onChange();
+                },700);
             }catch(error){
                 console.error('결석신고서 제출 확인 저장 오류:',error);
                 box.checked=!box.checked;
