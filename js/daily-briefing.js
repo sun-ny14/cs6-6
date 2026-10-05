@@ -37,6 +37,8 @@
         return `<style>.briefing-list{display:grid;gap:10px;text-align:left;margin-top:10px}.briefing-item{display:flex;align-items:baseline;gap:8px;padding:12px 14px;border-radius:10px;background:var(--ui-surface-soft)}.briefing-item b{flex:1}.briefing-item small{color:var(--ui-muted);white-space:nowrap}.briefing-section{margin-top:16px;text-align:left}.briefing-section h4{margin:0 0 8px}.briefing-empty{color:var(--ui-muted);text-align:left;margin-top:10px}.briefing-more{color:var(--ui-muted);text-align:left;margin-top:6px;font-size:.92em}.briefing-checkable{cursor:pointer;align-items:center}.briefing-checkable input{width:18px;height:18px;flex:none;cursor:pointer}.briefing-checkable:has(input:checked){background:var(--ui-good-soft);opacity:.7}</style>`;
     }
 
+    window.briefingPopupStyle=popupStyle;
+
     // 교사가 다 읽지도 않고 그냥 닫아버리는 경우가 있어서, 체크박스를 전부
     // 체크해야만 "확인 (닫기)" 버튼이 눌리게 막는다. 이 버튼은 앱 전체가 같이
     // 쓰는 공용 버튼이라, 다른 팝업이 열릴 때는 반드시 원래 상태로 되돌려야 한다.
@@ -51,23 +53,30 @@
             closeBtn.disabled=remaining>0;
             closeBtn.textContent=remaining>0
                 ?`모두 확인하면 닫을 수 있어요 (${remaining}개 남음)`
-                :CLOSE_BTN_DEFAULT_TEXT;
+                :'확인했어요';
         }
         checkboxes.forEach(cb=>cb.addEventListener('change',update));
         update();
-
-        if(!window.__briefingCloseGateInstalled){
-            window.__briefingCloseGateInstalled=true;
-            const baseOpenPopup=window.openPopup;
-            window.openPopup=function(title,content){
-                if(title!==popupTitle){
-                    const btn=document.getElementById('pop-close-btn');
-                    if(btn){btn.disabled=false;btn.textContent=CLOSE_BTN_DEFAULT_TEXT;}
-                }
-                return baseOpenPopup.apply(this,arguments);
-            };
-        }
     }
+
+    // 공용 닫기 버튼은 모든 팝업이 같이 쓴다. 팝업이 새로 열릴 때마다 원래 상태로
+    // 되돌려 두고, 이 파일/absence-docs.js의 팝업만 열린 직후에 자기 문구로 바꾼다.
+    function installCloseReset(){
+        if(window.__briefingCloseResetInstalled)return;
+        window.__briefingCloseResetInstalled=true;
+        const baseOpenPopup=window.openPopup;
+        window.openPopup=function(){
+            const btn=document.getElementById('pop-close-btn');
+            if(btn){btn.disabled=false;btn.textContent=CLOSE_BTN_DEFAULT_TEXT;}
+            return baseOpenPopup.apply(this,arguments);
+        };
+    }
+    installCloseReset();
+
+    window.briefingPopupLabel=function(label){
+        const btn=document.getElementById('pop-close-btn');
+        if(btn)btn.textContent=label;
+    };
 
     /* =========================================================
        학생용: 홈 탭 들어갈 때마다
@@ -85,9 +94,17 @@
             .sort((a,b)=>String(a.item.dueDate||'9999').localeCompare(String(b.item.dueDate||'9999')));
     }
 
-    function showStudentBriefing(){
+    async function showStudentBriefing(){
         const items=studentIncompleteItems();
-        if(!items.length)return;
+
+        // 결석신고서는 하루 한 번만 안내한다(교사가 제출 확인을 하면 목록에서 사라짐).
+        let absenceRows=[];
+        if(window.AbsenceDocs&&!window.AbsenceDocs.wasShownToday('student')){
+            try{absenceRows=await window.AbsenceDocs.loadMine();}
+            catch(error){console.error('결석신고서 조회 오류:',error);}
+        }
+
+        if(!items.length&&!absenceRows.length)return;
 
         const icon=category=>category==='제출자료'?'📎':'📝';
         const shown=items.slice(0,6);
@@ -99,10 +116,19 @@
 
         const more=rest>0?`<div class="briefing-more">외 ${rest}개 더 — 과제 탭에서 확인하세요.</div>`:'';
 
+        const todoHtml=items.length
+            ?`<div>아직 안 한 게 있어요</div><div class="briefing-list">${rows}</div>${more}`
+            :'';
+        const absenceHtml=absenceRows.length
+            ?`<div class="briefing-section"><h4>📄 결석신고서를 내야 해요</h4><div class="briefing-list">${window.AbsenceDocs.studentRowsHtml(absenceRows)}</div></div>`
+            :'';
+
         window.openPopup(
             '아 맞다! 📝',
-            `${popupStyle()}<div>아직 안 한 게 있어요</div><div class="briefing-list">${rows}</div>${more}`
+            `${popupStyle()}${window.AbsenceDocs?window.AbsenceDocs.styleHtml():''}${todoHtml}${absenceHtml}`
         );
+        window.briefingPopupLabel('알겠어요');
+        if(absenceRows.length)window.AbsenceDocs.markShownToday('student');
     }
 
     /* =========================================================
@@ -191,7 +217,13 @@
         ]);
         const progress=progressSummary();
 
-        if(!notices.length&&!schedule.length&&!progress.length)return;
+        let absenceRows=[];
+        if(window.AbsenceDocs){
+            try{absenceRows=await window.AbsenceDocs.loadAll();}
+            catch(error){console.error('결석신고서 조회 오류:',error);}
+        }
+
+        if(!notices.length&&!schedule.length&&!progress.length&&!absenceRows.length)return;
 
         const icon=category=>category==='제출자료'?'📎':'📝';
         const checkable=innerHtml=>`<label class="briefing-item briefing-checkable"><input type="checkbox" class="briefing-check"><span class="briefing-item-body">${innerHtml}</span></label>`;
@@ -210,12 +242,22 @@
             ).join('')}</div></div>`
             :'';
 
+        // 결석신고서는 못 받은 학생이 있을 수 있어서 체크 안 해도 닫을 수 있고(닫기 게이트 대상 아님),
+        // 체크 안 한 학생은 목록(absenceDocs)에 계속 남는다.
+        const absenceHtml=absenceRows.length
+            ?`<div class="briefing-section"><h4>📄 결석신고서 미제출 <small class="muted">(제출받았으면 체크)</small></h4><div class="briefing-list">${window.AbsenceDocs.teacherRowsHtml(absenceRows)}</div></div>`
+            :'';
+
+        const hasGatedItems=Boolean(notices.length||schedule.length||progress.length);
         const title='아 맞다! 📋';
         window.openPopup(
             title,
-            `${popupStyle()}<div>모든 항목을 체크해야 닫을 수 있어요</div>${noticeHtml}${scheduleHtml}${progressHtml}`
+            `${popupStyle()}${window.AbsenceDocs?window.AbsenceDocs.styleHtml():''}<div>${hasGatedItems?'모든 항목을 체크해야 닫을 수 있어요':'오늘 하루 시작 전에 확인하세요'}</div>${noticeHtml}${scheduleHtml}${progressHtml}${absenceHtml}`
         );
         gateCloseUntilAllChecked(title);
+        // 체크가 필요한 항목이 하나도 없으면(결석신고서만 있을 때) 게이트가 문구를 안 바꾸므로 직접 맞춘다.
+        if(!hasGatedItems)window.briefingPopupLabel('확인했어요');
+        if(absenceRows.length)window.AbsenceDocs.bindCheckboxes();
 
         markShownToday();
     }

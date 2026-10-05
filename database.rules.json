@@ -13,6 +13,13 @@
       ".read": "auth != null",
       ".write": false
     },
+    "absenceDocs": {
+      ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      ".write": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
+      "$userName": {
+        ".read": "auth != null && root.child('access').child(auth.uid).child('name').val() == $userName"
+      }
+    },
     "publicRooms": {
       ".read": "auth != null",
       ".write": false

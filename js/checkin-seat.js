@@ -2282,6 +2282,16 @@ window.saveDetailLog=async function(
         const checkinRecordKey=name;
         updates[`attendanceRecords/${date}/${name}`]=data;
 
+        // 결석(질병·무단 등)·체험학습은 결석신고서를 받아야 한다. 아직 못 받은 건은
+        // 따로 작은 목록(absenceDocs)에 날짜·학생·사유로 남겨 둔다(js/absence-docs.js).
+        // 결석이 아니게 고쳤거나 이미 제출 처리된 건은 목록에서 뺀다.
+        const needsAbsenceDoc=
+            (category==='결석'||/결석|체험학습/.test(String(reason||'')))&&
+            !data.docSubmitted;
+        updates[`absenceDocs/${name}/${date}`]=needsAbsenceDoc
+            ?{reason:String(reason||category||'결석')}
+            :null;
+
         // 한 번 등교한 학생은 상세 화면에서 명시적으로 결석 처리하기 전까지
         // 공개 좌석판에서도 계속 등교 완료로 유지한다.
         updates[`blackboardDisplay/data/checkins/${checkinBoardKey(name)}`]={
@@ -3272,53 +3282,22 @@ window.appendExtraLogsUI=function(){
         `;
 
 
-        const missing=
-            checkins.filter(c=>
-                c.reason&&
-                (
-                    c.reason.includes('결석')||
-                    c.reason.includes('체험학습')
-                )&&
-                !c.docSubmitted
-            );
-
-
+        // 결석신고서 미제출 확인은 absenceDocs 목록(js/absence-docs.js)이 맡는다.
+        // 예전엔 여기서 출결 기록 전체를 훑어 "서류 미제출자"를 찾았다.
         if(
             typeof isAdmin!=='undefined'&&
-            isAdmin&&
-            missing.length
+            isAdmin
         ){
-
             html+=`
-
-                <div class="card is-bad">
-
-                    <h4 class="strong">
-                        ⚠️ 서류 미제출자
-                    </h4>
-
-                    <div class="btn-row">
-            `;
-
-
-            missing.forEach(c=>{
-
-                html+=`
-
+                <div class="center" style="margin-top:12px;">
                     <button
-                        onclick="completeDoc('${encodeURIComponent(c.user||c.name)}','${c.date}')"
-                        class="btn btn--danger btn--sm"
+                        id="absence-doc-btn"
+                        onclick="AbsenceDocs.openTeacherPopup()"
+                        class="btn btn--danger"
                     >
-                        ${c.user||c.name}
-                        (${c.reason})
+                        📄 결석신고서 미제출
+                        <span id="absence-doc-badge" class="shop-badge-count" hidden>0</span>
                     </button>
-                `;
-            });
-
-
-            html+=`
-                    </div>
-
                 </div>
             `;
         }
@@ -3377,27 +3356,11 @@ window.appendExtraLogsUI=function(){
 
         extraDiv.innerHTML=
             html;
-    });
-};
 
-
-window.completeDoc=function(encodedName,date){
-
-    if(
-        !confirm(
-            '이 학생의 서류를 제출 완료 처리하시겠습니까?'
-        )
-    ){
-        return;
-    }
-
-    const name=decodeURIComponent(encodedName||'');
-    db.ref(`attendanceRecords/${date}/${name}`)
-    .update({
-        docSubmitted:true
-    })
-    .then(()=>{
-        appendExtraLogsUI();
+        // 새로 그려질 때마다 미제출 숫자를 다시 채우고, 하루 한 번은 자동으로 띄운다.
+        if(typeof isAdmin!=='undefined'&&isAdmin&&window.AbsenceDocs){
+            window.AbsenceDocs.onLogsTabRendered();
+        }
     });
 };
 
