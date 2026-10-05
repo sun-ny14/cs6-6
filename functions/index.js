@@ -329,6 +329,30 @@ exports.mirrorPublicUser = onValueWritten({ ref:'/users/{userName}/{field}' }, a
     await getDatabase().ref(`publicProfiles/${userName}/${outKey}`).set(outValue);
 });
 
+// 전자칠판과 학생 홈의 과제 알림은 blackboardDisplay/data의 공개 복사본을 읽는다.
+// 이 복사본은 예전엔 "교사 브라우저가 열려 있는 동안"에만 갱신돼서(js/blackboard-share.js),
+// 교사 화면이 닫혀 있거나 게시가 막히면 과제를 완료·제외해도 전자칠판에서 안 사라졌다.
+// 과제와 완료 기록이 바뀌는 즉시 서버가 같은 모양으로 직접 갱신해 그 의존을 없앤다.
+const BOARD_DATA = 'blackboardDisplay/data';
+const boardText = value => typeof value === 'string' ? value : '';
+
+exports.mirrorBoardAssignment = onValueWritten({ ref:'/blackboard/assignments/{id}' }, async event => {
+    const item = event.data.after.val();
+    const show = item && typeof item === 'object' && item.active !== false && item.required !== false;
+    const targets = show && Array.isArray(item.targetStudents)
+        ? item.targetStudents.map(boardText).filter(Boolean) : [];
+    const value = show ? {
+        title: boardText(item.title), dueDate: boardText(item.dueDate), active: true, required: true,
+        ...(targets.length ? { targetStudents: targets } : {})
+    } : null;
+    await getDatabase().ref(`${BOARD_DATA}/assignments/${event.params.id}`).set(value);
+});
+
+exports.mirrorBoardAssignmentDone = onValueWritten({ ref:'/blackboard/assignmentCompletions/{id}/{name}' }, async event => {
+    const { id, name } = event.params;
+    await getDatabase().ref(`${BOARD_DATA}/assignmentCompletions/${id}/${name}`).set(event.data.after.val() ? true : null);
+});
+
 // 이미 로그인한 상점·청소 담당 학생도 역할 변경을 즉시 반영한다.
 exports.syncAccessRole = onValueWritten({ref:'/users/{userName}/role'}, async event=>{
     const name=event.params.userName;

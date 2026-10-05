@@ -171,14 +171,26 @@
                     if (active && dirty) { cancel(timer); timer = later(publish, 3000); }
                 }
             }
-            Object.entries(sources).forEach(([key, path]) => listen(path, snapshot => {
-                if (!active) return;
-                raw[key] = snapshot.val(); loaded.add(key); failed.delete(key); queue();
-            }, error => {
-                if (!active) return;
-                failed.add(key);
-                report('전자칠판 자료를 읽지 못했습니다. 로그인 상태와 Firebase 규칙을 확인해 주세요.', error);
-            }));
+            Object.entries(sources).forEach(([key, path]) => {
+                // users는 화면 전체가 같이 쓰는 공유 구독(userDirectory)을 재사용한다.
+                // 따로 구독하면 학생 한 명이 바뀔 때마다 전체 명단이 한 번 더 내려온다.
+                if (key === 'users' && root && root.userDirectory) {
+                    const stopUsers = root.userDirectory.subscribe(snapshot => {
+                        if (!active) return;
+                        raw.users = snapshot.val(); loaded.add('users'); failed.delete('users'); queue();
+                    });
+                    subscriptions.push(stopUsers);
+                    return;
+                }
+                listen(path, snapshot => {
+                    if (!active) return;
+                    raw[key] = snapshot.val(); loaded.add(key); failed.delete(key); queue();
+                }, error => {
+                    if (!active) return;
+                    failed.add(key);
+                    report('전자칠판 자료를 읽지 못했습니다. 로그인 상태와 Firebase 규칙을 확인해 주세요.', error);
+                });
+            });
             listen('.info/serverTimeOffset', snapshot => { offset = Number(snapshot.val()) || 0; queue(); });
             listen('.info/connected', snapshot => {
                 connected = snapshot.val() === true;
