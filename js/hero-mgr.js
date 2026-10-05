@@ -1096,31 +1096,28 @@ function createFloatingPointButton() {
     }
 
 
+    // 전자칠판 열기 버튼과 같은 동그란 FAB 모양(style.css의 .floating-fab)을 쓰고
+    // 색과 아이콘만 다르게 한다. 지우기 쉽게 id는 예전 그대로 둔다.
     const box =
-        document.createElement("div");
+        document.createElement("button");
 
     box.id =
         "floating-point-btn-box";
 
-    box.style.cssText = `
-        position:fixed;
-        bottom:35px;
-        right:35px;
-        z-index:99999;
-    `;
+    box.type =
+        "button";
 
+    box.title =
+        "포인트 지급";
+
+    box.className =
+        "floating-fab floating-fab--point";
 
     const button =
-        document.createElement("button");
-
-    button.type =
-        "button";
+        box;
 
     button.innerText =
         "P";
-
-    button.className =
-        "btn btn--primary btn--lg";
 
 
     button.onclick = function(e) {
@@ -1139,7 +1136,6 @@ function createFloatingPointButton() {
     };
 
 
-    box.appendChild(button);
     document.body.appendChild(box);
 }
 
