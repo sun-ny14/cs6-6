@@ -17,13 +17,13 @@
     }
     function shortDate(date){return String(date||'').slice(5);}
 
-    function shownKey(scope){return `absenceDocShown:${scope}:${String(window.myName||'')}:${todayKst()}`;}
-    function wasShownToday(scope){
-        try{return localStorage.getItem(shownKey(scope))==='1';}catch(error){return false;}
-    }
-    function markShownToday(scope){
-        try{localStorage.setItem(shownKey(scope),'1');}catch(error){/* 저장 실패해도 팝업은 이미 떴다 */}
-    }
+    // 하루 한 번이 아니라 '이 페이지를 연 동안 한 번'만 띄운다. 메모리에만 두므로
+    // 새로고침(Ctrl+F5)이나 재로그인 때는 다시 보이고, 탭을 오갈 때 반복해서 뜨지는 않는다.
+    const shownSet=new Set();
+    const shownKey=scope=>`${scope}:${String(window.myName||'')}`;
+    function wasShownToday(scope){return shownSet.has(shownKey(scope));}
+    function markShownToday(scope){shownSet.add(shownKey(scope));}
+    try{if(window.auth&&auth.onAuthStateChanged)auth.onAuthStateChanged(user=>{if(!user)shownSet.clear();});}catch(error){}
 
     // ---- 읽기 ----
     async function loadAll(){

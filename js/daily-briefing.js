@@ -138,19 +138,11 @@
         return `dailyBriefingShown:${String(window.myName||'teacher')}:${todayKst()}`;
     }
 
-    function alreadyShownToday(){
-        try{
-            return localStorage.getItem(teacherBriefingKey())==='1';
-        }catch(error){
-            return false;
-        }
-    }
-
-    function markShownToday(){
-        try{
-            localStorage.setItem(teacherBriefingKey(),'1');
-        }catch(error){/* 저장 실패해도 팝업 자체는 이미 떴으니 무시 */}
-    }
+    // 페이지를 연 동안 한 번만(메모리). 새로고침/재로그인 때는 다시 뜬다.
+    const briefingShown=new Set();
+    try{if(window.auth&&auth.onAuthStateChanged)auth.onAuthStateChanged(user=>{if(!user)briefingShown.clear();});}catch(error){}
+    function alreadyShownToday(){return briefingShown.has(teacherBriefingKey());}
+    function markShownToday(){briefingShown.add(teacherBriefingKey());}
 
     // 홈 대시보드가 이미 구독 중인 공지 데이터를 그대로 읽는다(추가 조회 없음).
     function todayNoticeLines(){
