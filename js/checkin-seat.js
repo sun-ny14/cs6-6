@@ -2282,11 +2282,13 @@ window.saveDetailLog=async function(
         const checkinRecordKey=name;
         updates[`attendanceRecords/${date}/${name}`]=data;
 
-        // 결석(질병·무단 등)·체험학습은 결석신고서를 받아야 한다. 아직 못 받은 건은
-        // 따로 작은 목록(absenceDocs)에 날짜·학생·사유로 남겨 둔다(js/absence-docs.js).
+        // 결석은 결석신고서를 받아야 한다. 아직 못 받은 건은 따로 작은 목록
+        // (absenceDocs)에 날짜·학생·사유로 남겨 둔다(js/absence-docs.js).
+        // 출결 상태(category)가 실제로 결석인 경우만 대상으로 삼는다 — 비고(사유)
+        // 텍스트에 "결석"이라는 글자가 들어있다고 지각·조퇴 학생까지 끌려오면 안 된다.
         // 결석이 아니게 고쳤거나 이미 제출 처리된 건은 목록에서 뺀다.
         const needsAbsenceDoc=
-            (category==='결석'||/결석|체험학습/.test(String(reason||'')))&&
+            category==='결석'&&
             !data.docSubmitted;
         updates[`absenceDocs/${name}/${date}`]=needsAbsenceDoc
             ?{reason:String(reason||category||'결석')}
