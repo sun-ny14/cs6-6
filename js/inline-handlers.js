@@ -66,6 +66,11 @@ bindClick('checkin-btn',()=>submitCheckIn());
 
 bindChange('checkin-date-filter',()=>refreshCheckinManagement());
 bindClick('checkin-refresh-btn',()=>refreshCheckinManagement());
+bindClick('checkin-today-btn',()=>{
+    const dateInput=document.getElementById('checkin-date-filter');
+    if(dateInput)dateInput.value=checkinGetToday();
+    refreshCheckinManagement();
+});
 bindClick('checkin-exclusion-btn',()=>openExclusionPopup());
 bindClick('checkin-monthly-calendar-btn',()=>openMonthlyCalendar());
 
