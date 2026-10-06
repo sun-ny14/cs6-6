@@ -129,7 +129,7 @@
         const checks=Array.from(document.querySelectorAll('[data-notice-home-index]'))
             .map(box=>Boolean(box.checked));
         const items=String(input.value||'').split(/\r?\n/).map((line,index)=>({
-            id:`line_${index}`,text:line.trim(),showOnHome:checks[index]??false
+            id:`line_${index}`,text:line.trim(),showOnHome:checks[index]??true
         })).filter(item=>item.text);
         state.noticeDrafts[state.selectedNoticeDate]={text:input.value,items};
     }
