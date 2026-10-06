@@ -452,15 +452,15 @@ function ensureHeroProfileEditorStyle() {
         }
         #hero-grid .hero-card-self .hero-self-badge {
             position: absolute;
-            top: 12px;
-            right: 14px;
+            top: 6px;
+            right: 6px;
             z-index: 2;
-            padding: 5px 10px;
+            padding: 1px 7px;
             color: var(--ui-accent-deep);
             background: var(--ui-gold-soft);
             border: 1px solid var(--ui-gold-line);
             border-radius: 999px;
-            font-size: var(--ui-small-size);
+            font-size: 11px;
             font-weight: 900;
         }
         @media (max-width: 720px) {

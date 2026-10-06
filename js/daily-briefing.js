@@ -208,8 +208,21 @@
             .slice(0,6);
     }
 
+    // 로그인 직후엔 홈 대시보드가 전자칠판 공개 자료를 아직 못 받았을 수 있다.
+    // 그대로 읽으면 공지가 비어 보여 결석신고서만 뜨므로, 자료가 올 때까지 잠깐 기다린다.
+    async function waitForHomeData(maxMs=4000){
+        const loaded=()=>{
+            const data=typeof window.getHomeDashboardData==='function'?window.getHomeDashboardData():null;
+            return !!data&&Object.keys(data).length>0;
+        };
+        for(let waited=0;!loaded()&&waited<maxMs;waited+=150){
+            await new Promise(resolve=>setTimeout(resolve,150));
+        }
+    }
+
     async function showTeacherBriefing(){
         if(alreadyShownToday())return;
+        await waitForHomeData();
 
         const [notices,schedule]=await Promise.all([
             Promise.resolve(todayNoticeLines()),

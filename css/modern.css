@@ -179,7 +179,9 @@ body #tab-main .hero-self-badge {
     background: #6345af !important; color: #fff !important;
     border: 2px solid #493564 !important; border-radius: 2px !important;
     box-shadow: 2px 2px 0 #b4a1cf !important;
-    font-size: 14px !important;
+    font-size: 11px !important;
+    top: 6px !important; right: 6px !important;
+    padding: 1px 7px !important; line-height: 1.5;
 }
 body #tab-main .hero-card-item > div[style*="position:absolute"] {
     background: #66517f !important; color: #fff !important;
