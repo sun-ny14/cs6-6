@@ -73,10 +73,12 @@
     }
 
     // 팝업 안 체크박스: 체크하면 제출 확인으로 저장하고, 다시 풀면 목록에 되돌린다.
+    // 출결 관련 문구(결석 등)가 들어간 팝업은 js/global.js의 "독립 팝업" 패치가
+    // #pop-content가 아니라 #checkin-popup-content에 그려버릴 수 있어서, 특정
+    // 컨테이너 id에 기대지 않고 document 전체에 위임해서 바인딩한다.
     let boundContent=null,boundHandler=null;
     function bindCheckboxes(onChange){
-        const content=document.getElementById('pop-content');
-        if(!content)return;
+        const content=document;
         if(boundContent&&boundHandler)boundContent.removeEventListener('change',boundHandler);
         boundHandler=async event=>{
             const box=event.target.closest?.('.absence-check');
@@ -106,24 +108,23 @@
     }
 
     function remainingCount(){
-        return Array.from(document.querySelectorAll('#pop-content .absence-check')).filter(box=>!box.checked).length;
+        return Array.from(document.querySelectorAll('.absence-check')).filter(box=>!box.checked).length;
     }
 
     // ---- 등교 로그 탭의 결석신고서 전용 팝업: 체크만으로는 저장하지 않고,
     // "제출확인" 버튼을 눌러야 그 순간 체크된 학생만 한꺼번에 반영한다.
     // (홈 탭 "아 맞다!" 팝업의 체크는 그냥 확인용이라 저장하지 않는다 — bindCheckboxes와는 별개.)
+    // 위 bindCheckboxes와 마찬가지로 특정 컨테이너 id에 기대지 않는다.
     function updateConfirmButtonState(){
         const button=document.getElementById('absence-confirm-btn');
         if(!button)return;
-        button.disabled=!document.querySelectorAll('#pop-content .absence-check:checked').length;
+        button.disabled=!document.querySelectorAll('.absence-check:checked').length;
     }
 
     async function confirmSelected(){
-        const content=document.getElementById('pop-content');
         const button=document.getElementById('absence-confirm-btn');
         const note=document.getElementById('absence-remaining');
-        if(!content)return;
-        const boxes=Array.from(content.querySelectorAll('.absence-check:checked'));
+        const boxes=Array.from(document.querySelectorAll('.absence-check:checked'));
         if(!boxes.length)return;
 
         if(button)button.disabled=true;
@@ -136,7 +137,7 @@
             if(note)note.textContent=`✅ ${boxes.length}명 제출확인 처리했습니다.`;
             setTimeout(()=>{
                 boxes.forEach(box=>box.closest('.briefing-item')?.remove());
-                const left=document.querySelectorAll('#pop-content .absence-check').length;
+                const left=document.querySelectorAll('.absence-check').length;
                 if(note)note.textContent=left
                     ?`미제출 ${left}명 · 제출받은 학생을 체크하고 "제출확인"을 눌러주세요.`
                     :'모두 제출 확인 완료 🎉';
@@ -153,8 +154,7 @@
 
     let boundConfirmContent=null,boundConfirmHandler=null;
     function bindConfirmPopup(){
-        const content=document.getElementById('pop-content');
-        if(!content)return;
+        const content=document;
         if(boundConfirmContent&&boundConfirmHandler)boundConfirmContent.removeEventListener('change',boundConfirmHandler);
         boundConfirmHandler=event=>{
             if(event.target.closest?.('.absence-check'))updateConfirmButtonState();
