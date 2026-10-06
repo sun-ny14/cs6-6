@@ -1046,6 +1046,19 @@ window.submitBatchPoints=async function(){
         return alert('학생을 한 명 이상 선택해 주세요.');
     }
 
+    // 위쪽 P/EXP 칸에 값을 적고 '한번에 채우기'를 안 눌렀을 때: 학생별 칸이 비어 있으면 위쪽 값을 대신 쓴다.
+    const topP=parseInt(document.getElementById('batch-fill-p')?.value,10);
+    const topExp=parseInt(document.getElementById('batch-fill-exp')?.value,10);
+    targets.forEach(target=>{
+        if(!target.p&&Number.isFinite(topP))target.p=topP;
+        if(!target.exp&&Number.isFinite(topExp))target.exp=topExp;
+    });
+
+    // 포인트·경험치가 전부 0이면 아무것도 바뀌지 않는다. 조용히 넘어가지 말고 알려준다.
+    if(targets.every(target=>!target.p&&!target.exp)){
+        return alert('포인트나 경험치 값이 비어 있어요. 학생별 칸에 값을 넣거나, 위쪽 칸에 값을 넣고 "한번에 채우기"를 눌러 주세요.');
+    }
+
 
     if(!confirm(
         `선택한 ${targets.length}명의 학생에게 포인트와 경험치를 반영하시겠습니까?`
