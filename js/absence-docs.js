@@ -69,7 +69,7 @@
 
     function styleHtml(){
         // 목록/한 줄 모양은 아 맞다 팝업(daily-briefing.js)과 같은 스타일을 쓴다.
-        return (window.briefingPopupStyle?window.briefingPopupStyle():'')+'<style>.absence-date{color:var(--ui-muted);font-size:.8rem;white-space:nowrap}.briefing-item.is-absence-done{opacity:.55}.briefing-item.is-absence-done b,.briefing-item.is-absence-done small{text-decoration:line-through}</style>';
+        return (window.briefingPopupStyle?window.briefingPopupStyle():'')+'<style>.absence-date{color:var(--ui-muted);font-size:.8rem;white-space:nowrap}.briefing-item.is-absence-done{opacity:.55}.briefing-item.is-absence-done b,.briefing-item.is-absence-done small{text-decoration:line-through}.absence-actions{margin-top:14px}.absence-actions .btn{width:100%}</style>';
     }
 
     // 팝업 안 체크박스: 체크하면 제출 확인으로 저장하고, 다시 풀면 목록에 되돌린다.
@@ -109,6 +109,64 @@
         return Array.from(document.querySelectorAll('#pop-content .absence-check')).filter(box=>!box.checked).length;
     }
 
+    // ---- 등교 로그 탭의 결석신고서 전용 팝업: 체크만으로는 저장하지 않고,
+    // "제출확인" 버튼을 눌러야 그 순간 체크된 학생만 한꺼번에 반영한다.
+    // (홈 탭 "아 맞다!" 팝업의 체크는 그냥 확인용이라 저장하지 않는다 — bindCheckboxes와는 별개.)
+    function updateConfirmButtonState(){
+        const button=document.getElementById('absence-confirm-btn');
+        if(!button)return;
+        button.disabled=!document.querySelectorAll('#pop-content .absence-check:checked').length;
+    }
+
+    async function confirmSelected(){
+        const content=document.getElementById('pop-content');
+        const button=document.getElementById('absence-confirm-btn');
+        const note=document.getElementById('absence-remaining');
+        if(!content)return;
+        const boxes=Array.from(content.querySelectorAll('.absence-check:checked'));
+        if(!boxes.length)return;
+
+        if(button)button.disabled=true;
+        boxes.forEach(box=>box.disabled=true);
+        try{
+            await Promise.all(boxes.map(box=>
+                setSubmitted(box.dataset.name,box.dataset.date,box.dataset.reason,true)
+            ));
+            boxes.forEach(box=>box.closest('.briefing-item')?.classList.add('is-absence-done'));
+            if(note)note.textContent=`✅ ${boxes.length}명 제출확인 처리했습니다.`;
+            setTimeout(()=>{
+                boxes.forEach(box=>box.closest('.briefing-item')?.remove());
+                const left=document.querySelectorAll('#pop-content .absence-check').length;
+                if(note)note.textContent=left
+                    ?`미제출 ${left}명 · 제출받은 학생을 체크하고 "제출확인"을 눌러주세요.`
+                    :'모두 제출 확인 완료 🎉';
+                refreshBadge();
+            },650);
+        }catch(error){
+            console.error('결석신고서 제출 확인 저장 오류:',error);
+            boxes.forEach(box=>box.disabled=false);
+            alert('저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
+        }finally{
+            updateConfirmButtonState();
+        }
+    }
+
+    let boundConfirmContent=null,boundConfirmHandler=null;
+    function bindConfirmPopup(){
+        const content=document.getElementById('pop-content');
+        if(!content)return;
+        if(boundConfirmContent&&boundConfirmHandler)boundConfirmContent.removeEventListener('change',boundConfirmHandler);
+        boundConfirmHandler=event=>{
+            if(event.target.closest?.('.absence-check'))updateConfirmButtonState();
+        };
+        content.addEventListener('change',boundConfirmHandler);
+        boundConfirmContent=content;
+
+        const button=document.getElementById('absence-confirm-btn');
+        if(button)button.addEventListener('click',confirmSelected);
+        updateConfirmButtonState();
+    }
+
     // ---- 교사: 등교 로그 탭 ----
     async function refreshBadge(){
         const badge=document.getElementById('absence-doc-badge');
@@ -132,15 +190,12 @@
         }
         const body=rows.length
             ?`<div class="briefing-list">${teacherRowsHtml(rows)}</div>
-               <p class="tiny muted" id="absence-remaining" style="margin:12px 0 0">미제출 ${rows.length}명 · 제출받은 학생은 체크하세요. 체크 안 한 학생은 계속 남아 있어요.</p>`
+               <p class="tiny muted" id="absence-remaining" style="margin:12px 0 0">미제출 ${rows.length}명 · 제출받은 학생을 체크하고 "제출확인"을 눌러주세요.</p>
+               <div class="absence-actions"><button class="btn btn--primary" id="absence-confirm-btn" type="button" disabled>제출확인</button></div>`
             :'<p class="briefing-empty">결석신고서를 안 낸 학생이 없어요. 🎉</p>';
         window.openPopup(TITLE,`${styleHtml()}${body}`);
-        window.briefingPopupLabel?.('확인했어요');
-        bindCheckboxes(()=>{
-            const note=document.getElementById('absence-remaining');
-            if(note)note.textContent=remainingCount()?`미제출 ${remainingCount()}명 · 체크 안 한 학생은 계속 남아 있어요.`:'모두 제출 확인 완료 🎉';
-            refreshBadge();
-        });
+        window.briefingPopupLabel?.('닫기');
+        if(rows.length)bindConfirmPopup();
         markShownToday('teacher-tab');
     }
 
