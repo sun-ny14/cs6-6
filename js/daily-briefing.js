@@ -257,7 +257,10 @@
         gateCloseUntilAllChecked(title);
         // 체크가 필요한 항목이 하나도 없으면(결석신고서만 있을 때) 게이트가 문구를 안 바꾸므로 직접 맞춘다.
         if(!hasGatedItems)window.briefingPopupLabel('확인했어요');
-        if(absenceRows.length)window.AbsenceDocs.bindCheckboxes();
+        // 체크 확인용 버튼(onChange)을 꼭 넘겨야, 여기서 체크해도 등교로그 탭의
+        // 미제출 배지 숫자가 닫기 전에 바로 줄어든다(이전엔 저장은 되지만 화면
+        // 표시만 안 바뀌어서 "반영이 안 된다"고 느껴졌다).
+        if(absenceRows.length)window.AbsenceDocs.bindCheckboxes(()=>window.AbsenceDocs.refreshBadge());
 
         markShownToday();
     }
