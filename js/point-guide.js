@@ -952,6 +952,7 @@ window.openBulkPointPopup = async function(
                         if(user){
                             user.points=Number(saved.points)||0;
                             user.exp=Number(saved.exp)||0;
+                            if(saved.level){user.lv=saved.level;user.level=saved.level;}
                         }
                         if(window.currentUser&&String(window.currentUser.name||'')===String(saved.name||'')){
                             window.currentUser.points=Number(saved.points)||0;

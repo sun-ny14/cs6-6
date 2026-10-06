@@ -1862,7 +1862,7 @@ async function loadHistory(name, firebaseKey) {
         const name = first(user, ['name', 'userName', 'username'], '이름 없음');
         const points = Number(first(user, ['points', 'point', 'score'], 0)) || 0;
         const exp = Number(first(user, ['exp', 'experience', 'xp'], 0)) || 0;
-        const level = first(user, ['level', 'lv'], Math.max(1, Math.floor(exp / 100) + 1));
+        const level = first(user, ['level', 'lv'], Math.max(1, Math.floor(exp / 30) + 1));
         const number = first(user, ['no', 'number', 'studentNo'], '-');
         const title = first(user, ['selectedTitle', 'title', 'rank', 'grade'], '모험가');
         const role = first(user, ['role', 'job', 'classRole'], '용사');

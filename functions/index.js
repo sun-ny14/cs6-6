@@ -905,6 +905,9 @@ exports.teacherQuickCheckin = callable(async request => {
         pointDelta,points,hadPrevious:Boolean(previousData),previousData,previousPoints};
 });
 
+// 경험치 이만큼마다 레벨이 1 오른다(js/hero-mgr.js의 경험치 막대도 같은 30을 쓴다).
+const EXP_PER_LEVEL = 30;
+
 exports.adjustStudentScores = callable(async request => {
     const current=await actor(request);
     if(!current.teacher)throw new HttpsError('permission-denied','교사만 포인트를 변경할 수 있습니다.');
@@ -938,10 +941,12 @@ exports.adjustStudentScores = callable(async request => {
     const loaded=await Promise.all(prepared.map(async item=>{
         const userPath=`users/${item.userKey}`;
         const receiptPath=`scoreAdjustmentReceipts/${item.userKey}/${requestId}`;
-        const [nameSnapshot,pointsSnapshot,expSnapshot,receiptSnapshot]=await Promise.all([
+        const [nameSnapshot,pointsSnapshot,expSnapshot,lvSnapshot,levelSnapshot,receiptSnapshot]=await Promise.all([
             database.ref(`${userPath}/name`).get(),
             database.ref(`${userPath}/points`).get(),
             database.ref(`${userPath}/exp`).get(),
+            database.ref(`${userPath}/lv`).get(),
+            database.ref(`${userPath}/level`).get(),
             database.ref(receiptPath).get()
         ]);
         const displayName=String(nameSnapshot.val()||item.target.name||item.userKey).trim();
@@ -952,6 +957,7 @@ exports.adjustStudentScores = callable(async request => {
             ...item,displayName,receiptPath,
             currentPoints:Number(pointsSnapshot.val())||0,
             currentExp:Number(expSnapshot.val())||0,
+            currentLevel:Math.max(1,Number(levelSnapshot.val()||lvSnapshot.val())||1),
             existingReceipt:receiptSnapshot.val()||null
         };
     }));
@@ -963,23 +969,32 @@ exports.adjustStudentScores = callable(async request => {
         if(existingReceipt){
             results.push({name:displayName,userKey,
                 points:Number(existingReceipt.nextPoints)||0,
-                exp:Number(existingReceipt.nextExp)||0});
+                exp:Number(existingReceipt.nextExp)||0,
+                ...(existingReceipt.nextLevel?{level:Number(existingReceipt.nextLevel)}:{})});
             return;
         }
         const nextPoints=item.currentPoints+points;
-        const nextExp=item.currentExp+exp;
+        // 경험치가 EXP_PER_LEVEL에 닿을 때마다 레벨이 오르고, 남은 경험치만 저장한다.
+        const rawExp=item.currentExp+exp;
+        const levelUps=rawExp>=EXP_PER_LEVEL?Math.floor(rawExp/EXP_PER_LEVEL):0;
+        const nextExp=levelUps?rawExp-levelUps*EXP_PER_LEVEL:rawExp;
+        const nextLevel=item.currentLevel+levelUps;
         const logKey=scoreLogKey(requestId,userKey);
         const receipt={name:displayName,userKey,points,exp,nextPoints,nextExp,
-            reason,timestamp:now,logKey};
+            reason,timestamp:now,logKey,...(levelUps?{levelUps,nextLevel}:{})};
         scoreUpdates[`users/${userKey}/points`]=nextPoints;
         scoreUpdates[`users/${userKey}/exp`]=nextExp;
+        if(levelUps){
+            scoreUpdates[`users/${userKey}/lv`]=nextLevel;
+            scoreUpdates[`users/${userKey}/level`]=nextLevel;
+        }
         scoreUpdates[receiptPath]=receipt;
         scoreUpdates[`pointLogs/${logKey}`]={name:displayName,userKey,pAmt:points,
             eAmt:exp,reason,time,timestamp:now};
         scoreUpdates[`pointHistory/${userKey}/${logKey}`]={date,time,reason,change:points,
             pChange:points,expChange:exp,result:nextPoints,pointResult:nextPoints,
-            expResult:nextExp,timestamp:now};
-        results.push({name:displayName,userKey,points:nextPoints,exp:nextExp});
+            expResult:nextExp,timestamp:now,...(levelUps?{levelUp:nextLevel}:{})};
+        results.push({name:displayName,userKey,points:nextPoints,exp:nextExp,...(levelUps?{level:nextLevel}:{})});
     });
 
     // 잔액·경험치·영수증·두 로그를 한 번에 원자적으로 저장한다. 일부 학생만

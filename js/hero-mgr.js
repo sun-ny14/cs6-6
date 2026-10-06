@@ -985,10 +985,13 @@ const clickAction =
          * 경험치 역시 관리자 또는 본인만 표시
          */
 
-        // 이 앱의 규칙: 100 EXP 마다 한 레벨 (global.js 의 레벨 환산과 동일)
+        // 이 앱의 규칙: 30 EXP 마다 한 레벨. 서버(adjustStudentScores)가 레벨을 올리고
+        // 남은 경험치만 저장하므로 보통 heroExp < 30이다.
+        const EXP_PER_LEVEL = 30;
         const heroExp = parseInt(user.exp, 10) || 0;
-        const expIntoLevel = ((heroExp % 100) + 100) % 100;
-        const expToNext = 100 - expIntoLevel;
+        const expIntoLevel = ((heroExp % EXP_PER_LEVEL) + EXP_PER_LEVEL) % EXP_PER_LEVEL;
+        const expToNext = EXP_PER_LEVEL - expIntoLevel;
+        const expPercent = Math.round(expIntoLevel / EXP_PER_LEVEL * 100);
 
         let expHtml = "";
 
@@ -996,7 +999,7 @@ const clickAction =
             expHtml = `
                 <div class="hero-exp-bar" role="img"
                      aria-label="다음 레벨까지 ${expToNext} 경험치">
-                    <div class="hero-exp-fill" style="width:${expIntoLevel}%"></div>
+                    <div class="hero-exp-fill" style="width:${expPercent}%"></div>
                 </div>
                 <div class="hero-exp">
                     EXP ${heroExp} · 다음 레벨까지 ${expToNext}
