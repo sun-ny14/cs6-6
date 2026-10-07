@@ -962,6 +962,12 @@ exports.adjustStudentScores = callable(async request => {
         };
     }));
 
+    // 레벨업이 있으면 설정(settings/giftList)에 적어 둔 보상 목록에서 올라간 레벨마다 하나씩 뽑는다.
+    const willLevelUp=loaded.some(item=>!item.existingReceipt&&item.currentExp+item.exp>=EXP_PER_LEVEL);
+    const giftList=willLevelUp
+        ?(((await database.ref('settings/giftList').get()).val())||[]).map(gift=>String(gift||'').trim()).filter(Boolean)
+        :[];
+
     const scoreUpdates={};
     const results=[];
     loaded.forEach(item=>{
@@ -987,6 +993,15 @@ exports.adjustStudentScores = callable(async request => {
         if(levelUps){
             scoreUpdates[`users/${userKey}/lv`]=nextLevel;
             scoreUpdates[`users/${userKey}/level`]=nextLevel;
+            if(giftList.length){
+                for(let step=1;step<=levelUps;step++){
+                    const pick=giftList[Math.floor(Math.random()*giftList.length)];
+                    scoreUpdates[`orders/${database.ref('orders').push().key}`]={
+                        user:displayName,item:`[레벨업] ${pick}`,status:'대기',time:now,
+                        levelUp:item.currentLevel+step
+                    };
+                }
+            }
         }
         scoreUpdates[receiptPath]=receipt;
         scoreUpdates[`pointLogs/${logKey}`]={name:displayName,userKey,pAmt:points,

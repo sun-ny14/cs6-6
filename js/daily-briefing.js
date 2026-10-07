@@ -94,8 +94,40 @@
             .sort((a,b)=>String(a.item.dueDate||'9999').localeCompare(String(b.item.dueDate||'9999')));
     }
 
+    // 레벨업 보상(orders의 [레벨업] 항목)을 아직 안 본 것만 모은다. 본 것은 이 기기에 기록한다.
+    function seenLevelUpKey(){return `levelUpSeen:${String(window.myName||'')}`;}
+    function readSeenLevelUps(){
+        try{return new Set(JSON.parse(localStorage.getItem(seenLevelUpKey())||'[]'));}
+        catch(error){return new Set();}
+    }
+    async function loadNewLevelUpRewards(){
+        const name=String(window.myName||'').trim();
+        if(!name)return [];
+        try{
+            const snapshot=await db.ref(`ordersByUser/${name}`).once('value');
+            const seen=readSeenLevelUps();
+            const rows=[];
+            snapshot.forEach(child=>{
+                const order=child.val()||{};
+                if(Number(order.levelUp)>0&&!seen.has(child.key))rows.push({key:child.key,level:Number(order.levelUp),item:String(order.item||'').replace(/^[레벨업]s*/,'')});
+            });
+            return rows.sort((a,b)=>a.level-b.level);
+        }catch(error){
+            console.error('레벨업 보상 조회 오류:',error);
+            return [];
+        }
+    }
+    function markLevelUpsSeen(rows){
+        try{
+            const seen=readSeenLevelUps();
+            rows.forEach(row=>seen.add(row.key));
+            localStorage.setItem(seenLevelUpKey(),JSON.stringify([...seen].slice(-200)));
+        }catch(error){/* 기록 실패해도 팝업은 이미 떴다 */}
+    }
+
     async function showStudentBriefing(){
         const items=studentIncompleteItems();
+        const levelUps=await loadNewLevelUpRewards();
 
         // 결석신고서는 하루 한 번만 안내한다(교사가 제출 확인을 하면 목록에서 사라짐).
         let absenceRows=[];
@@ -104,7 +136,7 @@
             catch(error){console.error('결석신고서 조회 오류:',error);}
         }
 
-        if(!items.length&&!absenceRows.length)return;
+        if(!items.length&&!absenceRows.length&&!levelUps.length)return;
 
         const icon=category=>category==='제출자료'?'📎':'📝';
         const shown=items.slice(0,6);
@@ -123,11 +155,16 @@
             ?`<div class="briefing-section"><h4>📄 결석신고서를 내야 해요</h4><div class="briefing-list">${window.AbsenceDocs.studentRowsHtml(absenceRows)}</div></div>`
             :'';
 
+        const levelUpHtml=levelUps.length
+            ?`<div class="briefing-section"><h4>🎉 레벨업 보상</h4><div class="briefing-list">${levelUps.map(row=>`<div class="briefing-item"><span>🎁</span><b>Lv.${row.level} 달성</b><small>${esc(row.item)}</small></div>`).join('')}</div><div class="briefing-more">선생님께 말씀드리면 받을 수 있어요.</div></div>`
+            :'';
+
         window.openPopup(
-            '아 맞다! 📝',
-            `${popupStyle()}${window.AbsenceDocs?window.AbsenceDocs.styleHtml():''}${todoHtml}${absenceHtml}`
+            levelUps.length&&!items.length&&!absenceRows.length?'LEVEL UP! 🎉':'아 맞다! 📝',
+            `${popupStyle()}${window.AbsenceDocs?window.AbsenceDocs.styleHtml():''}${levelUpHtml}${todoHtml}${absenceHtml}`
         );
         window.briefingPopupLabel('알겠어요');
+        if(levelUps.length)markLevelUpsSeen(levelUps);
         if(absenceRows.length)window.AbsenceDocs.markShownToday('student');
     }
 
