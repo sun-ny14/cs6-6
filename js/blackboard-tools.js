@@ -23,59 +23,67 @@
             #bb-tool-noise-btn{background:#f39c12;}
             #bb-tool-qr-btn{background:#27ae60;}
 
-            .bb-float-win{position:fixed;width:300px;background:#fff;border-radius:18px;box-shadow:0 20px 50px rgba(24,40,68,.3);overflow:hidden;z-index:950;display:none;}
+            /* 모서리를 끌어서 선생님이 원하는 크기로 직접 조절할 수 있다.
+               (QR코드처럼 멀리서 봐야 하는 창은 크게, 간단한 건 작게) */
+            .bb-float-win{position:fixed;width:420px;min-width:320px;min-height:260px;max-width:90vw;max-height:85vh;background:#fff;border-radius:20px;box-shadow:0 20px 50px rgba(24,40,68,.3);overflow:auto;resize:both;z-index:950;display:none;}
             .bb-float-win.show{display:block;}
-            .bb-float-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#182844;color:#fff;font-weight:900;cursor:move;user-select:none;}
-            .bb-float-close{width:26px;height:26px;border:0;border-radius:8px;background:rgba(255,255,255,.15);color:#fff;font-weight:900;cursor:pointer;}
-            .bb-float-body{padding:20px;text-align:center;color:#182844;font-family:"Pretendard","Noto Sans KR","Segoe UI",sans-serif;}
+            .bb-float-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:#182844;color:#fff;font-weight:900;font-size:17px;cursor:move;user-select:none;position:sticky;top:0;z-index:1;}
+            .bb-float-close{width:34px;height:34px;border:0;border-radius:10px;background:rgba(255,255,255,.15);color:#fff;font-weight:900;cursor:pointer;font-size:16px;flex:none;}
+            .bb-float-body{padding:30px;text-align:center;color:#182844;font-family:"Pretendard","Noto Sans KR","Segoe UI",sans-serif;}
 
-            .bb-timer-display{font-size:48px;font-weight:950;font-variant-numeric:tabular-nums;color:#3498db;margin-bottom:10px;}
+            .bb-timer-display{font-size:68px;font-weight:950;font-variant-numeric:tabular-nums;color:#3498db;margin-bottom:16px;}
             .bb-timer-presets{display:flex;gap:6px;justify-content:center;margin-bottom:12px;flex-wrap:wrap;}
-            .bb-timer-presets button{padding:5px 10px;border:2px solid #3498db;border-radius:999px;background:#fff;color:#3498db;font-weight:800;cursor:pointer;font-size:12px;}
+            .bb-timer-presets button{padding:9px 16px;border:2px solid #3498db;border-radius:999px;background:#fff;color:#3498db;font-weight:800;cursor:pointer;font-size:15px;}
             .bb-timer-presets button.active{background:#3498db;color:#fff;}
+            .bb-timer-custom{display:flex;gap:8px;align-items:center;justify-content:center;margin:0 0 16px;padding:12px;border-radius:14px;background:#f2f6fb;flex-wrap:wrap;}
+            .bb-timer-custom input{width:56px;padding:8px;border:2px solid #dfe6f0;border-radius:10px;text-align:center;font-size:16px;font-weight:800;font-family:inherit;}
+            .bb-timer-custom span{font-weight:800;color:#40525f;font-size:14px;}
+            .bb-timer-custom button{padding:9px 16px;border:0;border-radius:10px;background:#3498db;color:#fff;font-weight:900;font-size:14px;cursor:pointer;}
             .bb-timer-controls{display:flex;gap:8px;justify-content:center;}
-            .bb-timer-controls button{padding:8px 16px;border:0;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;}
+            .bb-timer-controls button{padding:13px 22px;border:0;border-radius:12px;font-weight:900;font-size:16px;cursor:pointer;}
             .bb-tc-start{background:#27ae60;color:#fff;}
             .bb-tc-reset{background:#eef1f6;color:#182844;}
 
-            .bb-stopwatch-display{font-size:48px;font-weight:950;font-variant-numeric:tabular-nums;color:#e74c3c;margin-bottom:10px;}
-            .bb-stopwatch-controls{display:flex;gap:8px;justify-content:center;margin-bottom:12px;}
-            .bb-stopwatch-controls button{padding:8px 16px;border:0;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;}
+            .bb-stopwatch-display{font-size:60px;font-weight:950;font-variant-numeric:tabular-nums;color:#e74c3c;margin-bottom:14px;}
+            .bb-stopwatch-controls{display:flex;gap:10px;justify-content:center;margin-bottom:16px;}
+            .bb-stopwatch-controls button{padding:12px 18px;border:0;border-radius:12px;font-weight:900;font-size:15px;cursor:pointer;}
             .bb-sw-start{background:#27ae60;color:#fff;}
             .bb-sw-lap{background:#eef1f6;color:#182844;}
             .bb-sw-reset{background:#eef1f6;color:#182844;}
-            .bb-stopwatch-laps{max-height:120px;overflow-y:auto;text-align:left;font-size:13px;font-weight:700;color:#40525f;}
-            .bb-stopwatch-laps div{display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px dashed #eef1f6;}
+            .bb-stopwatch-laps{max-height:140px;overflow-y:auto;text-align:left;font-size:15px;font-weight:700;color:#40525f;}
+            .bb-stopwatch-laps div{display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px dashed #eef1f6;}
 
-            .bb-picker-reveal{font-size:44px;font-weight:950;margin:6px 0 14px;padding:20px;border-radius:16px;background:linear-gradient(135deg,#fdf0d5,#ffe6b3);color:#7a4b00;}
-            .bb-picker-btn{padding:12px 30px;border:0;border-radius:14px;background:#8e44ad;color:#fff;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:12px;width:100%;}
-            .bb-picker-setup{display:flex;gap:6px;align-items:center;justify-content:center;margin-bottom:10px;font-size:13px;font-weight:800;}
-            .bb-picker-setup input{width:56px;padding:5px;border:1px solid #dfe6f0;border-radius:8px;text-align:center;}
-            .bb-picker-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;max-height:150px;overflow-y:auto;margin-bottom:8px;}
-            .bb-picker-num{padding:6px 0;border-radius:8px;border:1px solid #dfe6f0;background:#fff;font-size:12px;font-weight:800;cursor:pointer;color:#182844;}
+            .bb-picker-reveal{font-size:56px;font-weight:950;margin:6px 0 18px;padding:26px;border-radius:18px;background:linear-gradient(135deg,#fdf0d5,#ffe6b3);color:#7a4b00;}
+            .bb-picker-btn{padding:16px 30px;border:0;border-radius:16px;background:#8e44ad;color:#fff;font-weight:900;font-size:18px;cursor:pointer;margin-bottom:14px;width:100%;}
+            .bb-picker-setup{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:14px;font-size:15px;font-weight:800;}
+            .bb-picker-setup input{width:70px;padding:8px;border:1px solid #dfe6f0;border-radius:10px;text-align:center;font-size:15px;}
+            .bb-picker-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;max-height:200px;overflow-y:auto;margin-bottom:10px;}
+            .bb-picker-num{padding:10px 0;border-radius:10px;border:1px solid #dfe6f0;background:#fff;font-size:14px;font-weight:800;cursor:pointer;color:#182844;}
             .bb-picker-num.excluded{background:#f4f1f8;color:#c3c9d6;text-decoration:line-through;}
-            .bb-picker-hint{font-size:11px;color:#8a94a8;font-weight:700;}
+            .bb-picker-hint{font-size:13px;color:#8a94a8;font-weight:700;}
 
-            .bb-db-toggle{display:inline-flex;border-radius:999px;background:#eef1f6;padding:4px;margin-bottom:16px;}
-            .bb-db-toggle button{padding:6px 14px;border:0;border-radius:999px;background:transparent;font-weight:800;color:#8a94a8;cursor:pointer;font-size:12px;}
+            .bb-db-toggle{display:inline-flex;border-radius:999px;background:#eef1f6;padding:5px;margin-bottom:20px;}
+            .bb-db-toggle button{padding:8px 18px;border:0;border-radius:999px;background:transparent;font-weight:800;color:#8a94a8;cursor:pointer;font-size:14px;}
             .bb-db-toggle button.active{background:#f39c12;color:#fff;}
-            .bb-db-number{font-size:44px;font-weight:950;color:#f39c12;}
-            .bb-db-bar-track{height:16px;border-radius:999px;background:#eef1f6;overflow:hidden;margin-top:10px;}
+            .bb-db-number{font-size:56px;font-weight:950;color:#f39c12;}
+            .bb-db-bar-track{height:20px;border-radius:999px;background:#eef1f6;overflow:hidden;margin-top:14px;}
             .bb-db-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#27ae60,#f39c12,#e74c3c);transition:width .15s ease;}
             .bb-db-light-view{display:none;}
-            .bb-db-light-view .bb-light{width:90px;height:90px;border-radius:50%;margin:0 auto 10px;background:#27ae60;box-shadow:0 0 40px rgba(39,174,96,.5);transition:background .2s ease, box-shadow .2s ease;}
-            .bb-db-light-label{font-size:15px;font-weight:900;color:#27ae60;}
-            .bb-db-hint{font-size:11px;color:#8a94a8;font-weight:700;margin-top:10px;}
+            .bb-db-light-view .bb-light{width:120px;height:120px;border-radius:50%;margin:0 auto 14px;background:#27ae60;box-shadow:0 0 50px rgba(39,174,96,.5);transition:background .2s ease, box-shadow .2s ease;}
+            .bb-db-light-label{font-size:19px;font-weight:900;color:#27ae60;}
+            .bb-db-hint{font-size:13px;color:#8a94a8;font-weight:700;margin-top:14px;}
 
-            .bb-qr-input{width:100%;box-sizing:border-box;padding:10px;border:2px solid #dfe6f0;border-radius:10px;font-size:14px;margin-bottom:10px;}
-            .bb-qr-generate{padding:10px 20px;border:0;border-radius:12px;background:#27ae60;color:#fff;font-weight:900;font-size:14px;cursor:pointer;margin-bottom:14px;width:100%;}
-            .bb-qr-image{width:180px;height:180px;border:6px solid #fff;box-shadow:0 8px 24px rgba(24,40,68,.2);border-radius:10px;display:none;}
-            .bb-qr-copy{margin-top:14px;padding:8px 18px;border:2px solid #27ae60;border-radius:12px;background:#fff;color:#27ae60;font-weight:900;font-size:13px;cursor:pointer;}
+            .bb-qr-input{width:100%;box-sizing:border-box;padding:14px;border:2px solid #dfe6f0;border-radius:12px;font-size:16px;margin-bottom:14px;}
+            .bb-qr-generate{padding:14px 20px;border:0;border-radius:14px;background:#27ae60;color:#fff;font-weight:900;font-size:16px;cursor:pointer;margin-bottom:18px;width:100%;}
+            /* 창을 크게 조절하면(학생들이 멀리서 걸어와 찍어야 할 때) QR 이미지도
+               같이 커지게 고정 크기 대신 창 너비에 맞춘다. */
+            .bb-qr-image{width:100%;max-width:440px;aspect-ratio:1/1;border:8px solid #fff;box-shadow:0 10px 30px rgba(24,40,68,.25);border-radius:16px;display:none;}
+            .bb-qr-copy{margin-top:18px;padding:11px 20px;border:2px solid #27ae60;border-radius:14px;background:#fff;color:#27ae60;font-weight:900;font-size:15px;cursor:pointer;}
 
             @media(max-width:640px){
                 .bb-tool-btn{padding:8px 14px;font-size:12px;}
                 .bb-tool-btn .bb-emoji{font-size:20px;}
-                .bb-float-win{width:min(92vw,300px);}
+                .bb-float-win{width:min(92vw,420px);}
             }
         `;
         document.head.appendChild(style);
@@ -139,6 +147,20 @@
     // ---------------------------------------------------------
     // 타이머
     // ---------------------------------------------------------
+    // 타이머/번호뽑기 효과음은 전부 Web Audio로 직접 만든다(음원 파일 없이,
+    // 이 기기 안에서만 재생).
+    function playTone(ctx, freq, startAt, dur, peak){
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = freq;
+        osc.connect(gain); gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.001, startAt);
+        gain.gain.exponentialRampToValueAtTime(peak, startAt + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startAt + dur);
+        osc.start(startAt);
+        osc.stop(startAt + dur + 0.02);
+    }
+
     function setupTimer(){
         const win = createFloatWindow('bb-win-timer', '⏱️ 타이머', `
             <div class="bb-timer-display" id="bb-timer-display">05:00</div>
@@ -147,6 +169,11 @@
                 <button type="button" data-secs="180">3분</button>
                 <button type="button" data-secs="300" class="active">5분</button>
                 <button type="button" data-secs="600">10분</button>
+            </div>
+            <div class="bb-timer-custom">
+                <input type="number" id="bb-timer-custom-min" min="0" max="99" value="0" aria-label="분"><span>분</span>
+                <input type="number" id="bb-timer-custom-sec" min="0" max="59" value="0" aria-label="초"><span>초</span>
+                <button type="button" id="bb-timer-custom-apply">적용</button>
             </div>
             <div class="bb-timer-controls">
                 <button type="button" class="bb-tc-start" id="bb-timer-toggle">▶ 시작</button>
@@ -157,6 +184,8 @@
         let totalSecs = 300, remaining = 300, tickHandle = null;
         const display = win.querySelector('#bb-timer-display');
         const toggleBtn = win.querySelector('#bb-timer-toggle');
+        const customMin = win.querySelector('#bb-timer-custom-min');
+        const customSec = win.querySelector('#bb-timer-custom-sec');
 
         function format(secs){
             const m = Math.floor(secs / 60), s = secs % 60;
@@ -167,18 +196,16 @@
         function beep(){
             try{
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                [0, 300, 600].forEach(delay => {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.frequency.value = 880;
-                    osc.connect(gain); gain.connect(ctx.destination);
-                    gain.gain.setValueAtTime(0.001, ctx.currentTime + delay / 1000);
-                    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + delay / 1000 + 0.02);
-                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay / 1000 + 0.25);
-                    osc.start(ctx.currentTime + delay / 1000);
-                    osc.stop(ctx.currentTime + delay / 1000 + 0.3);
-                });
-            }catch(error){ console.warn('타이머 알림음 재생 실패:', error); }
+                [0, 300, 600].forEach(delay => playTone(ctx, 880, ctx.currentTime + delay / 1000, 0.25, 0.3));
+            }catch(error){ console.warn('타이머 종료음 재생 실패:', error); }
+        }
+
+        // 남은 시간 10초부터 매초 짧은 틱 소리로 임박했음을 알린다.
+        function tick10Warn(){
+            try{
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                playTone(ctx, 1200, ctx.currentTime, 0.08, 0.2);
+            }catch(error){ console.warn('타이머 임박음 재생 실패:', error); }
         }
 
         function stopTick(){ if (tickHandle){ clearInterval(tickHandle); tickHandle = null; } }
@@ -192,10 +219,20 @@
                     stopTick();
                     toggleBtn.textContent = '▶ 시작';
                     beep();
+                }else if (remaining <= 10){
+                    tick10Warn();
                 }
             }, 1000);
         }
         function pause(){ stopTick(); toggleBtn.textContent = '▶ 시작'; }
+
+        function setTotal(secs){
+            win.querySelectorAll('.bb-timer-presets button').forEach(b => b.classList.remove('active'));
+            pause();
+            totalSecs = Math.max(1, secs);
+            remaining = totalSecs;
+            renderTime();
+        }
 
         toggleBtn.addEventListener('click', () => { tickHandle ? pause() : start(); });
         win.querySelector('#bb-timer-reset').addEventListener('click', () => {
@@ -203,13 +240,16 @@
         });
         win.querySelectorAll('.bb-timer-presets button').forEach(btn => {
             btn.addEventListener('click', () => {
-                win.querySelectorAll('.bb-timer-presets button').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                pause();
-                totalSecs = parseInt(btn.dataset.secs, 10) || 300;
-                remaining = totalSecs;
-                renderTime();
+                setTotal(parseInt(btn.dataset.secs, 10) || 300);
             });
+        });
+        win.querySelector('#bb-timer-custom-apply').addEventListener('click', () => {
+            const mins = Math.max(0, Math.min(99, parseInt(customMin.value, 10) || 0));
+            const secs = Math.max(0, Math.min(59, parseInt(customSec.value, 10) || 0));
+            const total = mins * 60 + secs;
+            if (total <= 0) return;
+            setTotal(total);
         });
 
         document.getElementById('bb-tool-timer-btn').addEventListener('click', () => openWindow(win));
@@ -281,6 +321,16 @@
     // ---------------------------------------------------------
     // 번호 뽑기 (이름 대신 번호만 사용 — Firebase 접근 불필요)
     // ---------------------------------------------------------
+    function playDrawSound(){
+        try{
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            // 올라가는 3음 차임벨로 "짠!" 느낌을 낸다.
+            [523.25, 659.25, 783.99].forEach((freq, i) => {
+                playTone(ctx, freq, ctx.currentTime + i * 0.09, 0.2, 0.25);
+            });
+        }catch(error){ console.warn('번호뽑기 효과음 재생 실패:', error); }
+    }
+
     function setupPicker(){
         const win = createFloatWindow('bb-win-picker', '🎲 번호 뽑기', `
             <div class="bb-picker-reveal" id="bb-picker-reveal">?</div>
@@ -337,6 +387,7 @@
             }
             const picked = pool[Math.floor(Math.random() * pool.length)];
             reveal.textContent = `🎉 ${picked}번`;
+            playDrawSound();
             if (autoExclude.checked){
                 excluded.add(picked);
                 renderGrid();
@@ -459,7 +510,9 @@
         win.querySelector('#bb-qr-generate').addEventListener('click', () => {
             const text = win.querySelector('#bb-qr-input').value.trim();
             if (!text){ img.style.display = 'none'; copyBtn.style.display = 'none'; return; }
-            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(text);
+            // 창을 크게 조절하면 이미지도 같이 커지므로(최대 440px 표시),
+            // 흐려 보이지 않게 그보다 큰 해상도로 생성해 둔다.
+            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=' + encodeURIComponent(text);
             img.style.display = 'inline-block';
             copyBtn.style.display = 'inline-block';
         });
