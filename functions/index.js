@@ -225,6 +225,50 @@ exports.getClassJournalMonth = callable(async request => {
     return readJournalMonth(getDatabase(),month);
 });
 
+// 날짜와 상관없는 참고 메모. 학급일지와 같은 비밀번호 세션을 통과한 교사만 읽고 쓴다.
+// 저장 위치(classJournalMemos)는 DB 규칙상 클라이언트가 직접 읽고 쓸 수 없다.
+const MEMO_LIMIT = 300;
+const cleanMemo=(id,memo)=>({
+    id,title:String(memo?.title||'').trim().slice(0,100),
+    content:String(memo?.content||'').trim().slice(0,6000),
+    pinned:memo?.pinned===true,updatedAt:Number(memo?.updatedAt)||0
+});
+
+exports.getClassJournalMemos = callable(async request => {
+    const current=await journalTeacher(request);
+    await requireJournalSession(request,current);
+    const value=(await getDatabase().ref('classJournalMemos').get()).val()||{};
+    return {memos:Object.entries(value).map(([id,memo])=>cleanMemo(id,memo))};
+});
+
+exports.saveClassJournalMemo = callable(async request => {
+    const current=await journalTeacher(request);
+    await requireJournalSession(request,current);
+    const database=getDatabase();
+    const rawId=String(request.data?.id||'');
+    if(rawId&&!/^[A-Za-z0-9_-]{1,60}$/.test(rawId))throw new HttpsError('invalid-argument','메모 번호를 확인해 주세요.');
+    const title=String(request.data?.title||'').trim().slice(0,100);
+    const content=String(request.data?.content||'').trim().slice(0,6000);
+    if(!title&&!content)throw new HttpsError('invalid-argument','제목이나 내용을 입력해 주세요.');
+    if(!rawId){
+        const count=Object.keys((await database.ref('classJournalMemos').get()).val()||{}).length;
+        if(count>=MEMO_LIMIT)throw new HttpsError('resource-exhausted','메모는 '+MEMO_LIMIT+'개까지 저장할 수 있어요. 안 쓰는 메모를 지워 주세요.');
+    }
+    const id=rawId||database.ref('classJournalMemos').push().key;
+    const memo={title:title||content.split('\n')[0].slice(0,40),content,pinned:request.data?.pinned===true,updatedAt:Date.now()};
+    await database.ref('classJournalMemos/'+id).set(memo);
+    return {memo:cleanMemo(id,memo)};
+});
+
+exports.deleteClassJournalMemo = callable(async request => {
+    const current=await journalTeacher(request);
+    await requireJournalSession(request,current);
+    const id=String(request.data?.id||'');
+    if(!/^[A-Za-z0-9_-]{1,60}$/.test(id))throw new HttpsError('invalid-argument','메모 번호를 확인해 주세요.');
+    await getDatabase().ref('classJournalMemos/'+id).remove();
+    return {ok:true};
+});
+
 exports.saveClassJournalDay = callable(async request => {
     const current=await journalTeacher(request);
     await requireJournalSession(request,current);

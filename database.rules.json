@@ -32,6 +32,10 @@
       ".read": false,
       ".write": false
     },
+    "classJournalMemos": {
+      ".read": false,
+      ".write": false
+    },
     "publicProfiles": {
       ".read": "auth != null",
       ".write": false

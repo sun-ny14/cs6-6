@@ -154,10 +154,12 @@
 
     window.lockClassJournal=function(message){
         state.token='';state.days={};state.notices={};state.drafts={};
+        window.resetClassMemo?.();
         renderLock(message);
         window.classOpsOnLock?.();
     };
     window.isClassOpsUnlocked=()=>Boolean(state.token);
+    window.getClassJournalToken=()=>state.token;
     window.renderClassJournalPane=function(){if(state.token)renderJournal();};
     window.classOpsChangePassword=function(){renderPasswordSetup();};
     document.addEventListener('click',async event=>{

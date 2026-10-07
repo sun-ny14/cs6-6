@@ -85,6 +85,7 @@ bindClick('class-ops-lock-btn',()=>{
     window.lockClassJournal&&window.lockClassJournal();
 });
 bindClick('class-ops-sub-journal',()=>window.switchClassOpsSub('journal'));
+bindClick('class-ops-sub-memo',()=>window.switchClassOpsSub('memo'));
 bindClick('class-ops-sub-grades',()=>window.switchClassOpsSub('grades'));
 bindClick('class-ops-sub-budget',()=>window.switchClassOpsSub('budget'));
 

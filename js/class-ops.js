@@ -16,7 +16,7 @@
     };
 
     function setSubnavActive(name) {
-        ['journal', 'grades', 'budget'].forEach(key => {
+        ['journal', 'memo', 'grades', 'budget'].forEach(key => {
             document.getElementById(`class-ops-sub-${key}`)?.classList.toggle('active', key === name);
         });
     }
@@ -25,12 +25,16 @@
         window.classOpsActiveSub = name;
         setSubnavActive(name);
         const journalPane = document.getElementById('class-journal-container');
+        const memoPane = document.getElementById('class-memo-container');
         const managePane = document.getElementById('management-sub-container');
         if (journalPane) journalPane.hidden = name !== 'journal';
-        if (managePane) managePane.hidden = name === 'journal';
+        if (memoPane) memoPane.hidden = name !== 'memo';
+        if (managePane) managePane.hidden = name !== 'grades' && name !== 'budget';
 
         if (name === 'journal' && typeof window.renderClassJournalPane === 'function') {
             window.renderClassJournalPane();
+        } else if (name === 'memo' && typeof window.renderClassMemoPane === 'function') {
+            window.renderClassMemoPane();
         } else if ((name === 'grades' || name === 'budget') && typeof window.renderManagementSub === 'function') {
             window.renderManagementSub(name);
         }
@@ -39,7 +43,7 @@
     // 잠긴 상태에서 서브탭 버튼을 눌러도 잠금 화면이 우선이므로, 원하던 서브탭만
     // 기억해뒀다가 잠금이 풀리는 순간 그 화면으로 바로 이동시킨다.
     window.switchClassOpsSub = function (name) {
-        if (!['journal', 'grades', 'budget'].includes(name)) return;
+        if (!['journal', 'memo', 'grades', 'budget'].includes(name)) return;
         window.classOpsActiveSub = name;
         if (typeof window.isClassOpsUnlocked === 'function' && window.isClassOpsUnlocked()) {
             applySub(name);
@@ -65,5 +69,7 @@
     window.classOpsOnLock = function () {
         const managePane = document.getElementById('management-sub-container');
         if (managePane) managePane.hidden = true;
+        const memoPane = document.getElementById('class-memo-container');
+        if (memoPane) memoPane.hidden = true;
     };
 })();
