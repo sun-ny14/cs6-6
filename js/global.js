@@ -1366,7 +1366,12 @@ window.closePointPopup=function(){
             contentElement.scrollLeft = 0;
         }
 
-        overlay.dataset.previousOverflow = document.body.style.overflow || '';
+        // 이미 열려 있는 상태에서 다시 열리면(실시간 새로고침 등) 그 순간의
+        // 'hidden' 값을 "원래 상태"로 잘못 덮어써서, 나중에 닫아도 스크롤이
+        // 계속 잠겨 있는 문제가 있었다. 처음 열릴 때만 저장한다.
+        if (overlay.hidden) {
+            overlay.dataset.previousOverflow = document.body.style.overflow || '';
+        }
         overlay.dataset.popupKind = nextKind;
         overlay.dataset.dirty = 'false';
         overlay.hidden = false;
@@ -1867,7 +1872,12 @@ async function loadHistory(name, firebaseKey) {
         const title = first(user, ['selectedTitle', 'title', 'rank', 'grade'], '모험가');
         const role = first(user, ['role', 'job', 'classRole'], '용사');
 
-        overlay.dataset.oldOverflow = document.body.style.overflow || '';
+        // 이미 열려 있는 상태에서 다른 학생을 또 클릭하면(연속 클릭) 그 순간의
+        // 'hidden' 값을 "원래 상태"로 잘못 덮어써서, 닫아도 스크롤이 계속
+        // 잠겨 있는 문제가 있었다. 처음 열릴 때만 저장한다.
+        if (overlay.hidden) {
+            overlay.dataset.oldOverflow = document.body.style.overflow || '';
+        }
         overlay.innerHTML = `<section class="hd-dialog" role="dialog" aria-modal="true" aria-label="${esc(name)} 상세정보">
             <button type="button" class="hd-close" data-hd-close aria-label="닫기">×</button>
             <aside class="hd-profile"><div class="hd-avatar">${avatarHtml(user, name)}</div><p class="hd-kicker">⚔ 용사 프로필</p><h2 class="hd-name">${esc(name)}</h2><p class="hd-role">${esc(title)} · ${esc(role)}</p><p class="hd-meta">Lv.${esc(level)} · ${esc(number)}번</p>
