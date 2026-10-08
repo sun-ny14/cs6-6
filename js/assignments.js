@@ -56,8 +56,13 @@
         const incomplete=list.filter(entry=>!entry.done);
         const completed=list.filter(entry=>entry.done);
         const noun=category==='제출자료'?'제출자료':'과제';
-        const section=(title,items,completedSection)=>`<section class="assignment-section${completedSection?' completed':''}"><h3 class="assignment-section-title">${title}<span class="assignment-count">${items.length}</span></h3><div class="assignment-list">${items.length?items.map(card).join(''):`<div class="assignment-empty">${completedSection?`아직 완료한 ${noun}가 없습니다.`:`미완료 ${noun}가 없습니다. 🎉`}</div>`}</div></section>`;
-        return section('📌 미완료',incomplete,false)+section('✅ 완료',completed,true);
+        const section=(title,items)=>`<section class="assignment-section"><h3 class="assignment-section-title">${title}<span class="assignment-count">${items.length}</span></h3><div class="assignment-list">${items.length?items.map(card).join(''):`<div class="assignment-empty">미완료 ${noun}가 없습니다. 🎉</div>`}</div></section>`;
+        // 완료한 항목은 교사 화면의 "완료함"처럼 접어 둔다. 계속 열려 있으면 매번 탭을 열 때마다
+        // 이미 끝난 과제가 다시 눈에 띄어서("완료된 과제도 애들한테 자꾸뜨네") 거슬린다.
+        const archivedHtml=completed.length
+            ?`<details class="assignment-archive"><summary>📦 완료함 (${completed.length}) · 완료한 ${noun}</summary><div class="assignment-list">${completed.map(card).join('')}</div></details>`
+            :'';
+        return section('📌 미완료',incomplete)+archivedHtml;
     }
 
     // 번호만 적혀 있으면 선생님이 머릿속으로 번호→이름을 옮겨야 합니다. 둘 다 적습니다.

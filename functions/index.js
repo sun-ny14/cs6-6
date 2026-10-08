@@ -1164,7 +1164,7 @@ exports.addRoomReaction = callable(async request => {
     const current = await actor(request);
     const owner = String(request.data?.owner || '').trim();
     const type = String(request.data?.type || '');
-    if (!owner || owner === current.name || !['heart','clap','wow'].includes(type)) {
+    if (!owner || owner === current.name || !['likes','hearts','stars','smiles'].includes(type)) {
         throw new HttpsError('invalid-argument', '방 반응 정보가 올바르지 않습니다.');
     }
     const database = getDatabase();

@@ -24,6 +24,45 @@
         sourceFailed:false
     };
 
+    // 배움공책 메모와 쉬는 시간 메모의 글자 크기. 이 기기에만 저장한다(localStorage).
+    // 수업 중/쉬는 시간은 항상 둘 중 하나라 같은 설정을 같이 쓴다.
+    const MEMO_FONT_LEVELS = [
+        { label:'아주 작게', px:20 }, { label:'작게', px:26 }, { label:'중간', px:32 },
+        { label:'크게', px:40 }, { label:'아주 크게', px:50 }
+    ];
+    const MEMO_FONT_KEY = 'bbMemoFontLevel';
+
+    function readMemoFontLevel() {
+        let saved;
+        try { saved = Number(localStorage.getItem(MEMO_FONT_KEY)); }
+        catch (error) { return 2; }
+        return Number.isInteger(saved) && saved >= 0 && saved < MEMO_FONT_LEVELS.length ? saved : 2;
+    }
+
+    function applyMemoFontLevel(level) {
+        document.documentElement.style.setProperty('--memo-font', `${MEMO_FONT_LEVELS[level].px}px`);
+    }
+
+    function fontSizeControlHtml() {
+        const level = readMemoFontLevel();
+        return `<div class="font-size-ctrl" aria-label="메모 글자 크기 조절">`
+            + `<button type="button" data-memo-font-step="-1" ${level<=0?'disabled':''}>가-</button>`
+            + `<span>${escapeHtml(MEMO_FONT_LEVELS[level].label)}</span>`
+            + `<button type="button" data-memo-font-step="1" ${level>=MEMO_FONT_LEVELS.length-1?'disabled':''}>가+</button>`
+            + `</div>`;
+    }
+
+    // 쉬는 시간 메모는 Firebase에 저장하지 않고 이 기기(브라우저)에만 남긴다.
+    const BREAK_MEMO_KEY = 'bbBreakMemo';
+    function readBreakMemo() {
+        try { return String(localStorage.getItem(BREAK_MEMO_KEY) || ''); }
+        catch (error) { return ''; }
+    }
+    function saveBreakMemo(value) {
+        try { localStorage.setItem(BREAK_MEMO_KEY, value); }
+        catch (error) { /* 저장 실패해도 화면은 계속 쓸 수 있다 */ }
+    }
+
     function escapeHtml(value) {
         return String(value == null ? '' : value)
             .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -248,7 +287,7 @@
         const memoBody = state.canEdit
             ? `<textarea class="inline-memo-input" data-inline-learning-note="${escapeHtml(item.name)}" data-note-date="${today}" placeholder="여기에 바로 입력하세요. 입력을 멈추면 자동 저장됩니다.">${escapeHtml(note)}</textarea>`
             : `<div class="inline-memo-view${note ? '' : ' inline-memo-empty'}">${note ? escapeHtml(note) : '작성된 메모가 없습니다. 편집하려면 홈페이지에서 교사 로그인 후 전자칠판을 열어주세요.'}</div>`;
-        return `<div class="state-kicker">${escapeHtml(item.name)} 수업 중</div><h2 class="state-title">${escapeHtml(subject)}</h2>${action ? `<div class="action">${escapeHtml(action)}</div>` : ''}<section class="inline-memo-card"><div class="inline-memo-head"><span>📖 배움공책 &amp; 메모</span>${state.canEdit ? '<span class="inline-memo-status" data-memo-status>입력하면 자동 저장됩니다.</span>' : ''}</div>${memoBody}</section>`;
+        return `<div class="state-kicker">${escapeHtml(item.name)} 수업 중</div><h2 class="state-title">${escapeHtml(subject)}</h2>${action ? `<div class="action">${escapeHtml(action)}</div>` : ''}<section class="inline-memo-card"><div class="inline-memo-head"><span>📖 배움공책 &amp; 메모</span>${fontSizeControlHtml()}${state.canEdit ? '<span class="inline-memo-status" data-memo-status>입력하면 자동 저장됩니다.</span>' : ''}</div>${memoBody}</section>`;
     }
 
     async function saveInlineMemo(textarea) {
@@ -339,7 +378,8 @@
         // 쉬는 시간 화면에도 다음 교시에 등록된 화면 안내 문구를 보여준다.
         // 별도의 쉬는 시간 전용 공지는 만들지 않고, 다음 교시 안내를 재사용한다.
         const nextAction = String(next.action || '').trim();
-        return `<div class="break-clock">${timeText.slice(0,5)}</div><div class="break-message ${tone}">${message}</div><div class="next-class">다음 시간 · ${escapeHtml(next.name)} ${escapeHtml(next.subject || next.name)} · ${escapeHtml(next.startTime)}</div>${nextAction ? `<div class="action">${escapeHtml(nextAction)}</div>` : ''}`;
+        const breakMemo = `<section class="break-memo-card"><div class="break-memo-head"><span>📝 쉬는 시간 메모</span>${fontSizeControlHtml()}</div><p class="break-memo-hint">이 메모는 이 기기(브라우저)에만 저장돼요. 새로고침해도 남지만, 다른 기기와는 공유되지 않아요.</p><textarea class="break-memo-input" data-break-memo placeholder="쉬는 시간에 바로 적어두세요. (예: 다음 시간 준비물, 깜빡하면 안 되는 것)">${escapeHtml(readBreakMemo())}</textarea></section>`;
+        return `<div class="break-clock">${timeText.slice(0,5)}</div><div class="break-message ${tone}">${message}</div><div class="next-class">다음 시간 · ${escapeHtml(next.name)} ${escapeHtml(next.subject || next.name)} · ${escapeHtml(next.startTime)}</div>${nextAction ? `<div class="action">${escapeHtml(nextAction)}</div>` : ''}${breakMemo}`;
     }
 
     function periodHtml(item, now) {
@@ -383,7 +423,7 @@
         renderViewerControls(autoActiveName);
         const stage = document.getElementById('stage');
         const textarea = document.activeElement;
-        const editingMemo = textarea?.matches?.('[data-inline-learning-note],[data-dismissal-note]');
+        const editingMemo = textarea?.matches?.('[data-inline-learning-note],[data-dismissal-note],[data-break-memo]');
         const viewKey = state.manualPeriodName
             ? `${now.date}/manual/${state.manualPeriodName}`
             : autoModeKey;
@@ -396,10 +436,11 @@
             if (textarea.dataset.inlineLearningNote) {
                 clearTimeout(state.memoTimers[textarea.dataset.inlineLearningNote]);
                 saveInlineMemo(textarea);
-            } else {
+            } else if (textarea.dataset.dismissalNote !== undefined) {
                 clearTimeout(state.memoTimers.dismissal);
                 saveDismissalNote(textarea);
             }
+            // 쉬는 시간 메모는 로컬 저장이라 입력할 때마다 이미 저장되어 있어 여기서 더 할 일이 없다.
         }
         if (state.manualPeriodName) {
             const manual = getTimeline(schedule).find(item => item.name === state.manualPeriodName);
@@ -547,7 +588,18 @@
         state.manualModeKey = '';
         render();
     });
+    document.getElementById('stage').addEventListener('click', event => {
+        const button = event.target.closest('[data-memo-font-step]');
+        if (!button) return;
+        const next = readMemoFontLevel() + Number(button.dataset.memoFontStep);
+        if (next < 0 || next >= MEMO_FONT_LEVELS.length) return;
+        try { localStorage.setItem(MEMO_FONT_KEY, String(next)); } catch (error) { /* 저장 실패해도 화면엔 바로 반영한다 */ }
+        applyMemoFontLevel(next);
+        render();
+    });
     document.getElementById('stage').addEventListener('input', event => {
+        const breakMemo = event.target.closest('[data-break-memo]');
+        if (breakMemo) { saveBreakMemo(breakMemo.value); return; }
         const dismissal=event.target.closest('[data-dismissal-note]');
         if(dismissal){const status=dismissal.closest('.dismissal-card')?.querySelector('[data-dismissal-status]');if(status)status.textContent='저장 대기 중...';clearTimeout(state.memoTimers.dismissal);state.memoTimers.dismissal=setTimeout(()=>saveDismissalNote(dismissal),800);return;}
         const textarea = event.target.closest('[data-inline-learning-note]');
@@ -592,5 +644,6 @@
     });
     window.addEventListener('focus', render);
     window.addEventListener('pageshow', render);
+    applyMemoFontLevel(readMemoFontLevel());
     render();
 })();
