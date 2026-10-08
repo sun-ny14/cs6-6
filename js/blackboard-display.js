@@ -33,9 +33,14 @@
     const MEMO_FONT_KEY = 'bbMemoFontLevel';
 
     function readMemoFontLevel() {
-        let saved;
-        try { saved = Number(localStorage.getItem(MEMO_FONT_KEY)); }
+        let raw;
+        try { raw = localStorage.getItem(MEMO_FONT_KEY); }
         catch (error) { return 2; }
+        // localStorage.getItem()이 아직 저장된 값이 없으면 null을 주는데, Number(null)은
+        // NaN이 아니라 0이라 "저장 안 됨"이 그대로 레벨 0(아주 작게)으로 읽혀 버렸다.
+        // 그 상태에서는 "가-" 버튼이 항상 disabled라 눌러도 반응이 없었다.
+        if (raw === null) return 2;
+        const saved = Number(raw);
         return Number.isInteger(saved) && saved >= 0 && saved < MEMO_FONT_LEVELS.length ? saved : 2;
     }
 
