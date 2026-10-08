@@ -18,7 +18,11 @@ function bindChange(id,handler){
 function openBlackboardWindow(){
     // 전자칠판은 교사만 연다. 학생 화면에서는 버튼도 숨기지만 여기서도 한 번 더 막는다.
     if(window.isAdmin!==true)return;
-    window.open('blackboard.html','_blank','fullscreen=yes');
+    // fullscreen=yes는 표준 window.open 옵션이 아니다(옛 IE 전용). 최신 브라우저는
+    // 그냥 무시하지만, 학교 보안 프로그램/팝업 차단 확장 중 일부는 비표준 옵션이
+    // 섞인 호출을 수상한 팝업으로 보고 가끔 막는다 — 기기마다 "가끔 안 열린다"던
+    // 증상과 맞아떨어져서 뺐다.
+    window.open('blackboard.html','_blank');
 }
 
 function toggleSidebar(){
