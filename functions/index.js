@@ -5,6 +5,7 @@ const { onValueWritten } = require('firebase-functions/v2/database');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
+const { getStorage } = require('firebase-admin/storage');
 const { createHash, randomBytes, scryptSync, timingSafeEqual, randomInt: cryptoRandomInt } = require('node:crypto');
 const CheckinPasswordCore = require('./checkin-password-core.js');
 
@@ -228,10 +229,18 @@ exports.getClassJournalMonth = callable(async request => {
 // 날짜와 상관없는 참고 메모. 학급일지와 같은 비밀번호 세션을 통과한 교사만 읽고 쓴다.
 // 저장 위치(classJournalMemos)는 DB 규칙상 클라이언트가 직접 읽고 쓸 수 없다.
 const MEMO_LIMIT = 300;
+const MEMO_FILE_LIMIT = 5;
+const MEMO_BUCKET = 'cs6-6class.firebasestorage.app';
+// 첨부는 Storage(classMemoFiles/{메모번호}/…)에 있고, DB에는 이름·크기·위치만 둔다.
+const cleanAttachments=(id,list)=>(Array.isArray(list)?list:[]).slice(0,MEMO_FILE_LIMIT).map(file=>({
+    path:String(file?.path||''),name:String(file?.name||'').slice(0,200),
+    size:Number(file?.size)||0,type:String(file?.type||'').slice(0,100)
+})).filter(file=>file.name&&file.path.startsWith('classMemoFiles/'+id+'/')&&!file.path.includes('..'));
 const cleanMemo=(id,memo)=>({
     id,title:String(memo?.title||'').trim().slice(0,100),
     content:String(memo?.content||'').trim().slice(0,6000),
-    pinned:memo?.pinned===true,updatedAt:Number(memo?.updatedAt)||0
+    pinned:memo?.pinned===true,updatedAt:Number(memo?.updatedAt)||0,
+    attachments:cleanAttachments(id,memo?.attachments)
 });
 
 exports.getClassJournalMemos = callable(async request => {
@@ -249,14 +258,22 @@ exports.saveClassJournalMemo = callable(async request => {
     if(rawId&&!/^[A-Za-z0-9_-]{1,60}$/.test(rawId))throw new HttpsError('invalid-argument','메모 번호를 확인해 주세요.');
     const title=String(request.data?.title||'').trim().slice(0,100);
     const content=String(request.data?.content||'').trim().slice(0,6000);
-    if(!title&&!content)throw new HttpsError('invalid-argument','제목이나 내용을 입력해 주세요.');
-    if(!rawId){
+    // 새 메모는 클라이언트가 파일을 먼저 올릴 수 있게 번호를 미리 정해서 보낸다.
+    const id=rawId||database.ref('classJournalMemos').push().key;
+    const attachments=cleanAttachments(id,request.data?.attachments);
+    if(!title&&!content&&!attachments.length)throw new HttpsError('invalid-argument','제목이나 내용을 입력해 주세요.');
+    const existing=(await database.ref('classJournalMemos/'+id).get()).val();
+    if(!existing){
         const count=Object.keys((await database.ref('classJournalMemos').get()).val()||{}).length;
         if(count>=MEMO_LIMIT)throw new HttpsError('resource-exhausted','메모는 '+MEMO_LIMIT+'개까지 저장할 수 있어요. 안 쓰는 메모를 지워 주세요.');
     }
-    const id=rawId||database.ref('classJournalMemos').push().key;
-    const memo={title:title||content.split('\n')[0].slice(0,40),content,pinned:request.data?.pinned===true,updatedAt:Date.now()};
+    const memo={title:title||content.split('\n')[0].slice(0,40)||attachments[0]?.name||'첨부 메모',content,pinned:request.data?.pinned===true,updatedAt:Date.now()};
+    if(attachments.length)memo.attachments=attachments;
     await database.ref('classJournalMemos/'+id).set(memo);
+    // 메모에서 뺀 첨부는 Storage에서도 지운다.
+    const kept=new Set(attachments.map(file=>file.path));
+    const removed=cleanAttachments(id,existing?.attachments).filter(file=>!kept.has(file.path));
+    await Promise.all(removed.map(file=>getStorage().bucket(MEMO_BUCKET).file(file.path).delete({ignoreNotFound:true}).catch(error=>console.error('메모 첨부 삭제 오류:',error))));
     return {memo:cleanMemo(id,memo)};
 });
 
@@ -266,6 +283,9 @@ exports.deleteClassJournalMemo = callable(async request => {
     const id=String(request.data?.id||'');
     if(!/^[A-Za-z0-9_-]{1,60}$/.test(id))throw new HttpsError('invalid-argument','메모 번호를 확인해 주세요.');
     await getDatabase().ref('classJournalMemos/'+id).remove();
+    // 메모를 지우면 올려 둔 첨부도 같이 지운다.
+    try{await getStorage().bucket(MEMO_BUCKET).deleteFiles({prefix:'classMemoFiles/'+id+'/'});}
+    catch(error){console.error('메모 첨부 폴더 삭제 오류:',error);}
     return {ok:true};
 });
 
