@@ -85,7 +85,9 @@ body .period-chip.is-active { background: #315ee8; border-color: #315ee8; }
 body .state-title { font-size: clamp(38px, 5vw, 78px) !important; }
 body .notice { border: 1px solid #e7c563; box-shadow: none; }
 body .inline-memo-card { border-width: 1px; border-radius: 16px; box-shadow: none; }
-body .inline-memo-input { font-size: clamp(24px, 2.8vw, 42px) !important; }
+/* 글자 크기 조절 버튼(--memo-font)이 먹도록 !important 규칙도 변수를 따르게 한다. 배움공책·쉬는 시간 메모 공통. */
+body .inline-memo-input,
+body .break-memo-input { font-size: var(--memo-font, clamp(24px, 2.8vw, 42px)) !important; }
 body .morning-password { border: 1px solid #b4c5f6; background: #eef3ff; color: #244ac4; border-radius: 16px; }
 body .seat { border-radius: 12px; }
 body .dismissal-card { border-width: 1px; border-radius: 16px; }
