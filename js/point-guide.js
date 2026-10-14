@@ -61,6 +61,7 @@ window.initPointsTabListeners = function() {
         let wHtml = "";
         let adminOrderHtml = "";
         const pendingByUser=new Map();
+        const approvedOrders=[];
 
         snap.forEach(c => {
             const o = c.val();
@@ -109,6 +110,11 @@ window.initPointsTabListeners = function() {
                 `;
             }
 
+            // 이미 승인(처리 완료)된 내역은 "이전 승인 내역"으로 접어서 보여 주려고 모아 둔다.
+            if (canManageItemUseRequests() && o.status === '완료' && Number(o.processedAt) > 0) {
+                approvedOrders.push({user:o.user,item:o.item,processedAt:Number(o.processedAt),processedBy:o.processedBy});
+            }
+
             if (
                 canManageItemUseRequests() &&
                 o.status === '사용요청'
@@ -152,6 +158,26 @@ window.initPointsTabListeners = function() {
             adminOrderHtml=`<div class="btn-row shop-approval-toolbar">${bulkButtons}</div>${adminOrderHtml}`;
         }
 
+        // 승인 팝업/목록 아래에 붙는 접이식 "이전 승인 내역" (평소엔 접힘, 최근 승인 순).
+        const pendingHtml = adminOrderHtml ||
+            "<div class='empty'><strong>대기 중인 사용 요청이 없습니다.</strong></div>";
+        let historyHtml = '';
+        if (canManageItemUseRequests() && approvedOrders.length) {
+            approvedOrders.sort((a,b)=>b.processedAt-a.processedAt);
+            const stamp = ms => new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(ms));
+            const rows = approvedOrders.slice(0,200).map(row => `
+                <div class="list-item">
+                    <span>✅ <b>${pointGuideEscapeHtml(row.user)}</b> - ${pointGuideEscapeHtml(row.item)}</span>
+                    <span class="muted tiny">${pointGuideEscapeHtml(stamp(row.processedAt))}${row.processedBy ? ' · ' + pointGuideEscapeHtml(row.processedBy) : ''}</span>
+                </div>`).join('');
+            const more = approvedOrders.length > 200 ? `<div class="muted tiny" style="padding:8px 0">최근 200건만 보여 줘요.</div>` : '';
+            historyHtml = `<details class="shop-approval-history" data-shop-history ${window.shopHistoryOpen ? 'open' : ''} style="margin-top:14px">
+                <summary style="cursor:pointer;font-weight:800;padding:8px 0">📂 이전 승인 내역 (${approvedOrders.length}건)</summary>
+                <div class="list">${rows}</div>${more}
+            </details>`;
+        }
+        const adminPanelHtml = pendingHtml + historyHtml;
+
         const uEl = document.getElementById('inv-unused');
 
         if (uEl && uEl.querySelector('.list')) {
@@ -174,9 +200,7 @@ window.initPointsTabListeners = function() {
             document.getElementById('order-list');
 
         if (adminOrderEl) {
-            adminOrderEl.innerHTML =
-                adminOrderHtml ||
-                "<div class='empty'><strong>대기 중인 사용 요청이 없습니다.</strong></div>";
+            adminOrderEl.innerHTML = adminPanelHtml;
         }
 
         const approvalBadge = document.getElementById('shop-approval-badge');
@@ -191,12 +215,16 @@ window.initPointsTabListeners = function() {
         if (window.shopApprovalPopupOpen) {
             const popEl = document.getElementById('pop-content');
             if (popEl) {
-                popEl.innerHTML =
-                    adminOrderHtml ||
-                    "<div class='empty'><strong>대기 중인 사용 요청이 없습니다.</strong></div>";
+                popEl.innerHTML = adminPanelHtml;
             }
         }
     };
+    if (!window.shopHistoryToggleBound) {
+        window.shopHistoryToggleBound = true;
+        document.addEventListener('toggle', event => {
+            if (event.target?.matches?.('details[data-shop-history]')) window.shopHistoryOpen = event.target.open;
+        }, true);
+    }
     ordersRef.on('value',ordersHandler);
 
     // DB 복구 전 구매가 기존 orders에만 남아 있으면 본인 보관함 인덱스를
