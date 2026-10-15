@@ -330,13 +330,14 @@
         const guide = mode === 'morning' ? '자기 이름이 초록색인지 확인하세요.' : '자리 청소가 확인되면 초록색으로 바뀝니다.';
         // 오른쪽 패널: 아침에는 "등교 안 됨"(결석·조퇴 제외), 청소시간에는 "1인 1역 미확인".
         let sidePanel;
+        let waitingBar = '';
         if (mode === 'morning') {
             const waiting = getRoster().filter(student => !excused.has(student.name) && !checked.has(student.name));
-            sidePanel = '<aside class="side-panel"><h3>등교 안 됨 <span>' + waiting.length + '명</span></h3>'
-                + (waiting.length
-                    ? '<div class="side-list">' + waiting.map(student => '<div class="side-item"><b>' + student.number + '번</b> ' + escapeHtml(student.name) + '</div>').join('') + '</div>'
-                    : '<div class="number-list all-done">모두 등교했어요 🎉</div>')
-                + '<p class="side-note">등교 암호를 입력하면 왼쪽 자리로 옮겨져요.</p></aside>';
+            // 안 온 학생은 자리판 위의 빨간 띠로 먼저 보여 준다(결석·조퇴는 넣지 않는다).
+            waitingBar = waiting.length
+                ? '<div class="waiting-bar"><b>등교 안 됨 ' + waiting.length + '명</b>'
+                    + waiting.map(student => '<span class="waiting-chip">' + student.number + '번 ' + escapeHtml(student.name) + '</span>').join('') + '</div>'
+                : '<div class="waiting-bar is-done"><b>모두 등교했어요 🎉</b></div>';
         } else {
             const roleWaiting = getRoleIncomplete(today, excused);
             sidePanel = '<aside class="side-panel"><h3>📌 1인 1역 미확인 <span>' + roleWaiting.length + '명</span></h3>' + roleListHtml(roleWaiting) + '</aside>';
@@ -346,6 +347,22 @@
         const currentCode = /^\d{4}$/.test(String(code?.password || ''));
         const passwordCard = mode === 'morning'
             ? `<section class="morning-password" aria-label="등교 암호"><span>등교 암호</span>${currentCode ? `<strong>${escapeHtml(code.password)}</strong>` : '<p>등교 암호를 준비하고 있습니다.</p>'}</section>` : '';
+        if (mode === 'morning') {
+            const clockNow = koreanNow();
+            const clockText = pad(clockNow.hour) + ':' + pad(clockNow.minute) + ':' + pad(clockNow.second);
+            const clockDate = new Intl.DateTimeFormat('ko-KR', { timeZone:'Asia/Seoul', month:'long', day:'numeric', weekday:'long' })
+                .format(new Date(Date.now() + state.serverOffset));
+            return '<div class="seat-screen morning-layout">'
+                + '<aside class="morning-side">'
+                +   '<div class="morning-clock"><strong>' + clockText + '</strong><span>' + escapeHtml(clockDate) + '</span></div>'
+                +   passwordCard
+                +   (action ? '<div class="action morning-action">' + escapeHtml(action) + '</div>' : '')
+                +   '<div class="summary-row"><span class="summary-pill good">완료 ' + goodCount + '명</span><span class="summary-pill ' + (badCount ? 'bad' : 'good') + '">미등교 ' + badCount + '명</span></div>'
+                +   '<p class="morning-guide">' + guide + '</p>'
+                + '</aside>'
+                + '<section class="morning-main">' + waitingBar + '<div class="seat-grid compact morning" style="--seat-cols:' + seatInfo.cols + '">' + cards + '</div></section>'
+                + '</div>';
+        }
         return `<div class="seat-screen"><div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2>${passwordCard}${action?`<div class="action">${escapeHtml(action)}</div>`:''}<div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-split"><div class="seat-grid compact" style="--seat-cols:${seatInfo.cols}">${cards}</div>${sidePanel}</div></div>`;
     }
 
@@ -421,7 +438,7 @@
         const savedMessage=String(state.dismissalNotes?.[today]?.teacherMessage||state.dismissalNotes?.[today]?.manualIncomplete||'').trim();
         const manual=savedMessage||scheduledMessage;
         const manualBody=state.canEdit?`<textarea class="dismissal-input" data-dismissal-note data-note-date="${today}" placeholder="하교 전 학생들에게 전달할 내용을 적으세요.">${escapeHtml(manual)}</textarea><div class="dismissal-status" data-dismissal-status>입력을 멈추면 자동 저장됩니다.</div>`:`<div class="dismissal-view">${manual?escapeHtml(manual):'전달사항 없음'}</div>`;
-        return `<div class="dismissal-board"><div class="state-kicker">6교시 이후</div><h2 class="state-title">🏠 하교합니다</h2><p class="state-subtitle">아래 번호의 학생은 할 일을 마치고 하교하세요.</p><div class="dismissal-grid">${tomorrowCard}<section class="dismissal-card clean"><h3>🧹 오늘 청소 미완료</h3>${numbersHtml(cleaningIncomplete)}</section><section class="dismissal-card clean"><h3>📌 1인 1역 미확인</h3>${roleListHtml(roleIncomplete)}</section><section class="dismissal-card task"><h3>📝 필수 과제 미완료</h3>${assignmentHtml}</section><section class="dismissal-card manual"><h3>📣 교사 전달사항</h3>${manualBody}</section></div></div>`;
+        return `<div class="dismissal-board"><div class="state-kicker">6교시 이후</div><h2 class="state-title">🏠 하교합니다</h2><p class="state-subtitle">아래 번호의 학생은 할 일을 마치고 하교하세요.</p><div class="dismissal-grid rows"><div class="dismissal-top"><section class="dismissal-card clean merged"><h3>🧹 청소 · 📌 1인 1역 미확인</h3><div class="merged-label">청소 미완료</div>${numbersHtml(cleaningIncomplete)}<div class="merged-label">1인 1역 미확인</div>${roleListHtml(roleIncomplete)}</section><section class="dismissal-card task"><h3>📝 필수 과제 미완료</h3>${assignmentHtml}</section>${tomorrowCard}</div><section class="dismissal-card manual"><h3>📣 교사 전달사항</h3>${manualBody}</section></div></div></div>`;
     }
 
     async function saveDismissalNote(textarea) {

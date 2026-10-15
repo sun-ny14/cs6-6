@@ -59,6 +59,44 @@
         .side-item{padding:8px 12px;border-radius:11px;background:#f4f7fb;font-size:clamp(18px,1.7vw,26px);font-weight:900;color:#263b63}.side-item b{color:#5a6f8f;margin-right:6px}.side-item small{display:block;font-size:.62em;font-weight:800;color:#6c778a;margin-top:2px}
         .side-note{margin:10px 0 0;font-size:14px;font-weight:800;color:#6c778a}
         @media(max-width:900px){.seat-split{grid-template-columns:1fr}.side-panel{position:static}}
+        .seat-screen.morning-layout{display:grid;grid-template-columns:minmax(300px,27%) minmax(0,1fr);gap:18px;align-items:start;margin-top:6px}
+        .morning-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+        .morning-clock{height:clamp(120px,17vh,170px);display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:18px;background:#fff;border:3px solid #d5dce6;text-align:center;overflow:hidden}
+        .morning-clock strong{font-size:clamp(44px,4.8vw,84px);font-weight:950;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.02em;color:#1e3a5f;white-space:nowrap}
+        .morning-clock span{margin-top:8px;font-size:clamp(14px,1.3vw,20px);font-weight:800;color:#6c778a}
+        .morning-side .morning-password{margin:0;flex-direction:column;gap:4px;padding:12px 14px;text-align:center}
+        .morning-side .morning-password>span{font-size:clamp(18px,1.7vw,26px)}
+        .morning-side .morning-password strong{font-size:clamp(44px,4.6vw,80px)}
+        .morning-action{margin:0;padding:12px 14px;border-radius:14px;font-size:clamp(18px,1.7vw,26px);text-align:center}
+        .morning-side .summary-row{margin:0;justify-content:center;gap:10px}
+        .morning-side .summary-pill{padding:8px 16px;font-size:clamp(16px,1.5vw,22px)}
+        .morning-guide{margin:0;text-align:center;color:#6c778a;font-weight:800;font-size:clamp(14px,1.2vw,18px)}
+        .waiting-bar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;padding:10px 16px;border-radius:14px;background:#fdecea;border:3px solid #e74c3c}
+        .waiting-bar b{color:#b4392d;font-size:clamp(20px,1.9vw,30px);font-weight:950;margin-right:4px}
+        .waiting-bar.is-done{background:#e8f7ee;border-color:#2ecc71}.waiting-bar.is-done b{color:#187a40}
+        .waiting-chip{padding:3px 16px;border-radius:999px;background:#fff;border:2px solid #e74c3c;color:#b4392d;font-size:clamp(20px,1.9vw,30px);font-weight:950}
+        .seat-grid.compact.morning{gap:9px}
+        .seat-grid.compact.morning .seat{min-height:clamp(64px,9.4vh,104px)}
+        .seat-grid.compact.morning .seat-name{font-size:clamp(20px,2.1vw,34px)}
+        .seat-grid.compact.morning .seat-state{font-size:clamp(11px,1vw,15px)}
+        @media(max-width:900px){.seat-screen.morning-layout{grid-template-columns:1fr}}
+        .dismissal-board .state-title{font-size:clamp(22px,2.1vw,34px);margin:2px 0;line-height:1.1}
+        .dismissal-board .state-subtitle{font-size:clamp(13px,1.2vw,18px);margin:4px 0 4px;line-height:1.3}
+        .dismissal-board .dismissal-grid.rows{display:flex;flex-direction:column;gap:14px;margin-top:10px}
+        .dismissal-board .dismissal-top{display:grid;grid-template-columns:1.5fr 1.2fr 1fr;gap:14px;align-items:stretch}
+        .dismissal-board .dismissal-card{padding:12px 16px}
+        .dismissal-board .dismissal-card.manual{grid-column:auto}
+        .dismissal-board .dismissal-card.tomorrow-notice{grid-column:auto}
+        .dismissal-board .dismissal-card h3{margin:0 0 10px;font-size:clamp(20px,2vw,32px)}
+        .dismissal-board .merged-label{margin:8px 0 4px;font-size:clamp(14px,1.3vw,20px);font-weight:900;color:#4a6b57}
+        .dismissal-board .merged .number-list{font-size:clamp(22px,2.5vw,40px);line-height:1.2}
+        .dismissal-board .merged .side-list{max-height:none;flex-direction:row;flex-wrap:wrap}
+        .dismissal-board .merged .side-item{font-size:clamp(18px,1.7vw,28px)}
+        .dismissal-board .task-due-title{font-size:clamp(18px,1.8vw,28px)}
+        .dismissal-board .task-due-numbers{font-size:clamp(20px,2.1vw,34px);line-height:1.25}
+        .dismissal-board .tomorrow-notice-text{font-size:clamp(22px,2.4vw,38px)}
+        .dismissal-board .dismissal-view{font-size:clamp(26px,3vw,48px);min-height:0}
+        @media(max-width:1000px){.dismissal-board .dismissal-top{grid-template-columns:1fr}}
     </style>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -135,7 +173,7 @@
         })();
     </script>
     <script src="functions/checkin-password-core.js?v=20260911-final-2"></script>
-    <script src="js/blackboard-display.js?v=20261015-attendance-roles-1"></script>
+    <script src="js/blackboard-display.js?v=20261015-board-layout-2"></script>
     <script src="js/blackboard-loader.js?v=20261008-retry-fix-1"></script>
     <script src="js/blackboard-tools.js?v=20261007-resize-sound-1"></script>
 </body>
