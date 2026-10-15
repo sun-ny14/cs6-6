@@ -266,8 +266,10 @@ const attendanceStudentNames=new Set(
                 );
             });
 
+        // 고정 제외(아침방과후 등) 학생도 QR로 등교하면 똑같이 센다. 감점만 없을 뿐이다.
+        const allStudentNames=new Set(students.map(user=>user.name));
         const countRecords=records.filter(
-            log=>attendanceStudentNames.has(log.name)
+            log=>allStudentNames.has(log.name)
         );
 
         const normal=countRecords.filter(log=>{
@@ -298,9 +300,19 @@ const attendanceStudentNames=new Set(
                 .map(log=>log.name)
         );
 
-        // 인원수와 함께 명단 배열도 유지합니다. 아래 요약 줄에서 이름 목록으로 표시합니다.
-        const absentStudents=attendanceStudents
-            .filter(user=>!attendedNames.has(user.name))
+        // 출결 기록이 하나라도 있으면(정상·지각·조퇴·결석) "아직 안 온 학생"이 아니다.
+        // 조퇴·결석은 처리가 끝난 기록이라 아래에 따로 보여 준다.
+        const recordedNames=new Set(countRecords.map(log=>log.name));
+        const isLeave=log=>String(log.category||'')==='조퇴'||String(log.result||'').includes('조퇴');
+        const isAbsence=log=>String(log.category||'')==='결석'||String(log.result||'').includes('결석');
+        const leaveRecords=countRecords.filter(isLeave);
+        const absenceRecords=countRecords.filter(log=>!isLeave(log)&&isAbsence(log));
+        const leave=leaveRecords.length;
+        const absence=absenceRecords.length;
+
+        // 고정 제외 학생도 QR 등교 전까지는 "아직 안 온 학생"에 들어간다(표시만 다르게).
+        const absentStudents=students
+            .filter(user=>!recordedNames.has(user.name))
             .sort((a,b)=>(parseInt(a.no)||999)-(parseInt(b.no)||999));
 
         const absent=absentStudents.length;
@@ -342,6 +354,14 @@ const attendanceStudentNames=new Set(
         </div>
 
         <div class="checkin-summary-card is-bad">
+            결석 <b>${absence}명</b>
+        </div>
+
+        <div class="checkin-summary-card is-warn">
+            조퇴 <b>${leave}명</b>
+        </div>
+
+        <div class="checkin-summary-card is-bad">
             미등교 <b>${absent}명</b>
         </div>
 
@@ -361,11 +381,37 @@ const attendanceStudentNames=new Set(
                                 >
                                     <span class="an-no">${numberByName.get(user.name)||'–'}</span>
                                     ${checkinEscape(user.name)}
+                                    ${excludedNames.has(user.name)?'<small class="muted tiny">방과후</small>':''}
                                 </button>
                             `).join('')}
                         </div>
 
                         <small class="muted tiny">이름을 누르면 그 학생의 등교 기록이 바로 열립니다.</small>
+                    </div>
+                `
+                :''
+        }
+
+        ${
+            (leaveRecords.length||absenceRecords.length)
+                ?`
+                    <div class="checkin-absent-panel">
+                        <b class="checkin-absent-title">결석 · 조퇴 (출결 기록 있음)</b>
+
+                        <div class="checkin-absent-list">
+                            ${[...absenceRecords.map(log=>({log,label:'결석'})),...leaveRecords.map(log=>({log,label:log.fromPeriod?`조퇴 · ${log.fromPeriod}`:'조퇴'}))].map(({log,label})=>`
+                                <button
+                                    type="button"
+                                    class="checkin-absent-chip"
+                                    onclick="openCheckinEditModal('${checkinEscape(log.name).replace(/'/g,"\\'")}')"
+                                    title="${checkinEscape(log.name)} 등교 기록 수정"
+                                >
+                                    <span class="an-no">${numberByName.get(log.name)||'–'}</span>
+                                    ${checkinEscape(log.name)}
+                                    <small class="muted tiny">${checkinEscape(label)}</small>
+                                </button>
+                            `).join('')}
+                        </div>
                     </div>
                 `
                 :''

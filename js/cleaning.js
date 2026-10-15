@@ -281,19 +281,13 @@
 
             return `
                 <div class="well">
-                    맡은 역할을 마친 뒤 아래 버튼을 눌러 주세요.
+                    맡은 역할을 열심히 해 주세요. 역할을 했는지는 청소 담당 친구와 선생님이 매일 확인해요.
                     ${cleaner ? '청소 담당자는 청소 확인 탭도 확인해 주세요.' : ''}
                 </div>
                 <article class="card card--accent center stack">
                     <span class="muted small">${escapeHtml(loginName)}의 1인 1역</span>
                     <h3>${escapeHtml(mine.role)}</h3>
-                    <button type="button"
-                        class="btn btn--lg${done ? ' btn--good' : ' btn--primary'}"
-                        data-status-name="${escapeHtml(mine.name)}"
-                        data-status-field="roleDone"
-                        data-status-value="${done ? 'false' : 'true'}">
-                        ${done ? '1인 1역 완료됨' : '1인 1역 완료'}
-                    </button>
+                    <span class="badge ${done ? 'badge--good' : ''}">${done ? '✅ 오늘 확인됨' : '⏳ 아직 확인 전'}</span>
                 </article>
             `;
         }
@@ -347,7 +341,7 @@
             </section>
         ` : `
             <div class="well">
-                학생들의 1인 1역 수행 여부를 확인한 뒤 완료 처리해 주세요.
+                학생들의 1인 1역 수행 여부를 매일 확인한 뒤 완료 처리해 주세요. (역할 배정은 선생님만 바꿀 수 있어요.)
             </div>
         `;
 
@@ -642,6 +636,7 @@
                 cleaner ? true : null;
             updates[`cleaningSettings/studentRoles/${name}`]=role||null;
             updates[`cleaningSettings/cleaningAssignments/${name}`]=cleaner?true:null;
+            updates[`blackboardDisplay/data/roleAssignments/${name}`]=role||null;
         });
 
         button.disabled = true;
@@ -674,6 +669,10 @@
         const checker = canCheckCleaning();
 
         if (!['roleDone', 'cleanDone'].includes(field)) return;
+        if (field === 'roleDone' && !checker) {
+            alert('1인 1역 확인은 선생님이나 청소 담당 학생만 할 수 있어요.');
+            return;
+        }
         if (!checker && name !== loginName) {
             alert('본인의 완료 상태만 변경할 수 있습니다.');
             return;
@@ -713,8 +712,8 @@
                 [`${statusPath}/${field}By`]:loginName
             };
 
-            if(field==='cleanDone'){
-                updates[`blackboardDisplay/data/cleaningRoot/${today}/${name}/cleanDone`]=Boolean(newStatus);
+            if(field==='cleanDone'||field==='roleDone'){
+                updates[`blackboardDisplay/data/cleaningRoot/${today}/${name}/${field}`]=Boolean(newStatus);
             }
 
             await db.ref().update(updates);

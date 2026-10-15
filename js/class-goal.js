@@ -97,14 +97,27 @@
                     const dates=[];
                     for(let i=0;i<maxDays;i++)dates.push(kstDateOffset(-i));
                     const statusSnaps=await Promise.all(dates.map(date=>db.ref(`classManagement/cleaningStatus/${date}`).once('value')));
+                    // 그날 결석·조퇴(또는 5교시 이후 지각)한 학생은 청소를 못 하니 판정에서 뺀다. 교사만 읽는 출결 기록을 쓴다.
+                    const attendanceSnaps=await Promise.all(dates.map(date=>db.ref(`attendanceRecords/${date}`).once('value')));
                     const statusByDate={};
-                    dates.forEach((date,i)=>{statusByDate[date]=statusSnaps[i].val()||{};});
+                    const excusedByDate={};
+                    dates.forEach((date,i)=>{
+                        statusByDate[date]=statusSnaps[i].val()||{};
+                        const excused=new Set();
+                        const records=attendanceSnaps[i].val()||{};
+                        Object.entries(records).forEach(([key,record])=>{
+                            const category=String(record?.category||'').trim();
+                            const lateFrom=Number((/^(\d+)/.exec(String(record?.fromPeriod||''))||[])[1])||0;
+                            if(category==='결석'||category==='조퇴'||(category==='지각'&&lateFrom>=5))excused.add(String(record?.name||key).trim());
+                        });
+                        excusedByDate[date]=excused;
+                    });
 
                     streakEntries.forEach(([key,cond])=>{
                         const days=Number(cond.days)||7;
                         const relevantDates=dates.slice(0,days);
                         const achieved=relevantDates.every(date=>
-                            cleaners.every(name=>statusByDate[date]?.[name]?.cleanDone===true)
+                            cleaners.filter(name=>!excusedByDate[date]?.has(name)).every(name=>statusByDate[date]?.[name]?.cleanDone===true)
                         );
                         if(achieved!==(cond.achieved===true)){
                             updates[`${GOAL_PATH}/conditions/${key}/achieved`]=achieved;

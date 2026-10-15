@@ -637,6 +637,12 @@ if (typeof refreshCheckinGuide === 'function') {
 
             u.__firebaseKey=child.key;
 
+            // 이름 필드 없이 키만 깨진 글자(예: "ìë¯¼")인 항목은 서버 복사 오류로 생긴
+            // 가짜 프로필이다. 학생 명단에 넣지 않는다. (forEach 안이라 undefined를 반환해 계속 순회)
+            if(!u.name&&/[\u0080-ÿ]/.test(child.key)){
+                return;
+            }
+
             if(!u.name){
                 u.name=child.key;
             }

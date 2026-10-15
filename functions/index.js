@@ -375,10 +375,21 @@ exports.mirrorPublicSettings = onValueWritten({ ref:'/settings/{field}' }, async
 // myRoom(가구 위치·방명록 등)은 크고 자주 바뀌어서 publicProfiles에 같이 두면 모든
 // 학생 기기가 홈 화면에서 전 학생 방 데이터를 계속 받게 된다. 그래서 publicRooms/{이름}
 // 으로 따로 미러링하고, 친구 방을 열 때만 그 한 명분을 읽는다.
+// Cloud Functions 이벤트의 경로 값(event.params)이 한글 UTF-8 바이트를 latin1로 잘못 읽은 모양으로
+// 들어오는 경우가 있어서(예: "영민" -> "ì\u0098\u0081ë¯¼") 그대로 쓰면 가짜 학생 항목이 생긴다.
+// 모든 글자가 0xFF 이하이고 그 바이트열이 올바른 UTF-8이면 원래 이름으로 되돌린다.
+function fixPathName(value) {
+    const text = String(value ?? '');
+    if (!/[\u0080-\u00ff]/.test(text) || /[^\u0000-\u00ff]/.test(text)) return text;
+    const decoded = Buffer.from(text, 'latin1').toString('utf8');
+    return decoded.includes('\ufffd') ? text : decoded;
+}
+
 const PUBLIC_PROFILE_FIELDS = new Set(['name','no','number','character','selectedAnimal','selectedTitle','selectedDecoration']);
 
 exports.mirrorPublicUser = onValueWritten({ ref:'/users/{userName}/{field}' }, async event => {
-    const { userName, field } = event.params;
+    const userName = fixPathName(event.params.userName);
+    const { field } = event.params;
     if (field === 'myRoom') {
         await getDatabase().ref(`publicRooms/${userName}`).set(event.data.after.val() ?? null);
         return;
@@ -419,7 +430,7 @@ exports.mirrorBoardAssignmentDone = onValueWritten({ ref:'/blackboard/assignment
 
 // 이미 로그인한 상점·청소 담당 학생도 역할 변경을 즉시 반영한다.
 exports.syncAccessRole = onValueWritten({ref:'/users/{userName}/role'}, async event=>{
-    const name=event.params.userName;
+    const name=fixPathName(event.params.userName);
     const role=String(event.data.after.val()||'').trim();
     const access=await getDatabase().ref('access').orderByChild('name').equalTo(name).get();
     const updates={};
@@ -434,7 +445,7 @@ exports.mirrorScoreChangeReceipt = onValueWritten({
 }, async event => {
     const receipt=event.data.after.val();
     if(!receipt)return;
-    const userKey=event.params.userName, requestId=event.params.requestId;
+    const userKey=fixPathName(event.params.userName), requestId=event.params.requestId;
     const name=String(receipt.name||userKey);
     const logKey=scoreLogKey(requestId,userKey);
     const timestamp=Number(receipt.timestamp)||Date.now();
@@ -899,8 +910,8 @@ exports.teacherQuickCheckin = callable(async request => {
     const nowTime=new Date(now+9*3600000).toISOString().slice(11,16);
     const time=/^([01]\d|2[0-3]):[0-5]\d$/.test(requestedTime)?requestedTime:nowTime;
 
-    const [userSnapshot,lateTimeSnapshot]=await Promise.all([
-        userRef.get(),database.ref('settings/lateTime').get()
+    const [userSnapshot,lateTimeSnapshot,fixedExclusionSnapshot]=await Promise.all([
+        userRef.get(),database.ref('settings/lateTime').get(),database.ref('settings/fixedExclusions').get()
     ]);
     if(!userSnapshot.exists())throw new HttpsError('not-found','학생 정보를 찾을 수 없습니다.');
 
@@ -912,7 +923,11 @@ exports.teacherQuickCheckin = callable(async request => {
     };
     const lateBy=Math.max(0,toMinutes(time,0)-toMinutes(lateTimeSnapshot.val(),8*60+40));
     const category=lateBy>0?'지각':'정상';
-    const desiredPenalty=lateBy>0?-Math.min(9,lateBy):0;
+    // 해당 날짜 요일의 고정 제외 학생(아침방과후 등)은 늦게 와도 감점하지 않는다.
+    const dayLabel=['일','월','화','수','목','금','토'][new Date(date+'T00:00:00Z').getUTCDay()];
+    const fixedList=fixedExclusionSnapshot.val()?.[dayLabel];
+    const fixedExcluded=Array.isArray(fixedList)&&fixedList.includes(name);
+    const desiredPenalty=lateBy>0&&!fixedExcluded?-Math.min(9,lateBy):0;
 
     const finalRef=database.ref(`attendanceRecords/${date}/${name}`);
     const [finalSnapshot,submissionsSnapshot]=await Promise.all([
@@ -1101,13 +1116,14 @@ exports.submitStudentCheckin = callable(async request => {
         throw new HttpsError('permission-denied','등교 암호가 맞지 않습니다.');
     }
     const close=toMinutes(settings.closeTime,9*60);
-    if(currentMinutes>close){
-        throw new HttpsError('failed-precondition',`등교 확인 시간이 마감되었습니다. (${String(settings.closeTime||'09:00')})`);
-    }
-    const late=Math.max(0,currentMinutes-toMinutes(settings.lateTime,8*60+40));
     const weekDays=['일','월','화','수','목','금','토'];
     const excluded=Array.isArray(settings.fixedExclusions?.[weekDays[clock.getUTCDay()]])&&
         settings.fixedExclusions[weekDays[clock.getUTCDay()]].includes(current.name);
+    // 고정 제외(아침방과후 등) 학생은 언제 등교해도 마감에 막히거나 감점되지 않는다.
+    if(currentMinutes>close&&!excluded){
+        throw new HttpsError('failed-precondition',`등교 확인 시간이 마감되었습니다. (${String(settings.closeTime||'09:00')})`);
+    }
+    const late=Math.max(0,currentMinutes-toMinutes(settings.lateTime,8*60+40));
     const desired=excluded?0:-Math.min(9,late);
     const category=late>0?'지각':'정상';
     const time=`${String(clock.getUTCHours()).padStart(2,'0')}:${String(clock.getUTCMinutes()).padStart(2,'0')}`;
@@ -1188,6 +1204,9 @@ exports.addRoomReaction = callable(async request => {
         throw new HttpsError('invalid-argument', '방 반응 정보가 올바르지 않습니다.');
     }
     const database = getDatabase();
+    if (!(await database.ref(`users/${owner}/name`).get()).exists()) {
+        throw new HttpsError('not-found', '존재하지 않는 학생의 방이에요.');
+    }
     const day = kstDate(Date.now());
     const entryKey = database.ref(`users/${owner}/myRoom/guestbook`).push().key;
     let duplicate = false;

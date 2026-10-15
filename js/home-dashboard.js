@@ -123,10 +123,20 @@
         }
     }
 
-    function renderCleaning(data,today,students){
+    function renderCleaning(data,today,allStudents){
+        let students=allStudents;
         const target=document.getElementById('home-clean-summary');
         if(!target)return;
         const status=data.cleaningRoot?.[today]||{};
+        // 결석·조퇴, 5교시 이후에 온 지각은 청소를 할 수 없으니 대상에서 뺀다(청소 탭과 같은 기준).
+        const excluded=new Set();
+        Object.values(data.checkins||{}).forEach(record=>{
+            if(!record||record.date!==today)return;
+            const category=String(record.category||'').trim();
+            const lateFrom=Number((/^(\d+)/.exec(String(record.fromPeriod||''))||[])[1])||0;
+            if(category==='결석'||category==='조퇴'||(category==='지각'&&lateFrom>=5))excluded.add(String(record.name||'').trim());
+        });
+        students=students.filter(student=>!excluded.has(student.name));
         const done=students.filter(student=>status[student.name]?.cleanDone).length;
         const total=students.length;
         const percent=total?Math.round(done/total*100):0;

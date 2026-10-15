@@ -7,7 +7,8 @@
         weeklySchedules: 'blackboard/weeklySchedules', notices: 'blackboard/notices',
         users: 'users', seatData: 'seatLayoutData',
         cleaningRoot: 'classManagement/cleaningStatus', assignments: 'blackboard/assignments',
-        assignmentCompletions: 'blackboard/assignmentCompletions', dismissalNotes: 'blackboard/dismissalNotes'
+        assignmentCompletions: 'blackboard/assignmentCompletions', dismissalNotes: 'blackboard/dismissalNotes',
+        studentRoles: 'settings/studentRoles'
     };
     const periods = ['아침','1교시','2교시','3교시','4교시','점심시간','청소시간','5교시','6교시','하교'];
     const text = value => typeof value === 'string' ? value : '';
@@ -75,7 +76,13 @@
             .map(([key, value]) => [key, typeof value === 'string' ? value : text(value?.name || value?.studentName)]));
         const dimension = (value, fallback) => Math.min(50, Math.max(1, parseInt(value, 10) || fallback));
         const cleaning = Object.fromEntries(entries(raw.cleaningRoot?.[today]).filter(([name]) => visibleNames.has(name))
-            .map(([name, value]) => [name, { cleanDone: !!value?.cleanDone }]));
+            .map(([name, value]) => [name, { cleanDone: !!value?.cleanDone, roleDone: !!value?.roleDone }]));
+        // 1인 1역이 정해진 학생의 역할 이름(청소시간·하교 화면의 "1인 1역 미확인" 표시용).
+        const roleText = value => text(value && typeof value === 'object'
+            ? (value.role || value.name || value.title) : value).trim();
+        const roleAssignments = Object.fromEntries(entries(raw.studentRoles)
+            .filter(([name]) => visibleNames.has(name))
+            .map(([name, value]) => [name, roleText(value)]).filter(([, role]) => role));
         const assignments = Object.fromEntries(entries(raw.assignments).filter(([, item]) => item && item.active !== false && item.required !== false)
             .map(([id, item]) => [id, { title: text(item.title), dueDate: text(item.dueDate),
                 active: item.active !== false, required: item.required !== false,
@@ -94,7 +101,7 @@
             notices: dateMap(raw.notices, notice), users, checkins,
             seatData: { config: { rows: dimension(seat.config?.rows || seat.rows, 6),
                 cols: dimension(seat.config?.cols || seat.cols, 5) }, layout },
-            cleaningRoot: { [today]: cleaning }, assignments, assignmentCompletions: completions,
+            cleaningRoot: { [today]: cleaning }, roleAssignments, assignments, assignmentCompletions: completions,
             dismissalNotes: dateMap(raw.dismissalNotes, value => ({
                 teacherMessage: text(value?.teacherMessage || value?.manualIncomplete)
             }))

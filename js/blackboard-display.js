@@ -187,6 +187,54 @@
         return checked;
     }
 
+    function periodNumber(value) {
+        const match = /^(\d+)/.exec(String(value || ''));
+        return match ? Number(match[1]) : 0;
+    }
+
+    // 오늘 결석·조퇴 처리된 학생. 개인 사정이라 전체 화면에는 이름 옆 사유를 띄우지 않고,
+    // 등교 안 됨 목록·미완료 목록에서만 조용히 뺀다.
+    function getExcusedNames(today) {
+        const names = new Set();
+        Object.values(state.checkins || {}).forEach(value => {
+            const item = value || {};
+            if (String(item.date || '').slice(0, 10) !== today) return;
+            const name = String(item.name || '').trim();
+            const category = String(item.category || '').trim();
+            const result = String(item.result || '').trim();
+            if (name && (category === '결석' || category === '조퇴' || result.includes('결석') || result.includes('조퇴'))) names.add(name);
+        });
+        return names;
+    }
+
+    // 청소·1인 1역 확인에서 빼는 학생: 결석·조퇴 + 5교시 이후에야 등교한 늦은 지각.
+    function getCleaningExcludedNames(today) {
+        const names = getExcusedNames(today);
+        Object.values(state.checkins || {}).forEach(value => {
+            const item = value || {};
+            if (String(item.date || '').slice(0, 10) !== today) return;
+            const name = String(item.name || '').trim();
+            if (name && String(item.category || '').trim() === '지각' && periodNumber(item.fromPeriod) >= 5) names.add(name);
+        });
+        return names;
+    }
+
+    // 1인 1역이 정해졌는데 오늘 아직 확인이 안 된 학생 (번호순).
+    function getRoleIncomplete(today, excluded) {
+        const roles = state.roleAssignments || {};
+        const cleaning = state.cleaningRoot?.[today] || {};
+        return getRoster()
+            .filter(student => roles[student.name] && !excluded.has(student.name) && !cleaning[student.name]?.roleDone)
+            .map(student => ({ ...student, role: String(roles[student.name]) }));
+    }
+
+    function roleListHtml(list) {
+        if (!list.length) return '<div class="number-list all-done">모두 확인했어요 🎉</div>';
+        return '<div class="side-list">' + list.map(item =>
+            '<div class="side-item"><b>' + item.number + '번</b> ' + escapeHtml(item.name) + '<small>' + escapeHtml(item.role) + '</small></div>'
+        ).join('') + '</div>';
+    }
+
     function getSeats() {
         const data = state.seatData || {};
         const config = data.config || {};
@@ -255,9 +303,12 @@
         const seatInfo = getSeats();
         const checked = getCheckedNames(today);
         const cleaning = state.cleaningRoot?.[today] || {};
+        const excused = mode === 'morning' ? getExcusedNames(today) : getCleaningExcludedNames(today);
         let completed = 0;
         const cards = seatInfo.seats.map(seat => {
             if (!seat.name) return `<div class="seat empty"><span class="seat-number">${seat.row+1}-${seat.col+1}</span><span class="seat-name">빈자리</span></div>`;
+            // 결석·조퇴·늦은 지각 학생은 색이나 문구 없이 중립 칸으로만 둔다(사유 비공개).
+            if (excused.has(seat.name)) return `<article class="seat excused"><span class="seat-number">${seat.row+1}-${seat.col+1}</span><strong class="seat-name">${escapeHtml(seat.name)}</strong></article>`;
             let good = false;
             let label = '';
             if (mode === 'morning') {
@@ -270,19 +321,32 @@
             }
             return `<article class="seat ${good ? 'good' : mode === 'morning' ? 'bad' : 'wait'}"><span class="seat-number">${seat.row+1}-${seat.col+1}</span><strong class="seat-name">${escapeHtml(seat.name)}</strong><span class="seat-state">${label}</span></article>`;
         }).join('');
-        const occupied = seatInfo.seats.filter(seat => seat.name).length;
+        const occupied = seatInfo.seats.filter(seat => seat.name && !excused.has(seat.name)).length;
         const goodCount = mode === 'morning'
-            ? seatInfo.seats.filter(seat => seat.name && checked.has(seat.name)).length
+            ? seatInfo.seats.filter(seat => seat.name && !excused.has(seat.name) && checked.has(seat.name)).length
             : completed;
         const badCount = Math.max(0, occupied - goodCount);
         const title = mode === 'morning' ? '아침 등교 확인' : '청소 확인';
         const guide = mode === 'morning' ? '자기 이름이 초록색인지 확인하세요.' : '자리 청소가 확인되면 초록색으로 바뀝니다.';
+        // 오른쪽 패널: 아침에는 "등교 안 됨"(결석·조퇴 제외), 청소시간에는 "1인 1역 미확인".
+        let sidePanel;
+        if (mode === 'morning') {
+            const waiting = getRoster().filter(student => !excused.has(student.name) && !checked.has(student.name));
+            sidePanel = '<aside class="side-panel"><h3>등교 안 됨 <span>' + waiting.length + '명</span></h3>'
+                + (waiting.length
+                    ? '<div class="side-list">' + waiting.map(student => '<div class="side-item"><b>' + student.number + '번</b> ' + escapeHtml(student.name) + '</div>').join('') + '</div>'
+                    : '<div class="number-list all-done">모두 등교했어요 🎉</div>')
+                + '<p class="side-note">등교 암호를 입력하면 왼쪽 자리로 옮겨져요.</p></aside>';
+        } else {
+            const roleWaiting = getRoleIncomplete(today, excused);
+            sidePanel = '<aside class="side-panel"><h3>📌 1인 1역 미확인 <span>' + roleWaiting.length + '명</span></h3>' + roleListHtml(roleWaiting) + '</aside>';
+        }
         const action=String(item?.action||'').trim();
         const code = state.checkinPassword;
         const currentCode = /^\d{4}$/.test(String(code?.password || ''));
         const passwordCard = mode === 'morning'
             ? `<section class="morning-password" aria-label="등교 암호"><span>등교 암호</span>${currentCode ? `<strong>${escapeHtml(code.password)}</strong>` : '<p>등교 암호를 준비하고 있습니다.</p>'}</section>` : '';
-        return `<div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2>${passwordCard}${action?`<div class="action">${escapeHtml(action)}</div>`:''}<div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-grid" style="--seat-cols:${seatInfo.cols}">${cards}</div>`;
+        return `<div class="seat-screen"><div class="state-kicker">${title}</div><h2 class="state-title">${guide}</h2>${passwordCard}${action?`<div class="action">${escapeHtml(action)}</div>`:''}<div class="summary-row"><span class="summary-pill good">완료 ${goodCount}명</span><span class="summary-pill ${badCount ? 'bad' : 'good'}">${mode === 'morning' ? '미등교' : '확인 전'} ${badCount}명</span></div><div class="seat-split"><div class="seat-grid compact" style="--seat-cols:${seatInfo.cols}">${cards}</div>${sidePanel}</div></div>`;
     }
 
     function renderLesson(item, today) {
@@ -340,7 +404,9 @@
     function renderDismissal(today, item={}) {
         const roster=getRoster();
         const cleaning=state.cleaningRoot?.[today]||{};
-        const cleaningIncomplete=roster.filter(student=>!Boolean(cleaning[student.name]?.cleanDone));
+        const cleaningExcluded=getCleaningExcludedNames(today);
+        const cleaningIncomplete=roster.filter(student=>!cleaningExcluded.has(student.name)&&!Boolean(cleaning[student.name]?.cleanDone));
+        const roleIncomplete=getRoleIncomplete(today,cleaningExcluded);
         const dueAssignments=Object.entries(state.assignments||{}).map(([id,item])=>{const completed=state.assignmentCompletions?.[id]||{};const targets=Array.isArray(item?.targetStudents)&&item.targetStudents.length?item.targetStudents:null;const incomplete=roster.filter(student=>(!targets||targets.includes(student.name))&&!completed[student.name]);return {id,item,incomplete};}).filter(entry=>entry.item&&entry.item.active!==false&&entry.item.required!==false&&entry.incomplete.length>0);
         const assignmentHtml=dueAssignments.length?dueAssignments.map(({item,incomplete})=>{
             return `<div class="task-due-item"><div class="task-due-title">${escapeHtml(item.title||'제목 없는 과제')} · 마감 ${escapeHtml(item.dueDate||'')}</div><div class="task-due-numbers">${incomplete.map(student=>`${student.number}번`).join(', ')}</div></div>`;
@@ -355,7 +421,7 @@
         const savedMessage=String(state.dismissalNotes?.[today]?.teacherMessage||state.dismissalNotes?.[today]?.manualIncomplete||'').trim();
         const manual=savedMessage||scheduledMessage;
         const manualBody=state.canEdit?`<textarea class="dismissal-input" data-dismissal-note data-note-date="${today}" placeholder="하교 전 학생들에게 전달할 내용을 적으세요.">${escapeHtml(manual)}</textarea><div class="dismissal-status" data-dismissal-status>입력을 멈추면 자동 저장됩니다.</div>`:`<div class="dismissal-view">${manual?escapeHtml(manual):'전달사항 없음'}</div>`;
-        return `<div class="dismissal-board"><div class="state-kicker">6교시 이후</div><h2 class="state-title">🏠 하교합니다</h2><p class="state-subtitle">아래 번호의 학생은 할 일을 마치고 하교하세요.</p><div class="dismissal-grid">${tomorrowCard}<section class="dismissal-card clean"><h3>🧹 오늘 청소 미완료</h3>${numbersHtml(cleaningIncomplete)}</section><section class="dismissal-card task"><h3>📝 필수 과제 미완료</h3>${assignmentHtml}</section><section class="dismissal-card manual"><h3>📣 교사 전달사항</h3>${manualBody}</section></div></div>`;
+        return `<div class="dismissal-board"><div class="state-kicker">6교시 이후</div><h2 class="state-title">🏠 하교합니다</h2><p class="state-subtitle">아래 번호의 학생은 할 일을 마치고 하교하세요.</p><div class="dismissal-grid">${tomorrowCard}<section class="dismissal-card clean"><h3>🧹 오늘 청소 미완료</h3>${numbersHtml(cleaningIncomplete)}</section><section class="dismissal-card clean"><h3>📌 1인 1역 미확인</h3>${roleListHtml(roleIncomplete)}</section><section class="dismissal-card task"><h3>📝 필수 과제 미완료</h3>${assignmentHtml}</section><section class="dismissal-card manual"><h3>📣 교사 전달사항</h3>${manualBody}</section></div></div>`;
     }
 
     async function saveDismissalNote(textarea) {
@@ -468,7 +534,7 @@
         // 매번 내려받지 않아도 좌석 이름과 출결 상태를 표시할 수 있다.
         users:'publicProfiles', checkins:'blackboardDisplay/data/checkins',
         seatData:'seatLayoutData', checkinPassword:'settings',
-        cleaningRoot:'blackboardDisplay/data/cleaningRoot', assignments:'blackboard/assignments',
+        cleaningRoot:'blackboardDisplay/data/cleaningRoot', roleAssignments:'blackboardDisplay/data/roleAssignments', assignments:'blackboard/assignments',
         assignmentCompletions:'blackboard/assignmentCompletions', dismissalNotes:'blackboard/dismissalNotes'
     };
     const editorSourceKeys = new Set([
