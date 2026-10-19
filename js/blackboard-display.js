@@ -720,7 +720,27 @@
             connectSources(state.canEdit ? user : null);
         });
     } else connectSources(null);
-    setInterval(render, 1000);
+    // 백그라운드 탭에서도 시계·교시 전환이 멈추지 않도록 Worker로 1초 틱을 받는다.
+    // Worker는 브라우저의 백그라운드 타이머 억제 대상이 아니다. Worker 생성/로드가
+    // 막히는 환경(오래된 브라우저, 학교 보안 프로그램의 CSP 등)에서는 기존처럼
+    // 메인 스레드 setInterval로 대체한다 — 그 경우에만 백그라운드에서 느려진다.
+    let clockFallbackStarted = false;
+    function startClockFallback() {
+        if (clockFallbackStarted) return;
+        clockFallbackStarted = true;
+        setInterval(render, 1000);
+    }
+    try {
+        const clockWorker = new Worker('js/blackboard-clock-worker.js');
+        clockWorker.onmessage = render;
+        clockWorker.onerror = () => {
+            console.warn('전자칠판 시계 Worker 오류, 기본 타이머로 대체합니다.');
+            startClockFallback();
+        };
+    } catch (error) {
+        console.warn('전자칠판 시계 Worker를 시작하지 못해 기본 타이머로 대체합니다:', error);
+        startClockFallback();
+    }
     document.addEventListener('visibilitychange', async() => {
         if (document.visibilityState === 'visible') {
             if(state.sourceFailed){
