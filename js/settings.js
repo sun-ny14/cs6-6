@@ -283,7 +283,9 @@ window.renderCurrentSeatingView = async function() {
 // 선생님이 "제대로 등록했는지" 볼 때도 이 목록을 기준으로 한다(교사만 읽을 수 있는 경로).
 window.studentEmailsByName = {};
 window.loadStudentEmails = async function() {
-    if (window.isAdmin !== true) return;
+    // 설정 화면이 로그인·교사 판별보다 먼저 그려질 수 있어서, 아직 교사로 확정되지 않았으면 다음 그리기 때 다시 시도한다.
+    if (window.isAdmin !== true || window.studentEmailsLoading) return;
+    window.studentEmailsLoading = true;
     try {
         const snapshot = await db.ref('userEmails').once('value');
         const map = {};
@@ -294,8 +296,11 @@ window.loadStudentEmails = async function() {
             (map[name] = map[name] || []).push(email);
         });
         window.studentEmailsByName = map;
+        window.studentEmailsLoaded = true;
+        window.studentEmailsLoading = false;
         window.renderAdminList();
     } catch (error) {
+        window.studentEmailsLoading = false;
         console.error('학생 이메일 목록 조회 오류:', error);
     }
 };
@@ -351,6 +356,9 @@ window.renderAdminList = function() {
         document.getElementById('student-admin-list');
 
     if (!listEl) return;
+
+    // 이메일 목록을 아직 못 읽었으면(교사 확정 전에 그려진 경우 등) 지금 읽어서 다시 그린다.
+    if (window.isAdmin === true && !window.studentEmailsLoaded) window.loadStudentEmails();
 
     let h = "";
 
