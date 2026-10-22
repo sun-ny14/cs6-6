@@ -252,6 +252,7 @@ if(typeof renderHeroes==='function'){
     if(t==='student-checkin'){
         if(admin){t='attendance-admin';return showTab(t);}
         if(typeof refreshCheckinGuide==='function')refreshCheckinGuide();
+        if(window.Mood&&typeof window.Mood.onEnterCheckin==='function')window.Mood.onEnterCheckin();
     }
 
     if(t==='attendance-admin'){

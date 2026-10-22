@@ -52,6 +52,8 @@
         .seat-grid.compact .seat{min-height:clamp(50px,7.2vh,86px);padding:4px 6px}.seat-grid.compact .seat-number{margin-bottom:0;font-size:11px}
         .seat-grid.compact .seat-name{font-size:clamp(17px,1.7vw,26px)}
         .seat-grid.compact .seat-state{margin-top:3px;font-size:13px}
+        .seat{position:relative}
+        .seat-mood{position:absolute;top:3px;right:7px;font-size:clamp(18px,1.9vw,30px);line-height:1}
         .seat.excused{background:#eef1f5;border-color:#cdd5e0;border-style:dashed}
         .side-panel{padding:16px 18px;border-radius:18px;background:#fff;border:3px solid #d5dce6;position:sticky;top:12px}
         .side-panel h3{margin:0 0 10px;font-size:clamp(20px,1.9vw,28px);color:#263b63}.side-panel h3 span{color:#b4392d;margin-left:6px}
@@ -173,7 +175,7 @@
         })();
     </script>
     <script src="functions/checkin-password-core.js?v=20260911-final-2"></script>
-    <script src="js/blackboard-display.js?v=20261019-worker-clock-1"></script>
+    <script src="js/blackboard-display.js?v=20261022-mood-1"></script>
     <script src="js/blackboard-loader.js?v=20261008-retry-fix-1"></script>
     <script src="js/blackboard-tools.js?v=20261007-resize-sound-1"></script>
 </body>

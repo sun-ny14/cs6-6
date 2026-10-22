@@ -309,6 +309,8 @@
             if (!seat.name) return `<div class="seat empty"><span class="seat-number">${seat.row+1}-${seat.col+1}</span><span class="seat-name">빈자리</span></div>`;
             // 결석·조퇴·늦은 지각 학생은 색이나 문구 없이 중립 칸으로만 둔다(사유 비공개).
             if (excused.has(seat.name)) return `<article class="seat excused"><span class="seat-number">${seat.row+1}-${seat.col+1}</span><strong class="seat-name">${escapeHtml(seat.name)}</strong></article>`;
+            // 오늘의 기분 이모지(학생이 비공개를 골랐으면 😶). 아침 등교판에만 보인다.
+            const moodEmoji = mode === 'morning' ? String(state.moods?.[today]?.[seat.name] || '') : '';
             let good = false;
             let label = '';
             if (mode === 'morning') {
@@ -319,7 +321,7 @@
                 if (good) completed += 1;
                 label = good ? '청소 확인 완료' : '확인 전';
             }
-            return `<article class="seat ${good ? 'good' : mode === 'morning' ? 'bad' : 'wait'}"><span class="seat-number">${seat.row+1}-${seat.col+1}</span><strong class="seat-name">${escapeHtml(seat.name)}</strong><span class="seat-state">${label}</span></article>`;
+            return `<article class="seat ${good ? 'good' : mode === 'morning' ? 'bad' : 'wait'}"><span class="seat-number">${seat.row+1}-${seat.col+1}</span>${moodEmoji?`<span class="seat-mood" aria-label="오늘의 기분">${escapeHtml(moodEmoji)}</span>`:''}<strong class="seat-name">${escapeHtml(seat.name)}</strong><span class="seat-state">${label}</span></article>`;
         }).join('');
         const occupied = seatInfo.seats.filter(seat => seat.name && !excused.has(seat.name)).length;
         const goodCount = mode === 'morning'
@@ -551,7 +553,7 @@
         // 매번 내려받지 않아도 좌석 이름과 출결 상태를 표시할 수 있다.
         users:'publicProfiles', checkins:'blackboardDisplay/data/checkins',
         seatData:'seatLayoutData', checkinPassword:'settings',
-        cleaningRoot:'blackboardDisplay/data/cleaningRoot', roleAssignments:'blackboardDisplay/data/roleAssignments', assignments:'blackboard/assignments',
+        cleaningRoot:'blackboardDisplay/data/cleaningRoot', roleAssignments:'blackboardDisplay/data/roleAssignments', moods:'blackboardDisplay/data/moods', assignments:'blackboard/assignments',
         assignmentCompletions:'blackboard/assignmentCompletions', dismissalNotes:'blackboard/dismissalNotes'
     };
     const editorSourceKeys = new Set([

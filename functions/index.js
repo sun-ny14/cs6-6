@@ -8,6 +8,7 @@ const { getDatabase } = require('firebase-admin/database');
 const { getStorage } = require('firebase-admin/storage');
 const { createHash, randomBytes, scryptSync, timingSafeEqual, randomInt: cryptoRandomInt } = require('node:crypto');
 const CheckinPasswordCore = require('./checkin-password-core.js');
+const MoodCore = require('./mood-core.js');
 
 // 프로젝트에 복구용 RTDB 인스턴스도 있으므로 운영 DB를 명시한다.
 // 클라이언트가 보는 상점과 Functions가 조회하는 상점이 항상 같아진다.
@@ -848,6 +849,66 @@ exports.cleanupDuplicateHousingItems = callableHeavy(async request => {
 // 보안 규칙 쪽에서 원인을 특정하기 어려운 PERMISSION_DENIED가 발생했다.
 // Admin SDK로 서버에서 처리하면 그 문제를 완전히 피하면서, 레벨 해금 여부도
 // 클라이언트를 신뢰하지 않고 서버에서 다시 검증할 수 있어 더 안전하다.
+// ---------------------------------------------------------------------------
+// 오늘의 기분
+// - 감정 이름(예: "졸려요")만 moodRecords/{날짜}/{학생}에 저장한다(이모지는 저장하지 않음).
+//   등교 기록(attendanceRecords 등)과는 완전히 다른 경로라 서로 섞이지 않는다.
+// - moodRecords/moodMeta는 DB 규칙상 클라이언트가 직접 쓸 수 없다(교사만 읽기).
+// - 전자칠판 등교판에는 이모지 한 글자만 공개 복사본(blackboardDisplay/data/moods/{날짜}/{학생})으로 올린다.
+//   "칠판에 비공개"를 고르면 😶만 올리고, 실제 감정은 교사 화면에서만 보인다. 비공개는 한 주(월~일) 2번까지.
+// ---------------------------------------------------------------------------
+async function moodStatus(database, name, date) {
+    const week = MoodCore.weekStart(date);
+    const [recordSnapshot, metaSnapshot] = await Promise.all([
+        database.ref(`moodRecords/${date}/${name}`).get(),
+        database.ref(`moodMeta/${name}/${week}`).get()
+    ]);
+    const used = Object.keys(metaSnapshot.val() || {}).length;
+    const record = recordSnapshot.val() || null;
+    return {
+        emotion: record?.emotion || '', hidden: record?.hidden === true,
+        hiddenLeft: Math.max(0, MoodCore.HIDDEN_PER_WEEK - used), hiddenLimit: MoodCore.HIDDEN_PER_WEEK
+    };
+}
+
+exports.getMyMood = callable(async request => {
+    const current = await actor(request);
+    if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 사용해 주세요.');
+    return moodStatus(getDatabase(), current.name, kstDate(Date.now()));
+});
+
+exports.setTodayMood = callable(async request => {
+    const current = await actor(request);
+    if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 사용해 주세요.');
+    const emotion = MoodCore.byName(request.data?.emotion);
+    if (!emotion) throw new HttpsError('invalid-argument', '기분을 골라 주세요.');
+    const hide = request.data?.hideOnBoard === true;
+    const database = getDatabase();
+    const now = Date.now();
+    const date = kstDate(now);
+    const week = MoodCore.weekStart(date);
+    const name = current.name;
+
+    // 칠판 비공개는 주 2번까지. 같은 날 다시 바꿔도 그 날은 한 번으로만 센다.
+    const metaRef = database.ref(`moodMeta/${name}/${week}`);
+    const used = (await metaRef.get()).val() || {};
+    const alreadyToday = used[date] === true;
+    if (hide && !alreadyToday && Object.keys(used).length >= MoodCore.HIDDEN_PER_WEEK) {
+        throw new HttpsError('resource-exhausted', '이번 주 비공개를 모두 썼어요. 다음 주 월요일에 다시 쓸 수 있어요.');
+    }
+
+    const updates = {
+        [`moodRecords/${date}/${name}`]: { emotion: emotion.name, tone: emotion.tone, hidden: hide, updatedAt: now },
+        [`moodMeta/${name}/${week}/${date}`]: hide ? true : null,
+        [`blackboardDisplay/data/moods/${date}/${name}`]: hide ? MoodCore.HIDDEN_EMOJI : emotion.emoji
+    };
+    // 전자칠판 공개 복사본에는 오늘 것만 남긴다.
+    const boardDates = (await database.ref('blackboardDisplay/data/moods').get()).val() || {};
+    Object.keys(boardDates).filter(key => key !== date).forEach(key => { updates[`blackboardDisplay/data/moods/${key}`] = null; });
+    await database.ref().update(updates);
+    return moodStatus(database, name, date);
+});
+
 exports.saveHeroProfile = callable(async request => {
     const current = await actor(request);
     if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 변경해 주세요.');

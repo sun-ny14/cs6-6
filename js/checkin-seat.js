@@ -419,6 +419,11 @@ const attendanceStudentNames=new Set(
     `;
 }
 
+        // 오늘의 기분(등교 기록과 따로 저장된 값)은 등교로그에서만 교사에게 보여 준다.
+        if(window.Mood&&typeof window.Mood.renderAdminPanel==='function'){
+            window.Mood.renderAdminPanel(targetDate);
+        }
+
         const list=
             document.getElementById(
                 'checkin-log-list'
