@@ -30,7 +30,7 @@
     }
 
     function activeRows(){
-        return Object.entries(state.assignments||{}).filter(([,item])=>item&&item.active!==false);
+        return Object.entries(state.assignments||{}).filter(([,item])=>item&&item.active!==false&&item.archived!==true);
     }
 
     function popupStyle(){

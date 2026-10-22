@@ -23,6 +23,8 @@
     // 대상 학생(지정 안 했으면 전체)이 전부 완료했는지. 대상에서 제외된 학생은 보지 않는다.
     // 홈 화면·아 맞다 같은 다른 화면이 "전원 완료면 목록에서 뺀다"를 같은 기준으로 쓰게 공유한다.
     window.assignmentsIsAllDone=function(item,completed){
+        // 완료함에 보관한 과제/제출자료는 학생 수가 바뀌어도 끝난 것으로 본다(선생님이 다시 불러들일 때까지).
+        if(item&&item.archived===true)return true;
         const explicit=targetList(item);
         const names=explicit&&explicit.length
             ?explicit
@@ -45,7 +47,8 @@
                 id,
                 item,
                 done:Boolean(state.completions[id]?.[myName])
-            }));
+            }))
+            .filter(entry=>!(entry.item.archived===true&&!entry.done));
         const card=({item,done})=>{
             const days=dayDistance(item.dueDate,today);
             const urgency=done?'':days<=0?' urgent':days<=3?' soon':'';
@@ -87,11 +90,29 @@
             ?students.map(student=>studentChip(id,student,Boolean(completed[student.name]))).join('')
             :'<span class="an-hint">대상 학생이 없습니다.</span>';
 
-        return{allDone,html:`<article class="assignment-card assignment-admin-card${allDone?' completed':''}"><div><h3>${allDone?'✅ ':''}${esc(item.title||'제목 없음')} · ${required?'🔴 필수':'🔵 선택'}</h3><div class="assignment-meta"><span class="assignment-due">마감 ${esc(item.dueDate||'-')} · 완료 ${doneCount}/${students.length}명</span>${targets?`<span class="assignment-badge targeted">🎯 지정 학생 ${targets.length}명</span>`:''}</div><div class="assignment-note">${item.description?esc(item.description):'참고사항 없음'}</div><div class="assignment-todo"><b>아직 안 낸 학생 ${incomplete.length}명</b>${missing}</div><div class="assignment-students chip-group">${chips}</div><div class="assignment-bulk"><button class="btn btn--xs" data-bulk-id="${esc(id)}" data-bulk-done="true">전원 완료</button><button class="btn btn--xs btn--outline" data-bulk-id="${esc(id)}" data-bulk-done="false">전원 해제</button><span class="an-hint">이름을 눌러 한 명씩 바꿀 수 있습니다.</span></div></div><div class="row-actions"><button class="btn btn--xs" data-edit-target-id="${esc(id)}">✏️ 마감일·대상 수정</button><button class="btn btn--xs btn--danger" data-delete-id="${esc(id)}">삭제</button></div></article>`};
+        const archivedFlag=item.archived===true;
+        return{allDone,archived:archivedFlag,archivedUnset:item.archived===undefined,html:`<article class="assignment-card assignment-admin-card${allDone||archivedFlag?' completed':''}"><div><h3>${allDone?'✅ ':''}${esc(item.title||'제목 없음')} · ${required?'🔴 필수':'🔵 선택'}</h3><div class="assignment-meta"><span class="assignment-due">마감 ${esc(item.dueDate||'-')} · 완료 ${doneCount}/${students.length}명</span>${targets?`<span class="assignment-badge targeted">🎯 지정 학생 ${targets.length}명</span>`:''}</div><div class="assignment-note">${item.description?esc(item.description):'참고사항 없음'}</div><div class="assignment-todo"><b>아직 안 낸 학생 ${incomplete.length}명</b>${missing}</div><div class="assignment-students chip-group">${chips}</div><div class="assignment-bulk"><button class="btn btn--xs" data-bulk-id="${esc(id)}" data-bulk-done="true">전원 완료</button><button class="btn btn--xs btn--outline" data-bulk-id="${esc(id)}" data-bulk-done="false">전원 해제</button><span class="an-hint">이름을 눌러 한 명씩 바꿀 수 있습니다.</span></div></div><div class="row-actions">${archivedFlag?`<button class="btn btn--xs btn--primary" data-unarchive-id="${esc(id)}">📤 다시 불러들이기</button>`:`<button class="btn btn--xs" data-archive-id="${esc(id)}">📦 완료함으로</button>`}<button class="btn btn--xs" data-edit-target-id="${esc(id)}">✏️ 마감일·대상 수정</button><button class="btn btn--xs btn--danger" data-delete-id="${esc(id)}">삭제</button></div></article>`};
     }
 
     // 대상 학생 전원이 완료한 항목은 화면에 계속 떠 있지 않도록 "완료함"으로 접어서 모아둔다.
     // (교사 화면만 해당. 학생 화면은 이미 완료/미완료로 나뉘어 있어서 따로 손대지 않는다.)
+    const autoArchiveQueued=new Set();
+    function queueAutoArchive(ids){
+        const fresh=ids.filter(id=>!autoArchiveQueued.has(id));
+        if(!fresh.length)return;
+        fresh.forEach(id=>autoArchiveQueued.add(id));
+        const updates={};
+        fresh.forEach(id=>{updates[`blackboard/assignments/${id}/archived`]=true;});
+        db.ref().update(updates).catch(error=>{
+            console.error('완료함 보관 표시 저장 오류:',error);
+            fresh.forEach(id=>autoArchiveQueued.delete(id));
+        });
+    }
+
+    async function setArchived(id,value){
+        await db.ref(`blackboard/assignments/${id}/archived`).set(value);
+    }
+
     function adminCards(category){
         const allStudents=roster();
         const list=rowsByCategory(category);
@@ -100,8 +121,13 @@
         if(!list.length)return `<div class="assignment-empty">등록된 ${noun}가 없습니다.</div>`;
 
         const cards=list.map(([id,item])=>adminCard(id,item,allStudents));
-        const active=cards.filter(c=>!c.allDone);
-        const archived=cards.filter(c=>c.allDone);
+        // 전원 완료가 되는 순간 한 번 '보관' 표시를 저장한다. 그 뒤에는 전학생이 오거나 학생이 빠져도
+        // 완료함에 그대로 있고, 선생님이 "다시 불러들이기"를 누를 때만 진행 중으로 돌아온다.
+        // (archived가 false로 저장돼 있으면 선생님이 일부러 꺼낸 것이라 자동으로 다시 넣지 않는다.)
+        const autoIds=list.filter(([id,item],index)=>cards[index].allDone&&item.archived===undefined).map(([id])=>id);
+        if(autoIds.length&&window.isAdmin===true)queueAutoArchive(autoIds);
+        const active=cards.filter(c=>!c.archived&&!(c.allDone&&c.archivedUnset));
+        const archived=cards.filter(c=>c.archived||(c.allDone&&c.archivedUnset));
 
         const activeHtml=active.length
             ?active.map(c=>c.html).join('')
@@ -315,6 +341,14 @@
                 if(student)await toggleStudent(student);
                 const bulk=event.target.closest('[data-bulk-id]');
                 if(bulk)await setAllStudents(bulk.dataset.bulkId,bulk.dataset.bulkDone==='true');
+                const archiveBtn=event.target.closest('[data-archive-id]');
+                if(archiveBtn){await setArchived(archiveBtn.dataset.archiveId,true);return;}
+                const unarchiveBtn=event.target.closest('[data-unarchive-id]');
+                if(unarchiveBtn){
+                    if(!confirm('이 항목을 완료함에서 꺼내 진행 중으로 다시 불러들일까요?'))return;
+                    await setArchived(unarchiveBtn.dataset.unarchiveId,false);
+                    return;
+                }
                 const remove=event.target.closest('[data-delete-id]');
                 if(remove)await deleteAssignment(remove.dataset.deleteId);
                 const editTarget=event.target.closest('[data-edit-target-id]');

@@ -83,7 +83,7 @@
         const roleAssignments = Object.fromEntries(entries(raw.studentRoles)
             .filter(([name]) => visibleNames.has(name))
             .map(([name, value]) => [name, roleText(value)]).filter(([, role]) => role));
-        const assignments = Object.fromEntries(entries(raw.assignments).filter(([, item]) => item && item.active !== false && item.required !== false)
+        const assignments = Object.fromEntries(entries(raw.assignments).filter(([, item]) => item && item.active !== false && item.required !== false && item.archived !== true)
             .map(([id, item]) => [id, { title: text(item.title), dueDate: text(item.dueDate),
                 active: item.active !== false, required: item.required !== false,
                 // 특정 학생만 대상인 과제는 대상 명단을 같이 실어야 전자칠판이 제외된 학생을 미완료로 세지 않는다.

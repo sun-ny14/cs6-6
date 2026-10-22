@@ -413,7 +413,7 @@ const boardText = value => typeof value === 'string' ? value : '';
 
 exports.mirrorBoardAssignment = onValueWritten({ ref:'/blackboard/assignments/{id}' }, async event => {
     const item = event.data.after.val();
-    const show = item && typeof item === 'object' && item.active !== false && item.required !== false;
+    const show = item && typeof item === 'object' && item.active !== false && item.required !== false && item.archived !== true;
     const targets = show && Array.isArray(item.targetStudents)
         ? item.targetStudents.map(boardText).filter(Boolean) : [];
     const value = show ? {
