@@ -279,7 +279,29 @@ window.renderCurrentSeatingView = async function() {
 };
 
 // 학생 명단 및 역할 관리
+// 학생 이메일 등록 현황. 로그인은 userEmails/{이메일(.를 ,로 바꾼 키)} = 학생 이름 으로 연결되므로
+// 선생님이 "제대로 등록했는지" 볼 때도 이 목록을 기준으로 한다(교사만 읽을 수 있는 경로).
+window.studentEmailsByName = {};
+window.loadStudentEmails = async function() {
+    if (window.isAdmin !== true) return;
+    try {
+        const snapshot = await db.ref('userEmails').once('value');
+        const map = {};
+        snapshot.forEach(child => {
+            const name = String(child.val() || '').trim();
+            const email = String(child.key || '').replace(/,/g, '.');
+            if (!name) return;
+            (map[name] = map[name] || []).push(email);
+        });
+        window.studentEmailsByName = map;
+        window.renderAdminList();
+    } catch (error) {
+        console.error('학생 이메일 목록 조회 오류:', error);
+    }
+};
+
 window.loadStudentAdminList = function() {
+    window.loadStudentEmails();
     // 설정 탭을 열 때마다 구독이 하나씩 쌓이지 않도록 이전 구독을 먼저 해제하고,
     // global.js의 공유 명단 구독을 같이 쓴다.
     if (window.studentAdminListUnsub) window.studentAdminListUnsub();
@@ -370,6 +392,18 @@ window.renderAdminList = function() {
                 </td>
 
                 <td>
+                    ${(() => {
+                        const emails = (window.studentEmailsByName || {})[u.name] || [];
+                        const own = String(u.email || '').trim();
+                        const list = emails.length ? emails : (own ? [own] : []);
+                        if (!list.length) return '<span class="badge badge--bad">미등록</span>';
+                        const safe = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+                        return list.map(email => '<span class="nowrap" style="font-size:.82rem;user-select:all">' + safe(email) + '</span>').join('<br>')
+                            + (list.length > 1 ? '<br><span class="tiny muted">⚠ 이메일이 여러 개 등록돼 있어요</span>' : '');
+                    })()}
+                </td>
+
+                <td>
                     <select
                         onchange="updateUserRole('${u.name}',this.value)"
                     >
@@ -418,6 +452,7 @@ window.renderAdminList = function() {
                         <tr>
                             <th>번호</th>
                             <th>이름</th>
+                            <th>이메일</th>
                             <th>역할</th>
                             <th>관리</th>
                         </tr>
