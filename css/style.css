@@ -3020,3 +3020,9 @@ body.role-student textarea::placeholder { color: var(--ui-faint); }
     .grade-student-grid { grid-template-columns: 1fr; }
     .grade-student-card { min-height: 50px; }
 }
+
+/* 교사 등교로그 자리 카드의 오늘의 기분 이모지(js/checkin-seat.js). 힘든 감정은 빨간 테두리로 강조한다. */
+#seat-map-container .checkin-card{position:relative}
+.checkin-card .seat-mood-badge{position:absolute;top:4px;right:7px;font-size:1.3rem;line-height:1;z-index:1}
+.checkin-card .seat-mood-lock{position:absolute;top:6px;left:8px;font-size:.7rem;opacity:.8;z-index:1}
+.checkin-card.is-mood-hard{box-shadow:0 0 0 3px var(--ui-bad,#e74c3c)}

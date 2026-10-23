@@ -1203,10 +1203,12 @@ window.renderSeatMap=function(rows,cols){
     const attendanceReads=adminView
         ?Promise.all([
             checkinLoadAdminRecords(targetDate),
-            db.ref('settings/fixedExclusions').once('value')
+            db.ref('settings/fixedExclusions').once('value'),
+            db.ref(`moodRecords/${targetDate}`).once('value').catch(()=>({val:()=>({})}))
         ])
         :Promise.all([
             db.ref('blackboardDisplay/data/checkins').once('value'),
+            Promise.resolve({val:()=>({})}),
             Promise.resolve({val:()=>({})})
         ]);
 
@@ -1227,6 +1229,8 @@ window.renderSeatMap=function(rows,cols){
 
         const exclusionData=snaps[1].val()||{};
         const todayExclusions=exclusionData[selectedDay]||[];
+        // 오늘의 기분은 교사 등교로그에서만 자리 카드에 이모지로 보인다(학생 화면에는 안 보임).
+        const moods=adminView?(snaps[2]&&snaps[2].val()||{}):{};
         const layout=window.currentLayout||{};
 
         for(let r=0;r<rows;r++){
@@ -1295,7 +1299,11 @@ window.renderSeatMap=function(rows,cols){
                     }
                 }
 
-                cell.className=`checkin-card ${stateClass}`;
+                const moodRecord=name?moods[name]:null;
+                const moodInfo=moodRecord&&window.MoodCore?window.MoodCore.byName(moodRecord.emotion):null;
+                const moodHard=Boolean(moodInfo&&moodInfo.tone==='힘듦');
+
+                cell.className=`checkin-card ${stateClass}${moodHard?' is-mood-hard':''}`;
 
                 if(name){
 
@@ -1307,6 +1315,8 @@ window.renderSeatMap=function(rows,cols){
                             :'';
 
                     cell.innerHTML=`
+    ${moodInfo?`<span class="seat-mood-badge" title="${checkinEscape(name)} · ${checkinEscape(moodInfo.name)}">${moodInfo.emoji}</span>`:''}
+    ${moodInfo&&moodRecord.hidden?'<span class="seat-mood-lock" title="전자칠판에는 비공개(😶)로 보여요">🔒</span>':''}
     <div class="seat-name nowrap">
         ${checkinEscape(name)}
     </div>
@@ -1320,7 +1330,7 @@ window.renderSeatMap=function(rows,cols){
 `;
 
                     cell.title=
-                        `${name} · ${statusText}${time}`;
+                        `${name} · ${statusText}${time}${moodInfo?` · 기분: ${moodInfo.name}`:''}`;
 
                 }else{
 
