@@ -1763,6 +1763,12 @@ window.submitCheckIn=async function(){
             '등교 처리 중 오류가 발생했습니다.'
         );
 
+        // 서버가 "오늘의 기분을 먼저 골라야" 거부한 경우, 바로 선택 화면을 띄워 준다.
+        if(error?.code==='functions/failed-precondition'&&/오늘의 기분/.test(String(error.message||''))&&
+            window.Mood&&typeof window.Mood.openPicker==='function'){
+            window.Mood.openPicker({required:true});
+        }
+
     }finally{
 
         window.isCheckingIn=false;

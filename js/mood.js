@@ -110,13 +110,9 @@
                     if (error?.code === 'functions/resource-exhausted' || /비공개를 모두/.test(String(error?.message))) { hide = false; }
                     button.disabled = false;
                     button.textContent = '저장하고 계속';
-                    // 저장 실패가 등교를 막으면 안 된다. 필수 화면이면 닫고 넘어가도록 길을 열어 둔다.
-                    if (required && !/비공개를 모두/.test(String(error?.message))) {
-                        const skip = document.createElement('button');
-                        skip.type = 'button'; skip.className = 'btn btn--outline'; skip.textContent = '나중에 할게요';
-                        skip.addEventListener('click', () => overlay.remove());
-                        overlay.querySelector('.mood-actions')?.prepend(skip);
-                    }
+                    // 등교 암호 제출도 서버에서 오늘의 기분 기록을 확인하므로, 여기서 건너뛰게
+                    // 해 주면 결국 등교 단계에서 막혀 학생만 혼란스럽다. 저장될 때까지 다시
+                    // 시도하게 한다(닫기/건너뛰기 버튼 없음).
                 } finally {
                     state.busy = false;
                 }
@@ -140,6 +136,9 @@
     }
 
     // 등교 탭에 들어올 때마다 호출된다(교사는 호출하지 않는다).
+    // 서버(submitStudentCheckin)도 오늘의 기분 기록이 있는지 확인하므로, 여기서
+    // 조회가 실패해도 조용히 넘어가지 않는다 — 오늘 기록이 없다고 보고 그대로
+    // 선택 화면을 띄운다. 그래야 등교 단계에서야 막히는 일이 없다.
     async function onEnterCheckin() {
         if (window.isAdmin === true) return;
         const today = todayKst();
@@ -148,13 +147,12 @@
                 state.status = await window.callSecure('getMyMood', {});
                 state.date = today;
             } catch (error) {
-                // 기분 기능이 안 되더라도 등교는 막지 않는다.
                 console.error('오늘의 기분 조회 오류:', error);
-                return;
+                state.status = null;
             }
         }
         renderChip();
-        if (!state.status.emotion) openPicker({ required: true });
+        if (!state.status?.emotion) openPicker({ required: true });
     }
 
     document.addEventListener('click', event => {
@@ -225,5 +223,5 @@
         }
     });
 
-    window.Mood = { onEnterCheckin, renderAdminPanel, exportMonthExcel };
+    window.Mood = { onEnterCheckin, renderAdminPanel, exportMonthExcel, openPicker };
 })();
