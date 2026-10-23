@@ -1,4 +1,4 @@
-// js/blackboard-tools.js - 전자칠판 하단 도구모음: 타이머 / 번호 뽑기 / 소음 측정기 / QR 코드
+// js/blackboard-tools.js - 전자칠판 하단 도구모음: 타이머 / 번호 뽑기 / 소음 측정기 / QR 코드 / 메모
 // 전자칠판 페이지는 로그인 없이 켜두는 화면이라, 이 도구들은 Firebase 데이터를
 // 전혀 쓰지 않고 그 기기 안에서만 동작한다 (번호 뽑기도 이름이 아니라 번호만 사용).
 (function(){
@@ -22,6 +22,7 @@
             #bb-tool-picker-btn{background:#8e44ad;}
             #bb-tool-noise-btn{background:#f39c12;}
             #bb-tool-qr-btn{background:#27ae60;}
+            #bb-tool-memo-btn{background:#16a085;}
 
             /* 모서리를 끌어서 선생님이 원하는 크기로 직접 조절할 수 있다.
                (QR코드처럼 멀리서 봐야 하는 창은 크게, 간단한 건 작게) */
@@ -79,6 +80,21 @@
                같이 커지게 고정 크기 대신 창 너비에 맞춘다. */
             .bb-qr-image{width:100%;max-width:440px;aspect-ratio:1/1;border:8px solid #fff;box-shadow:0 10px 30px rgba(24,40,68,.25);border-radius:16px;display:none;}
             .bb-qr-copy{margin-top:18px;padding:11px 20px;border:2px solid #27ae60;border-radius:14px;background:#fff;color:#27ae60;font-weight:900;font-size:15px;cursor:pointer;}
+
+            /* 메모는 다른 도구들과 달리 창 안에서 넓게 써야 해서 기본 크기를 키우고
+               본문 패딩도 직접 관리한다. */
+            #bb-win-memo{width:620px;min-height:360px;}
+            #bb-win-memo .bb-float-body{padding:0;text-align:left;display:flex;flex-direction:column;min-height:260px;}
+            .bb-memo-toolbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #e4e9f1;background:#f7f9fc;flex:none;flex-wrap:wrap;}
+            .bb-memo-font-ctrl{display:inline-flex;align-items:center;gap:6px;padding:4px;border-radius:999px;background:#eef1f6;}
+            .bb-memo-font-ctrl button{width:30px;height:30px;border:0;border-radius:50%;background:#fff;color:#182844;font-weight:950;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.12);}
+            .bb-memo-font-ctrl button:disabled{opacity:.35;cursor:default;}
+            .bb-memo-font-ctrl span{font-size:12px;font-weight:800;color:#6c778a;min-width:44px;text-align:center;}
+            .bb-memo-hint{margin-left:auto;font-size:12px;color:#8a94a8;font-weight:700;}
+            .bb-memo-clear{padding:7px 14px;border:0;border-radius:10px;background:#fdecea;color:#b4392d;font-weight:800;font-size:13px;cursor:pointer;}
+            .bb-memo-area{flex:1;min-height:0;overflow-y:auto;padding:22px 26px;font-size:var(--bb-memo-font,26px);font-weight:700;line-height:1.5;outline:none;color:#182844;}
+            .bb-memo-area:empty::before{content:attr(data-placeholder);color:#aab3c2;font-weight:600;}
+            .bb-memo-area img{max-width:100%;border-radius:12px;display:block;margin:10px 0;box-shadow:0 6px 16px rgba(24,40,68,.15);}
 
             @media(max-width:640px){
                 .bb-tool-btn{padding:8px 14px;font-size:12px;}
@@ -536,6 +552,107 @@
     }
 
     // ---------------------------------------------------------
+    // 메모 (텍스트 + 이미지 붙여넣기. 이 기기 안에서만 떠 있고 저장하지 않는다)
+    // ---------------------------------------------------------
+    const MEMO_FONT_LEVELS = [
+        { label:'아주 작게', px:20 }, { label:'작게', px:26 }, { label:'중간', px:32 },
+        { label:'크게', px:40 }, { label:'아주 크게', px:50 }
+    ];
+    const MEMO_FONT_KEY = 'bbToolMemoFontLevel';
+
+    function readMemoFontLevel(){
+        let raw;
+        try{ raw = localStorage.getItem(MEMO_FONT_KEY); }catch(error){ return 2; }
+        if (raw === null) return 2;
+        const saved = Number(raw);
+        return Number.isInteger(saved) && saved >= 0 && saved < MEMO_FONT_LEVELS.length ? saved : 2;
+    }
+
+    function setupMemo(){
+        const win = createFloatWindow('bb-win-memo', '📝 메모', `
+            <div class="bb-memo-toolbar">
+                <div class="bb-memo-font-ctrl" aria-label="메모 글자 크기 조절">
+                    <button type="button" id="bb-memo-font-dec">가-</button>
+                    <span id="bb-memo-font-label"></span>
+                    <button type="button" id="bb-memo-font-inc">가+</button>
+                </div>
+                <button type="button" class="bb-memo-clear" id="bb-memo-clear">🗑 지우기</button>
+                <span class="bb-memo-hint">이미지는 Ctrl+V로 붙여넣으세요 · 이 기기에만 보여요</span>
+            </div>
+            <div class="bb-memo-area" id="bb-memo-area" contenteditable="true" data-placeholder="여기에 적어 보세요. 화면을 캡처해서 Ctrl+V로 붙여넣을 수도 있어요."></div>
+        `);
+
+        const area = win.querySelector('#bb-memo-area');
+        const label = win.querySelector('#bb-memo-font-label');
+        const decBtn = win.querySelector('#bb-memo-font-dec');
+        const incBtn = win.querySelector('#bb-memo-font-inc');
+
+        function applyFontLevel(level){
+            win.style.setProperty('--bb-memo-font', MEMO_FONT_LEVELS[level].px + 'px');
+            label.textContent = MEMO_FONT_LEVELS[level].label;
+            decBtn.disabled = level <= 0;
+            incBtn.disabled = level >= MEMO_FONT_LEVELS.length - 1;
+        }
+
+        function setFontLevel(level){
+            if (level < 0 || level >= MEMO_FONT_LEVELS.length) return;
+            try{ localStorage.setItem(MEMO_FONT_KEY, String(level)); }catch(error){}
+            applyFontLevel(level);
+        }
+
+        decBtn.addEventListener('click', () => setFontLevel(readMemoFontLevel() - 1));
+        incBtn.addEventListener('click', () => setFontLevel(readMemoFontLevel() + 1));
+        applyFontLevel(readMemoFontLevel());
+
+        win.querySelector('#bb-memo-clear').addEventListener('click', () => {
+            area.innerHTML = '';
+            area.focus();
+        });
+
+        // 커서 위치에 이미지를 끼워 넣는다. execCommand 없이 Selection/Range로 직접 넣는다.
+        function insertNodeAtCursor(node){
+            area.focus();
+            const selection = window.getSelection();
+            let range;
+            if (selection && selection.rangeCount && area.contains(selection.anchorNode)){
+                range = selection.getRangeAt(0);
+            } else {
+                range = document.createRange();
+                range.selectNodeContents(area);
+                range.collapse(false);
+            }
+            range.deleteContents();
+            range.insertNode(node);
+            range.setStartAfter(node);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        area.addEventListener('paste', event => {
+            const items = Array.from(event.clipboardData?.items || []);
+            const imageItem = items.find(item => item.type && item.type.startsWith('image/'));
+            if (!imageItem) return; // 텍스트는 기본 붙여넣기 동작을 그대로 둔다.
+            event.preventDefault();
+            const file = imageItem.getAsFile();
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = document.createElement('img');
+                img.src = reader.result;
+                img.alt = '붙여넣은 이미지';
+                insertNodeAtCursor(img);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('bb-tool-memo-btn').addEventListener('click', () => {
+            openWindow(win);
+            area.focus();
+        });
+    }
+
+    // ---------------------------------------------------------
     // 초기화
     // ---------------------------------------------------------
     function injectToolbar(){
@@ -548,6 +665,7 @@
             <button type="button" class="bb-tool-btn" id="bb-tool-picker-btn"><span class="bb-emoji">🎲</span>번호 뽑기</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-noise-btn"><span class="bb-emoji">🔊</span>소음계</button>
             <button type="button" class="bb-tool-btn" id="bb-tool-qr-btn"><span class="bb-emoji">🔗</span>QR 만들기</button>
+            <button type="button" class="bb-tool-btn" id="bb-tool-memo-btn"><span class="bb-emoji">📝</span>메모</button>
         `;
         document.body.appendChild(bar);
     }
@@ -584,6 +702,7 @@
         setupPicker();
         setupNoise();
         setupQr();
+        setupMemo();
     }
 
     if (document.readyState === 'loading'){
