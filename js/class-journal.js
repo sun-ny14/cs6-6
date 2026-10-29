@@ -33,6 +33,9 @@
             .journal-acc{border:1px solid var(--ui-line);border-radius:14px;overflow:hidden;background:var(--ui-surface)}.journal-acc+.journal-acc{margin-top:10px}.journal-acc-head{display:flex;align-items:center;gap:8px;padding:13px 16px}.journal-acc-title-wrap{display:flex;align-items:center;gap:8px;flex:1;min-width:0;font-weight:900;cursor:pointer}.journal-acc-dot{width:9px;height:9px;border-radius:50%;flex:none}.journal-acc.type-notice .journal-acc-dot{background:var(--ui-info)}.journal-acc.type-schedule .journal-acc-dot{background:var(--ui-accent)}.journal-acc.type-counsel .journal-acc-dot{background:var(--ui-warn)}.journal-acc.type-lesson .journal-acc-dot{background:var(--ui-good)}.journal-acc-chevron{flex:none;color:var(--ui-muted);transition:transform .15s ease}.journal-acc.open .journal-acc-chevron{transform:rotate(180deg)}.journal-acc-body{display:none;padding:0 16px 16px}.journal-acc.open .journal-acc-body{display:block}
             .journal-modal-backdrop{position:fixed;inset:0;z-index:10050;display:flex;align-items:flex-start;justify-content:center;padding:24px;background:rgba(15,23,42,.66);overflow:hidden}.journal-modal{width:min(980px,100%);max-height:calc(100vh - 48px);margin:auto;display:flex;flex-direction:column;background:var(--ui-bg);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.28);overflow:hidden}.journal-modal-body{flex:1;min-height:0;overflow-y:auto}.journal-modal-head,.journal-modal-actions{flex:none}.journal-modal-head{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--ui-line);background:var(--ui-surface)}.journal-modal-head h2{margin:0}.journal-modal-body{display:grid;grid-auto-rows:max-content;align-content:start;gap:16px;padding:20px}.journal-modal textarea,.journal-modal input,.journal-modal select{width:100%;padding:11px;border:1px solid var(--ui-line-strong);border-radius:9px;background:var(--ui-surface);color:var(--ui-text);font:inherit;box-sizing:border-box}.journal-modal textarea{resize:vertical}#journal-notice-text{max-height:160px;overflow-y:auto}.journal-rows{display:grid;gap:10px;max-height:320px;overflow-y:auto;padding-right:4px}.journal-row{display:grid;gap:8px;padding:12px;border:1px solid var(--ui-line);border-radius:11px;background:var(--ui-surface-soft)}.journal-row-counsel{grid-template-columns:150px 1fr auto}.journal-row-counsel textarea,.journal-related{grid-column:1/-1}.journal-row-work{grid-template-columns:115px 1fr auto}.journal-row-work textarea{grid-column:1/-1}.journal-row-options{grid-column:1/-1;display:flex;gap:14px;align-items:center;flex-wrap:wrap}.journal-row-options label,.journal-notice-check label{display:flex;align-items:center;gap:6px;font-weight:850}.journal-row-options input,.journal-notice-check input{width:auto}.journal-related{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--ui-muted);font-size:13px}.journal-chip{padding:4px 8px;border-radius:999px;background:var(--ui-accent-soft);color:var(--ui-accent-deep);font-weight:900}.journal-periods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:420px;overflow-y:auto;padding-right:4px}.journal-period{padding:12px;border:1px solid var(--ui-line);border-radius:11px;background:var(--ui-surface-soft)}.journal-period strong{display:block;margin-bottom:7px}.journal-period strong span{color:var(--ui-accent-deep)}.journal-empty{padding:18px;border:1px dashed var(--ui-line-strong);border-radius:10px;text-align:center;color:var(--ui-muted)}.journal-notice-check{display:grid;gap:7px;margin-top:9px;max-height:160px;overflow-y:auto;padding-right:4px}.journal-notice-check label{padding:8px 10px;border:1px solid var(--ui-line);border-radius:8px;background:var(--ui-surface-soft)}.journal-modal-actions{position:sticky;bottom:0;z-index:5;display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--ui-line);background:var(--ui-surface)}.journal-modal-actions .btn--primary{flex:1}.journal-status{min-height:22px;margin:0;color:var(--ui-muted);font-weight:800}.journal-private-note{padding:10px 13px;border-radius:10px;background:var(--ui-warn-soft);color:var(--ui-warn);font-weight:800}
             @media(max-width:760px){.journal-modal-backdrop{padding:0}.journal-modal{min-height:100%;border-radius:0}.journal-card{padding:10px}.journal-calendar{gap:3px}.journal-day,.journal-day-open{min-height:88px}.journal-day-open{padding:7px 5px 31px}.journal-day-tag{font-size:8.5px;padding:1.5px 5px}.journal-periods{grid-template-columns:1fr}.journal-row-counsel,.journal-row-work{grid-template-columns:1fr}.journal-row-counsel textarea,.journal-related,.journal-row-work textarea,.journal-row-options{grid-column:1}.journal-head{display:grid}.journal-calendar-head strong{font-size:21px}.journal-filter{display:grid;grid-template-columns:repeat(4,1fr)}.journal-filter button{padding:9px 4px;font-size:12px}}
+            .journal-collect-controls{display:flex;flex-direction:column;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--ui-line)}.journal-collect-tabs{display:flex;gap:6px;flex-wrap:wrap}.journal-collect-period{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ui-muted);font-weight:800}.journal-collect-period-toggle{display:inline-flex;border-radius:999px;background:var(--ui-surface-soft);padding:4px;gap:2px}.journal-collect-period-toggle button{padding:6px 14px;border:0;border-radius:999px;background:transparent;color:var(--ui-muted);font-weight:800;font-size:13px;cursor:pointer}.journal-collect-period-toggle button.active{background:var(--ui-accent);color:#fff}.journal-collect-period select,.journal-collect-period input[type=date]{width:auto;padding:6px 9px;border:1px solid var(--ui-line);border-radius:8px;background:var(--ui-surface);color:var(--ui-text);font:inherit;font-size:13px}
+            .journal-collect-list{display:grid;gap:12px}.journal-collect-card{padding:14px 16px;border:1px solid var(--ui-line);border-radius:12px;background:var(--ui-surface-soft)}.journal-collect-card-head{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-weight:900;flex-wrap:wrap}.journal-collect-card-head select,.journal-collect-card-head input{width:auto}.journal-collect-date{color:var(--ui-accent-deep)}.journal-collect-save{margin-left:auto}
+            @media(max-width:760px){.journal-collect-card-head{gap:6px}.journal-collect-save{margin-left:0;width:100%}}
         `;document.head.appendChild(style);
     }
 
@@ -81,7 +84,7 @@
         }).join('');
         document.getElementById('journal-month-label').textContent=`${state.month.slice(0,4)}년 ${Number(state.month.slice(5))}월`;
     }
-    function renderJournal(){const container=root();if(!container)return;container.innerHTML=`<div class="journal-shell"><section class="journal-card"><div class="journal-calendar-head"><button class="btn btn--sm" data-journal-month="-1">◀</button><strong id="journal-month-label"></strong><button class="btn btn--sm" data-journal-month="1">▶</button></div><div class="journal-filter" aria-label="학급일지 종류 필터">${[['all','전체'],['schedule','일정'],['counsel','상담'],['lesson','수업일지']].map(([key,label])=>`<button type="button" class="btn btn--outline ${state.filter===key?'active':''}" data-journal-filter="${key}">${label}</button>`).join('')}</div><div id="journal-calendar" class="journal-calendar"></div><div id="journal-loading" class="journal-loading" hidden>불러오는 중…</div></section></div>`;renderCalendar();}
+    function renderJournal(){const container=root();if(!container)return;container.innerHTML=`<div class="journal-shell"><section class="journal-card"><div class="journal-calendar-head"><button class="btn btn--sm" data-journal-month="-1">◀</button><strong id="journal-month-label"></strong><button class="btn btn--sm" data-journal-month="1">▶</button></div><div class="journal-filter" aria-label="학급일지 종류 필터">${[['all','전체'],['schedule','일정'],['counsel','상담'],['lesson','수업일지']].map(([key,label])=>`<button type="button" class="btn btn--outline ${state.filter===key?'active':''}" data-journal-filter="${key}">${label}</button>`).join('')}<button type="button" class="btn btn--primary" style="margin-left:auto" data-journal-collect>📊 모아보기</button></div><div id="journal-calendar" class="journal-calendar"></div><div id="journal-loading" class="journal-loading" hidden>불러오는 중…</div></section></div>`;renderCalendar();}
 
     function counselingRow(item={}){const id=item.id||makeId('c'),related=relatedStudents(item);return `<div class="journal-row journal-row-counsel" data-counsel-row data-id="${esc(id)}"><select data-counsel-category>${CATEGORIES.map(category=>`<option ${category===(item.category||'학교생활')?'selected':''}>${category}</option>`).join('')}</select><input data-counsel-student value="${esc(item.studentName||'')}" placeholder="상담 대상(선택 입력)"><button class="btn btn--xs btn--danger" data-remove-row type="button">삭제</button><textarea data-counsel-content rows="4" placeholder="상담 내용을 작성하면 본문에 등장한 학생 이름을 자동으로 연결합니다.">${esc(item.content||'')}</textarea><div class="journal-related" data-related-students>${related.length?`<span>관련 학생</span>${related.map(name=>`<b class="journal-chip">${esc(name)}</b>`).join('')}`:'<span>본문에서 학생 이름을 찾으면 여기에 표시됩니다.</span>'}</div></div>`;}
     function workRow(item={}){const id=item.id||makeId('w');return `<div class="journal-row journal-row-work" data-work-row data-id="${esc(id)}"><input type="time" data-work-time value="${esc(item.time||'')}"><input data-work-title value="${esc(item.title||'')}" placeholder="교사 업무 일정"><button class="btn btn--xs btn--danger" data-remove-row type="button">삭제</button><textarea data-work-details rows="2" placeholder="업무 내용·준비물·메모">${esc(item.details||'')}</textarea><div class="journal-row-options"><label><input type="checkbox" data-work-notify ${item.notify!==false?'checked':''}> 교사용 오늘의 알림에 표시</label><label><input type="checkbox" data-work-completed ${item.completed?'checked':''}> 업무 완료</label></div></div>`;}
@@ -142,6 +145,208 @@
     }
     async function openDate(date,mode='all'){closeModal();if(date.slice(0,7)!==state.month){await loadMonth(date.slice(0,7));state.selectedDate=date;}renderCalendar();if(mode==='picker')openTypePicker(date);else renderModal(date,mode);}
     function changeMonth(amount){closeModal();const date=new Date(`${state.month}-01T00:00:00Z`);date.setUTCMonth(date.getUTCMonth()+amount);loadMonth(date.toISOString().slice(0,7));}
+
+    // ---------------------------------------------------------
+    // 모아보기: 종류(일정/상담/수업일지) + 기간(월별/기간 지정)으로 기록을 모아
+    // 한 화면에서 바로 수정한다. 날짜별 네 칸이 다 뜨는 기존 모달은 그대로 둔다.
+    // ---------------------------------------------------------
+    const COLLECT_TYPES=[['schedule','📅 일정'],['counsel','💬 상담'],['lesson','📖 수업일지']];
+    const collectCache={}; // {month: {days, notices}} — 달력에 쓰는 state.days/state.month와는 별도로 둔다.
+
+    function lastDayOf(month){const [y,m]=month.split('-').map(Number);return new Date(Date.UTC(y,m,0)).toISOString().slice(0,10);}
+    function monthsBetween(start,end){
+        const months=[];let [y,m]=start.slice(0,7).split('-').map(Number);const endMonth=end.slice(0,7);
+        let cur=`${y}-${String(m).padStart(2,'0')}`;
+        while(cur<=endMonth){months.push(cur);m+=1;if(m>12){m=1;y+=1;}cur=`${y}-${String(m).padStart(2,'0')}`;}
+        return months;
+    }
+    function recentMonths(count){
+        const [y,m]=todayKst().slice(0,7).split('-').map(Number),months=[];
+        for(let i=0;i<count;i+=1){const d=new Date(Date.UTC(y,m-1-i,1));months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`);}
+        return months;
+    }
+    async function fetchJournalMonth(month){
+        if(collectCache[month])return collectCache[month];
+        const result=await window.callSecure('getClassJournalMonth',{journalToken:state.token,month});
+        const entry={days:result.days||{},notices:result.notices||{}};
+        collectCache[month]=entry;
+        return entry;
+    }
+
+    function collectRoot(){return document.getElementById('journal-collect-backdrop');}
+    function closeCollect(){collectRoot()?.remove();}
+
+    function openCollect(){
+        closeModal();document.getElementById('journal-modal-backdrop')?.remove();
+        if(!state.collectType)state.collectType='counsel';
+        if(!state.collectMode)state.collectMode='month';
+        if(!state.collectMonth)state.collectMonth=state.month||todayKst().slice(0,7);
+        if(!state.collectStart){state.collectStart=`${state.collectMonth}-01`;state.collectEnd=lastDayOf(state.collectMonth);}
+        const modal=document.createElement('div');modal.id='journal-collect-backdrop';modal.className='journal-modal-backdrop';
+        root()?.appendChild(modal);
+        renderCollect();
+    }
+
+    function periodLabel(date){
+        const d=new Date(`${date}T00:00:00Z`);
+        return `${d.getUTCMonth()+1}/${d.getUTCDate()}(${['일','월','화','수','목','금','토'][d.getUTCDay()]})`;
+    }
+
+    function collectCardHtml(date,item){
+        const label=periodLabel(date);
+        if(state.collectType==='counsel'){
+            return `<div class="journal-collect-card" data-collect-date="${date}" data-collect-id="${esc(item.id)}">
+                <div class="journal-collect-card-head"><span class="journal-collect-date">${label}</span>
+                    <select data-collect-category>${CATEGORIES.map(category=>`<option ${category===(item.category||'학교생활')?'selected':''}>${category}</option>`).join('')}</select>
+                    <input data-collect-student value="${esc(item.studentName||'')}" placeholder="대상 학생(선택)">
+                    <button class="btn btn--xs btn--danger" type="button" data-collect-delete>삭제</button>
+                    <button class="btn btn--xs btn--primary journal-collect-save" type="button" data-collect-save>저장</button>
+                </div>
+                <textarea rows="3" data-collect-content placeholder="상담 내용">${esc(item.content||'')}</textarea>
+            </div>`;
+        }
+        if(state.collectType==='schedule'){
+            return `<div class="journal-collect-card" data-collect-date="${date}" data-collect-id="${esc(item.id)}">
+                <div class="journal-collect-card-head"><span class="journal-collect-date">${label}</span>
+                    <input type="time" data-collect-time value="${esc(item.time||'')}">
+                    <input data-collect-title value="${esc(item.title||'')}" placeholder="일정 제목" style="flex:1;min-width:140px">
+                    <button class="btn btn--xs btn--danger" type="button" data-collect-delete>삭제</button>
+                    <button class="btn btn--xs btn--primary journal-collect-save" type="button" data-collect-save>저장</button>
+                </div>
+                <textarea rows="2" data-collect-details placeholder="내용·메모">${esc(item.details||'')}</textarea>
+            </div>`;
+        }
+        // 수업일지는 항목 단위가 아니라 날짜 단위라, 그 날의 교시 기록을 한 카드에 모아 보여준다.
+        const periodsHtml=PERIODS.map(period=>`<div class="journal-period"><strong>${period} <span>${esc(item.periodNotes?.[period]?.subject||'')}</span></strong><textarea rows="2" data-collect-period="${period}" placeholder="${period} 수업 기록">${esc(item.periodNotes?.[period]?.note||'')}</textarea></div>`).join('');
+        return `<div class="journal-collect-card" data-collect-date="${date}">
+            <div class="journal-collect-card-head"><span class="journal-collect-date">${label}</span>
+                <button class="btn btn--xs btn--primary journal-collect-save" type="button" data-collect-save>저장</button>
+            </div>
+            <div class="journal-periods">${periodsHtml}</div>
+            <textarea rows="4" data-collect-extra placeholder="교시 외 기록(생활지도·학급 운영 등)" style="margin-top:10px">${esc(item.lessonNote||'')}</textarea>
+        </div>`;
+    }
+
+    async function loadCollectList(){
+        const list=document.getElementById('journal-collect-list'),summary=document.getElementById('journal-collect-summary');
+        if(!list)return;
+        const start=state.collectMode==='month'?`${state.collectMonth}-01`:state.collectStart;
+        const end=state.collectMode==='month'?lastDayOf(state.collectMonth):state.collectEnd;
+        if(!start||!end||start>end){list.innerHTML='<div class="journal-empty">기간을 확인해 주세요.</div>';if(summary)summary.textContent='';return;}
+        list.innerHTML='<div class="journal-loading">불러오는 중…</div>';
+        let months;
+        try{months=await Promise.all(monthsBetween(start,end).map(fetchJournalMonth));}
+        catch(error){console.error('모아보기 조회 오류:',error);list.innerHTML=`<div class="journal-empty">${esc(errorText(error))}</div>`;return;}
+        const dates=[];
+        monthsBetween(start,end).forEach((month,index)=>{
+            Object.keys(months[index].days).forEach(date=>{if(date>=start&&date<=end)dates.push(date);});
+        });
+        dates.sort();
+        const entries=[];
+        dates.forEach(date=>{
+            const value=collectCache[date.slice(0,7)]?.days?.[date]||emptyDay();
+            if(state.collectType==='schedule')(value.schedules||[]).forEach(item=>entries.push({date,item}));
+            else if(state.collectType==='counsel')(value.counseling||[]).forEach(item=>entries.push({date,item}));
+            else if(state.collectType==='lesson'){
+                const hasContent=Object.values(value.periodNotes||{}).some(period=>String(period?.note||'').trim())||String(value.lessonNote||'').trim();
+                if(hasContent)entries.push({date,item:value});
+            }
+        });
+        const typeLabel=COLLECT_TYPES.find(([key])=>key===state.collectType)[1].replace(/^\S+\s/,'');
+        const periodText=state.collectMode==='month'?`${state.collectMonth.slice(0,4)}년 ${Number(state.collectMonth.slice(5))}월`:`${start} ~ ${end}`;
+        if(summary)summary.textContent=`${typeLabel} · ${periodText} (${entries.length}건)`;
+        list.innerHTML=entries.length?entries.map(({date,item})=>collectCardHtml(date,item)).join(''):'<div class="journal-empty">기록이 없습니다.</div>';
+    }
+
+    function renderCollectControls(){
+        const periodHtml=state.collectMode==='month'
+            ?`<select id="journal-collect-month">${recentMonths(24).map(month=>`<option value="${month}" ${month===state.collectMonth?'selected':''}>${month.slice(0,4)}년 ${Number(month.slice(5))}월</option>`).join('')}</select>`
+            :`<span>시작일</span><input type="date" id="journal-collect-start" value="${esc(state.collectStart)}"><span>~</span><span>마감일</span><input type="date" id="journal-collect-end" value="${esc(state.collectEnd)}">`;
+        return `<div class="journal-collect-controls">
+            <div class="journal-collect-tabs">${COLLECT_TYPES.map(([key,label])=>`<button type="button" class="btn btn--outline${state.collectType===key?' active':''}" data-collect-type="${key}">${label}</button>`).join('')}</div>
+            <div class="journal-collect-period">
+                <div class="journal-collect-period-toggle">
+                    <button type="button" class="${state.collectMode==='month'?'active':''}" data-collect-mode="month">월별</button>
+                    <button type="button" class="${state.collectMode==='range'?'active':''}" data-collect-mode="range">기간 지정</button>
+                </div>
+                ${periodHtml}
+            </div>
+        </div>`;
+    }
+
+    function renderCollect(){
+        const modal=collectRoot();if(!modal)return;
+        modal.innerHTML=`<div class="journal-modal" role="dialog" aria-modal="true" aria-label="학급일지 모아보기">
+            <header class="journal-modal-head"><div><h2>📊 모아보기</h2><p class="journal-status" id="journal-collect-summary">불러오는 중…</p></div><button class="btn btn--outline" type="button" data-collect-close>닫기</button></header>
+            <div class="journal-modal-body">${renderCollectControls()}<div class="journal-collect-list" id="journal-collect-list"><div class="journal-loading">불러오는 중…</div></div></div>
+        </div>`;
+        loadCollectList();
+    }
+
+    // 모아보기에서 수정·저장할 때도 saveClassJournalDay는 그 날짜 전체를 한 번에 저장하는
+    // API라서, 건드리지 않는 다른 칸(공지·다른 상담/일정·다른 교시)은 캐시에 있는 값을
+    // 그대로 같이 실어 보내야 지워지지 않는다.
+    async function saveCollectDay(date,patch){
+        const month=date.slice(0,7);
+        const cached=collectCache[month]||(collectCache[month]={days:{},notices:{}});
+        const base=cached.days[date]||emptyDay();
+        const notice=normalizeNotice(cached.notices[date]);
+        const payload={
+            lessonNote:patch.lessonNote??base.lessonNote??'',
+            periodNotes:patch.periodNotes??base.periodNotes??{},
+            counseling:patch.counseling??base.counseling??[],
+            schedules:patch.schedules??base.schedules??[],
+            notice
+        };
+        const result=await window.callSecure('saveClassJournalDay',{journalToken:state.token,date,...payload});
+        if(result.day)cached.days[date]=result.day;else delete cached.days[date];
+        if(month===state.month){if(result.day)state.days[date]=result.day;else delete state.days[date];delete state.drafts[date];renderCalendar();}
+        window.refreshTeacherAlerts?.();
+        return result;
+    }
+
+    async function saveCollectCard(card){
+        const date=card.dataset.collectDate,button=card.querySelector('[data-collect-save]');
+        if(!date||!button||button.disabled)return;
+        button.disabled=true;const originalLabel=button.textContent;button.textContent='저장 중…';
+        try{
+            let patch;
+            if(state.collectType==='counsel'){
+                const id=card.dataset.collectId,cached=collectCache[date.slice(0,7)]||{days:{}},base=cached.days[date]||emptyDay();
+                const updated={id,category:card.querySelector('[data-collect-category]').value,studentName:String(card.querySelector('[data-collect-student]').value||'').trim(),content:String(card.querySelector('[data-collect-content]').value||'').trim()};
+                updated.relatedStudents=relatedStudents(updated);
+                patch={counseling:(base.counseling||[]).map(item=>item.id===id?updated:item).filter(item=>item.content)};
+            }else if(state.collectType==='schedule'){
+                const id=card.dataset.collectId,cached=collectCache[date.slice(0,7)]||{days:{}},base=cached.days[date]||emptyDay();
+                const updated={id,time:String(card.querySelector('[data-collect-time]').value||'').trim(),title:String(card.querySelector('[data-collect-title]').value||'').trim(),details:String(card.querySelector('[data-collect-details]').value||'').trim(),notify:base.schedules?.find(item=>item.id===id)?.notify!==false,completed:base.schedules?.find(item=>item.id===id)?.completed===true};
+                patch={schedules:(base.schedules||[]).map(item=>item.id===id?updated:item).filter(item=>item.title)};
+            }else{
+                const cached=collectCache[date.slice(0,7)]||{days:{}},base=cached.days[date]||emptyDay();
+                const periodNotes={...base.periodNotes};
+                PERIODS.forEach(period=>{const value=String(card.querySelector(`[data-collect-period="${period}"]`)?.value||'').trim();if(value)periodNotes[period]={subject:base.periodNotes?.[period]?.subject||'',note:value};else delete periodNotes[period];});
+                patch={periodNotes,lessonNote:String(card.querySelector('[data-collect-extra]')?.value||'').trim()};
+            }
+            await saveCollectDay(date,patch);
+            button.textContent='✅ 저장됨';
+            await loadCollectList();
+        }catch(error){
+            console.error('모아보기 저장 오류:',error);alert(errorText(error));
+            button.disabled=false;button.textContent=originalLabel;
+        }
+    }
+
+    async function deleteCollectItem(card){
+        const date=card.dataset.collectDate,id=card.dataset.collectId;
+        if(!date||!id)return;
+        if(!confirm('이 기록을 삭제할까요?'))return;
+        const cached=collectCache[date.slice(0,7)]||{days:{}},base=cached.days[date]||emptyDay();
+        try{
+            if(state.collectType==='counsel')await saveCollectDay(date,{counseling:(base.counseling||[]).filter(item=>item.id!==id)});
+            else await saveCollectDay(date,{schedules:(base.schedules||[]).filter(item=>item.id!==id)});
+            await loadCollectList();
+        }catch(error){console.error('모아보기 삭제 오류:',error);alert(errorText(error));}
+    }
+
     function updateRelated(row){const target=row.querySelector('[data-related-students]');if(!target)return;const related=relatedStudents({studentName:row.querySelector('[data-counsel-student]')?.value||'',content:row.querySelector('[data-counsel-content]')?.value||''});target.innerHTML=related.length?`<span>관련 학생</span>${related.map(name=>`<b class="journal-chip">${esc(name)}</b>`).join('')}`:'<span>본문에서 학생 이름을 찾으면 여기에 표시됩니다.</span>';}
 
     function updatePin(value){
@@ -154,6 +359,7 @@
 
     window.lockClassJournal=function(message){
         state.token='';state.days={};state.notices={};state.drafts={};
+        closeCollect();Object.keys(collectCache).forEach(key=>delete collectCache[key]);
         window.resetClassMemo?.();
         renderLock(message);
         window.classOpsOnLock?.();
@@ -171,8 +377,20 @@
         const accToggle=event.target.closest('[data-acc-toggle]');if(accToggle){accToggle.closest('.journal-acc')?.classList.toggle('open');return;}
         if(event.target.closest('[data-add-work]')){captureModal();state.drafts[state.selectedDate].schedules.push({id:makeId('w'),time:'',title:'',details:'',notify:true,completed:false});renderModal(state.selectedDate);return;}if(event.target.closest('[data-add-counsel]')){captureModal();state.drafts[state.selectedDate].counseling.push({id:makeId('c'),category:'학교생활',studentName:'',content:'',relatedStudents:[]});renderModal(state.selectedDate);return;}
         const remove=event.target.closest('[data-remove-row]');if(remove){remove.closest('[data-work-row],[data-counsel-row]')?.remove();captureModal();renderCalendar();return;}if(event.target.closest('[data-save-journal]'))await saveDay();
+        if(event.target.closest('[data-journal-collect]')){openCollect();return;}
+        if(event.target.closest('[data-collect-close]')){closeCollect();return;}
+        const collectType=event.target.closest('[data-collect-type]');if(collectType){state.collectType=collectType.dataset.collectType;renderCollect();return;}
+        const collectMode=event.target.closest('[data-collect-mode]');if(collectMode){state.collectMode=collectMode.dataset.collectMode;renderCollect();return;}
+        const collectSave=event.target.closest('[data-collect-save]');if(collectSave){await saveCollectCard(collectSave.closest('.journal-collect-card'));return;}
+        const collectDelete=event.target.closest('[data-collect-delete]');if(collectDelete){await deleteCollectItem(collectDelete.closest('.journal-collect-card'));return;}
     });
     document.addEventListener('input',event=>{if(event.target?.id==='journal-notice-text'){renderNoticeChecks();return;}const row=event.target.closest?.('[data-counsel-row]');if(row)updateRelated(row);});
+    document.addEventListener('change',event=>{
+        if(!event.target.closest('#tab-class-ops'))return;
+        if(event.target.id==='journal-collect-month'){state.collectMonth=event.target.value;loadCollectList();return;}
+        if(event.target.id==='journal-collect-start'){state.collectStart=event.target.value;loadCollectList();return;}
+        if(event.target.id==='journal-collect-end'){state.collectEnd=event.target.value;loadCollectList();return;}
+    });
     document.addEventListener('keydown',event=>{
         const input=document.getElementById('journal-password');
         const journalTab=document.getElementById('tab-class-ops');
@@ -199,6 +417,7 @@
                 return;
             }
         }
+        if(event.key==='Escape'&&collectRoot()){closeCollect();return;}
         if(event.key==='Escape'&&document.getElementById('journal-modal-backdrop'))closeModal();
     });
 })();
