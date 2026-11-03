@@ -2517,6 +2517,11 @@ body.role-student .hero-name {
 .hpe-avatar-stage[class*="hero-deco-"] { position: relative; overflow: visible; }
 /* 카드 목록에서는 효과가 카드 칸 밖으로 번지지 않게 가둔다. */
 .hero-card[class*="hero-deco-"] { position: relative; overflow: hidden; }
+/* 테두리·빛 효과는 카드 가장자리 바깥 3px에 그려지므로 가두면 안 보인다(무지개 테두리가 안 보이던 원인). */
+.hero-card.hero-deco-rainbow,
+.hero-card.hero-deco-flame,
+.hero-card.hero-deco-lightning,
+.hero-card.hero-deco-aura { overflow: visible; }
 /* body.role-student .hero-card::before/::after(용사 카드 네 귀퉁이 금색 각인, 아래쪽에
    따로 정의됨)가 클래스 2개+엘리먼트/가상요소 2개라 이 규칙보다 우선순위가 높았다.
    그래서 효과가 실제로는 13x13px짜리 귀퉁이 각인 박스 안에 눌려 들어가 제대로 안
