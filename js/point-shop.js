@@ -419,11 +419,14 @@ window.approveUserAll = async function(keyStr, user) {
 // 9. 학생 인벤토리 아이템 사용 (리셋 쿠폰 팝업 분기 처리)
 window.useInventoryItem = function(orderKey, itemName) {
     if(itemName.includes('리셋') || itemName.includes('초기화')) {
-        db.ref('orders').once('value', snap => {
+        // orders(전체) 경로는 교사·상점 역할만 읽을 수 있어, 일반 학생이 바로 읽으면
+        // 권한 거부로 조용히 실패해 버튼이 눌러도 아무 반응이 없었다. 본인 소유
+        // ordersByUser/{이름}은 본인이 읽을 수 있고 내용도 똑같다(이미 본인 것만 있음).
+        db.ref(`ordersByUser/${myName}`).once('value', snap => {
             let boughtItems = new Set();
             snap.forEach(c => {
                 const o = c.val();
-                if(o.user === myName && o.item && !o.item.includes('리셋') && !o.item.includes('초기화')) {
+                if(o.item && !o.item.includes('리셋') && !o.item.includes('초기화')) {
                     boughtItems.add(o.item.replace(' (한도리셋)', ''));
                 }
             });
@@ -447,6 +450,9 @@ window.useInventoryItem = function(orderKey, itemName) {
             if (typeof openPopup === 'function') {
                 openPopup("마법의 리셋 쿠폰 사용", h);
             }
+        }).catch(error => {
+            console.error('리셋 쿠폰 대상 조회 오류:', error);
+            alert('리셋할 상품 목록을 불러오지 못했습니다. 다시 시도해 주세요.');
         });
     } else {
         if(confirm(`[${itemName}] 아이템을 사용하시겠습니까?\n(선생님의 승인 후 최종 처리됩니다)`)) {
