@@ -123,14 +123,22 @@
         document.body.appendChild(win);
 
         const head = win.querySelector('[data-drag-handle]');
-        let dragging = false, offX = 0, offY = 0;
-        head.addEventListener('mousedown', event => {
+        // 마우스·터치·펜을 모두 Pointer Events로 처리한다(태블릿 터치로도 창을 옮길 수 있다).
+        // 제목줄에 touch-action:none을 줘야 손가락으로 끌 때 화면이 스크롤되지 않는다.
+        head.style.touchAction = 'none';
+        let dragging = false, offX = 0, offY = 0, activePointer = null;
+        head.addEventListener('pointerdown', event => {
+            if (event.target.closest('.bb-float-close')) return;
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
             dragging = true;
+            activePointer = event.pointerId;
             offX = event.clientX - win.offsetLeft;
             offY = event.clientY - win.offsetTop;
+            try { head.setPointerCapture(event.pointerId); } catch (error) { /* 캡처를 못 해도 아래 이동 처리는 동작한다 */ }
+            event.preventDefault();
         });
-        document.addEventListener('mousemove', event => {
-            if (!dragging) return;
+        head.addEventListener('pointermove', event => {
+            if (!dragging || event.pointerId !== activePointer) return;
             // 창이 화면 밖으로 끌려나가 안 보이는 곳에 갇히지 않도록, 보이는
             // 화면 영역 안에서만 움직이게 가로/세로 둘 다 최대값도 함께 막는다.
             const maxLeft = Math.max(0, window.innerWidth - win.offsetWidth);
@@ -138,7 +146,14 @@
             win.style.left = Math.min(maxLeft, Math.max(0, event.clientX - offX)) + 'px';
             win.style.top = Math.min(maxTop, Math.max(0, event.clientY - offY)) + 'px';
         });
-        document.addEventListener('mouseup', () => { dragging = false; });
+        const stopDrag = event => {
+            if (event.pointerId !== activePointer) return;
+            dragging = false;
+            activePointer = null;
+            try { head.releasePointerCapture(event.pointerId); } catch (error) { /* 이미 해제됨 */ }
+        };
+        head.addEventListener('pointerup', stopDrag);
+        head.addEventListener('pointercancel', stopDrag);
 
         win.querySelector('.bb-float-close').addEventListener('click', () => {
             win.classList.remove('show');

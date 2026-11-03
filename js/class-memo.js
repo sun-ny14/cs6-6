@@ -9,6 +9,21 @@
     const MAX_BYTES = 10 * 1024 * 1024;
     const state = { memos: [], loaded: false, loading: false, query: '', editing: null, saving: false };
     const urlCache = new Map();
+
+    // 메모 글자 크기·사진 크기: 이 기기(브라우저)에만 저장한다.
+    const FONT_LEVELS = [{ label: '아주 작게', rem: 0.82 }, { label: '작게', rem: 0.92 }, { label: '보통', rem: 1 }, { label: '크게', rem: 1.25 }, { label: '아주 크게', rem: 1.55 }];
+    const IMG_LEVELS = [{ label: '작게', w: 72 }, { label: '보통', w: 110 }, { label: '크게', w: 200 }, { label: '아주 크게', w: 320 }];
+    const readLevel = (key, fallback, size) => {
+        try { const value = Number(localStorage.getItem(key)); return Number.isInteger(value) && localStorage.getItem(key) !== null && value >= 0 && value < size ? value : fallback; }
+        catch (error) { return fallback; }
+    };
+    const writeLevel = (key, value) => { try { localStorage.setItem(key, String(value)); } catch (error) { /* 저장 실패해도 화면엔 바로 반영 */ } };
+    state.fontLevel = readLevel('classMemoFontLevel', 2, FONT_LEVELS.length);
+    state.imgLevel = readLevel('classMemoImgLevel', 1, IMG_LEVELS.length);
+    const sizeVars = () => `--memo-font:${FONT_LEVELS[state.fontLevel].rem}rem;--memo-thumb-w:${IMG_LEVELS[state.imgLevel].w}px`;
+    const sizeControlsHtml = () => `<span class="memo-size-ctl" aria-label="메모 글자·사진 크기">
+            <span class="memo-size-group">글자 <button type="button" class="btn btn--xs" data-memo-font-step="-1" ${state.fontLevel <= 0 ? 'disabled' : ''}>가-</button><em>${FONT_LEVELS[state.fontLevel].label}</em><button type="button" class="btn btn--xs" data-memo-font-step="1" ${state.fontLevel >= FONT_LEVELS.length - 1 ? 'disabled' : ''}>가+</button></span>
+            <span class="memo-size-group">사진 <button type="button" class="btn btn--xs" data-memo-img-step="-1" ${state.imgLevel <= 0 ? 'disabled' : ''}>－</button><em>${IMG_LEVELS[state.imgLevel].label}</em><button type="button" class="btn btn--xs" data-memo-img-step="1" ${state.imgLevel >= IMG_LEVELS.length - 1 ? 'disabled' : ''}>＋</button></span></span>`;
     const root = () => document.getElementById('class-memo-container');
     const esc = value => String(value == null ? '' : value)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -46,13 +61,16 @@
             .memo-list{border-top:1px solid var(--ui-line);max-height:calc(100vh - 300px);min-height:120px;overflow-y:auto}
             .memo-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:12px 16px;border-bottom:1px solid var(--ui-line)}
             .memo-item:last-child{border-bottom:0}
-            .memo-item b{display:block;margin-bottom:2px}
-            .memo-item span.memo-body{display:block;color:var(--ui-muted);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+            .memo-item b{display:block;margin-bottom:2px;font-size:calc(var(--memo-font,1rem) * 1.05)}
+            .memo-item span.memo-body{display:block;color:var(--ui-muted);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;font-size:var(--memo-font,1rem)}
+            .memo-size-ctl{display:inline-flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:.82rem;color:var(--ui-muted)}
+            .memo-size-group{display:inline-flex;gap:5px;align-items:center;font-weight:800}
+            .memo-size-group em{font-style:normal;min-width:54px;text-align:center;font-weight:700}
             .memo-pin{padding:1px 8px;border-radius:999px;background:var(--ui-accent-soft);color:var(--ui-accent-deep);font-size:11px;font-weight:900;white-space:nowrap}
             .memo-pin-slot{min-width:34px}
             .memo-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
             .memo-attach{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-            .memo-thumb{width:96px;height:72px;object-fit:cover;border:1px solid var(--ui-line);border-radius:8px;background:var(--ui-surface-soft);cursor:zoom-in}
+            .memo-thumb{width:var(--memo-thumb-w,110px);max-width:100%;height:auto;min-height:36px;aspect-ratio:4/3;object-fit:contain;border:1px solid var(--ui-line);border-radius:8px;background:var(--ui-surface-soft);cursor:zoom-in}
             .memo-attach-file{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--ui-line);border-radius:8px;background:var(--ui-surface-soft);color:var(--ui-text);font:inherit;font-size:.88rem;cursor:pointer}
             .memo-empty{padding:30px 16px;text-align:center;color:var(--ui-muted);font-weight:700}
             .memo-item mark{background:var(--ui-warn-soft);color:inherit;border-radius:3px;padding:0 1px}
@@ -203,9 +221,10 @@
         const container = root();
         if (!container) return;
         ensureStyles();
-        container.innerHTML = `<div class="memo-shell"><section class="memo-card">
+        container.innerHTML = `<div class="memo-shell" style="${sizeVars()}"><section class="memo-card">
             <div class="memo-bar">
                 <h3>🗒️ 메모</h3>
+                ${sizeControlsHtml()}
                 <input type="search" class="memo-search" id="memo-search" placeholder="메모 검색 (제목·내용·파일 이름)" value="${esc(state.query)}" autocomplete="off">
                 <span class="sp"></span>
                 <button type="button" class="btn btn--sm btn--primary" data-memo-add>+ 메모 추가</button>
@@ -274,6 +293,24 @@
     document.addEventListener('click', async event => {
         if (!event.target.closest('#class-memo-container')) return;
         const find = id => state.memos.find(memo => memo.id === id);
+
+        const fontStep = event.target.closest('[data-memo-font-step]');
+        const imgStep = event.target.closest('[data-memo-img-step]');
+        if (fontStep || imgStep) {
+            if (fontStep) {
+                state.fontLevel = Math.max(0, Math.min(FONT_LEVELS.length - 1, state.fontLevel + Number(fontStep.dataset.memoFontStep)));
+                writeLevel('classMemoFontLevel', state.fontLevel);
+            } else {
+                state.imgLevel = Math.max(0, Math.min(IMG_LEVELS.length - 1, state.imgLevel + Number(imgStep.dataset.memoImgStep)));
+                writeLevel('classMemoImgLevel', state.imgLevel);
+            }
+            // 입력 중인 메모 작성창을 지우지 않도록 크기 변수와 도구줄만 갱신한다.
+            const shell = document.querySelector('.memo-shell');
+            if (shell) shell.setAttribute('style', sizeVars());
+            const ctl = document.querySelector('.memo-size-ctl');
+            if (ctl) ctl.outerHTML = sizeControlsHtml();
+            return;
+        }
 
         if (event.target.closest('[data-memo-add]')) {
             state.editing = { id: newMemoId(), isNew: true, title: '', content: '', pinned: false, attachments: [], pending: [] };
