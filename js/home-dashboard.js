@@ -21,7 +21,8 @@
         // 안전하게 "전체 대상"으로 취급한다.
         const isTargeted=window.assignmentsIsTargeted||(()=>true);
         return Object.entries(data.assignments||{})
-            .filter(([,item])=>item&&item.active!==false)
+            // 완료함에 보관한 항목(archived)은 홈에 다시 띄우지 않는다.
+            .filter(([,item])=>item&&item.active!==false&&item.archived!==true)
             .filter(([,item])=>admin||isTargeted(item,myName))
             .sort((a,b)=>String(a[1].dueDate||'9999').localeCompare(String(b[1].dueDate||'9999')));
     }
