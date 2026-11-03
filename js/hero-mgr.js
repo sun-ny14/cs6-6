@@ -103,17 +103,63 @@ window.HERO_TITLE_LEVELS = window.HERO_TITLE_LEVELS || [
 // 3-4번째 레벨업마다 카드 이펙트를 하나씩 풀어준다. 이미지 없이 CSS 애니메이션으로만
 // 구현하므로 새 에셋을 추가할 필요가 없다.
 window.HERO_DECORATION_LEVELS = window.HERO_DECORATION_LEVELS || [
-    { level:2,  key:"confetti", icon:"🎊", name:"꽃가루" },
-    { level:4,  key:"sparkle",  icon:"✨", name:"반짝임" },
-    { level:6,  key:"hearts",   icon:"💖", name:"하트" },
-    { level:8,  key:"leaves",   icon:"🍃", name:"나뭇잎" },
-    { level:10, key:"rainbow",  icon:"🌈", name:"무지개 테두리" },
-    { level:12, key:"stardust", icon:"❄️", name:"별가루" },
-    { level:14, key:"bubbles",  icon:"🫧", name:"비눗방울" },
-    { level:16, key:"flame",    icon:"🔥", name:"불꽃 테두리" },
-    { level:18, key:"lightning",icon:"⚡", name:"번개" },
-    { level:20, key:"aura",     icon:"👑", name:"골드 오라" }
+    { level:2,  key:"petals",    icon:"🌸", name:"봄바람 꽃잎" },
+    { level:3,  key:"snow",      icon:"❄️", name:"눈송이" },
+    { level:4,  key:"sparkle",   icon:"✨", name:"반짝임" },
+    { level:5,  key:"notes",     icon:"🎵", name:"음표" },
+    { level:6,  key:"hearts",    icon:"💖", name:"하트" },
+    { level:7,  key:"fireflies", icon:"🪲", name:"반딧불이" },
+    { level:8,  key:"leaves",    icon:"🍁", name:"단풍잎" },
+    { level:9,  key:"bubbles",   icon:"🫧", name:"비눗방울" },
+    { level:10, key:"rainbow",   icon:"🌈", name:"무지개" },
+    { level:11, key:"meteor",    icon:"🌠", name:"별똥별" },
+    { level:12, key:"stardust",  icon:"⭐", name:"별가루" },
+    { level:13, key:"flame",     icon:"🔥", name:"불꽃" },
+    { level:14, key:"lightning", icon:"⚡", name:"번개" },
+    { level:15, key:"aurora",    icon:"🌌", name:"오로라" },
+    { level:17, key:"aura",      icon:"🌟", name:"골드 오라" },
+    { level:20, key:"crown",     icon:"👑", name:"왕관 후광" }
 ];
+
+// ---- 카드 효과 입자 만들기 (모양은 css/card-effects.css) ----
+// 학생 이름+효과 이름으로 위치·속도를 고정해서, 카드를 다시 그려도 입자가 새로 흩어지지 않는다.
+function heroSeeded(seedText) {
+    let h = 2166136261;
+    for (let i = 0; i < seedText.length; i++) { h ^= seedText.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 100000) / 100000; };
+}
+
+window.heroDecoLayer = function (key, seedName) {
+    key = String(key || "");
+    const rand = heroSeeded(key + "|" + String(seedName || ""));
+    const between = (a, b) => a + rand() * (b - a);
+    const many = (n, make) => Array.from({ length: n }, (_, i) => make(i)).join("");
+    const emoji = (char, n, anim, dur, size, top) => many(n, i => {
+        const c = Array.isArray(char) ? char[i % char.length] : char;
+        return `<span class="deco-p deco-${anim}" style="--x:${between(2, 90).toFixed(1)};--y:${top === "rand" ? between(5, 85).toFixed(1) : 0};--s:${between(size[0], size[1]).toFixed(1)};--d:${between(dur[0], dur[1]).toFixed(2)}s;--delay:-${between(0, dur[1]).toFixed(2)}s">${c}</span>`;
+    });
+    let inner = "";
+    switch (key) {
+        case "petals":    inner = emoji("🌸", 12, "sway", [4, 6.5], [10, 15]); break;
+        case "snow":      inner = emoji("❄", 13, "sway", [5, 8], [10, 15]); break;
+        case "sparkle":   inner = emoji("✨", 12, "twink", [1.6, 3], [10, 15], "rand"); break;
+        case "notes":     inner = emoji(["🎵", "🎶"], 9, "hop", [3.5, 5.5], [11, 16]); break;
+        case "hearts":    inner = emoji("💖", 12, "rise", [3.5, 5.5], [10, 15]); break;
+        case "leaves":    inner = emoji("🍁", 11, "sway", [4.5, 7], [10, 15]); break;
+        case "stardust":  inner = emoji("⭐", 16, "twink", [2, 3.6], [8, 13], "rand"); break;
+        case "bubbles":   inner = many(11, () => `<span class="deco-bubble" style="--x:${between(2, 90).toFixed(1)};--s:${between(10, 16).toFixed(1)};--d:${between(4, 6.5).toFixed(2)}s;--delay:-${between(0, 6.5).toFixed(2)}s"></span>`); break;
+        case "fireflies": inner = many(9, () => `<span class="deco-firefly" style="--x:${between(8, 88).toFixed(1)};--y:${between(15, 85).toFixed(1)};--d:${between(4, 7).toFixed(2)}s;--delay:-${between(0, 6).toFixed(2)}s"></span>`); break;
+        case "meteor":    inner = many(3, i => `<span class="deco-streak" style="--x:${70 + i * 6};--y:${6 + i * 22};--d:${6 + i * 1.5}s;--delay:-${(i * 2.3).toFixed(1)}s"></span>`); break;
+        case "rainbow":   inner = '<span class="deco-rainbow"></span>'; break;
+        case "flame":     inner = '<span class="deco-flame-base"></span>' + many(4, i => `<span class="deco-flame" style="--x:${[6, 30, 55, 76][i]};--d:${(2.6 + i * 0.25).toFixed(2)}s;--delay:-${(i * 0.7).toFixed(2)}s"></span>`); break;
+        case "lightning": inner = '<span class="deco-sky"></span><span class="deco-flash"></span><svg class="deco-bolt" viewBox="0 0 100 170" preserveAspectRatio="none"><path d="M62 0 L44 62 L58 62 L38 128 L76 52 L60 52 L78 0Z" fill="#fff" opacity=".9"/></svg>'; break;
+        case "aurora":    inner = '<span class="deco-band b1"></span><span class="deco-band b2"></span>'; break;
+        case "aura":      inner = '<span class="deco-aura-rays"></span><span class="deco-aura-glow"></span>'; break;
+        case "crown":     inner = '<span class="deco-halo"></span><span class="deco-crown">👑</span>' + many(5, i => `<span class="deco-glint" style="--x:${[18, 78, 30, 66, 50][i]};--y:${[30, 26, 62, 66, 14][i]};--d:${between(2, 3.2).toFixed(2)}s;--delay:-${between(0, 3).toFixed(2)}s">✨</span>`); break;
+        default: return "";
+    }
+    return `<div class="deco-layer" aria-hidden="true">${inner}</div>`;
+};
 
 function heroEscape(value) {
     return String(value == null ? "" : value)
@@ -585,6 +631,7 @@ function showHeroProfileEditor(user, userKey) {
             <div class="hpe-body">
                 <aside class="hpe-preview">
                     <div class="hpe-avatar-stage hero-deco-${selectedDecoration || "none"}" data-profile-preview data-deco-stage>
+                        ${window.heroDecoLayer(selectedDecoration, user.name || window.myName)}
                         ${getAvatar(level, selectedAnimal, 148)}
                     </div>
                     <p class="hpe-preview-title" data-title-preview>
@@ -654,6 +701,9 @@ function showHeroProfileEditor(user, userKey) {
             });
             if (decoStage) {
                 decoStage.className = `hpe-avatar-stage hero-deco-${selectedDecoration || "none"}`;
+                decoStage.querySelector(".deco-layer")?.remove();
+                const layer = window.heroDecoLayer(selectedDecoration, user.name || window.myName);
+                if (layer) decoStage.insertAdjacentHTML("afterbegin", layer);
             }
         });
     });
@@ -1027,6 +1077,9 @@ const clickAction =
                 onclick="${clickAction}"
             >
 
+                ${decorationKey ? window.heroDecoLayer(decorationKey, name) : ""}
+                <span class="mood-bubble" data-mood-for="${heroEscape(name)}" aria-label="오늘의 기분"></span>
+
                 ${isMySelf ? `
                     <div class="hero-self-badge">내 용사</div>
                 ` : ""}
@@ -1071,6 +1124,11 @@ const clickAction =
                 <strong>등록된 용사가 없습니다.</strong>
             </div>
         `;
+
+    // 오늘의 기분 생각 말풍선을 카드마다 채운다(js/mood.js).
+    if (window.Mood && typeof window.Mood.refreshCardBubbles === "function") {
+        window.Mood.refreshCardBubbles();
+    }
 
 
     /*

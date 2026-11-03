@@ -24,8 +24,9 @@ const HERO_TITLE_NAMES = ['모험가','씩씩한 용사','견습 용사','용감
     '정예 용사','노련한 전사','빛나는 유망주','빛나는 용사','왕국 수호자','백전노장','전설의 용사',
     '신화의 계승자','마스터 용사'];
 const HERO_TITLE_LEVELS = [1,2,3,4,5,6,7,8,9,10,12,14,15,18,20];
-const HERO_DECORATION_KEYS = ['confetti','sparkle','hearts','leaves','rainbow','stardust','bubbles','flame','lightning','aura'];
-const HERO_DECORATION_LEVELS = [2,4,6,8,10,12,14,16,18,20];
+// js/hero-mgr.js의 HERO_DECORATION_LEVELS와 키·레벨 순서를 똑같이 유지한다.
+const HERO_DECORATION_KEYS = ['petals','snow','sparkle','notes','hearts','fireflies','leaves','bubbles','rainbow','meteor','stardust','flame','lightning','aurora','aura','crown'];
+const HERO_DECORATION_LEVELS = [2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,20];
 // 대부분의 호출 함수는 사용자 한두 명 분량의 작은 문서만 다뤄서 256MiB로 충분하다.
 // DB 복구 직후엔 큰 레코드를 처리하려고 전부 1GiB로 올려뒀었는데, 그 상태로 두면
 // Blaze 무료 제공량(GB-초)을 필요 이상으로 빨리 소모한다. 여러 사용자를 한 번에

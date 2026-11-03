@@ -1,0 +1,114 @@
+/* =========================================================
+   용사 카드 꾸미기 효과 (16가지) + 오늘의 기분 생각 말풍선
+   - 이미지 파일 없이 CSS 애니메이션과 이모지 글자로만 그린다. 서버에는 효과 이름(key)만 저장된다.
+   - 효과는 카드 안(.deco-layer)에서만 움직이고, 카드 내용(아바타·이름) 뒤에 깔린다.
+   - 입자 모양과 위치는 js/hero-mgr.js의 heroDecoLayer()가 만든다(학생 이름으로 고정되어 다시 그려도 안 바뀜).
+   ========================================================= */
+.hero-card[class*="hero-deco-"] { position: relative; overflow: hidden; isolation: isolate; }
+.hpe-avatar-stage[class*="hero-deco-"] { position: relative; overflow: hidden; isolation: isolate; border-radius: 16px; }
+
+.deco-layer {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+    user-select: none;
+}
+.deco-layer > * { position: absolute; will-change: transform, opacity; }
+
+/* ---- 입자: 이모지 한 가지씩 ---- */
+.deco-p { left: calc(var(--x) * 1%); top: calc(var(--y, 0) * 1%); font-size: calc(var(--s) * 1px); line-height: 1; opacity: 0; }
+.deco-fall  { animation: deco-fall var(--d) linear infinite var(--delay); }
+.deco-sway  { animation: deco-sway var(--d) linear infinite var(--delay); }
+.deco-rise  { animation: deco-rise var(--d) linear infinite var(--delay); }
+.deco-hop   { animation: deco-hop var(--d) ease-in-out infinite var(--delay); }
+.deco-twink { animation: deco-twinkle var(--d) ease-in-out infinite var(--delay); }
+
+@keyframes deco-sway { 0% { transform: translate(0,-20px) rotate(0); opacity: 0; } 10% { opacity: 1; } 50% { transform: translate(16px,80px) rotate(180deg); } 90% { opacity: 1; } 100% { transform: translate(-8px,190px) rotate(360deg); opacity: 0; } }
+@keyframes deco-rise { 0% { transform: translateY(190px) scale(.6); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(-40px) scale(1.15); opacity: 0; } }
+@keyframes deco-hop { 0% { transform: translate(0,190px) rotate(-12deg); opacity: 0; } 15% { opacity: 1; } 35% { transform: translate(10px,120px) rotate(12deg); } 65% { transform: translate(-8px,60px) rotate(-12deg); } 85% { opacity: 1; } 100% { transform: translate(6px,-30px) rotate(10deg); opacity: 0; } }
+@keyframes deco-twinkle { 0%, 100% { transform: scale(.3) rotate(0); opacity: 0; } 50% { transform: scale(1.2) rotate(45deg); opacity: 1; } }
+
+/* 비누방울(동그라미) */
+.deco-bubble {
+    left: calc(var(--x) * 1%); top: 0; width: calc(var(--s) * 1px); height: calc(var(--s) * 1px);
+    border: 1px solid rgba(190, 225, 255, .85); border-radius: 50%; opacity: 0;
+    background: radial-gradient(circle at 30% 28%, rgba(255,255,255,.85) 0 12%, rgba(160,210,255,.18) 55%, rgba(160,210,255,.05) 100%);
+    animation: deco-rise var(--d) linear infinite var(--delay);
+}
+/* 반딧불이 */
+.deco-firefly {
+    left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); width: 6px; height: 6px; border-radius: 50%;
+    background: #e8ff7a; box-shadow: 0 0 8px 3px rgba(220,255,100,.8); opacity: .2;
+    animation: deco-float var(--d) ease-in-out infinite var(--delay);
+}
+@keyframes deco-float { 0% { transform: translate(0,0); opacity: .2; } 25% { transform: translate(14px,-16px); opacity: 1; } 50% { transform: translate(-6px,-34px); opacity: .3; } 75% { transform: translate(-16px,-14px); opacity: 1; } 100% { transform: translate(0,0); opacity: .2; } }
+/* 별똥별: 오른쪽 위 → 왼쪽 아래 대각선 */
+.deco-streak {
+    left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); width: 70px; height: 2px; border-radius: 2px; opacity: 0;
+    background: linear-gradient(90deg, #fff, rgba(255,255,255,0)); transform-origin: left center; box-shadow: 0 0 6px #bcd7ff;
+    animation: deco-shoot var(--d) ease-out infinite var(--delay);
+}
+@keyframes deco-shoot { 0% { transform: translate(0,0) rotate(-45deg); opacity: 0; } 5% { opacity: 1; } 30% { transform: translate(-150px,150px) rotate(-45deg); opacity: 0; } 100% { transform: translate(-150px,150px) rotate(-45deg); opacity: 0; } }
+
+/* ---- 배경형 효과 (카드 전체 배경) ---- */
+@keyframes deco-hue { to { filter: hue-rotate(360deg); } }
+@keyframes deco-drift { 0% { transform: translate(-8%,-6%) scale(1); } 50% { transform: translate(8%,6%) scale(1.15); } 100% { transform: translate(-8%,-6%) scale(1); } }
+.deco-rainbow { inset: -20%; background: conic-gradient(from 0deg, #ff6b6b, #ffd43b, #69db7c, #4dabf7, #da77f2, #ff6b6b); filter: blur(24px); opacity: .5; animation: deco-drift 7s ease-in-out infinite, deco-hue 8s linear infinite; }
+
+.deco-flame-base { left: 0; right: 0; bottom: 0; height: 40%; background: linear-gradient(0deg, rgba(255,110,50,.55), rgba(255,110,50,0)); }
+.deco-flame { left: calc(var(--x) * 1%); bottom: -20px; width: 46px; height: 60px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; opacity: 0;
+    background: radial-gradient(circle at 50% 70%, #ffd27a, #ff7d45 55%, rgba(255,80,40,0) 75%); filter: blur(5px); animation: deco-flame var(--d) ease-in infinite var(--delay); }
+@keyframes deco-flame { 0% { transform: translateY(40px) scale(.7); opacity: 0; } 25% { opacity: .9; } 100% { transform: translateY(-95px) scale(1.25); opacity: 0; } }
+
+.deco-sky { inset: 0; background: linear-gradient(160deg, rgba(40,80,160,.35), rgba(10,20,60,.15)); }
+.deco-flash { inset: 0; background: radial-gradient(circle at 50% 30%, #dff4ff, rgba(125,211,255,.35) 45%, rgba(125,211,255,0) 75%); opacity: 0; animation: deco-flash 4s linear infinite; }
+@keyframes deco-flash { 0%, 86%, 100% { opacity: 0; } 88% { opacity: .85; } 90% { opacity: .1; } 92% { opacity: .7; } 96% { opacity: 0; } }
+.deco-bolt { inset: 0; width: 100%; height: 100%; opacity: 0; animation: deco-bolt 4s linear infinite; }
+@keyframes deco-bolt { 0%, 86%, 100% { opacity: 0; } 88%, 92% { opacity: 1; } 90% { opacity: .2; } }
+
+.deco-band { left: -20%; width: 140%; height: 46px; border-radius: 50%; filter: blur(9px); mix-blend-mode: screen; }
+.deco-band.b1 { top: 6px; background: linear-gradient(90deg, #3ddc97, #4dd0ff, #a66bff); animation: deco-aurora 6s ease-in-out infinite; }
+.deco-band.b2 { top: 40px; height: 34px; background: linear-gradient(90deg, #a66bff, #3ddc97, #4dd0ff); animation: deco-aurora 8s ease-in-out infinite reverse; }
+@keyframes deco-aurora { 0% { transform: translateX(-12%) skewX(-8deg); opacity: .55; } 50% { transform: translateX(12%) skewX(8deg); opacity: .95; } 100% { transform: translateX(-12%) skewX(-8deg); opacity: .55; } }
+
+.deco-aura-glow { left: 50%; top: 50%; width: 190px; height: 190px; margin: -95px 0 0 -95px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,214,102,.7), rgba(255,214,102,0) 68%); animation: deco-glow 3.2s ease-in-out infinite; }
+.deco-aura-rays { left: 50%; top: 50%; width: 260px; height: 260px; margin: -130px 0 0 -130px; border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, rgba(255,224,138,.22) 0 8deg, rgba(255,224,138,0) 8deg 24deg);
+    -webkit-mask: radial-gradient(circle, #000 25%, transparent 70%); mask: radial-gradient(circle, #000 25%, transparent 70%); animation: deco-rays 18s linear infinite; }
+@keyframes deco-glow { 0%, 100% { opacity: .45; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.12); } }
+@keyframes deco-rays { to { transform: rotate(360deg); } }
+
+.deco-halo { left: 50%; top: 22%; width: 100px; height: 100px; margin-left: -50px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,214,102,.55), rgba(255,214,102,0) 68%); animation: deco-glow 3s ease-in-out infinite; }
+.deco-crown { left: 50%; top: 8%; margin-left: -12px; font-size: 20px; line-height: 1; animation: deco-glow 3s ease-in-out infinite; }
+.deco-glint { left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); font-size: 12px; line-height: 1; opacity: 0; animation: deco-twinkle var(--d) ease-in-out infinite var(--delay); }
+
+@media (prefers-reduced-motion: reduce) {
+    .deco-layer, .deco-layer * { animation: none !important; }
+    .deco-p, .deco-bubble, .deco-flame, .deco-glint, .deco-streak { opacity: .8; }
+}
+
+/* =========================================================
+   오늘의 기분 — 용사 카드의 생각 말풍선 (js/mood.js가 채움)
+   ========================================================= */
+.hero-card .mood-bubble {
+    position: absolute; top: 8px; right: 12px; z-index: 6; min-width: 40px; height: 34px; padding: 0 10px; box-sizing: border-box;
+    display: none; place-items: center; font-size: 19px; line-height: 1; color: #1c2433; background: #fff;
+    border-radius: 50% 50% 50% 50% / 60% 60% 50% 50%; box-shadow: 0 3px 10px rgba(0,0,0,.35); transform-origin: left bottom;
+    pointer-events: none;
+}
+.hero-card .mood-bubble.is-on { display: grid; animation: mood-pop .6s ease-out; }
+.hero-card .mood-bubble::before { content: ""; position: absolute; left: -7px; bottom: -13px; width: 11px; height: 11px; border-radius: 50%; background: inherit; box-shadow: 0 2px 5px rgba(0,0,0,.3); }
+.hero-card .mood-bubble::after  { content: ""; position: absolute; left: -14px; bottom: -24px; width: 6px; height: 6px; border-radius: 50%; background: inherit; box-shadow: 0 2px 4px rgba(0,0,0,.3); }
+.hero-card .mood-bubble.is-lock { background: #e7ecf5; font-size: 16px; }
+.hero-card .mood-bubble.is-hard { box-shadow: 0 0 0 2px #e74c3c, 0 3px 10px rgba(0,0,0,.35); }
+.hero-card .mood-bubble.is-hard::before, .hero-card .mood-bubble.is-hard::after { box-shadow: 0 0 0 1.5px #e74c3c; }
+.hero-card .mood-bubble.is-none { background: rgba(255,255,255,.16); color: #aab6cf; font-size: 13px; box-shadow: none; }
+.hero-card .mood-bubble.is-none::before, .hero-card .mood-bubble.is-none::after { box-shadow: none; }
+@keyframes mood-pop { 0% { transform: scale(.4); opacity: 0; } 70% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+/* 교사 화면: 비공개를 고른 학생의 진짜 기분 옆에 작은 자물쇠 */
+.hero-card .mood-bubble .mood-lock-mark { position: absolute; right: -4px; top: -6px; font-size: 11px; }

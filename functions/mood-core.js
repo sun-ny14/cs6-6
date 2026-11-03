@@ -17,7 +17,7 @@
         { name:'짜증나요', emoji:'😤', tone:'힘듦' }, { name:'외로워요', emoji:'🥺', tone:'힘듦' },
         { name:'아파요', emoji:'🤒', tone:'힘듦' }
     ];
-    const HIDDEN_EMOJI = '😶';
+    const HIDDEN_EMOJI = '🔒';
     const HIDDEN_PER_WEEK = 2;
 
     const byName = name => EMOTIONS.find(item => item.name === String(name || '').trim()) || null;

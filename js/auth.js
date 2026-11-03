@@ -423,6 +423,12 @@ window.openUserHistory=function(userName){
         openOwnStudentProfile(userName);
 
     }else if(
+        window.isHousingEnabled===false&&
+        window.Mood&&typeof window.Mood.openFriendProfile==='function'
+    ){
+        window.Mood.openFriendProfile(userName);
+
+    }else if(
         typeof openFriendRoom==='function'
     ){
         openFriendRoom(userName);

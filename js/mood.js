@@ -1,7 +1,7 @@
 // js/mood.js
 // 오늘의 기분
 // - 학생: 등교 탭에 들어가기 전에 그날 기분을 골라야 한다(하루 한 번, 같은 날 바꿀 수 있음).
-//   "칠판에 비공개"를 켜면 전자칠판에는 😶만 보이고, 진짜 기분은 선생님만 본다(한 주 2번까지).
+//   "비공개"를 켜면 전자칠판과 친구들 프로필 카드에는 🔒만 보이고, 진짜 기분은 선생님만 본다(한 주 2번까지).
 // - 교사: 등교로그에 오늘의 기분 목록과 월간 엑셀 내보내기. 학생들끼리 서로 보는 화면은 만들지 않는다.
 // 기분은 감정 이름으로 저장하며(이모지 아님) 등교 기록과 다른 경로(moodRecords)에 둔다.
 (function () {
@@ -63,8 +63,8 @@
             ).join('')}</div>`).join('');
         return `${groups}
             <div class="mood-hide${canHide ? '' : ' is-off'}"><label><input type="checkbox" data-mood-hide ${hide ? 'checked' : ''} ${canHide ? '' : 'disabled'}>
-                <span>😶 칠판에는 비공개로 할래요<small>${canHide
-                    ? `내 진짜 기분은 선생님만 볼 수 있어요 · 이번 주 남은 횟수 ${left}/${limit}`
+                <span>🔒 비공개로 할래요<small>${canHide
+                    ? `칠판과 친구 프로필에는 🔒로만 보이고, 진짜 기분은 선생님만 볼 수 있어요 · 이번 주 남은 횟수 ${left}/${limit}`
                     : '이번 주 비공개를 모두 썼어요. 다음 주 월요일에 다시 쓸 수 있어요.'}</small></span></label></div>`;
     }
 
@@ -132,7 +132,7 @@
         ensureStyles();
         target.innerHTML = info
             ? `<div class="mood-my"><span class="e">${info.emoji}</span><span>오늘 내 기분: ${esc(info.name)}${status.hidden ? ' (칠판엔 비공개)' : ''}</span><button type="button" class="btn btn--xs btn--outline" data-mood-change>바꾸기</button></div>`
-            : `<div class="mood-my"><span class="e">😶</span><span>오늘 기분을 아직 안 골랐어요</span><button type="button" class="btn btn--xs btn--primary" data-mood-change>기분 고르기</button></div>`;
+            : `<div class="mood-my"><span class="e">💭</span><span>오늘 기분을 아직 안 골랐어요</span><button type="button" class="btn btn--xs btn--primary" data-mood-change>기분 고르기</button></div>`;
     }
 
     // 등교 탭에 들어올 때마다 호출된다(교사는 호출하지 않는다).
@@ -223,5 +223,75 @@
         }
     });
 
-    window.Mood = { onEnterCheckin, renderAdminPanel, exportMonthExcel, openPicker };
+    // ---- 용사 카드의 생각 말풍선 ----
+    // 학생·교사 모두 전자칠판 공개 복사본(오늘 것, 이모지 한 글자)을 구독한다. 비공개는 🔒로만 들어 있다.
+    // 교사는 거기에 더해 진짜 기분 기록(moodRecords)을 읽어서 진짜 이모지(+작은 자물쇠)를 본다.
+    const bubble = { date: '', map: {}, loaded: false, ref: null, recordsRef: null, records: {} };
+    const toneOfEmoji = emoji => { const item = Core.EMOTIONS.find(entry => entry.emoji === emoji); return item ? item.tone : ''; };
+
+    function applyBubbles() {
+        document.querySelectorAll('.hero-card .mood-bubble[data-mood-for]').forEach(element => {
+            const name = element.dataset.moodFor;
+            let classes = 'mood-bubble';
+            let html = '';
+            if (bubble.loaded && !/선생님|관리자/.test(name)) {
+                const real = window.isAdmin === true ? bubble.records[name] : null;
+                const value = bubble.map[name];
+                if (real) {
+                    const info = Core.byName(real.emotion);
+                    classes += ' is-on' + (info && info.tone === '힘듦' ? ' is-hard' : '');
+                    html = (info ? info.emoji : '') + (real.hidden ? '<span class="mood-lock-mark">🔒</span>' : '');
+                } else if (value === Core.HIDDEN_EMOJI) {
+                    classes += ' is-on is-lock';
+                    html = '🔒';
+                } else if (value) {
+                    classes += ' is-on' + (toneOfEmoji(value) === '힘듦' ? ' is-hard' : '');
+                    html = esc(value);
+                } else {
+                    classes += ' is-on is-none';
+                    html = '…';
+                }
+            }
+            if (element.className !== classes) element.className = classes;
+            if (element.innerHTML !== html) element.innerHTML = html;
+        });
+    }
+
+    function refreshCardBubbles() {
+        const today = todayKst();
+        if (typeof db === 'undefined') return;
+        if (!bubble.ref || bubble.date !== today) {
+            try { if (bubble.ref) bubble.ref.off(); if (bubble.recordsRef) bubble.recordsRef.off(); } catch (error) { /* 이전 구독 해제 실패는 무시 */ }
+            bubble.date = today; bubble.loaded = false; bubble.map = {}; bubble.records = {}; bubble.recordsRef = null;
+            bubble.ref = db.ref('blackboardDisplay/data/moods/' + today);
+            bubble.ref.on('value', snapshot => { bubble.map = snapshot.val() || {}; bubble.loaded = true; applyBubbles(); },
+                error => { console.error('기분 말풍선 조회 오류:', error); });
+        }
+        if (window.isAdmin === true && !bubble.recordsRef) {
+            bubble.recordsRef = db.ref('moodRecords/' + today);
+            bubble.recordsRef.on('value', snapshot => { bubble.records = snapshot.val() || {}; applyBubbles(); }, () => {});
+        }
+        applyBubbles();
+    }
+
+    // 친구(다른 학생) 프로필 창. 방이 꺼져 있어도 열린다. 기분은 이모지만(비공개는 🔒) 보여 준다.
+    function openFriendProfile(name) {
+        const list = Array.isArray(window.currentUsers) ? window.currentUsers : [];
+        const user = list.find(item => String(item && item.name || '').trim() === name) || { name: name };
+        const level = Number(user.level || user.lv) || 1;
+        const avatar = typeof window.getAvatar === 'function' ? window.getAvatar(level, user.selectedAnimal || user.animal, 84) : '';
+        const value = bubble.map[name];
+        let moodHtml;
+        if (value === Core.HIDDEN_EMOJI) moodHtml = '<div class="fp-mood is-lock">🔒 오늘 기분은 비밀이에요</div>';
+        else if (value) moodHtml = '<div class="fp-mood">' + esc(value) + ' 오늘의 기분</div>';
+        else moodHtml = '<div class="fp-mood is-none">💭 아직 기분을 안 골랐어요</div>';
+        const title = String(user.selectedTitle || user.title || '').trim();
+        const html = '<style>.friend-profile{text-align:center}.friend-profile h3{margin:8px 0 2px}.friend-profile .sub{color:var(--ui-muted,#6c778a);font-size:.9rem}'
+            + '.fp-mood{display:inline-flex;gap:8px;align-items:center;margin-top:12px;padding:7px 14px;border-radius:999px;background:#e9eef8;color:#1c2433;font-weight:800}'
+            + '.fp-mood.is-lock{background:#e7ecf5;color:#5a6a86}.fp-mood.is-none{opacity:.65}</style>'
+            + '<div class="friend-profile">' + avatar + '<h3>' + esc(name) + '</h3><div class="sub">Lv.' + level + (title ? ' · ' + esc(title) : '') + '</div>' + moodHtml + '</div>';
+        if (typeof window.openPopup === 'function') window.openPopup(name, html);
+    }
+
+    window.Mood = { onEnterCheckin, renderAdminPanel, exportMonthExcel, openPicker, refreshCardBubbles, openFriendProfile };
 })();
