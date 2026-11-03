@@ -348,9 +348,9 @@ exports.saveClassJournalDay = callable(async request => {
 // 예전에는 이 트리거가 /settings 노드 전체를 감시해서, 비밀번호처럼 작은 필드
 // 하나만 바꿔도 defaultBg 때문에 이벤트 페이로드가 한도를 넘어 클라이언트 쓰기가
 // TRIGGER_PAYLOAD_TOO_LARGE로 거부됐다. 필드 단위로 감시해 서로 영향을 주지 않게 한다.
-const PUBLIC_SETTINGS_FIELDS = new Set(['lateTime','closeTime','routineText','giftList','housingEnabled','defaultBg']);
+const PUBLIC_SETTINGS_FIELDS = new Set(['lateTime','closeTime','routineText','giftList','housingEnabled','defaultBg','attendanceGate']);
 const CLEANING_SETTINGS_FIELDS = new Set(['studentRoles','cleaningAssignments']);
-const PUBLIC_SETTINGS_DEFAULTS = { lateTime:'08:40', closeTime:'09:00', routineText:'', giftList:[], housingEnabled:true, defaultBg:'' };
+const PUBLIC_SETTINGS_DEFAULTS = { lateTime:'08:40', closeTime:'09:00', routineText:'', giftList:[], housingEnabled:true, defaultBg:'', attendanceGate:true };
 
 exports.mirrorPublicSettings = onValueWritten({ ref:'/settings/{field}' }, async event => {
     const field = event.params.field;
@@ -358,7 +358,7 @@ exports.mirrorPublicSettings = onValueWritten({ ref:'/settings/{field}' }, async
     const value = event.data.after.val();
     const updates = {};
     if (PUBLIC_SETTINGS_FIELDS.has(field)) {
-        updates[`publicSettings/${field}`] = field === 'housingEnabled'
+        updates[`publicSettings/${field}`] = (field === 'housingEnabled' || field === 'attendanceGate')
             ? value !== false
             : (value ?? PUBLIC_SETTINGS_DEFAULTS[field]);
     }

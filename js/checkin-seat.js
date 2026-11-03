@@ -1710,6 +1710,10 @@ window.submitCheckIn=async function(){
         // 암호 검증, 시간 판정, 포인트 및 코인 반영을 서버 트랜잭션에서 한 번에 처리한다.
         const saveResult=await window.callSecure('submitStudentCheckin',{password});
         const lateBy=Number(saveResult.lateBy)||0;
+        // 등교 기록이 생겼으니 다른 메뉴 잠금을 푼다(js/attendance-gate.js).
+        if(window.AttendanceGate&&typeof window.AttendanceGate.markChecked==='function'){
+            setTimeout(()=>window.AttendanceGate.markChecked(),0);
+        }
 
         // 공개 프로필에는 민감한 포인트가 없으므로 서버가 반환한 본인 값으로
         // 현재 화면만 즉시 갱신한다. 다른 학생에게는 이 값이 노출되지 않는다.

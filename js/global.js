@@ -184,6 +184,15 @@ function showTab(t, housingOwner){
         t='main';
     }
 
+    // 등교 전 잠금: 오늘 등교 기록이 없는 학생은 등교 탭 말고는 이동할 수 없다(js/attendance-gate.js).
+    if(
+        window.AttendanceGate&&
+        typeof window.AttendanceGate.allows==='function'&&
+        !window.AttendanceGate.allows(t)
+    ){
+        t='student-checkin';
+    }
+
     if(
         t==='cleaning'&&
         !cleaningAllowed
@@ -602,6 +611,12 @@ function startApp(){
 
 window.isHousingEnabled =
     s.housingEnabled !== false;
+
+window.attendanceGateEnabled = s.attendanceGate !== false;
+{
+    const gateBox = document.getElementById('conf-attendance-gate');
+    if (gateBox) gateBox.checked = window.attendanceGateEnabled;
+}
 if(typeof window.applyHousingMenu==='function')window.applyHousingMenu();
 
 if (

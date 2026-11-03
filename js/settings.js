@@ -564,7 +564,8 @@ window.saveSettings = async function() {
     const otherSettings = {
         lateTime: document.getElementById('conf-late').value,
         closeTime: document.getElementById('conf-close').value,
-        routineText: document.getElementById('conf-routine')?.value || ''
+        routineText: document.getElementById('conf-routine')?.value || '',
+        attendanceGate: document.getElementById('conf-attendance-gate')?.checked !== false
     };
     try {
         const baseline = String(passInput.dataset.savedPassword ?? '');
@@ -638,6 +639,8 @@ window.loadSystemSettings = async function() {
     }
     if (lateEl) lateEl.value = data.lateTime || '';
     if (closeEl) closeEl.value = data.closeTime || '';
+    const gateEl = document.getElementById('conf-attendance-gate');
+    if (gateEl) gateEl.checked = data.attendanceGate !== false;
     if (routineEl) {
         routineEl.value = data.routineText || '';
     }
