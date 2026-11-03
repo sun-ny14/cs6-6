@@ -602,6 +602,7 @@ function startApp(){
 
 window.isHousingEnabled =
     s.housingEnabled !== false;
+if(typeof window.applyHousingMenu==='function')window.applyHousingMenu();
 
 if (
     typeof window.refreshHousingAdminControl ===

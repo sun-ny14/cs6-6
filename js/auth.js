@@ -59,6 +59,16 @@ auth.getRedirectResult?.().catch(error=>{
     alert('로그인에 실패했습니다. 다시 시도해 주세요.');
 });
 
+// 방 사용 스위치(settings/housingEnabled)가 꺼져 있으면 학생 화면에서는 용사의 방 메뉴를 숨긴다.
+// 교사 화면에는 계속 보여 줘서 다시 켤 수 있다.
+window.applyHousingMenu=function(){
+    const element=document.getElementById('btn-housing');
+    if(!element)return;
+    const show=window.isAdmin===true||window.isHousingEnabled!==false;
+    element.hidden=!show;
+    element.style.setProperty('display',show?'block':'none',show?'':'important');
+};
+
 function setMenuVisible(id,visible,displayType='block'){
     const element=document.getElementById(id);
 
@@ -172,6 +182,8 @@ function applyAccessControl(){
     // 학생 등교와 교사 최종 출결은 메뉴와 탭을 공유하지 않는다.
     setMenuVisible('btn-student-checkin',!admin);
     setMenuVisible('btn-attendance-admin',admin);
+
+    window.applyHousingMenu();
 
     // 청소 메뉴는 관리자 또는 청소 역할 학생만
     setMenuVisible(
