@@ -423,14 +423,9 @@ window.openUserHistory=function(userName){
         openOwnStudentProfile(userName);
 
     }else if(
-        window.isHousingEnabled===false&&
         window.Mood&&typeof window.Mood.openFriendProfile==='function'
     ){
+        // 다른 학생 프로필은 방이 아니라 간단한 프로필 창을 연다.
         window.Mood.openFriendProfile(userName);
-
-    }else if(
-        typeof openFriendRoom==='function'
-    ){
-        openFriendRoom(userName);
     }
 };

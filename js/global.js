@@ -1905,7 +1905,6 @@ async function loadHistory(name, firebaseKey) {
             <button type="button" class="hd-close" data-hd-close aria-label="닫기">×</button>
             <aside class="hd-profile"><div class="hd-avatar">${avatarHtml(user, name)}</div><p class="hd-kicker">⚔ 용사 프로필</p><h2 class="hd-name">${esc(name)}</h2><p class="hd-role">${esc(title)} · ${esc(role)}</p><p class="hd-meta">Lv.${esc(level)} · ${esc(number)}번</p>
                 <div class="hd-profile-stats"><div class="hd-profile-stat"><span>포인트</span><strong>${points.toLocaleString('ko-KR')} P</strong></div><div class="hd-profile-stat"><span>경험치</span><strong>${exp.toLocaleString('ko-KR')} EXP</strong></div></div>
-                <button type="button" class="hd-room-button" data-hd-room>🏠 학생 방 방문하기</button>
             </aside>
             <main class="hd-history"><header class="hd-history-head"><h3>기록</h3>
                 <div class="hd-tabs">
@@ -1916,11 +1915,6 @@ async function loadHistory(name, firebaseKey) {
                 </div>
             </header><div class="hd-log-list"><div class="hd-loading">내역을 불러오는 중입니다.</div></div></main>
         </section>`;
-        overlay.querySelector('[data-hd-room]').onclick = () => {
-            const owner = String(first(user, ['__firebaseKey', 'firebaseKey', 'userKey'], name));
-            closeDetail();
-            window.openFriendRoom(owner);
-        };
         overlay.hidden = false;
         document.body.style.overflow = 'hidden';
 
@@ -1971,8 +1965,9 @@ async function loadHistory(name, firebaseKey) {
                 return;
             }
 
-            if (typeof window.openFriendRoom === 'function') {
-                window.openFriendRoom(name);
+            // 다른 학생 카드는 방이 아니라 간단한 프로필 창(기분 등)을 연다.
+            if (window.Mood && typeof window.Mood.openFriendProfile === 'function') {
+                window.Mood.openFriendProfile(name);
             }
             return;
         }

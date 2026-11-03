@@ -1352,8 +1352,8 @@ window.renderSeatMap=function(rows,cols){
                 cell.onclick=async function(){
 
                     if(!adminView){
-                        if(name&&typeof window.openFriendRoom==='function'){
-                            window.openFriendRoom(name);
+                        if(name&&window.Mood&&typeof window.Mood.openFriendProfile==='function'){
+                            window.Mood.openFriendProfile(name);
                         }
                         return;
                     }
