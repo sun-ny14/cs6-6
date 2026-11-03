@@ -1369,7 +1369,8 @@ exports.submitStudentCheckin = callable(async request => {
     // 오늘의 기분은 화면에서만 막으면 네트워크 오류·탭 전환 같은 경우에 그냥 건너뛸 수 있다.
     // 등교 자체를 서버에서 막아야 "무조건"이 된다.
     const moodRecord=(await database.ref(`moodRecords/${date}/${current.name}`).get()).val();
-    if(!moodRecord?.emotion){
+    // 선생님 이름의 계정(예: '6-6 선생님')은 기분 선택 없이도 등교 처리할 수 있다.
+    if(!moodRecord?.emotion&&!/선생님|관리자|총사령관/.test(current.name)){
         throw new HttpsError('failed-precondition','오늘의 기분을 먼저 골라야 등교할 수 있어요.');
     }
     const close=toMinutes(settings.closeTime,9*60);

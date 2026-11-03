@@ -11,7 +11,8 @@
     const state = { date: '', checked: null, pendingTab: '', loading: false, timer: null };
     const todayKst = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     const isWeekend = () => { const day = new Date(`${todayKst()}T12:00:00Z`).getUTCDay(); return day === 0 || day === 6; };
-    const isStudent = () => window.isAdmin !== true && !!String(window.myName || '').trim();
+    // 교사 계정(관리자, '6-6 선생님' 같은 선생님 이름의 계정)은 등교 전 잠금에서 제외한다.
+    const isStudent = () => window.isAdmin !== true && !!String(window.myName || '').trim() && !/선생님|관리자|총사령관/.test(String(window.myName));
     const active = () => isStudent() && window.attendanceGateEnabled !== false && !isWeekend();
     const locked = () => active() && state.checked !== true;
 

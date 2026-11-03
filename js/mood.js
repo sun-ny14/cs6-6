@@ -140,7 +140,7 @@
     // 조회가 실패해도 조용히 넘어가지 않는다 — 오늘 기록이 없다고 보고 그대로
     // 선택 화면을 띄운다. 그래야 등교 단계에서야 막히는 일이 없다.
     async function onEnterCheckin() {
-        if (window.isAdmin === true) return;
+        if (window.isAdmin === true || /선생님|관리자|총사령관/.test(String(window.myName || ''))) return;
         const today = todayKst();
         if (state.date !== today || !state.status) {
             try {
