@@ -1027,7 +1027,8 @@ exports.teacherQuickCheckin = callable(async request => {
         lateMinutes:lateBy,docSubmitted:Boolean(previousData?.docSubmitted),timestamp:now};
     const updates={
         [`attendanceRecords/${date}/${name}`]:record,
-        [`blackboardDisplay/data/checkins/${attendanceBoardKey(name)}`]:{name,date,attended:true}
+        [`blackboardDisplay/data/checkins/${attendanceBoardKey(name)}`]:{name,date,attended:true},
+        [`absenceDocs/${name}/${date}`]:null
     };
     if(pointDelta){
         const logKey=`teacher_checkin_${recordKey}_${now}`;
@@ -1159,6 +1160,84 @@ exports.adjustStudentScores = callable(async request => {
     return {updated:results.length,results,serverVersion:'20260913-score-5'};
 });
 
+// ---------------------------------------------------------------------------
+// 교시 시간(blackboard/periodTimes, 없으면 기본값)으로 "몇 교시에 등교했는지"와 "4교시 끝"을 계산한다.
+//  - 4교시가 끝날 때까지 등교 기록이 없으면 자동으로 결석 처리한다(autoMarkAbsent).
+//  - 4교시가 끝난 뒤(5교시 이후)에 QR로 등교하면 기록에 fromPeriod를 남겨, 청소 등에서 자동 제외되게 한다.
+// ---------------------------------------------------------------------------
+const PERIOD_DEFAULTS = {
+    '1교시':['09:00','09:40'], '2교시':['09:50','10:30'], '3교시':['10:40','11:20'],
+    '4교시':['11:30','12:10'], '5교시':['13:20','14:00'], '6교시':['14:10','14:50']
+};
+const clockMinutes = (value, fallback) => {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || ''));
+    return match ? Number(match[1]) * 60 + Number(match[2]) : fallback;
+};
+async function readPeriodTimes(database) {
+    const stored = (await database.ref('blackboard/periodTimes').get()).val() || {};
+    const times = {};
+    Object.entries(PERIOD_DEFAULTS).forEach(([name, [start, end]]) => {
+        const saved = stored[name] || {};
+        times[name] = { start: clockMinutes(saved.startTime, clockMinutes(start, 0)), end: clockMinutes(saved.endTime, clockMinutes(end, 0)) };
+    });
+    return times;
+}
+// 도착 시각이 속한(또는 곧 시작하는) 교시 번호. 4교시가 끝난 뒤면 5 이상이 된다.
+function arrivalPeriodNumber(minutes, times) {
+    for (let number = 1; number <= 6; number += 1) {
+        if (minutes < times[`${number}교시`].end) return number;
+    }
+    return 6;
+}
+
+exports.autoMarkAbsent = onSchedule({
+    schedule: '*/10 8-16 * * 1-5',
+    timeZone: 'Asia/Seoul',
+    region: REGION
+}, async () => {
+    const database = getDatabase();
+    const now = Date.now();
+    const date = kstDate(now);
+    const clock = new Date(now + 9 * 3600000);
+    const nowMinutes = clock.getUTCHours() * 60 + clock.getUTCMinutes();
+    if ((await database.ref(`autoAbsentDone/${date}`).get()).exists()) return;
+    const times = await readPeriodTimes(database);
+    if (nowMinutes < times['4교시'].end) return;
+
+    const [profilesSnapshot, finalSnapshot, submissionSnapshot] = await Promise.all([
+        database.ref('publicProfiles').get(),
+        database.ref(`attendanceRecords/${date}`).get(),
+        database.ref(`studentCheckins/${date}`).get()
+    ]);
+    const students = Object.values(profilesSnapshot.val() || {})
+        .filter(profile => profile && Number(profile.no) > 0 && !/선생님|관리자|총사령관/.test(String(profile.name || '')))
+        .map(profile => String(profile.name).trim());
+    const recorded = new Set([
+        ...Object.keys(finalSnapshot.val() || {}),
+        ...Object.values(submissionSnapshot.val() || {}).map(record => String(record?.name || record?.user || '').trim())
+    ].filter(Boolean));
+
+    // 하루 종일 아무도 등교 기록이 없으면 학교에 안 가는 날(휴업일)로 보고 건너뛴다.
+    if (!recorded.size) {
+        await database.ref(`autoAbsentDone/${date}`).set({ at: now, skipped: 'no-records' });
+        return;
+    }
+    const updates = {};
+    let count = 0;
+    students.filter(name => !recorded.has(name)).forEach(name => {
+        count += 1;
+        updates[`attendanceRecords/${date}/${name}`] = {
+            name, user: name, date, time: '-', category: '결석', result: '결석',
+            reason: '4교시까지 등교 기록이 없어 자동 결석 처리', pointPenalty: 0, penaltySource: 'auto-absent',
+            lateMinutes: 0, docSubmitted: false, timestamp: now
+        };
+        updates[`blackboardDisplay/data/checkins/${attendanceBoardKey(name)}`] = { name, date, attended: false, category: '결석', result: '결석' };
+        updates[`absenceDocs/${name}/${date}`] = { reason: '4교시까지 등교 기록이 없어 자동 결석 처리' };
+    });
+    updates[`autoAbsentDone/${date}`] = { at: now, count };
+    await database.ref().update(updates);
+});
+
 exports.submitStudentCheckin = callable(async request => {
     const current=await actor(request);
     if(current.teacher)throw new HttpsError('failed-precondition','학생 계정에서 등교해 주세요.');
@@ -1195,6 +1274,9 @@ exports.submitStudentCheckin = callable(async request => {
     const desired=excluded?0:-Math.min(9,late);
     const category=late>0?'지각':'정상';
     const time=`${String(clock.getUTCHours()).padStart(2,'0')}:${String(clock.getUTCMinutes()).padStart(2,'0')}`;
+    // 4교시가 끝난 뒤(5교시 이후)에 등교한 학생: 기록에 fromPeriod를 남겨 청소 등에서 자동 제외한다.
+    const arrivalPeriod=arrivalPeriodNumber(currentMinutes,await readPeriodTimes(database));
+    const fromPeriod=arrivalPeriod>=5?`${arrivalPeriod}교시`:'';
     // 학생 제출 원본과 교사의 최종 출결은 서로 다른 경로에 보관한다.
     const submissionRef=database.ref(`studentCheckins/${date}/${current.uid}`);
     const priorSubmission=(await submissionRef.get()).val()||null;
@@ -1235,7 +1317,8 @@ exports.submitStudentCheckin = callable(async request => {
         outcome={delta,lateBy:late,penalty:desired,points:user.points,roomCoins:user.roomCoins,
             recordKey:stableKey,record:{name:current.name,user:current.name,date,category,
                 reason:`${category} 등교`,result:`${category} 등교`,source:'qr',time,
-                timestamp:now,pointPenalty:desired,penaltySource:late>0?'qr':'none',lateMinutes:late}};
+                timestamp:now,pointPenalty:desired,penaltySource:late>0?'qr':'none',lateMinutes:late,
+                ...(fromPeriod?{fromPeriod}:{})}};
         user.attendanceState[date].receipt=outcome;
         return user;
     },undefined,false);
@@ -1247,8 +1330,15 @@ exports.submitStudentCheckin = callable(async request => {
     const record=outcome.record;
     const updates={
         [`studentCheckins/${date}/${current.uid}`]:record,
-        [`blackboardDisplay/data/checkins/${attendanceBoardKey(current.name)}`]:{name:current.name,date,attended:true}
+        [`blackboardDisplay/data/checkins/${attendanceBoardKey(current.name)}`]:{name:current.name,date,attended:true,
+            ...(fromPeriod?{category:'지각',fromPeriod,result:'지각 등교'}:{})}
     };
+    // 4교시까지 등교 기록이 없어 자동 결석 처리됐던 학생이 뒤늦게 등교하면 자동 결석을 걷어 낸다.
+    const autoAbsent=(await database.ref(`attendanceRecords/${date}/${current.name}`).get()).val();
+    if(autoAbsent&&autoAbsent.penaltySource==='auto-absent'){
+        updates[`attendanceRecords/${date}/${current.name}`]=null;
+        updates[`absenceDocs/${current.name}/${date}`]=null;
+    }
     if(outcome.delta){
         const logKey=`attendance_${recordKey}`;
         const historyKey=logKey;

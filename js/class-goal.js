@@ -99,12 +99,14 @@
                     const statusSnaps=await Promise.all(dates.map(date=>db.ref(`classManagement/cleaningStatus/${date}`).once('value')));
                     // 그날 결석·조퇴(또는 5교시 이후 지각)한 학생은 청소를 못 하니 판정에서 뺀다. 교사만 읽는 출결 기록을 쓴다.
                     const attendanceSnaps=await Promise.all(dates.map(date=>db.ref(`attendanceRecords/${date}`).once('value')));
+                    // 학생이 QR로 직접 등교한 기록(5교시 이후 도착 등)은 studentCheckins에 있으니 같이 본다.
+                    const submissionSnaps=await Promise.all(dates.map(date=>db.ref(`studentCheckins/${date}`).once('value')));
                     const statusByDate={};
                     const excusedByDate={};
                     dates.forEach((date,i)=>{
                         statusByDate[date]=statusSnaps[i].val()||{};
                         const excused=new Set();
-                        const records=attendanceSnaps[i].val()||{};
+                        const records={...(submissionSnaps[i].val()||{}),...(attendanceSnaps[i].val()||{})};
                         Object.entries(records).forEach(([key,record])=>{
                             const category=String(record?.category||'').trim();
                             const lateFrom=Number((/^(\d+)/.exec(String(record?.fromPeriod||''))||[])[1])||0;
