@@ -4,11 +4,12 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onValueWritten } = require('firebase-functions/v2/database');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
-const { getDatabase } = require('firebase-admin/database');
+const { getDatabase, ServerValue } = require('firebase-admin/database');
 const { getStorage } = require('firebase-admin/storage');
 const { createHash, randomBytes, scryptSync, timingSafeEqual, randomInt: cryptoRandomInt } = require('node:crypto');
 const CheckinPasswordCore = require('./checkin-password-core.js');
 const MoodCore = require('./mood-core.js');
+const CheerCore = require('./cheer-core.js');
 
 // 프로젝트에 복구용 RTDB 인스턴스도 있으므로 운영 DB를 명시한다.
 // 클라이언트가 보는 상점과 Functions가 조회하는 상점이 항상 같아진다.
@@ -898,7 +899,9 @@ exports.setTodayMood = callable(async request => {
         throw new HttpsError('resource-exhausted', '이번 주 비공개를 모두 썼어요. 다음 주 월요일에 다시 쓸 수 있어요.');
     }
 
+    const firstToday = !(await database.ref(`moodRecords/${date}/${name}`).get()).exists();
     const updates = {
+        ...(firstToday ? { [`badgeStats/${name}/moodDays`]: ServerValue.increment(1) } : {}),
         [`moodRecords/${date}/${name}`]: { emotion: emotion.name, tone: emotion.tone, hidden: hide, updatedAt: now },
         [`moodMeta/${name}/${week}/${date}`]: hide ? true : null,
         [`blackboardDisplay/data/moods/${date}/${name}`]: hide ? MoodCore.HIDDEN_EMOJI : emotion.emoji
@@ -908,6 +911,113 @@ exports.setTodayMood = callable(async request => {
     Object.keys(boardDates).filter(key => key !== date).forEach(key => { updates[`blackboardDisplay/data/moods/${key}`] = null; });
     await database.ref().update(updates);
     return moodStatus(database, name, date);
+});
+
+// ---------------------------------------------------------------------------
+// 이모지 응원 + 업적 배지
+// - cheers/{날짜}/{받는 학생}/{보낸 학생} = {emoji, at}. 같은 친구에게는 하루 한 번(키가 이미 있으면 거부).
+// - badgeStats/{학생} = {received, sent, moodDays}: 배지 계산에 쓰는 누적 숫자(서버만 쓴다).
+// - badgeCache/{학생}: 오래 걸리는 기록 집계(등교 일수·과제·청소)를 하루 한 번만 계산해 저장해 둔다.
+// 세 경로 모두 DB 규칙상 클라이언트가 직접 읽거나 쓰지 못하고, 아래 함수로만 다룬다.
+// ---------------------------------------------------------------------------
+const BADGES = [
+    { id:'attend20', icon:'📅', name:'등교 20일', test:s => s.attendDays >= 20 },
+    { id:'attend60', icon:'📅', name:'등교 60일', test:s => s.attendDays >= 60 },
+    { id:'homework10', icon:'📚', name:'과제 10개 완료', test:s => s.homeworkDone >= 10 },
+    { id:'homework30', icon:'📚', name:'과제 30개 완료', test:s => s.homeworkDone >= 30 },
+    { id:'clean20', icon:'🧹', name:'청소 20번 확인', test:s => s.cleanDays >= 20 },
+    { id:'lv5', icon:'⭐', name:'Lv.5 달성', test:s => s.level >= 5 },
+    { id:'lv10', icon:'⭐', name:'Lv.10 달성', test:s => s.level >= 10 },
+    { id:'lv15', icon:'🏆', name:'Lv.15 달성', test:s => s.level >= 15 },
+    { id:'lv20', icon:'👑', name:'Lv.20 달성', test:s => s.level >= 20 },
+    { id:'recv20', icon:'💌', name:'응원 20개 받음', test:s => s.received >= 20 },
+    { id:'sent50', icon:'🌟', name:'응원 50개 보냄', test:s => s.sent >= 50 },
+    { id:'mood14', icon:'😊', name:'기분 기록 14일', test:s => s.moodDays >= 14 }
+];
+
+async function studentExists(database, name) {
+    return Boolean(name) && !/선생님|관리자|총사령관/.test(name) && (await database.ref(`publicProfiles/${name}`).get()).exists();
+}
+
+async function cheerList(database, to, date) {
+    const entries = Object.entries((await database.ref(`cheers/${date}/${to}`).get()).val() || {})
+        .map(([from, value]) => ({ from, emoji: String(value?.emoji || ''), label: CheerCore.byEmoji(value?.emoji)?.label || '', at: Number(value?.at) || 0 }))
+        .filter(entry => entry.emoji).sort((a, b) => a.at - b.at);
+    return { to, date, count: entries.length, entries };
+}
+
+exports.getCheers = callable(async request => {
+    const current = await actor(request);
+    const database = getDatabase();
+    const to = String(request.data?.to || '').trim();
+    if (!(await studentExists(database, to))) throw new HttpsError('not-found', '학생을 찾을 수 없어요.');
+    // 학생에게는 오늘 것만 보여 준다. 교사는 날짜를 골라 지난 응원도 볼 수 있다.
+    const wanted = String(request.data?.date || '');
+    const date = current.teacher && /^\d{4}-\d{2}-\d{2}$/.test(wanted) ? wanted : kstDate(Date.now());
+    const result = await cheerList(database, to, date);
+    const mine = current.teacher ? null : result.entries.find(entry => entry.from === current.name) || null;
+    return { ...result, mine: mine ? { emoji: mine.emoji, label: mine.label } : null, canCheer: !current.teacher && current.name !== to && !mine && date === kstDate(Date.now()) };
+});
+
+exports.sendCheer = callable(async request => {
+    const current = await actor(request);
+    if (current.teacher) throw new HttpsError('failed-precondition', '학생 계정에서 응원을 남겨 주세요.');
+    const database = getDatabase();
+    const to = String(request.data?.to || '').trim();
+    const choice = CheerCore.byEmoji(request.data?.emoji);
+    if (!choice) throw new HttpsError('invalid-argument', '응원 이모지를 골라 주세요.');
+    if (to === current.name) throw new HttpsError('failed-precondition', '자기 자신에게는 응원을 남길 수 없어요.');
+    if (!(await studentExists(database, to))) throw new HttpsError('not-found', '학생을 찾을 수 없어요.');
+    const date = kstDate(Date.now());
+    const ref = database.ref(`cheers/${date}/${to}/${current.name}`);
+    const result = await ref.transaction(value => (value ? undefined : { emoji: choice.emoji, at: Date.now() }), undefined, false);
+    if (!result.committed) throw new HttpsError('already-exists', '오늘은 이미 이 친구에게 응원을 남겼어요.');
+    await database.ref().update({
+        [`badgeStats/${to}/received`]: ServerValue.increment(1),
+        [`badgeStats/${current.name}/sent`]: ServerValue.increment(1)
+    });
+    const list = await cheerList(database, to, date);
+    return { ...list, mine: { emoji: choice.emoji, label: choice.label }, canCheer: false };
+});
+
+async function badgeStatsFor(database, name) {
+    const today = kstDate(Date.now());
+    const cacheRef = database.ref(`badgeCache/${name}`);
+    let cache = (await cacheRef.get()).val();
+    if (!cache || cache.date !== today) {
+        const [stateSnapshot, completionSnapshot, assignmentSnapshot, cleaningSnapshot] = await Promise.all([
+            database.ref(`users/${name}/attendanceState`).get(),
+            database.ref('blackboard/assignmentCompletions').get(),
+            database.ref('blackboard/assignments').get(),
+            database.ref('classManagement/cleaningStatus').get()
+        ]);
+        const attendDays = Object.values(stateSnapshot.val() || {}).filter(day => day && day.category !== '결석').length;
+        const assignments = assignmentSnapshot.val() || {};
+        const homeworkDone = Object.entries(completionSnapshot.val() || {})
+            .filter(([id, done]) => done && done[name] && String(assignments[id]?.category || '') !== '제출자료').length;
+        const cleanDays = Object.values(cleaningSnapshot.val() || {}).filter(day => day && day[name] && day[name].cleanDone === true).length;
+        cache = { date: today, attendDays, homeworkDone, cleanDays };
+        await cacheRef.set(cache);
+    }
+    const [levelSnapshot, lvSnapshot, statsSnapshot] = await Promise.all([
+        database.ref(`users/${name}/level`).get(), database.ref(`users/${name}/lv`).get(), database.ref(`badgeStats/${name}`).get()
+    ]);
+    const stats = statsSnapshot.val() || {};
+    return {
+        attendDays: Number(cache.attendDays) || 0, homeworkDone: Number(cache.homeworkDone) || 0, cleanDays: Number(cache.cleanDays) || 0,
+        level: Math.max(1, Number(levelSnapshot.val() || lvSnapshot.val()) || 1),
+        received: Number(stats.received) || 0, sent: Number(stats.sent) || 0, moodDays: Number(stats.moodDays) || 0
+    };
+}
+
+exports.getBadges = callable(async request => {
+    await actor(request);
+    const database = getDatabase();
+    const name = String(request.data?.to || '').trim();
+    if (!(await studentExists(database, name))) throw new HttpsError('not-found', '학생을 찾을 수 없어요.');
+    const stats = await badgeStatsFor(database, name);
+    const badges = BADGES.map(badge => ({ id: badge.id, icon: badge.icon, name: badge.name, earned: badge.test(stats) }));
+    return { to: name, badges, earnedCount: badges.filter(badge => badge.earned).length, total: badges.length };
 });
 
 exports.saveHeroProfile = callable(async request => {

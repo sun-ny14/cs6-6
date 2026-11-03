@@ -32,6 +32,18 @@
       ".read": false,
       ".write": false
     },
+    "cheers": {
+      ".read": false,
+      ".write": false
+    },
+    "badgeStats": {
+      ".read": false,
+      ".write": false
+    },
+    "badgeCache": {
+      ".read": false,
+      ".write": false
+    },
     "moodRecords": {
       ".read": "auth != null && auth.token.email == 'ksosuny@cberi.go.kr'",
       ".write": false

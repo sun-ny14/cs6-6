@@ -275,7 +275,9 @@
     }
 
     // 친구(다른 학생) 프로필 창. 방이 꺼져 있어도 열린다. 기분은 이모지만(비공개는 🔒) 보여 준다.
-    function openFriendProfile(name) {
+    // opts: { self: 내 프로필(받은 응원 보기 + 모습 바꾸기), teacher: 교사(날짜별 응원 보기) }
+    function openFriendProfile(name, opts) {
+        opts = opts || {};
         const list = Array.isArray(window.currentUsers) ? window.currentUsers : [];
         const user = list.find(item => String(item && item.name || '').trim() === name) || { name: name };
         const level = Number(user.level || user.lv) || 1;
@@ -289,8 +291,24 @@
         const html = '<style>.friend-profile{text-align:center}.friend-profile h3{margin:8px 0 2px}.friend-profile .sub{color:var(--ui-muted,#6c778a);font-size:.9rem}'
             + '.fp-mood{display:inline-flex;gap:8px;align-items:center;margin-top:12px;padding:7px 14px;border-radius:999px;background:#e9eef8;color:#1c2433;font-weight:800}'
             + '.fp-mood.is-lock{background:#e7ecf5;color:#5a6a86}.fp-mood.is-none{opacity:.65}</style>'
-            + '<div class="friend-profile">' + avatar + '<h3>' + esc(name) + '</h3><div class="sub">Lv.' + level + (title ? ' · ' + esc(title) : '') + '</div>' + moodHtml + '</div>';
+            + '<div class="friend-profile">' + avatar + '<h3>' + esc(name) + '</h3><div class="sub">Lv.' + level + (title ? ' · ' + esc(title) : '') + '</div>' + moodHtml
+            + '<div id="fp-badges"></div>'
+            + '<button type="button" class="btn btn--primary" style="width:100%;margin-top:14px" id="fp-cheer-btn">' + (opts.self ? '💌 오늘 받은 응원 보기' : opts.teacher ? '💌 응원 보기' : '💌 응원 남기기') + '</button>'
+            + (opts.self ? '<button type="button" class="btn btn--outline" style="width:100%;margin-top:8px" id="fp-edit-btn">✏️ 내 용사 모습 바꾸기</button>' : '')
+            + '</div>';
         if (typeof window.openPopup === 'function') window.openPopup(name, html);
+        // 업적 배지는 서버에서 계산해 와서 채우고, 응원 버튼은 응원 창(js/cheer.js)을 연다.
+        setTimeout(() => {
+            const box = document.getElementById('fp-badges');
+            if (box && window.Cheer) window.Cheer.fillBadges(box, name);
+            const cheerButton = document.getElementById('fp-cheer-btn');
+            if (cheerButton) cheerButton.onclick = () => { if (window.Cheer) window.Cheer.open(name, opts); };
+            const editButton = document.getElementById('fp-edit-btn');
+            if (editButton) editButton.onclick = () => {
+                if (typeof window.closePopup === 'function') window.closePopup();
+                if (typeof window.openHeroProfileEditor === 'function') window.openHeroProfileEditor(name);
+            };
+        }, 0);
     }
 
     window.Mood = { onEnterCheckin, renderAdminPanel, exportMonthExcel, openPicker, refreshCardBubbles, openFriendProfile };
