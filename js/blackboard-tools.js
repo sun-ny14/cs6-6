@@ -541,9 +541,28 @@
         win.querySelector('#bb-qr-generate').addEventListener('click', () => {
             const text = win.querySelector('#bb-qr-input').value.trim();
             if (!text){ img.style.display = 'none'; copyBtn.style.display = 'none'; return; }
-            // 창을 크게 조절하면 이미지도 같이 커지므로(최대 440px 표시),
-            // 흐려 보이지 않게 그보다 큰 해상도로 생성해 둔다.
-            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=' + encodeURIComponent(text);
+            // 예전엔 외부 QR 생성 API(api.qrserver.com)를 썼는데, 학교 네트워크에서
+            // 막히거나 그 서비스가 느려지면 이미지가 안 뜨는 일이 잦았다. 이제
+            // js/vendor/qrcode-generator.js(이 기기 안에서만 동작, 네트워크 불필요)로
+            // 직접 QR 이미지를 그린다.
+            if (typeof window.qrcode !== 'function'){
+                alert('QR 코드 생성 도구를 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.');
+                return;
+            }
+            try{
+                const qr = window.qrcode(0, 'M');
+                qr.addData(text);
+                qr.make();
+                // 창을 크게 조절해도(최대 440px 표시) 흐려 보이지 않도록, 글자 수에
+                // 따라 달라지는 모듈 개수에 맞춰 셀 크기를 계산해 늘 넉넉한 해상도로 그린다.
+                const margin = 4;
+                const cellSize = Math.max(4, Math.round(560 / (qr.getModuleCount() + margin * 2)));
+                img.src = qr.createDataURL(cellSize, margin);
+            }catch(error){
+                console.error('QR 코드 생성 오류:', error);
+                alert('QR 코드를 만들지 못했어요. 글자 수를 줄여서 다시 시도해 주세요.');
+                return;
+            }
             img.style.display = 'inline-block';
             copyBtn.style.display = 'inline-block';
         });
