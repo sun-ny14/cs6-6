@@ -3012,29 +3012,6 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
                     width:1200px;
                 }
 
-                @media print{
-
-                    body *{
-                        visibility:hidden;
-                    }
-
-                    #print-area,
-                    #print-area *{
-                        visibility:visible;
-                    }
-
-                    #print-area{
-                        position:absolute;
-                        left:0;
-                        top:0;
-                        width:100%;
-                    }
-
-                    .no-print{
-                        display:none;
-                    }
-                }
-
             </style>
 
 
@@ -3108,6 +3085,13 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
                         🖨️ 출석부 인쇄
                     </button>
 
+                    <button
+                        onclick="window.exportAttendanceBookExcel()"
+                        class="btn btn--outline"
+                    >
+                        📥 엑셀로 받기
+                    </button>
+
                 </div>
 
 
@@ -3177,9 +3161,22 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
                         record.reason!==status
                     ){
 
-                        remark=`
+                        remark+=`
                             <div class="tiny muted">
                                 (${record.reason})
+                            </div>
+                        `;
+                    }
+
+                    // 지각·조퇴는 몇 교시부터인지도 같이 보여준다(상세 수정 팝업에서 기록한 값).
+                    if(
+                        record.fromPeriod&&
+                        (status.includes('지각')||status.includes('조퇴'))
+                    ){
+
+                        remark+=`
+                            <div class="tiny muted">
+                                ${record.fromPeriod}~
                             </div>
                         `;
                     }
@@ -3265,22 +3262,77 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
 };
 
 
+// 예전에는 body 전체를 숨기고 #print-area만 보이게 하는 CSS 트릭으로 바로
+// window.print()를 불렀는데, 이 팝업의 내용 영역이 스크롤되는 flex 컨테이너라
+// 인쇄 엔진이 페이지 구간을 잘못 계산해 같은 내용이 여러 장(주로 3장)
+// 반복해서 찍혔다. 팝업과 완전히 분리된 iframe에 표만 옮겨서 거기서 인쇄하면
+// 이 문제가 생기지 않는다.
+function attendanceBookPrintHtml(){
+    const area=document.getElementById('print-area');
+    const table=area?.querySelector('table');
+    if(!area||!table)return null;
+    const title=area.querySelector('.print-title')?.textContent.trim()||'학급 출석부';
+    return {title,tableHtml:table.outerHTML};
+}
+
 window.printAttendanceBook=function(){
 
-    const title=
-        document.querySelector(
-            '.print-title'
-        );
-
-    if(title){
-        title.style.display='block';
+    const data=attendanceBookPrintHtml();
+    if(!data){
+        alert('인쇄할 출석부를 찾지 못했습니다. 다시 열어서 시도해 주세요.');
+        return;
     }
 
-    window.print();
+    const iframe=document.createElement('iframe');
+    iframe.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(iframe);
+    const doc=iframe.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${data.title}</title>
+        <style>
+            body{margin:20px;font-family:"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;color:#182844}
+            h2{text-align:center;margin:0 0 18px}
+            table{width:100%;border-collapse:collapse;font-size:12px}
+            th,td{border:1px solid #9aa3b2;padding:4px 5px;text-align:center}
+            thead th{background:#eef1f6}
+            .tiny{font-size:9px}
+            .muted{color:#64748b}
+            .is-good{color:#187a40;font-weight:900}
+            .is-bad{color:#b4392d;font-weight:900}
+            .is-warn{color:#a05e00;font-weight:900}
+        </style>
+    </head><body>
+        <h2>${data.title}</h2>
+        ${data.tableHtml}
+    </body></html>`);
+    doc.close();
 
-    if(title){
-        title.style.display='none';
+    iframe.onload=()=>{
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(()=>iframe.remove(),1000);
+    };
+};
+
+window.exportAttendanceBookExcel=function(){
+
+    if(typeof XLSX==='undefined'){
+        alert('엑셀 도구를 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.');
+        return;
     }
+
+    const area=document.getElementById('print-area');
+    const table=area?.querySelector('table');
+    if(!table){
+        alert('내보낼 출석부를 찾지 못했습니다. 다시 열어서 시도해 주세요.');
+        return;
+    }
+
+    const title=area.querySelector('.print-title')?.textContent.trim()||'학급출석부';
+    const sheet=XLSX.utils.table_to_sheet(table);
+    const workbook=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook,sheet,'출석부');
+    XLSX.writeFile(workbook,`${title.replace(/\s+/g,'_')}.xlsx`);
 };
 
 
