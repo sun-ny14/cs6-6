@@ -2828,6 +2828,23 @@ window.saveExclusionsByDay=function(){
 // 8. 월간 출석부
 // ====================================================
 
+// 출석부 한 칸(하루 한 명)의 내용을 출결상황/사유/시작 교시로 나눠서 돌려준다.
+// 화면 표와 엑셀 내보내기가 같은 로직을 쓰도록 공통으로 뺐다.
+function attendanceCellParts(record){
+    let mark='',stateClass='',reasonText='',periodText='';
+    if(record){
+        const status=record.result||record.reason||'';
+        if(record.reason&&record.reason!==status)reasonText=record.reason;
+        if(record.fromPeriod&&(status.includes('지각')||status.includes('조퇴')))periodText=`${record.fromPeriod}~`;
+        if(status.includes('정상')||status==='등교'){mark='O';stateClass='is-good';}
+        else if(status.includes('결석')){mark='결';stateClass='is-bad attendance-absent';}
+        else if(status.includes('지각')){mark='지';stateClass='is-warn attendance-late';}
+        else if(status.includes('조퇴')){mark='조';stateClass='is-warn';}
+        else{mark=status.substring(0,1);stateClass='is-warn';}
+    }
+    return {mark,stateClass,reasonText,periodText};
+}
+
 window.openMonthlyCalendar=function(targetYear,targetMonth){
 
     const hasTarget=
@@ -3144,81 +3161,12 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
                 const record=
                     attendanceData[u][d];
 
-                let mark='';
-                let stateClass='';
+                const parts=attendanceCellParts(record);
+                const mark=parts.mark;
+                const stateClass=parts.stateClass;
                 let remark='';
-
-
-                if(record){
-
-                    const status=
-                        record.result||
-                        record.reason||
-                        '';
-
-                    if(
-                        record.reason&&
-                        record.reason!==status
-                    ){
-
-                        remark+=`
-                            <div class="tiny muted">
-                                (${record.reason})
-                            </div>
-                        `;
-                    }
-
-                    // 지각·조퇴는 몇 교시부터인지도 같이 보여준다(상세 수정 팝업에서 기록한 값).
-                    if(
-                        record.fromPeriod&&
-                        (status.includes('지각')||status.includes('조퇴'))
-                    ){
-
-                        remark+=`
-                            <div class="tiny muted">
-                                ${record.fromPeriod}~
-                            </div>
-                        `;
-                    }
-
-
-                    if(
-                        status.includes('정상')||
-                        status==='등교'
-                    ){
-
-                        mark='O';
-                        stateClass='is-good';
-
-                    }else if(
-                        status.includes('결석')
-                    ){
-
-                        mark='결';
-                        stateClass='is-bad attendance-absent';
-
-                    }else if(
-                        status.includes('지각')
-                    ){
-
-                        mark='지';
-                        stateClass='is-warn attendance-late';
-
-                    }else if(
-                        status.includes('조퇴')
-                    ){
-
-                        mark='조';
-                        stateClass='is-warn';
-
-                    }else{
-
-                        mark=
-                            status.substring(0,1);
-
-                        stateClass='is-warn';
-                    }
-                }
+                if(parts.reasonText)remark+=`<div class="tiny muted">(${parts.reasonText})</div>`;
+                if(parts.periodText)remark+=`<div class="tiny muted">${parts.periodText}</div>`;
 
 
                 tableHtml+=`
@@ -3246,6 +3194,9 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
             </div>
         `;
 
+
+        // 엑셀 내보내기가 화면과 같은 데이터를 쓰도록 저장해 둔다.
+        window.__monthlyAttendanceState={year,month,weekdays,users,attendanceData};
 
         showMonthlyPopup(tableHtml,true);
     })
@@ -3314,6 +3265,9 @@ window.printAttendanceBook=function(){
     };
 };
 
+// 표를 그대로 옮기면(table_to_sheet) 칸 안의 출결상황·사유·시작 교시가 줄바꿈 없이
+// 붙어서 나와 보기 불편했다. 화면과 같은 데이터(attendanceCellParts)로 칸마다
+// 줄을 나눠(개행 문자) 채운다.
 window.exportAttendanceBookExcel=function(){
 
     if(typeof XLSX==='undefined'){
@@ -3321,15 +3275,40 @@ window.exportAttendanceBookExcel=function(){
         return;
     }
 
-    const area=document.getElementById('print-area');
-    const table=area?.querySelector('table');
-    if(!table){
+    const state=window.__monthlyAttendanceState;
+    if(!state){
         alert('내보낼 출석부를 찾지 못했습니다. 다시 열어서 시도해 주세요.');
         return;
     }
+    const {year,month,weekdays,users,attendanceData}=state;
 
-    const title=area.querySelector('.print-title')?.textContent.trim()||'학급출석부';
-    const sheet=XLSX.utils.table_to_sheet(table);
+    const header=['이름',...weekdays.map(d=>`${d}일`)];
+    const rows=users.map(u=>{
+        const row=[u];
+        weekdays.forEach(d=>{
+            const parts=attendanceCellParts(attendanceData[u][d]);
+            const lines=[parts.mark];
+            if(parts.reasonText)lines.push(`(${parts.reasonText})`);
+            if(parts.periodText)lines.push(parts.periodText);
+            row.push(lines.filter(Boolean).join('\n'));
+        });
+        return row;
+    });
+
+    const sheet=XLSX.utils.aoa_to_sheet([header,...rows]);
+    // 줄바꿈이 보이도록 칸에 자동 줄바꿈 서식을 넣는다. 서식이 안 먹는 보기 프로그램도
+    // 있을 수 있지만, 셀 안에는 어차피 실제 개행 문자가 들어가 있어 "엑셀에서 줄바꿈
+    // 켜기"로 바로 볼 수 있다.
+    const range=XLSX.utils.decode_range(sheet['!ref']);
+    for(let r=1;r<=range.e.r;r+=1){
+        for(let c=1;c<=range.e.c;c+=1){
+            const cell=sheet[XLSX.utils.encode_cell({r,c})];
+            if(cell)cell.s={alignment:{wrapText:true,vertical:'center',horizontal:'center'}};
+        }
+    }
+    sheet['!cols']=[{wch:10},...weekdays.map(()=>({wch:8}))];
+
+    const title=`${month+1}월 학급출석부 (${year}년)`;
     const workbook=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook,sheet,'출석부');
     XLSX.writeFile(workbook,`${title.replace(/\s+/g,'_')}.xlsx`);
