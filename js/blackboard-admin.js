@@ -7,17 +7,19 @@
         {key:'1',label:'월'},{key:'2',label:'화'},{key:'3',label:'수'},
         {key:'4',label:'목'},{key:'5',label:'금'}
     ];
+    // subject는 비워 두면 화면 쪽에서 알아서 교시 이름(name)으로 대체해 보여준다.
+    // 여기서 이름을 그대로 넣어 두면 관리 화면 과목란에 "2교시"처럼 그대로 떠서 헷갈린다.
     const DEFAULTS = {
-        '아침':{startTime:'08:00',endTime:'09:00',subject:'아침'},
-        '1교시':{startTime:'09:00',endTime:'09:40',subject:'1교시'},
-        '2교시':{startTime:'09:50',endTime:'10:30',subject:'2교시'},
-        '3교시':{startTime:'10:40',endTime:'11:20',subject:'3교시'},
-        '4교시':{startTime:'11:30',endTime:'12:10',subject:'4교시'},
-        '점심시간':{startTime:'12:10',endTime:'13:00',subject:'점심시간'},
-        '청소시간':{startTime:'13:00',endTime:'13:20',subject:'청소시간'},
-        '5교시':{startTime:'13:20',endTime:'14:00',subject:'5교시'},
-        '6교시':{startTime:'14:10',endTime:'14:50',subject:'6교시'},
-        '하교':{startTime:'14:50',endTime:'18:00',subject:'하교'}
+        '아침':{startTime:'08:00',endTime:'09:00',subject:''},
+        '1교시':{startTime:'09:00',endTime:'09:40',subject:''},
+        '2교시':{startTime:'09:50',endTime:'10:30',subject:''},
+        '3교시':{startTime:'10:40',endTime:'11:20',subject:''},
+        '4교시':{startTime:'11:30',endTime:'12:10',subject:''},
+        '점심시간':{startTime:'12:10',endTime:'13:00',subject:''},
+        '청소시간':{startTime:'13:00',endTime:'13:20',subject:''},
+        '5교시':{startTime:'13:20',endTime:'14:00',subject:''},
+        '6교시':{startTime:'14:10',endTime:'14:50',subject:''},
+        '하교':{startTime:'14:50',endTime:'18:00',subject:''}
     };
     const state = {
         legacySchedule:{}, periodTimes:{}, baseSchedule:{}, notices:{}, week:{},
@@ -86,7 +88,7 @@
             return `<section class="bb-period-row">
                 <div class="bb-period-main">
                     <strong>${name}</strong>
-                    <input type="text" class="bb-subject" data-period="${name}" value="${esc(item.subject || name)}" placeholder="과목명">
+                    <input type="text" class="bb-subject" data-period="${name}" value="${esc(item.subject && item.subject !== name ? item.subject : '')}" placeholder="과목명">
                     ${isClassPeriod(name) ? `<label class="bb-check"><input type="checkbox" class="bb-moving" data-period="${name}" ${item.isMovingClass?'checked':''}> 이동수업</label>` : ''}
                 </div>
                 <div class="bb-period-extra">
@@ -101,7 +103,7 @@
             const find = selector => container.querySelector(`${selector}[data-period="${name}"]`);
             const old = fallback[name] || DEFAULTS[name];
             result[name] = {
-                subject:String(find('.bb-subject')?.value || old.subject || name).trim(),
+                subject:String(find('.bb-subject')?.value || '').trim(),
                 action:String(find('.bb-action')?.value || '').trim(),
                 isMovingClass:Boolean(find('.bb-moving')?.checked),
                 showLearningNote:Boolean(old.showLearningNote),
