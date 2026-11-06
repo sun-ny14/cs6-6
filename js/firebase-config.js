@@ -21,6 +21,9 @@ const auth = typeof firebase.auth === 'function' ? firebase.auth() : null;
 const provider = auth ? new firebase.auth.GoogleAuthProvider() : null;
 // 전자칠판·연결확인 페이지는 Storage SDK를 불러오지 않으므로 있을 때만 초기화합니다.
 const storage = typeof firebase.storage === 'function' ? firebase.storage() : null;
+// const로 선언한 전역은 window의 속성이 되지 않아(var와 다름) window.storage로는
+// 항상 undefined였다. 메모 사진 첨부 등 window.storage를 쓰는 코드가 전부 깨져 있던 원인.
+window.storage = storage;
 
 // 앱 전체가 같은 상태를 보도록 window 한 곳에서만 관리합니다.
 // top-level let과 window.*를 섞으면 서로 다른 값이 생길 수 있습니다.
