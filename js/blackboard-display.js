@@ -519,7 +519,16 @@
             : autoModeKey;
 
         // 입력 중에는 같은 화면만 유지한다. 교시·날짜가 바뀌면 저장 후 전환한다.
-        if (editingMemo && stage.dataset.viewKey === viewKey) return;
+        if (editingMemo && stage.dataset.viewKey === viewKey) {
+            // 쉬는 시간 메모 칸에 포커스가 가 있으면(다른 작업 중에도 포커스는 남아있다)
+            // 화면 전체를 다시 그리지 않아 큰 시계가 멈춰 보였다. 메모는 그대로 두고
+            // 시계 글자만 직접 갱신한다.
+            if (textarea.dataset.breakMemo !== undefined) {
+                const breakClock = stage.querySelector('.break-clock');
+                if (breakClock) breakClock.textContent = timeText.slice(0, 5);
+            }
+            return;
+        }
         // Firebase의 즉시 로컬 갱신이 render를 다시 호출해도 중복 저장하지 않는다.
         stage.dataset.viewKey = viewKey;
         if (editingMemo) {
