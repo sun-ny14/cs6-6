@@ -17,6 +17,31 @@
     }
     function shortDate(date){return String(date||'').slice(5);}
 
+    // 같은 학생이 같은 사유로 연속해서(주말은 건너뛰고) 결석했으면 결석신고서는 한 장이면 된다.
+    // 저장은 지금처럼 날짜별로 두고, 보여 주고 체크할 때만 한 건으로 묶는다.
+    function nextSchoolDay(date){
+        const cursor=new Date(`${date}T00:00:00Z`);
+        do{cursor.setUTCDate(cursor.getUTCDate()+1);}while(cursor.getUTCDay()===0||cursor.getUTCDay()===6);
+        return cursor.toISOString().slice(0,10);
+    }
+    function groupRows(rows){
+        const sorted=rows.slice().sort((a,b)=>a.name.localeCompare(b.name,'ko')||a.date.localeCompare(b.date));
+        const groups=[];
+        sorted.forEach(row=>{
+            const last=groups[groups.length-1];
+            if(last&&last.name===row.name&&last.reason===row.reason&&nextSchoolDay(last.dates[last.dates.length-1])===row.date){
+                last.dates.push(row.date);
+            }else{
+                groups.push({name:row.name,date:row.date,dates:[row.date],reason:row.reason});
+            }
+        });
+        return groups.sort((a,b)=>a.date.localeCompare(b.date)||a.name.localeCompare(b.name,'ko'));
+    }
+    function rowDateLabel(row){
+        const dates=row.dates||[row.date];
+        return dates.length>1?`${shortDate(dates[0])}~${shortDate(dates[dates.length-1])} · ${dates.length}일`:shortDate(row.date);
+    }
+
     // 하루 한 번이 아니라 '이 페이지를 연 동안 한 번'만 띄운다. 메모리에만 두므로
     // 새로고침(Ctrl+F5)이나 재로그인 때는 다시 보이고, 탭을 오갈 때 반복해서 뜨지는 않는다.
     const shownSet=new Set();
@@ -34,7 +59,7 @@
                 rows.push({name:student.key,date:day.key,reason:String(day.val()?.reason||'결석')});
             });
         });
-        return rows.sort((a,b)=>a.date.localeCompare(b.date)||a.name.localeCompare(b.name,'ko'));
+        return groupRows(rows);
     }
 
     async function loadMine(){
@@ -43,28 +68,32 @@
         const snapshot=await db.ref(`${PATH}/${name}`).once('value');
         const rows=[];
         snapshot.forEach(day=>{rows.push({name,date:day.key,reason:String(day.val()?.reason||'결석')});});
-        return rows.sort((a,b)=>a.date.localeCompare(b.date));
+        return groupRows(rows);
     }
 
     // ---- 쓰기: 제출 확인(체크) / 되돌리기 ----
-    async function setSubmitted(name,date,reason,done){
+    // dates: 날짜 하나, 또는 한 건으로 묶인 연속 결석의 날짜 목록.
+    async function setSubmitted(name,dates,reason,done){
         const updates={};
-        updates[`${PATH}/${name}/${date}`]=done?null:{reason};
-        // 출결 기록 쪽 표시도 같이 맞춘다(기존 docSubmitted 필드).
-        updates[`attendanceRecords/${date}/${name}/docSubmitted`]=done;
+        (Array.isArray(dates)?dates:[dates]).forEach(date=>{
+            updates[`${PATH}/${name}/${date}`]=done?null:{reason};
+            // 출결 기록 쪽 표시도 같이 맞춘다(기존 docSubmitted 필드).
+            updates[`attendanceRecords/${date}/${name}/docSubmitted`]=done;
+        });
         await db.ref().update(updates);
     }
+    const boxDates=box=>String(box.dataset.dates||box.dataset.date||'').split(',').filter(Boolean);
 
     // ---- 화면 조각 ----
     function teacherRowsHtml(rows){
         return rows.map(row=>`<label class="briefing-item briefing-checkable">
-            <input type="checkbox" class="absence-check" data-name="${esc(row.name)}" data-date="${esc(row.date)}" data-reason="${esc(row.reason)}">
-            <span class="absence-date">${esc(shortDate(row.date))}</span><b>${esc(row.name)}</b><small>${esc(row.reason)}</small>
+            <input type="checkbox" class="absence-check" data-name="${esc(row.name)}" data-date="${esc(row.date)}" data-dates="${esc((row.dates||[row.date]).join(','))}" data-reason="${esc(row.reason)}">
+            <span class="absence-date">${esc(rowDateLabel(row))}</span><b>${esc(row.name)}</b><small>${esc(row.reason)}</small>
         </label>`).join('');
     }
 
     function studentRowsHtml(rows){
-        return rows.map(row=>`<div class="briefing-item"><span class="absence-date">${esc(shortDate(row.date))}</span><b>${esc(row.reason)}</b><small>선생님께 내 주세요</small></div>`).join('');
+        return rows.map(row=>`<div class="briefing-item"><span class="absence-date">${esc(rowDateLabel(row))}</span><b>${esc(row.reason)}</b><small>선생님께 내 주세요</small></div>`).join('');
     }
 
     function styleHtml(){
@@ -86,7 +115,7 @@
             const row=box.closest('.briefing-item');
             box.disabled=true;
             try{
-                await setSubmitted(box.dataset.name,box.dataset.date,box.dataset.reason,box.checked);
+                await setSubmitted(box.dataset.name,boxDates(box),box.dataset.reason,box.checked);
                 row?.classList.toggle('is-absence-done',box.checked);
                 // 제출 확인한 줄은 잠깐 취소선으로 보여준 뒤 목록에서 치운다(그 사이 다시 풀면 남는다).
                 if(box.checked&&row)setTimeout(()=>{
@@ -131,15 +160,15 @@
         boxes.forEach(box=>box.disabled=true);
         try{
             await Promise.all(boxes.map(box=>
-                setSubmitted(box.dataset.name,box.dataset.date,box.dataset.reason,true)
+                setSubmitted(box.dataset.name,boxDates(box),box.dataset.reason,true)
             ));
             boxes.forEach(box=>box.closest('.briefing-item')?.classList.add('is-absence-done'));
-            if(note)note.textContent=`✅ ${boxes.length}명 제출확인 처리했습니다.`;
+            if(note)note.textContent=`✅ ${boxes.length}건 제출확인 처리했습니다.`;
             setTimeout(()=>{
                 boxes.forEach(box=>box.closest('.briefing-item')?.remove());
                 const left=document.querySelectorAll('.absence-check').length;
                 if(note)note.textContent=left
-                    ?`미제출 ${left}명 · 제출받은 학생을 체크하고 "제출확인"을 눌러주세요.`
+                    ?`미제출 ${left}건 · 제출받은 학생을 체크하고 "제출확인"을 눌러주세요.`
                     :'모두 제출 확인 완료 🎉';
                 refreshBadge();
             },650);
@@ -190,7 +219,7 @@
         }
         const body=rows.length
             ?`<div class="briefing-list">${teacherRowsHtml(rows)}</div>
-               <p class="tiny muted" id="absence-remaining" style="margin:12px 0 0">미제출 ${rows.length}명 · 제출받은 학생을 체크하고 "제출확인"을 눌러주세요.</p>
+               <p class="tiny muted" id="absence-remaining" style="margin:12px 0 0">미제출 ${rows.length}건 · 제출받은 학생을 체크하고 "제출확인"을 눌러주세요.</p>
                <div class="absence-actions"><button class="btn btn--primary" id="absence-confirm-btn" type="button" disabled>제출확인</button></div>`
             :'<p class="briefing-empty">결석신고서를 안 낸 학생이 없어요. 🎉</p>';
         window.openPopup(TITLE,`${styleHtml()}${body}`);
