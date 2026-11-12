@@ -68,9 +68,9 @@
         const style = document.createElement('style');
         style.id = 'bb-admin-v2-style';
         style.textContent = `
-            .bb-admin-grid{display:grid;gap:20px}@media(min-width:860px){.bb-admin-grid{grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:start}.bb-admin-grid>.bb-panel:not(.bb-panel--notice){order:-1}.bb-admin-grid>.bb-panel--notice{order:0}}.bb-panel{padding:22px;border:1px solid var(--ui-line);border-radius:16px;background:var(--ui-surface);font-family:var(--ui-font-display)}.bb-panel h3{margin:0 0 10px;color:var(--ui-text)}.bb-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.bb-toolbar h3{margin:0}.bb-toolbar--between{justify-content:space-between}.bb-toolbar--gap{margin-top:8px}.bb-toolbar--gap-sm{margin-top:12px}.bb-panel--notice{background:var(--ui-gold-soft);border-color:var(--ui-gold-line)}.bb-btn{padding:11px 16px;border:0;border-radius:9px;font-weight:900;cursor:pointer}.bb-btn.primary{background:var(--ui-accent);color:var(--ui-on-accent)}.bb-btn.green{background:var(--ui-good-soft);color:var(--ui-good);box-shadow:inset 0 0 0 1px var(--ui-good-line)}.bb-btn.dark{background:var(--ui-surface);color:var(--ui-accent-deep);box-shadow:inset 0 0 0 1px var(--ui-line-strong)}.bb-btn.light{background:var(--ui-surface-soft);color:var(--ui-accent-deep)}.bb-btn.red{background:transparent;color:var(--ui-bad);box-shadow:inset 0 0 0 1px var(--ui-bad-line)}.bb-btn.red:hover{background:var(--ui-bad-soft)}.bb-toolbar--compact .bb-btn{padding:7px 11px;font-size:12px}.bb-toolbar--compact input[type=date]{font-size:12px;padding:7px 9px;min-height:0}.bb-date-strip,.bb-day-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.bb-date-btn,.bb-day-btn{position:relative;padding:6px 9px;border:2px solid var(--ui-line);border-radius:9px;background:var(--ui-surface);font-weight:850;font-size:12px;cursor:pointer}.bb-date-btn.active,.bb-day-btn.active{border-color:var(--ui-accent);background:var(--ui-accent-soft);color:var(--ui-accent-deep)}.bb-day-btn.is-today::after{content:"";position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--ui-gold)}.bb-editor{display:grid;gap:10px;margin-top:14px}.bb-period-row{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--ui-line);border-radius:12px;background:var(--ui-surface-soft)}.bb-period-main{display:flex;align-items:center;gap:10px}.bb-period-main strong{flex:none;width:68px}.bb-period-main input[type=text]{flex:1;min-width:0}.bb-period-main .bb-check{flex:none}.bb-period-row input[type=text],.bb-period-row textarea,.bb-panel input[type=date],.bb-panel textarea{padding:10px;border:1px solid var(--ui-line-strong);border-radius:8px;font:inherit;box-sizing:border-box}.bb-period-extra textarea{width:100%;min-height:48px;resize:vertical}#bb-week-anchor{width:auto;max-width:160px}.bb-check{display:flex;align-items:center;gap:6px;font-weight:850;white-space:nowrap}.bb-modal{position:fixed;inset:0;z-index:1000000;display:grid;place-items:center;padding:18px;background:rgba(15,23,42,.62)}.bb-modal[hidden]{display:none}.bb-modal-dialog{width:min(1100px,96vw);max-height:94vh;overflow:auto;padding:25px;border-radius:20px;background:var(--ui-surface);box-shadow:var(--ui-shadow)}.bb-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.bb-modal-head h2{margin:0}.bb-time-grid{display:grid;grid-template-columns:repeat(2,minmax(320px,1fr));gap:12px;margin:18px 0 24px}.bb-time-row{padding:14px;border-radius:10px;background:var(--ui-surface-soft)}.bb-time-row strong{display:block;margin-bottom:8px}.bb-time-row div{display:grid;grid-template-columns:minmax(145px,1fr) auto minmax(145px,1fr);align-items:center;gap:8px}.bb-time-row input[type=time]{width:100%;min-width:0;padding:10px 12px;box-sizing:border-box;font:inherit}.bb-notebook-grid{display:grid;grid-template-columns:repeat(5,minmax(180px,1fr));gap:12px;margin-top:20px}.bb-notebook-day{padding:14px;border-radius:14px;background:var(--ui-surface-soft);border:1px solid var(--ui-line)}.bb-notebook-day h3{margin:0 0 12px;color:var(--ui-text)}.bb-notebook-item{padding:12px;margin-top:9px;border-radius:10px;background:var(--ui-surface);border-left:5px solid var(--ui-accent)}.bb-notebook-item strong,.bb-notebook-item span{display:block}.bb-notebook-item p{margin:7px 0 0;white-space:pre-wrap;line-height:1.45}.bb-status{color:var(--ui-muted);font-weight:800}.bb-empty{padding:28px;border:1px dashed var(--ui-line-strong);border-radius:12px;text-align:center;color:var(--ui-muted);font-weight:800}.bb-empty--error{color:var(--ui-bad)}
+            .bb-admin-grid{display:grid;gap:20px}@media(min-width:860px){.bb-admin-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,1.6fr);align-items:start}.bb-admin-grid>.bb-panel:not(.bb-panel--notice){order:-1}.bb-admin-grid>.bb-panel--notice{order:0}}.bb-panel{padding:22px;border:1px solid var(--ui-line);border-radius:16px;background:var(--ui-surface);font-family:var(--ui-font-display)}.bb-panel h3{margin:0 0 10px;color:var(--ui-text)}.bb-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.bb-toolbar h3{margin:0}.bb-toolbar--between{justify-content:space-between}.bb-toolbar--gap{margin-top:8px}.bb-toolbar--gap-sm{margin-top:12px}.bb-panel--notice{background:var(--ui-gold-soft);border-color:var(--ui-gold-line)}.bb-btn{padding:11px 16px;border:0;border-radius:9px;font-weight:900;cursor:pointer}.bb-btn.primary{background:var(--ui-accent);color:var(--ui-on-accent)}.bb-btn.green{background:var(--ui-good-soft);color:var(--ui-good);box-shadow:inset 0 0 0 1px var(--ui-good-line)}.bb-btn.dark{background:var(--ui-surface);color:var(--ui-accent-deep);box-shadow:inset 0 0 0 1px var(--ui-line-strong)}.bb-btn.light{background:var(--ui-surface-soft);color:var(--ui-accent-deep)}.bb-btn.red{background:transparent;color:var(--ui-bad);box-shadow:inset 0 0 0 1px var(--ui-bad-line)}.bb-btn.red:hover{background:var(--ui-bad-soft)}.bb-toolbar--compact .bb-btn{padding:7px 11px;font-size:12px}.bb-toolbar--compact input[type=date]{font-size:12px;padding:7px 9px;min-height:0}.bb-date-strip{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.bb-day-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px 0}.bb-day-btn{font-size:13.5px!important;padding:9px 4px!important;text-align:center;white-space:nowrap}.bb-date-btn,.bb-day-btn{position:relative;padding:6px 9px;border:2px solid var(--ui-line);border-radius:9px;background:var(--ui-surface);font-weight:850;font-size:12px;cursor:pointer}.bb-date-btn.active,.bb-day-btn.active{border-color:var(--ui-accent);background:var(--ui-accent-soft);color:var(--ui-accent-deep)}.bb-day-btn.is-today::after{content:"";position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--ui-gold)}.bb-editor{display:grid;gap:6px;margin-top:10px}.bb-period-row{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border:1px solid var(--ui-line);border-radius:12px;background:var(--ui-surface-soft)}.bb-period-row strong{flex:none;width:58px;padding-top:9px;font-size:14px}.bb-period-row .bb-subject{flex:none;width:96px}.bb-period-row .bb-action{flex:1;min-width:0;min-height:40px;resize:vertical;field-sizing:content}.bb-move{flex:none;position:relative;cursor:pointer;padding-top:4px}.bb-move input{position:absolute;opacity:0;width:0;height:0}.bb-move span{display:inline-block;padding:6px 10px;border:1.5px solid var(--ui-line);border-radius:999px;background:var(--ui-surface);color:var(--ui-muted);font-size:12px;font-weight:800;white-space:nowrap}.bb-move input:checked+span{border-color:var(--ui-accent);background:var(--ui-accent);color:var(--ui-on-accent)}.bb-move input:focus-visible+span{outline:2px solid var(--ui-accent);outline-offset:2px}@media(max-width:520px){.bb-period-row{flex-wrap:wrap}.bb-period-row .bb-action{flex-basis:100%}}.bb-savebar{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;border:1px solid var(--ui-line);border-radius:12px;background:var(--ui-surface);box-shadow:0 -4px 14px rgba(15,23,42,.08)}.bb-savebar .bb-dirty{flex:none;color:var(--ui-warn);font-size:12.5px;font-weight:800;white-space:nowrap}.bb-period-row input[type=text],.bb-period-row textarea{padding:8px 10px;border:1px solid var(--ui-line-strong);border-radius:8px;font:inherit;box-sizing:border-box}.bb-panel input[type=date],.bb-panel>textarea{padding:10px;border:1px solid var(--ui-line-strong);border-radius:8px;font:inherit;box-sizing:border-box}#bb-week-anchor{width:auto;max-width:160px}.bb-check{display:flex;align-items:center;gap:6px;font-weight:850;white-space:nowrap}.bb-modal{position:fixed;inset:0;z-index:1000000;display:grid;place-items:center;padding:18px;background:rgba(15,23,42,.62)}.bb-modal[hidden]{display:none}.bb-modal-dialog{width:min(1100px,96vw);max-height:94vh;overflow:auto;padding:25px;border-radius:20px;background:var(--ui-surface);box-shadow:var(--ui-shadow)}.bb-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.bb-modal-head h2{margin:0}.bb-time-grid{display:grid;grid-template-columns:repeat(2,minmax(320px,1fr));gap:12px;margin:18px 0 24px}.bb-time-row{padding:14px;border-radius:10px;background:var(--ui-surface-soft)}.bb-time-row strong{display:block;margin-bottom:8px}.bb-time-row div{display:grid;grid-template-columns:minmax(145px,1fr) auto minmax(145px,1fr);align-items:center;gap:8px}.bb-time-row input[type=time]{width:100%;min-width:0;padding:10px 12px;box-sizing:border-box;font:inherit}.bb-notebook-grid{display:grid;grid-template-columns:repeat(5,minmax(180px,1fr));gap:12px;margin-top:20px}.bb-notebook-day{padding:14px;border-radius:14px;background:var(--ui-surface-soft);border:1px solid var(--ui-line)}.bb-notebook-day h3{margin:0 0 12px;color:var(--ui-text)}.bb-notebook-item{padding:12px;margin-top:9px;border-radius:10px;background:var(--ui-surface);border-left:5px solid var(--ui-accent)}.bb-notebook-item strong,.bb-notebook-item span{display:block}.bb-notebook-item p{margin:7px 0 0;white-space:pre-wrap;line-height:1.45}.bb-status{color:var(--ui-muted);font-weight:800}.bb-empty{padding:28px;border:1px dashed var(--ui-line-strong);border-radius:12px;text-align:center;color:var(--ui-muted);font-weight:800}.bb-empty--error{color:var(--ui-bad)}
             .bb-assignment-form{display:grid;grid-template-columns:1.2fr 1fr auto auto;gap:10px;align-items:center}.bb-assignment-form input{padding:11px;border:1px solid var(--ui-line-strong);border-radius:8px}.bb-assignment-form textarea{grid-column:1/-1}.bb-required-check{display:flex;gap:7px;align-items:center;padding:10px;border-radius:8px;background:var(--ui-warn-soft);color:var(--ui-bad);font-weight:900;white-space:nowrap}.bb-assignment-list{display:grid;gap:10px;margin-top:16px}.bb-assignment-row{display:grid;grid-template-columns:1fr auto;gap:12px;padding:15px;border:1px solid var(--ui-line);border-radius:12px;background:var(--ui-surface-soft)}.bb-assignment-row strong,.bb-assignment-row span{display:block}.bb-assignment-row p{margin:8px 0 0;white-space:pre-wrap}.bb-student-checks{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.bb-student-check{min-width:58px;padding:9px;border:2px solid var(--ui-gold-line);border-radius:9px;background:var(--ui-gold-soft);color:var(--ui-gold);font-weight:900;cursor:pointer}.bb-student-check.is-done{border-color:var(--ui-good);background:var(--ui-good);color:var(--ui-on-accent);text-decoration:line-through}
-            #bb-save-week,#bb-save-settings{width:100%;padding:16px}#bb-save-week{margin-top:16px}#bb-save-settings{margin-top:18px}#bb-settings-content>h3:first-of-type{margin-top:24px}
+            #bb-save-week,#bb-save-settings{width:100%;padding:16px}#bb-save-week{flex:1;width:auto;margin:0;padding:12px}#bb-save-settings{margin-top:18px}#bb-settings-content>h3:first-of-type{margin-top:24px}
 
             #bb-schedule-form-container .bb-notice-calendar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:16px 0}.bb-calendar-toolbar{margin-top:16px}.bb-calendar-toolbar strong{min-width:140px;text-align:center;font-size:23px}.bb-calendar-weekday{text-align:center;padding:8px 0;font-size:16px;font-weight:900;color:var(--ui-muted)}
             #bb-schedule-form-container .bb-calendar-day{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:8px;width:100%;min-width:0;min-height:100px;margin:0;padding:10px;border:1px solid var(--ui-line);border-radius:10px;background:var(--ui-surface);text-align:left;color:var(--ui-text);font-size:16px;cursor:pointer;overflow:hidden;box-sizing:border-box}
@@ -82,18 +82,18 @@
         document.head.appendChild(style);
     }
 
+    // 교시 하나를 한 줄로: 교시 이름 · 과목 · 이동수업 · 화면 안내 문구.
+    // 아침·점심·청소·하교는 과목이 없으므로(이미 적어 둔 과목이 있을 때만 빼고) 과목칸을 숨긴다.
     function periodEditorHtml(schedule) {
         return PERIODS.map(name => {
             const item = schedule[name] || DEFAULTS[name];
+            const isClass = isClassPeriod(name);
+            const subject = item.subject && item.subject !== name ? item.subject : '';
             return `<section class="bb-period-row">
-                <div class="bb-period-main">
-                    <strong>${name}</strong>
-                    <input type="text" class="bb-subject" data-period="${name}" value="${esc(item.subject && item.subject !== name ? item.subject : '')}" placeholder="과목명">
-                    ${isClassPeriod(name) ? `<label class="bb-check"><input type="checkbox" class="bb-moving" data-period="${name}" ${item.isMovingClass?'checked':''}> 이동수업</label>` : ''}
-                </div>
-                <div class="bb-period-extra">
-                    <textarea class="bb-action" data-period="${name}" rows="2" placeholder="화면 안내 문구">${esc(item.action || '')}</textarea>
-                </div>
+                <strong>${name}</strong>
+                ${isClass || subject ? `<input type="text" class="bb-subject" data-period="${name}" value="${esc(subject)}" placeholder="과목명">` : ''}
+                ${isClass ? `<label class="bb-move" title="이동수업이면 눌러서 켜세요"><input type="checkbox" class="bb-moving" data-period="${name}" ${item.isMovingClass?'checked':''}><span>🚶 이동</span></label>` : ''}
+                <textarea class="bb-action" data-period="${name}" rows="1" placeholder="화면 안내 문구${isClass?' (선택)':''}">${esc(item.action || '')}</textarea>
             </section>`;
         }).join('');
     }
@@ -191,7 +191,6 @@
             return `<button type="button" class="bb-calendar-day${selected ? ' active' : ''}${date === today ? ' is-today' : ''}${text.trim() ? ' has-notice' : ''}" data-notice-date="${date}" aria-pressed="${selected}" aria-label="${date}${date === today ? ' 오늘' : ''}${text.trim() ? ' 공지 있음' : ' 공지 없음'}" title="${esc(text)}"><span class="bb-calendar-day-head"><b>${day}</b>${date === today ? '<small>오늘</small>' : ''}${draft ? '<small>작성 중</small>' : ''}</span><span class="bb-calendar-preview">${esc(text)}</span></button>`;
         }).join('');
         document.getElementById('bb-notice-month-label').textContent = `${firstDate.getUTCFullYear()}년 ${firstDate.getUTCMonth() + 1}월`;
-        document.getElementById('bb-notice-date').value = state.selectedNoticeDate;
         document.getElementById('bb-notice-editor-label').textContent = `${state.selectedNoticeDate} 공지`;
         document.getElementById('bb-notice-text').value = noticeFor(state.selectedNoticeDate).text;
         renderNoticeChecks();
@@ -207,9 +206,14 @@
         const today=todayKst();
         tabs.innerHTML = WEEKDAYS.map((day,index) => {
             const date = addDays(state.selectedWeekStart,index);
-            return `<button type="button" class="bb-day-btn${date===state.selectedWeekDate?' active':''}${date===today?' is-today':''}" data-week-date="${date}">${day.label} ${date.slice(5).replace('-','/')}${state.week[date]?' ✓':''}</button>`;
+            return `<button type="button" class="bb-day-btn${date===state.selectedWeekDate?' active':''}${date===today?' is-today':''}" data-week-date="${date}">${day.label} · ${Number(date.slice(8))}일${state.week[date]?' ✓':''}</button>`;
         }).join('');
         document.getElementById('bb-week-label').textContent = `${state.selectedWeekStart} ~ ${addDays(state.selectedWeekStart,4)}`;
+    }
+    function setWeekDirty(dirty) {
+        state.weekDirty = dirty;
+        const mark = document.getElementById('bb-week-dirty');
+        if (mark) mark.hidden = !dirty;
     }
     function renderWeekEditor() {
         const editor = document.getElementById('bb-week-editor');
@@ -221,7 +225,6 @@
         container.innerHTML = `<div class="bb-admin-grid">
             <section class="bb-panel bb-panel--notice">
                 <h3>📅 공지 달력</h3>
-                <div class="bb-toolbar"><input type="date" id="bb-notice-date"><span class="bb-status">날짜를 클릭하면 해당 날짜 공지를 작성할 수 있습니다.</span></div>
                 <div class="bb-toolbar bb-calendar-toolbar"><button type="button" class="bb-btn light" id="bb-notice-prev" aria-label="이전 달">◀ 이전 달</button><strong id="bb-notice-month-label" aria-live="polite"></strong><button type="button" class="bb-btn light" id="bb-notice-next" aria-label="다음 달">다음 달 ▶</button><button type="button" class="bb-btn dark" id="bb-notice-today">오늘</button></div>
                 <div class="bb-notice-calendar" id="bb-notice-date-strip" aria-label="월별 공지 달력"></div>
                 <label id="bb-notice-editor-label" for="bb-notice-text" class="bb-notice-editor-label"></label>
@@ -233,14 +236,15 @@
                 <div class="bb-toolbar bb-toolbar--between"><h3>🗓️ 주간 시간표</h3><button class="bb-btn dark" id="bb-open-settings">⚙️ 교시 시간·기본 시간표 설정</button></div>
                 <div class="bb-toolbar bb-toolbar--gap bb-toolbar--compact"><input type="date" id="bb-week-anchor" value="${state.selectedWeekStart}"><button class="bb-btn light" id="bb-load-week">해당 주 열기</button><button class="bb-btn green" id="bb-copy-base">기본 시간표 불러오기</button><button class="bb-btn dark" id="bb-view-notebook">📖 주간 배움공책 &amp; 메모 모아보기</button><strong id="bb-week-label"></strong></div>
                 <div class="bb-day-tabs" id="bb-week-day-tabs"></div><div class="bb-editor" id="bb-week-editor"></div>
-                <button class="bb-btn primary" id="bb-save-week">💾 이 주 시간표 저장</button>
+                <div class="bb-savebar"><span class="bb-dirty" id="bb-week-dirty" hidden>● 저장 안 한 변경이 있어요</span><button class="bb-btn primary" id="bb-save-week">💾 이 주 시간표 저장</button></div>
             </section>
         </div>`;
-        renderNoticeStrip(); renderWeekTabs(); renderWeekEditor(); bindMainEvents(container);
+        renderNoticeStrip(); renderWeekTabs(); renderWeekEditor(); bindMainEvents(container); setWeekDirty(Boolean(state.weekDirty));
     }
 
     function bindMainEvents(container) {
         // 관리 탭을 다시 열어도 클릭 핸들러가 중복 등록되지 않게 교체합니다.
+        container.oninput = event => { if (event.target.closest('#bb-week-editor')) setWeekDirty(true); };
         container.onclick = async event => {
             const noticeDay = event.target.closest('[data-notice-date]');
             if (noticeDay) { selectNoticeDate(noticeDay.dataset.noticeDate); return; }
@@ -259,19 +263,18 @@
             if (event.target.closest('#bb-copy-base')) {
                 captureWeekDay();
                 WEEKDAYS.forEach((day,index)=>{state.week[addDays(state.selectedWeekStart,index)]=baseForDay(day.key);});
-                renderWeekTabs(); renderWeekEditor();
+                renderWeekTabs(); renderWeekEditor(); setWeekDirty(true);
             }
             if (event.target.closest('#bb-view-notebook')) await openWeeklyNotebook();
             if (event.target.closest('#bb-save-week')) await saveWeek();
         };
-        document.getElementById('bb-notice-date').addEventListener('change',event=>selectNoticeDate(event.target.value || todayKst()));
         document.getElementById('bb-notice-text').addEventListener('input',()=>{captureNoticeDraft();renderNoticeChecks();});
         document.getElementById('bb-notice-home-checks').addEventListener('change',captureNoticeDraft);
     }
     async function loadWeek(weekStart) {
         const snapshot=await db.ref(`blackboard/weeklySchedules/${weekStart}`).once('value');
         state.week=snapshot.val()||{}; state.selectedWeekStart=weekStart; state.selectedWeekDate=weekStart;
-        renderWeekTabs(); renderWeekEditor();
+        renderWeekTabs(); renderWeekEditor(); setWeekDirty(false);
     }
     async function saveNotice() {
         const date = state.selectedNoticeDate;
@@ -327,6 +330,7 @@
     async function saveWeek() {
         captureWeekDay();
         await db.ref(`blackboard/weeklySchedules/${state.selectedWeekStart}`).set(state.week);
+        setWeekDirty(false);
         renderWeekTabs(); alert(`${state.selectedWeekStart} 주간 시간표를 저장했습니다.`);
     }
 
