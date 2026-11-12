@@ -1859,140 +1859,68 @@ window.openLogEditPopup=function(
 
         const h=`
 
+            <style>
+                .att-seg{display:flex;gap:6px;flex-wrap:wrap}
+                .att-seg button{flex:1 1 0;min-width:56px;padding:9px 4px;border:1.5px solid var(--ui-line);border-radius:10px;background:var(--ui-surface);color:var(--ui-text);font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+                .att-seg button:hover{border-color:var(--ui-accent)}
+                .att-seg button.is-on{border-color:var(--ui-accent);background:var(--ui-accent);color:var(--ui-on-accent,#fff)}
+                .att-seg button.is-on[data-value="결석"]{border-color:var(--ui-bad);background:var(--ui-bad)}
+                .att-seg.is-missing button,textarea.is-missing{border-color:var(--ui-bad)}
+                .att-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+                .att-head h3{margin:0}
+                .att-req{margin-left:6px;color:var(--ui-bad);font-size:.8em;font-weight:800}
+                .att-actions{display:flex;gap:8px}
+                .att-actions .btn--primary{flex:1}
+            </style>
+
             <div class="stack" data-checkin-popup-kind="attendance-detail">
 
-                <h3 class="center">
-                    ${checkinEscape(name)} 등교 상세 기록
-                </h3>
+                <div class="att-head">
+                    <h3>${checkinEscape(name)}</h3>
+                    <span class="muted small">${attendanceShortDate(date)} 등교 기록</span>
+                </div>
 
-                <label class="field-label">
-                    🚩 등교 상태
-                </label>
+                <div class="stack stack--sm">
+                    <label class="field-label">🚩 등교 상태</label>
+                    <div class="att-seg" data-seg-for="edit-cat">
+                        ${['정상','지각','결석','조퇴','제외'].map(value=>`<button type="button" data-value="${value}" onclick="pickDetailLogSeg(this)">${value}</button>`).join('')}
+                    </div>
+                    <select id="edit-cat" hidden>
+                        ${['정상','지각','결석','조퇴','제외'].map(value=>`<option value="${value}" ${category===value?'selected':''}>${value}</option>`).join('')}
+                    </select>
+                </div>
 
-                <select
-                    id="edit-cat"
-                    onchange="updateDetailLogForm()"
-                >
+                <div id="edit-sub-wrap" class="stack stack--sm">
+                    <label class="field-label">🔍 사유 구분<span class="att-req">필수</span></label>
+                    <div class="att-seg" data-seg-for="edit-sub">
+                        ${['해당없음','질병','인정','미인정','기타'].map(value=>`<button type="button" data-value="${value}" onclick="pickDetailLogSeg(this)">${value}</button>`).join('')}
+                    </div>
+                    <div class="tiny muted" id="edit-sub-hint" hidden>해당없음 = 단순 지각 (9포인트 차감). 질병·인정 등을 고르면 차감하지 않아요.</div>
+                    <select id="edit-sub" hidden>
+                        ${['해당없음','질병','인정','미인정','기타'].map(value=>`<option value="${value}" ${(log.subCategory||'해당없음')===value?'selected':''}>${value}</option>`).join('')}
+                    </select>
+                </div>
 
-                    <option
-                        value="정상"
-                        ${category==='정상'
-                            ?'selected':''}
-                    >
-                        정상 등교
-                    </option>
-
-                    <option
-                        value="지각"
-                        ${category==='지각'
-                            ?'selected':''}
-                    >
-                        지각
-                    </option>
-
-                    <option
-                        value="결석"
-                        ${category==='결석'
-                            ?'selected':''}
-                    >
-                        결석
-                    </option>
-
-                    <option
-                        value="조퇴"
-                        ${category==='조퇴'
-                            ?'selected':''}
-                    >
-                        조퇴
-                    </option>
-
-                    <option
-                        value="제외"
-                        ${category==='제외'
-                            ?'selected':''}
-                    >
-                        기록 제외
-                    </option>
-
-                </select>
-
-
-                <label class="field-label">
-                    🔍 사유 구분
-                </label>
-
-                <select
-                    id="edit-sub"
-                >
-
-                    <option
-                        value="해당없음"
-                        ${log.subCategory==='해당없음'
-                            ?'selected':''}
-                    >
-                        -
-                    </option>
-
-                    <option
-                        value="질병"
-                        ${log.subCategory==='질병'
-                            ?'selected':''}
-                    >
-                        질병
-                    </option>
-
-                    <option
-                        value="인정"
-                        ${log.subCategory==='인정'
-                            ?'selected':''}
-                    >
-                        인정
-                    </option>
-
-                    <option
-                        value="미인정"
-                        ${log.subCategory==='미인정'
-                            ?'selected':''}
-                    >
-                        미인정
-                    </option>
-
-                    <option
-                        value="기타"
-                        ${log.subCategory==='기타'
-                            ?'selected':''}
-                    >
-                        기타
-                    </option>
-
-                </select>
-
-
-                <div id="edit-from-period-wrap" class="stack" ${category==='지각'||category==='조퇴'?'':'hidden'}>
-
-                    <label class="field-label">
-                        ⏱️ 몇 교시부터
-                    </label>
-
-                    <select
-                        id="edit-from-period"
-                    >
+                <div id="edit-from-period-wrap" class="stack stack--sm">
+                    <label class="field-label">⏱️ 몇 교시부터<span class="att-req">필수</span></label>
+                    <div class="att-seg" data-seg-for="edit-from-period">
+                        ${[1,2,3,4,5,6].map(n=>`<button type="button" data-value="${n}교시" onclick="pickDetailLogSeg(this)">${n}교시</button>`).join('')}
+                    </div>
+                    <select id="edit-from-period" hidden>
                         <option value="" ${!log.fromPeriod?'selected':''}>-</option>
                         ${[1,2,3,4,5,6].map(n=>`<option value="${n}교시" ${log.fromPeriod===`${n}교시`?'selected':''}>${n}교시</option>`).join('')}
                     </select>
-
                 </div>
 
-
-                <label class="field-label">
-                    📝 구체적 사유
-                </label>
-
-                <textarea
-                    id="edit-desc"
-                    rows="3"
-                    placeholder="예: 아침 방과후 농구팀, 독감으로 인한 결석 등"
-                >${checkinEscape(detailReason)}</textarea>
+                <div class="stack stack--sm">
+                    <label class="field-label">📝 구체적 사유<span class="att-req" id="edit-desc-req">필수</span></label>
+                    <textarea
+                        id="edit-desc"
+                        rows="2"
+                        placeholder="예: 아침 방과후 농구팀, 독감으로 인한 결석 등"
+                        oninput="this.classList.remove('is-missing')"
+                    >${checkinEscape(detailReason)}</textarea>
+                </div>
 
 
                 <div id="edit-range-wrap" class="well well--line stack stack--sm" ${category==='결석'?'':'hidden'}>
@@ -2028,6 +1956,8 @@ window.openLogEditPopup=function(
                 </div>
 
 
+                <div class="att-actions">
+                    <button type="button" class="btn" onclick="(window.closeCheckinPopup||window.closePopup)()">취소</button>
                 <button
                     onclick="
                         saveDetailLog(
@@ -2037,10 +1967,11 @@ window.openLogEditPopup=function(
                         )
                     "
                     id="edit-save-btn"
-                    class="btn btn--primary btn--block"
+                    class="btn btn--primary"
                 >
                     상태 및 사유 저장
                 </button>
+                </div>
 
             </div>
         `;
@@ -2052,6 +1983,8 @@ window.openLogEditPopup=function(
                 h
             );
         }
+
+        window.updateDetailLogForm();
 
     })
     .catch(err=>{
@@ -2562,13 +2495,38 @@ function attendanceShortDate(date){
 
 // 등교 상태에 따라 "몇 교시부터"(지각·조퇴)와 "적용 기간"(결석) 칸을 보이거나 숨긴다.
 window.updateDetailLogForm=function(){
-    const category=document.getElementById('edit-cat')?.value;
+    const catEl=document.getElementById('edit-cat');
+    const subEl=document.getElementById('edit-sub');
+    if(!catEl||!subEl)return;
+    const category=catEl.value;
+    const needsDetail=category==='결석'||category==='지각'||category==='조퇴';
+    const needsPeriod=category==='지각'||category==='조퇴';
+    // 정상·제외는 사유 구분이 필요 없다.
+    if(!needsDetail)subEl.value='해당없음';
     const periodWrap=document.getElementById('edit-from-period-wrap');
     const rangeWrap=document.getElementById('edit-range-wrap');
+    const subWrap=document.getElementById('edit-sub-wrap');
+    const subHint=document.getElementById('edit-sub-hint');
+    const descReq=document.getElementById('edit-desc-req');
+    if(periodWrap)periodWrap.hidden=!needsPeriod;
+    if(rangeWrap)rangeWrap.hidden=category!=='결석';
+    if(subWrap)subWrap.hidden=!needsDetail;
+    if(subHint)subHint.hidden=category!=='지각';
+    if(descReq)descReq.hidden=!needsDetail;
+    document.querySelectorAll('.att-seg[data-seg-for]').forEach(group=>{
+        const value=document.getElementById(group.dataset.segFor)?.value;
+        group.querySelectorAll('button').forEach(button=>{
+            if(group.dataset.segFor==='edit-sub'&&button.dataset.value==='해당없음'){
+                // "해당없음"은 단순 지각(-9P)을 뜻하므로 지각일 때만 고를 수 있다.
+                button.hidden=category!=='지각';
+                button.classList.toggle('is-on',category==='지각'&&value==='해당없음');
+                return;
+            }
+            button.classList.toggle('is-on',button.dataset.value===value);
+        });
+    });
     const endEl=document.getElementById('edit-range-end');
     const saveBtn=document.getElementById('edit-save-btn');
-    if(periodWrap)periodWrap.hidden=!(category==='지각'||category==='조퇴');
-    if(rangeWrap)rangeWrap.hidden=category!=='결석';
     if(!endEl||!saveBtn)return;
     const start=endEl.dataset.start;
     if(!endEl.value||endEl.value<start)endEl.value=start;
@@ -2580,6 +2538,16 @@ window.updateDetailLogForm=function(){
             :`→ ${attendanceShortDate(start)} 하루만 저장돼요`;
     }
     saveBtn.textContent=dates.length>1?`${dates.length}일 한꺼번에 저장`:'상태 및 사유 저장';
+};
+
+// 버튼 줄에서 고른 값을 숨겨 둔 select에 넣는다(저장 로직은 select 값을 읽는다).
+window.pickDetailLogSeg=function(button){
+    const group=button.closest('.att-seg');
+    const select=document.getElementById(group?.dataset.segFor||'');
+    if(!select)return;
+    select.value=button.dataset.value;
+    group.classList.remove('is-missing');
+    window.updateDetailLogForm();
 };
 
 // 적용 기간 빠른 버튼: 수업일 기준으로 며칠 더, 또는 그 주 금요일까지.
@@ -2629,16 +2597,17 @@ window.saveDetailLog=async function(
     if(needsDetail){
         if(category!=='지각'&&subCategory==='해당없음'){
             alert('(사유 구분) 항목을 선택해 주세요.');
-            subEl.focus();
+            document.querySelector('.att-seg[data-seg-for="edit-sub"]')?.classList.add('is-missing');
             return;
         }
         if(needsPeriod&&!fromPeriod){
             alert('(몇 교시부터) 항목을 선택해 주세요.');
-            fromPeriodEl?.focus();
+            document.querySelector('.att-seg[data-seg-for="edit-from-period"]')?.classList.add('is-missing');
             return;
         }
         if(!reason){
             alert('(구체적 사유) 항목을 기입해 주세요.');
+            descEl.classList.add('is-missing');
             descEl.focus();
             return;
         }
@@ -2923,6 +2892,35 @@ window.saveExclusionsByDay=function(){
 
 // 출석부 한 칸(하루 한 명)의 내용을 출결상황/사유/시작 교시로 나눠서 돌려준다.
 // 화면 표와 엑셀 내보내기가 같은 로직을 쓰도록 공통으로 뺐다.
+// 월간 출석부 표 모양. 화면 팝업과 인쇄용 문서가 같이 쓴다.
+const ATTENDANCE_BOOK_CSS=`
+    .ab-stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+    .ab-stat{padding:6px 12px;border-radius:9px;font-size:12.5px;font-weight:700;background:#f2f6f8;color:#42566a}
+    .ab-stat b{font-size:15px;margin-left:5px}
+    .ab-stat.is-bad{background:#fdeceb;color:#c0433a}.ab-stat.is-warn{background:#fdf1dc;color:#b5750d}.ab-stat.is-info{background:#e8f0fa;color:#2f6db5}.ab-stat.is-good{background:#e5f4ec;color:#2c8a5b}
+    table.ab-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+    .ab-table th{padding:6px 2px;text-align:center;font-weight:700;border-bottom:1px solid #d8e2e8;background:#fafcfd;min-width:30px}
+    .ab-table th b{display:block;font-size:13px}
+    .ab-table th span{display:block;font-size:10.5px;font-weight:600;color:#6a7c88}
+    .ab-table th.ab-today b{color:#fff;background:#1f7a8c;border-radius:999px;width:22px;margin:auto}
+    .ab-table td{height:40px;padding:0;text-align:center;border-bottom:1px solid #edf2f5}
+    .ab-table tbody tr:nth-child(even) td{background:#fbfcfd}
+    .ab-table .ab-wk{border-left:2px solid #d8e2e8}
+    .ab-table .ab-name{text-align:left;padding:0 10px;font-weight:800;white-space:nowrap}
+    .ab-table .ab-no{display:inline-block;min-width:20px;color:#93a3ad;font-weight:600;font-size:11.5px}
+    .ab-table .ab-ok{color:#b9c7d0;font-size:15px}
+    .ab-table td.ab-cell{padding:3px 2px}
+    .ab-pill{display:flex;flex-direction:column;justify-content:center;min-height:32px;padding:3px 6px;border-radius:8px;line-height:1.25;border:0}
+    .ab-pill b{font-size:12px;white-space:nowrap}
+    .ab-pill span{font-size:10px;opacity:.9;white-space:nowrap}
+    .ab-pill.ab-band{text-align:left;padding-left:9px;border-left:4px solid currentColor}
+    .ab-pill.is-bad{background:#fdeceb;color:#c0433a}.ab-pill.is-warn{background:#fdf1dc;color:#b5750d}.ab-pill.is-info{background:#e8f0fa;color:#2f6db5}
+    .ab-table .ab-sum{font-weight:800;min-width:30px}
+    .ab-table td.ab-sum.is-zero{color:#b9c7d0;font-weight:500}
+    .ab-table td.ab-sum.is-bad{color:#c0433a}.ab-table td.ab-sum.is-warn{color:#b5750d}.ab-table td.ab-sum.is-info{color:#2f6db5}
+    .ab-table tbody td.ab-sum{background:#fafcfd;border-color:#edf2f5}
+`;
+
 function attendanceCellParts(record){
     let mark='',stateClass='',reasonText='',periodText='';
     if(record){
@@ -3121,6 +3119,7 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
                     max-width:95%;
                     width:1200px;
                 }
+                ${ATTENDANCE_BOOK_CSS}
 
             </style>
 
@@ -3166,8 +3165,8 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
     <div>
         📌 범례:
 
-                        <b class="badge badge--good">
-                            O
+                        <b class="badge">
+                            ·
                         </b>
                         정상 /
 
@@ -3205,49 +3204,66 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
                 </div>
 
 
-               <div class="table-wrap">
-
-    <table class="table">
-
-                        <thead>
-
-                            <tr>
-
-                                <th class="center">
-                                    이름
-                                </th>
         `;
 
+        // 정상 출석은 옅은 점으로만 찍어 결석·지각·조퇴만 눈에 띄게 한다.
+        const dayOfWeek=d=>new Date(year,month,d).getDay();
+        const todayKey=checkinGetToday();
+        const dateKey=d=>`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        // 한 주가 새로 시작되는 날(월요일, 또는 앞 평일과 날짜가 떨어진 날)에 구분선을 긋는다.
+        const startsWeek=index=>index>0&&(dayOfWeek(weekdays[index])===1||weekdays[index]-weekdays[index-1]>1);
+        const MARK_LABELS={'결':'결석','지':'지각','조':'조퇴'};
+        const toneOf=mark=>mark==='결'?'is-bad':mark==='조'?'is-info':'is-warn';
 
-        weekdays.forEach(d=>{
-
-            tableHtml+=`
-                <th class="center">
-                    ${d}
-                </th>
-            `;
+        const totals={'결':0,'지':0,'조':0};
+        const userTotals={};
+        users.forEach(u=>{
+            const mine={'결':0,'지':0,'조':0};
+            weekdays.forEach(d=>{
+                const mark=attendanceCellParts(attendanceData[u][d]).mark;
+                if(mark in mine){mine[mark]+=1;totals[mark]+=1;}
+            });
+            userTotals[u]=mine;
         });
-
+        const cleanCount=users.filter(u=>!userTotals[u]['결']&&!userTotals[u]['지']&&!userTotals[u]['조']).length;
 
         tableHtml+=`
+                <div class="ab-stats">
+                    <span class="ab-stat is-bad">결석<b>${totals['결']}</b></span>
+                    <span class="ab-stat is-warn">지각<b>${totals['지']}</b></span>
+                    <span class="ab-stat is-info">조퇴<b>${totals['조']}</b></span>
+                    <span class="ab-stat is-good">결석·지각·조퇴 없음<b>${cleanCount}명</b></span>
+                </div>
+
+               <div class="table-wrap">
+    <table class="ab-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;padding-left:10px">이름</th>
+        `;
+
+        weekdays.forEach((d,index)=>{
+            tableHtml+=`<th class="${startsWeek(index)?'ab-wk':''} ${dateKey(d)===todayKey?'ab-today':''}"><b>${d}</b><span>${'일월화수목금토'[dayOfWeek(d)]}</span></th>`;
+        });
+
+        tableHtml+=`
+                                <th class="ab-wk">결</th>
+                                <th>지</th>
+                                <th>조</th>
                         </tr>
-
                         </thead>
-
                         <tbody>
         `;
 
+        users.forEach((u,userIndex)=>{
 
-        users.forEach(u=>{
+            const profile=typeof currentUsers!=='undefined'?currentUsers.find(x=>x.name===u):null;
+            const no=parseInt(profile&&profile.no)||userIndex+1;
 
             tableHtml+=`
                 <tr>
-
-                    <td class="center strong">
-                        ${u}
-                    </td>
+                    <td class="ab-name"><span class="ab-no">${no}</span>${checkinEscape(u)}</td>
             `;
-
 
             // 같은 출결·같은 사유(·같은 시작 교시)가 이어지는 날은 한 칸으로 묶는다.
             // 출석부에는 평일만 나오므로 금요일과 다음 월요일도 이어진 것으로 본다.
@@ -3259,24 +3275,30 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
                 if(parts.mark&&parts.mark!=='O'){
                     while(index+span<weekdays.length&&sameAs(attendanceCellParts(attendanceData[u][weekdays[index+span]])))span+=1;
                 }
+                const weekClass=startsWeek(index)?'ab-wk':'';
+                const label=MARK_LABELS[parts.mark]||parts.mark;
+                const detail=[parts.periodText,parts.reasonText].filter(Boolean).map(checkinEscape).join(' · ');
 
-                if(span>1){
-                    const first=weekdays[index];
-                    const last=weekdays[index+span-1];
+                if(!parts.mark){
+                    tableHtml+=`<td class="${weekClass}"></td>`;
+                }else if(parts.mark==='O'){
+                    tableHtml+=`<td class="ab-ok ${weekClass}">·</td>`;
+                }else if(span>1){
                     tableHtml+=`
-                        <td class="center ${parts.stateClass}" colspan="${span}">
-                            ${parts.mark}${parts.reasonText?` · ${checkinEscape(parts.reasonText)}`:''}${parts.periodText?` · ${checkinEscape(parts.periodText)}`:''}
-                            <div class="tiny">${month+1}/${first} ~ ${month+1}/${last} · ${span}일</div>
+                        <td class="ab-cell ${weekClass}" colspan="${span}">
+                            <div class="ab-pill ab-band ${toneOf(parts.mark)}">
+                                <b>${label}${detail?` · ${detail}`:''}</b>
+                                <span>${month+1}/${weekdays[index]} ~ ${month+1}/${weekdays[index+span-1]} · ${span}일</span>
+                            </div>
                         </td>
                     `;
                 }else{
-                    let remark='';
-                    if(parts.reasonText)remark+=`<div class="tiny muted">(${checkinEscape(parts.reasonText)})</div>`;
-                    if(parts.periodText)remark+=`<div class="tiny muted">${checkinEscape(parts.periodText)}</div>`;
                     tableHtml+=`
-                        <td class="center ${parts.stateClass}">
-                            ${parts.mark}
-                            ${remark}
+                        <td class="ab-cell ${weekClass}">
+                            <div class="ab-pill ${toneOf(parts.mark)}">
+                                <b>${label}</b>
+                                ${detail?`<span>${detail}</span>`:''}
+                            </div>
                         </td>
                     `;
                 }
@@ -3284,23 +3306,21 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
                 index+=span;
             }
 
+            const mine=userTotals[u];
+            const sumCell=(mark,extra='')=>`<td class="ab-sum ${extra} ${mine[mark]?toneOf(mark):'is-zero'}">${mine[mark]||'–'}</td>`;
 
             tableHtml+=`
+                    ${sumCell('결','ab-wk')}${sumCell('지')}${sumCell('조')}
                 </tr>
             `;
         });
 
-
         tableHtml+=`
                         </tbody>
-
                     </table>
-
                 </div>
-
             </div>
         `;
-
 
         // 엑셀 내보내기가 화면과 같은 데이터를 쓰도록 저장해 둔다.
         window.__monthlyAttendanceState={year,month,weekdays,users,attendanceData};
@@ -3358,6 +3378,9 @@ window.printAttendanceBook=function(){
             .is-good{color:#187a40;font-weight:900}
             .is-bad{color:#b4392d;font-weight:900}
             .is-warn{color:#a05e00;font-weight:900}
+            ${ATTENDANCE_BOOK_CSS}
+            table.ab-table th,table.ab-table td{border:0;border-bottom:1px solid #d8e2e8}
+            *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
         </style>
     </head><body>
         <h2>${data.title}</h2>
