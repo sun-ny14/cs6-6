@@ -1832,6 +1832,14 @@ window.openLogEditPopup=function(
                 :'정상'
             );
 
+        // 사유를 따로 적지 않은 기록은 불러올 때 출결 상태("정상 등교" 등)가 사유 자리에
+        // 채워져 온다. 그건 사유가 아니므로 입력칸에는 빈 칸으로 보여 준다.
+        const detailReason=
+            ['정상 등교','지각 등교','등교','정상','지각','결석','조퇴','제외','출결 기록',log.result,log.category]
+                .includes(String(log.reason||'').trim())
+                ?''
+                :String(log.reason||'');
+
         const safeName=
             String(name)
             .replace(/\\/g,'\\\\')
@@ -1863,6 +1871,7 @@ window.openLogEditPopup=function(
 
                 <select
                     id="edit-cat"
+                    onchange="updateDetailLogForm()"
                 >
 
                     <option
@@ -1959,16 +1968,20 @@ window.openLogEditPopup=function(
                 </select>
 
 
-                <label class="field-label">
-                    ⏱️ 몇 교시부터 (지각·조퇴만 해당)
-                </label>
+                <div id="edit-from-period-wrap" class="stack" ${category==='지각'||category==='조퇴'?'':'hidden'}>
 
-                <select
-                    id="edit-from-period"
-                >
-                    <option value="" ${!log.fromPeriod?'selected':''}>-</option>
-                    ${[1,2,3,4,5,6].map(n=>`<option value="${n}교시" ${log.fromPeriod===`${n}교시`?'selected':''}>${n}교시</option>`).join('')}
-                </select>
+                    <label class="field-label">
+                        ⏱️ 몇 교시부터
+                    </label>
+
+                    <select
+                        id="edit-from-period"
+                    >
+                        <option value="" ${!log.fromPeriod?'selected':''}>-</option>
+                        ${[1,2,3,4,5,6].map(n=>`<option value="${n}교시" ${log.fromPeriod===`${n}교시`?'selected':''}>${n}교시</option>`).join('')}
+                    </select>
+
+                </div>
 
 
                 <label class="field-label">
@@ -1979,7 +1992,40 @@ window.openLogEditPopup=function(
                     id="edit-desc"
                     rows="3"
                     placeholder="예: 아침 방과후 농구팀, 독감으로 인한 결석 등"
-                >${checkinEscape(log.reason||'')}</textarea>
+                >${checkinEscape(detailReason)}</textarea>
+
+
+                <div id="edit-range-wrap" class="well well--line stack stack--sm" ${category==='결석'?'':'hidden'}>
+
+                    <label class="field-label">
+                        📅 적용 기간 (같은 사유로 여러 날 결석할 때)
+                    </label>
+
+                    <div class="row">
+                        <input type="date" value="${checkinEscape(date)}" disabled>
+                        <b>~</b>
+                        <input
+                            type="date"
+                            id="edit-range-end"
+                            data-start="${checkinEscape(date)}"
+                            min="${checkinEscape(date)}"
+                            value="${checkinEscape(date)}"
+                            onchange="updateDetailLogForm()"
+                        >
+                    </div>
+
+                    <div class="row">
+                        <button type="button" class="btn btn--xs" onclick="setDetailLogRange(0)">하루만</button>
+                        <button type="button" class="btn btn--xs" onclick="setDetailLogRange(1)">+1일</button>
+                        <button type="button" class="btn btn--xs" onclick="setDetailLogRange(2)">+2일</button>
+                        <button type="button" class="btn btn--xs" onclick="setDetailLogRange('friday')">그 주 금요일까지</button>
+                    </div>
+
+                    <div class="tiny" id="edit-range-summary">→ ${attendanceShortDate(date)} 하루만 저장돼요</div>
+
+                    <div class="tiny muted">주말은 자동으로 빼요. 공휴일은 빼지 못하니 끼어 있으면 그날 기록만 따로 고쳐 주세요.</div>
+
+                </div>
 
 
                 <button
@@ -1990,6 +2036,7 @@ window.openLogEditPopup=function(
                             '${safeKey}'
                         )
                     "
+                    id="edit-save-btn"
                     class="btn btn--primary btn--block"
                 >
                     상태 및 사유 저장
@@ -2025,57 +2072,12 @@ window.openLogEditPopup=function(
 // 6. 상세 출결 저장
 // ====================================================
 
-window.saveDetailLog=async function(
-    name,
-    date,
-    key
-){
+// 한 학생의 하루치 출결을 저장한다(포인트 차액·결석신고서 목록까지 함께).
+// shared: 과거 보관 자료(checkins/checkinLogs) 조회 결과를 여러 날 저장에서 같이 쓴다.
+// primary: 팝업을 연 날짜인지. 전자칠판 좌석판은 그 날짜로만 갱신한다.
+async function saveDetailLogCore(name,date,fields,shared,primary){
 
-    const catEl=
-        document.getElementById(
-            'edit-cat'
-        );
-
-    const subEl=
-        document.getElementById(
-            'edit-sub'
-        );
-
-    const descEl=
-        document.getElementById(
-            'edit-desc'
-        );
-
-    const fromPeriodEl=
-        document.getElementById(
-            'edit-from-period'
-        );
-
-
-    if(
-        !catEl||
-        !subEl||
-        !descEl
-    ){
-        return;
-    }
-
-
-    const category=
-        catEl.value;
-
-    const subCategory=
-        subEl.value;
-
-    const reason=
-        descEl.value.trim();
-
-    // 지각은 교시부터, 조퇴는 모든 사유에서 교시부터를 기록한다.
-    const fromPeriod=
-        (category==='지각'||category==='조퇴')
-            ?String(fromPeriodEl?.value||'')
-            :'';
-
+    const {category,subCategory,reason,fromPeriod}=fields;
 
     const result=
         category==='정상'||
@@ -2083,8 +2085,6 @@ window.saveDetailLog=async function(
             ?category+' 등교'
             :category;
 
-
-    try{
 
         // ======================================
         // 기존 출결 + 기존 로그 + 학생 조회
@@ -2098,13 +2098,9 @@ window.saveDetailLog=async function(
             studentSubmissionsSnap
         ]=await Promise.all([
 
-            db.ref(
-                'checkins'
-            ).once('value'),
+            shared.checkins,
 
-            db.ref(
-                'checkinLogs'
-            ).once('value'),
+            shared.logs,
 
             db.ref(
                 `users/${name}`
@@ -2367,7 +2363,7 @@ window.saveDetailLog=async function(
 
         // 한 번 등교한 학생은 상세 화면에서 명시적으로 결석 처리하기 전까지
         // 공개 좌석판에서도 계속 등교 완료로 유지한다.
-        updates[`blackboardDisplay/data/checkins/${checkinBoardKey(name)}`]={
+        if(primary)updates[`blackboardDisplay/data/checkins/${checkinBoardKey(name)}`]={
             name:name,
             date:date,
             attended:category!=='결석',
@@ -2542,54 +2538,161 @@ window.saveDetailLog=async function(
 }
 
 
-        // ======================================
-        // 완료 메시지
-        // ======================================
+        return {pointDelta};
+};
 
-        if(category==='지각'){
+// 팝업을 연 날짜부터 종료일까지의 평일(주말 제외) 날짜 목록.
+function attendanceRangeDates(startDate,endDate){
+    const dates=[];
+    const cursor=new Date(`${startDate}T00:00:00Z`);
+    const last=new Date(`${endDate||startDate}T00:00:00Z`);
+    while(cursor<=last&&dates.length<31){
+        const day=cursor.getUTCDay();
+        if(day!==0&&day!==6)dates.push(cursor.toISOString().slice(0,10));
+        cursor.setUTCDate(cursor.getUTCDate()+1);
+    }
+    if(!dates.includes(startDate))dates.unshift(startDate);
+    return dates;
+}
 
+function attendanceShortDate(date){
+    const day='일월화수목금토'[new Date(`${date}T00:00:00Z`).getUTCDay()];
+    return `${Number(date.slice(5,7))}/${Number(date.slice(8,10))}(${day})`;
+}
+
+// 등교 상태에 따라 "몇 교시부터"(지각·조퇴)와 "적용 기간"(결석) 칸을 보이거나 숨긴다.
+window.updateDetailLogForm=function(){
+    const category=document.getElementById('edit-cat')?.value;
+    const periodWrap=document.getElementById('edit-from-period-wrap');
+    const rangeWrap=document.getElementById('edit-range-wrap');
+    const endEl=document.getElementById('edit-range-end');
+    const saveBtn=document.getElementById('edit-save-btn');
+    if(periodWrap)periodWrap.hidden=!(category==='지각'||category==='조퇴');
+    if(rangeWrap)rangeWrap.hidden=category!=='결석';
+    if(!endEl||!saveBtn)return;
+    const start=endEl.dataset.start;
+    if(!endEl.value||endEl.value<start)endEl.value=start;
+    const dates=category==='결석'?attendanceRangeDates(start,endEl.value):[start];
+    const summary=document.getElementById('edit-range-summary');
+    if(summary){
+        summary.textContent=dates.length>1
+            ?`→ ${attendanceShortDate(dates[0])} ~ ${attendanceShortDate(dates[dates.length-1])} · ${dates.length}일에 같은 내용으로 저장돼요`
+            :`→ ${attendanceShortDate(start)} 하루만 저장돼요`;
+    }
+    saveBtn.textContent=dates.length>1?`${dates.length}일 한꺼번에 저장`:'상태 및 사유 저장';
+};
+
+// 적용 기간 빠른 버튼: 수업일 기준으로 며칠 더, 또는 그 주 금요일까지.
+window.setDetailLogRange=function(mode){
+    const endEl=document.getElementById('edit-range-end');
+    if(!endEl)return;
+    const start=endEl.dataset.start;
+    const cursor=new Date(`${start}T00:00:00Z`);
+    if(mode==='friday'){
+        while(cursor.getUTCDay()!==5&&cursor.getUTCDay()!==6&&cursor.getUTCDay()!==0)cursor.setUTCDate(cursor.getUTCDate()+1);
+        if(cursor.getUTCDay()!==5)cursor.setTime(new Date(`${start}T00:00:00Z`).getTime());
+    }else{
+        let left=Number(mode)||0;
+        while(left>0){
+            cursor.setUTCDate(cursor.getUTCDate()+1);
+            if(cursor.getUTCDay()!==0&&cursor.getUTCDay()!==6)left-=1;
+        }
+    }
+    endEl.value=cursor.toISOString().slice(0,10);
+    window.updateDetailLogForm();
+};
+
+window.saveDetailLog=async function(
+    name,
+    date,
+    key
+){
+
+    const catEl=document.getElementById('edit-cat');
+    const subEl=document.getElementById('edit-sub');
+    const descEl=document.getElementById('edit-desc');
+    const fromPeriodEl=document.getElementById('edit-from-period');
+    const endEl=document.getElementById('edit-range-end');
+    const saveBtn=document.getElementById('edit-save-btn');
+
+    if(!catEl||!subEl||!descEl)return;
+
+    const category=catEl.value;
+    const subCategory=subEl.value;
+    const reason=descEl.value.trim();
+    const needsDetail=category==='결석'||category==='지각'||category==='조퇴';
+    const needsPeriod=category==='지각'||category==='조퇴';
+    const fromPeriod=needsPeriod?String(fromPeriodEl?.value||''):'';
+
+    // 빠뜨린 항목이 있으면 저장하지 않고 위에서부터 첫 항목을 알려 준다.
+    // 지각의 사유 구분 "-"는 "단순 지각(-9P 차감)"이라는 뜻이 있는 선택이라 그대로 허용한다.
+    if(needsDetail){
+        if(category!=='지각'&&subCategory==='해당없음'){
+            alert('(사유 구분) 항목을 선택해 주세요.');
+            subEl.focus();
+            return;
+        }
+        if(needsPeriod&&!fromPeriod){
+            alert('(몇 교시부터) 항목을 선택해 주세요.');
+            fromPeriodEl?.focus();
+            return;
+        }
+        if(!reason){
+            alert('(구체적 사유) 항목을 기입해 주세요.');
+            descEl.focus();
+            return;
+        }
+    }
+
+    const dates=category==='결석'&&endEl?attendanceRangeDates(date,endEl.value):[date];
+    const fields={category,subCategory,reason,fromPeriod};
+
+    if(saveBtn)saveBtn.disabled=true;
+
+    try{
+        const extraDates=dates.slice(1);
+        if(extraDates.length){
+            // 이미 다른 기록이 있는 날은 덮어쓰기 전에 한 번 확인받는다.
+            const snaps=await Promise.all(extraDates.map(d=>db.ref(`attendanceRecords/${d}/${name}`).once('value')));
+            const taken=extraDates.filter((d,index)=>snaps[index].exists());
+            if(taken.length&&!confirm(`${taken.map(attendanceShortDate).join(', ')}에는 이미 출결 기록이 있습니다.\n결석으로 덮어쓸까요?`))return;
+        }
+
+        const shared={
+            checkins:db.ref('checkins').once('value'),
+            logs:db.ref('checkinLogs').once('value')
+        };
+        let pointDelta=0;
+        // 포인트 잔액을 날마다 새로 읽어야 하므로 하루씩 차례로 저장한다.
+        for(let index=0;index<dates.length;index+=1){
+            const saved=await saveDetailLogCore(name,dates[index],fields,shared,index===0);
+            pointDelta+=saved.pointDelta;
+        }
+
+        if(dates.length>1){
+            alert(
+                `✅ ${attendanceShortDate(dates[0])} ~ ${attendanceShortDate(dates[dates.length-1])} · ${dates.length}일을 결석으로 저장했습니다.`+
+                (pointDelta>0?`\n기존 지각 차감 ${pointDelta}포인트가 복구되었습니다.`:'')
+            );
+        }else if(category==='지각'){
             // 질병/인정/미인정/기타처럼 "-"(해당없음)가 아닌 사유는 이미 공식
             // 처리되는 사유라 포인트를 차감하지 않는다 — 그 사실을 그대로 알린다.
             if(subCategory!=='해당없음'){
-
                 alert(
                     pointDelta>0
-                        ?`✅ 지각 처리 완료\n`+
-                            `${subCategory} 사유로 기존 지각 차감 ${pointDelta}포인트가 복구되었습니다.`
-                        :`✅ 지각 처리 완료\n`+
-                            `${subCategory} 사유로 포인트 차감 없이 처리되었습니다.`
+                        ?`✅ 지각 처리 완료\n${subCategory} 사유로 기존 지각 차감 ${pointDelta}포인트가 복구되었습니다.`
+                        :`✅ 지각 처리 완료\n${subCategory} 사유로 포인트 차감 없이 처리되었습니다.`
                 );
-
             }else if(pointDelta<0){
-
-                alert(
-                    `⚠️ 지각 처리 완료\n`+
-                    `${Math.abs(pointDelta)}포인트가 추가 차감되었습니다.\n`+
-                    `최종 지각 차감: 9포인트`
-                );
-
+                alert(`⚠️ 지각 처리 완료\n${Math.abs(pointDelta)}포인트가 추가 차감되었습니다.\n최종 지각 차감: 9포인트`);
             }else{
-
-                alert(
-                    `⚠️ 지각 처리 완료\n`+
-                    `이미 9포인트가 차감된 상태입니다.`
-                );
+                alert('⚠️ 지각 처리 완료\n이미 9포인트가 차감된 상태입니다.');
             }
-
         }else if(pointDelta>0){
-
-            alert(
-                `✅ 출결 수정 완료\n`+
-                `기존 지각 차감 ${pointDelta}포인트가 복구되었습니다.`
-            );
-
+            alert(`✅ 출결 수정 완료\n기존 지각 차감 ${pointDelta}포인트가 복구되었습니다.`);
         }else{
-
-            alert(
-                '✅ 변동 사유가 반영되었습니다.'
-            );
+            alert('✅ 변동 사유가 반영되었습니다.');
         }
-
 
         if(typeof window.closeCheckinPopup==='function'){
             window.closeCheckinPopup(true);
@@ -2597,27 +2700,17 @@ window.saveDetailLog=async function(
             closePopup();
         }
 
-
-        if(
-            typeof window.refreshCheckinManagement==='function'
-        ){
+        if(typeof window.refreshCheckinManagement==='function'){
             await window.refreshCheckinManagement();
         }else{
             checkinRefreshSeatMap();
         }
 
-
     }catch(err){
-
-        console.error(
-            '상세 출결 저장 오류:',
-            err
-        );
-
-
-        alert(
-            '출결 수정 중 오류가 발생했습니다.'
-        );
+        console.error('상세 출결 저장 오류:',err);
+        alert('출결 수정 중 오류가 발생했습니다.');
+    }finally{
+        if(saveBtn?.isConnected)saveBtn.disabled=false;
     }
 };
 
@@ -3156,26 +3249,40 @@ window.openMonthlyCalendar=function(targetYear,targetMonth){
             `;
 
 
-            weekdays.forEach(d=>{
+            // 같은 출결·같은 사유(·같은 시작 교시)가 이어지는 날은 한 칸으로 묶는다.
+            // 출석부에는 평일만 나오므로 금요일과 다음 월요일도 이어진 것으로 본다.
+            for(let index=0;index<weekdays.length;){
 
-                const record=
-                    attendanceData[u][d];
+                const parts=attendanceCellParts(attendanceData[u][weekdays[index]]);
+                const sameAs=other=>other.mark===parts.mark&&other.reasonText===parts.reasonText&&other.periodText===parts.periodText;
+                let span=1;
+                if(parts.mark&&parts.mark!=='O'){
+                    while(index+span<weekdays.length&&sameAs(attendanceCellParts(attendanceData[u][weekdays[index+span]])))span+=1;
+                }
 
-                const parts=attendanceCellParts(record);
-                const mark=parts.mark;
-                const stateClass=parts.stateClass;
-                let remark='';
-                if(parts.reasonText)remark+=`<div class="tiny muted">(${parts.reasonText})</div>`;
-                if(parts.periodText)remark+=`<div class="tiny muted">${parts.periodText}</div>`;
+                if(span>1){
+                    const first=weekdays[index];
+                    const last=weekdays[index+span-1];
+                    tableHtml+=`
+                        <td class="center ${parts.stateClass}" colspan="${span}">
+                            ${parts.mark}${parts.reasonText?` · ${checkinEscape(parts.reasonText)}`:''}${parts.periodText?` · ${checkinEscape(parts.periodText)}`:''}
+                            <div class="tiny">${month+1}/${first} ~ ${month+1}/${last} · ${span}일</div>
+                        </td>
+                    `;
+                }else{
+                    let remark='';
+                    if(parts.reasonText)remark+=`<div class="tiny muted">(${checkinEscape(parts.reasonText)})</div>`;
+                    if(parts.periodText)remark+=`<div class="tiny muted">${checkinEscape(parts.periodText)}</div>`;
+                    tableHtml+=`
+                        <td class="center ${parts.stateClass}">
+                            ${parts.mark}
+                            ${remark}
+                        </td>
+                    `;
+                }
 
-
-                tableHtml+=`
-                    <td class="center ${stateClass}">
-                        ${mark}
-                        ${remark}
-                    </td>
-                `;
-            });
+                index+=span;
+            }
 
 
             tableHtml+=`
