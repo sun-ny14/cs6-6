@@ -155,6 +155,10 @@
 
     function getMode(nowMinutes, schedule) {
         const timeline = getTimeline(schedule);
+        // 하교는 하루의 마지막 화면이다. 하교 시작 시간이 지나면 끝나는 시간과 상관없이
+        // 그날은 계속 하교 화면에 머문다(쉬는 시간 등 다른 화면으로 넘어가지 않는다).
+        const dismissal = timeline.find(item => item.name === '하교');
+        if (dismissal && nowMinutes >= dismissal.start) return { type:'period', active:dismissal, timeline };
         const active = timeline.find(item => nowMinutes >= item.start && nowMinutes < item.end);
         if (active) return { type:'period', active, timeline };
         const next = timeline.find(item => item.start > nowMinutes);

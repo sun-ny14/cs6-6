@@ -83,7 +83,7 @@
     }
 
     // 교시 하나를 한 줄로: 교시 이름 · 과목 · 이동수업 · 화면 안내 문구.
-    // 아침·점심·청소·하교는 과목이 없으므로(이미 적어 둔 과목이 있을 때만 빼고) 과목칸을 숨긴다.
+    // 아침·점심·청소·하교는 과목이 없으므로 과목칸을 두지 않는다.
     function periodEditorHtml(schedule) {
         return PERIODS.map(name => {
             const item = schedule[name] || DEFAULTS[name];
@@ -91,7 +91,7 @@
             const subject = item.subject && item.subject !== name ? item.subject : '';
             return `<section class="bb-period-row">
                 <strong>${name}</strong>
-                ${isClass || subject ? `<input type="text" class="bb-subject" data-period="${name}" value="${esc(subject)}" placeholder="과목명">` : ''}
+                ${isClass ? `<input type="text" class="bb-subject" data-period="${name}" value="${esc(subject)}" placeholder="과목명">` : ''}
                 ${isClass ? `<label class="bb-move" title="이동수업이면 눌러서 켜세요"><input type="checkbox" class="bb-moving" data-period="${name}" ${item.isMovingClass?'checked':''}><span>🚶 이동</span></label>` : ''}
                 <textarea class="bb-action" data-period="${name}" rows="1" placeholder="화면 안내 문구${isClass?' (선택)':''}">${esc(item.action || '')}</textarea>
             </section>`;
