@@ -546,7 +546,11 @@
         const statusRef=checker
             ?db.ref(`${STATUS_ROOT}/${today}`)
             :db.ref(`${STATUS_ROOT}/${today}/${getLoginName()}`);
-        Promise.all([
+        // 교사 화면이면 미리 저장해 둔 오늘 결석(연속 결석 등)을 좌석판에 먼저 올린 뒤 읽는다.
+        const boardReady=typeof window.syncTodayAttendanceBoard==='function'
+            ?window.syncTodayAttendanceBoard()
+            :Promise.resolve();
+        boardReady.then(()=>Promise.all([
             readCleaningSettings(),
             statusRef.once('value'),
             db.ref('seatLayoutData').once('value'),
@@ -554,7 +558,7 @@
             // attendanceRecords는 교사만 읽을 수 있어서, 누구나 읽을 수 있는
             // 공개 좌석판 미러(blackboardDisplay)를 대신 사용한다.
             db.ref('blackboardDisplay/data/checkins').once('value')
-        ]).then(([settings, statusSnapshot, seatSnapshot, checkinsSnapshot]) => {
+        ])).then(([settings, statusSnapshot, seatSnapshot, checkinsSnapshot]) => {
             const roles = settings.studentRoles || {};
             const cleaningAssignments = settings.cleaningAssignments || {};
             const statuses = checker

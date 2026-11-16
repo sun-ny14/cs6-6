@@ -283,6 +283,8 @@ auth.onAuthStateChanged(async user=>{
 
         window.myName=studentName;
         window.isAdmin=admin;
+        // 미리 저장해 둔 오늘 출결(연속 결석 등)을 공개 좌석판에 올린다(js/checkin-seat.js).
+        if(admin&&typeof window.syncTodayAttendanceBoard==='function')window.syncTodayAttendanceBoard();
         // class-goal.js의 홈 카드는 여기서 isAdmin이 정해지기 전에 먼저
         // 그려졌을 수 있으니, 정해진 뒤 다시 그리게 한다.
         if(typeof window.refreshClassGoalHomeCard==='function')window.refreshClassGoalHomeCard();

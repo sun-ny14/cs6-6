@@ -164,6 +164,44 @@ async function checkinLoadAdminRecords(date){
 
 window.checkinLoadAdminRecords=checkinLoadAdminRecords;
 
+// 공개 좌석판(blackboardDisplay/data/checkins)은 학생마다 한 칸뿐이라, 미리 저장해 둔
+// 출결(연속 결석의 둘째 날부터)은 그날이 돼도 좌석판에 올라가지 않는다. 그러면 청소·
+// 전자칠판에서 결석한 학생이 등교한 것처럼 보인다. 교사가 접속하면 오늘 출결 기록 중
+// 좌석판에 아직 오늘 날짜로 안 올라간 것만 맞춰 올린다(오늘 이미 올라간 칸은 건드리지 않는다).
+let checkinBoardSyncing=null;
+window.syncTodayAttendanceBoard=function(){
+    if(window.isAdmin!==true)return Promise.resolve();
+    if(checkinBoardSyncing)return checkinBoardSyncing;
+    checkinBoardSyncing=(async()=>{
+        const today=checkinGetToday();
+        const [recordsSnap,boardSnap]=await Promise.all([
+            db.ref(`attendanceRecords/${today}`).once('value'),
+            db.ref('blackboardDisplay/data/checkins').once('value')
+        ]);
+        const board=boardSnap.val()||{};
+        const updates={};
+        recordsSnap.forEach(child=>{
+            const log=checkinNormalizeLog(child.val(),child.key,'teacherFinal');
+            if(!log.name||log.date!==today)return;
+            const key=checkinBoardKey(log.name);
+            if(board[key]&&board[key].date===today)return;
+            const category=log.category||['결석','지각','조퇴','제외'].find(word=>String(log.result||'').includes(word))||'정상';
+            updates[`blackboardDisplay/data/checkins/${key}`]={
+                name:log.name,
+                date:today,
+                attended:category!=='결석',
+                category:category,
+                result:log.result,
+                fromPeriod:String(log.fromPeriod||'')
+            };
+        });
+        if(Object.keys(updates).length)await db.ref().update(updates);
+    })().catch(error=>{
+        console.error('오늘 출결 좌석판 맞추기 오류:',error);
+    }).finally(()=>{checkinBoardSyncing=null;});
+    return checkinBoardSyncing;
+};
+
 
 /* =========================================================
    좌석 및 출결 새로고침
@@ -174,6 +212,8 @@ window.refreshCheckinManagement=async function(){
         checkinRefreshSeatMap();
         return;
     }
+
+    window.syncTodayAttendanceBoard();
 
     const dateInput=
         document.getElementById('checkin-date-filter');
