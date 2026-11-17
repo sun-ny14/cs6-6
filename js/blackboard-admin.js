@@ -83,7 +83,7 @@
     }
 
     // 교시 하나를 한 줄로: 교시 이름 · 과목 · 이동수업 · 화면 안내 문구.
-    // 아침·점심·청소·하교는 과목이 없으므로(이미 적어 둔 과목이 있을 때만 빼고) 과목칸을 숨긴다.
+    // 아침·점심·청소·하교는 과목이 없으므로 과목칸을 두지 않는다.
     function periodEditorHtml(schedule) {
         return PERIODS.map(name => {
             const item = schedule[name] || DEFAULTS[name];
@@ -91,7 +91,7 @@
             const subject = item.subject && item.subject !== name ? item.subject : '';
             return `<section class="bb-period-row">
                 <strong>${name}</strong>
-                ${isClass || subject ? `<input type="text" class="bb-subject" data-period="${name}" value="${esc(subject)}" placeholder="과목명">` : ''}
+                ${isClass ? `<input type="text" class="bb-subject" data-period="${name}" value="${esc(subject)}" placeholder="과목명">` : ''}
                 ${isClass ? `<label class="bb-move" title="이동수업이면 눌러서 켜세요"><input type="checkbox" class="bb-moving" data-period="${name}" ${item.isMovingClass?'checked':''}><span>🚶 이동</span></label>` : ''}
                 <textarea class="bb-action" data-period="${name}" rows="1" placeholder="화면 안내 문구${isClass?' (선택)':''}">${esc(item.action || '')}</textarea>
             </section>`;
@@ -327,9 +327,27 @@
             alert('공지를 삭제하지 못했습니다. 연결 후 다시 시도해 주세요.');
         }
     }
+    // 배움공책 & 메모는 전자칠판 화면에서 바로 저장되므로, 이 관리 화면이 들고 있는
+    // 주간 시간표 사본에는 그 뒤에 적은 내용이 없을 수 있다. 사본을 그대로 덮어쓰면
+    // (특히 "기본 시간표 불러오기" 뒤에는) 적어 둔 배움공책이 지워졌다. 저장 직전에
+    // 서버의 최신 배움공책을 사본에 옮겨 담아 지워지지 않게 한다.
+    function keepLearningNotes(latest) {
+        Object.entries(latest || {}).forEach(([date, day]) => {
+            if (!day || typeof day !== 'object') return;
+            if (!state.week[date]) { state.week[date] = day; return; }
+            Object.entries(day).forEach(([period, item]) => {
+                if (!item || typeof item !== 'object') return;
+                const target = state.week[date][period] = state.week[date][period] || {};
+                target.learningNote = String(item.learningNote || '');
+                target.showLearningNote = Boolean(item.showLearningNote);
+            });
+        });
+    }
     async function saveWeek() {
         captureWeekDay();
-        await db.ref(`blackboard/weeklySchedules/${state.selectedWeekStart}`).set(state.week);
+        const weekRef = db.ref(`blackboard/weeklySchedules/${state.selectedWeekStart}`);
+        keepLearningNotes((await weekRef.once('value')).val());
+        await weekRef.set(state.week);
         setWeekDirty(false);
         renderWeekTabs(); alert(`${state.selectedWeekStart} 주간 시간표를 저장했습니다.`);
     }
