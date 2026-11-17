@@ -1300,6 +1300,40 @@ function arrivalPeriodNumber(minutes, times) {
     return 6;
 }
 
+// 공개 좌석판(blackboardDisplay/data/checkins)은 학생마다 한 칸뿐이라, 미리 저장해 둔
+// 출결(연속 결석의 둘째 날부터)은 그날이 돼도 좌석판에 올라가지 않는다. 그러면 청소·
+// 전자칠판에서 결석한 학생이 등교한 것처럼 보인다. 평일 아침마다 오늘 출결 기록 중
+// 좌석판에 아직 오늘 날짜로 안 올라간 것만 올린다(오늘 이미 올라간 칸은 건드리지 않는다).
+exports.syncPreRecordedAttendance = onSchedule({
+    schedule: '0,20,40 7-8 * * 1-5',
+    timeZone: 'Asia/Seoul',
+    region: REGION
+}, async () => {
+    const database = getDatabase();
+    const date = kstDate(Date.now());
+    const [recordsSnapshot, boardSnapshot] = await Promise.all([
+        database.ref(`attendanceRecords/${date}`).get(),
+        database.ref('blackboardDisplay/data/checkins').get()
+    ]);
+    const board = boardSnapshot.val() || {};
+    const updates = {};
+    Object.entries(recordsSnapshot.val() || {}).forEach(([recordKey, record]) => {
+        if (!record || typeof record !== 'object') return;
+        const name = String(record.name || record.user || recordKey || '').trim();
+        if (!name) return;
+        const key = attendanceBoardKey(name);
+        if (board[key] && board[key].date === date) return;
+        const result = String(record.result || '').trim();
+        const category = String(record.category || '').trim()
+            || ['결석', '지각', '조퇴', '제외'].find(word => result.includes(word)) || '정상';
+        updates[`blackboardDisplay/data/checkins/${key}`] = {
+            name, date, attended: category !== '결석', category,
+            result: result || category, fromPeriod: String(record.fromPeriod || '')
+        };
+    });
+    if (Object.keys(updates).length) await database.ref().update(updates);
+});
+
 exports.autoMarkAbsent = onSchedule({
     schedule: '*/10 8-16 * * 1-5',
     timeZone: 'Asia/Seoul',
