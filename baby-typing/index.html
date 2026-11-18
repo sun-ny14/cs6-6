@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>아기 타자 놀이</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #fff8e7;
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+    user-select: none;
+  }
+  #stage { position: fixed; inset: 0; }
+  .pop {
+    position: absolute;
+    left: 0; top: 0;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 6px 0 rgba(0,0,0,.12);
+    animation: pop 1.4s ease-out forwards;
+  }
+  @keyframes pop {
+    0%   { transform: translate(-50%, -50%) scale(.2); opacity: 0; }
+    15%  { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+    30%  { transform: translate(-50%, -50%) scale(1); }
+    75%  { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -60%) scale(1.05); opacity: 0; }
+  }
+  .emoji { font-size: min(30vh, 30vw); }
+  .letter { font-size: min(60vh, 45vw); }
+  #hint {
+    position: fixed; bottom: 16px; left: 0; right: 0;
+    text-align: center; color: #bbb; font-size: 18px;
+  }
+  #sound {
+    position: fixed; top: 12px; right: 12px;
+    font-size: 22px; background: none; border: none; cursor: pointer;
+    opacity: .5;
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="hint">아무 키나 눌러 보세요 ⌨️</div>
+<button id="sound" title="소리 켜기/끄기">🔊</button>
+
+<script>
+  const COLORS = ["#ff5252", "#ff9800", "#ffc107", "#4caf50",
+                  "#29b6f6", "#5c6bc0", "#ab47bc", "#ec407a"];
+
+  // 글자가 아닌 키는 그림으로 보여 줍니다.
+  const SPECIAL = {
+    " ": "⭐", Enter: "🎉", Backspace: "💨", Tab: "🌀", Escape: "🔴",
+    ArrowUp: "⬆️", ArrowDown: "⬇️", ArrowLeft: "⬅️", ArrowRight: "➡️",
+    Shift: "🟦", Control: "🟩", Alt: "🟨", Meta: "🟪", CapsLock: "🌙",
+  };
+
+  const stage = document.getElementById("stage");
+  const soundBtn = document.getElementById("sound");
+  let soundOn = true;
+  const MAX_ITEMS = 30;
+
+  soundBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? "🔊" : "🔇";
+    soundBtn.blur();
+  });
+
+  function randomColor() {
+    return COLORS[Math.floor(Math.random() * COLORS.length)];
+  }
+
+  // 키를 소리로도 들려줍니다 (지원하는 브라우저에서만).
+  function speak(text) {
+    if (!soundOn || !("speechSynthesis" in window)) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "ko-KR";
+      u.rate = 1.1;
+      speechSynthesis.speak(u);
+    } catch (_) { /* 소리가 안 나와도 괜찮아요 */ }
+  }
+
+  function show(content, kind) {
+    // 너무 많이 쌓이면 가장 오래된 것부터 지웁니다.
+    while (stage.children.length >= MAX_ITEMS) stage.firstChild.remove();
+
+    const el = document.createElement("div");
+    el.className = "pop " + kind;
+    el.textContent = content;
+    el.style.left = (10 + Math.random() * 80) + "%";
+    el.style.top = (20 + Math.random() * 60) + "%";
+    el.style.color = randomColor();
+    el.addEventListener("animationend", () => el.remove());
+    stage.appendChild(el);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    // 브라우저 단축키(예: Ctrl+R 새로고침)는 건드리지 않습니다.
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    e.preventDefault();
+
+    if (SPECIAL[e.key]) {
+      show(SPECIAL[e.key], "emoji");
+      return;
+    }
+
+    if (e.key.length === 1) {
+      const ch = e.key.toUpperCase();
+      show(ch, "letter");
+      speak(ch);
+      return;
+    }
+    // 그 밖의 키는 무시합니다.
+  });
+
+  // 처음 누를 때 소리 안내가 가능하도록 안내 문구를 바꾸고 잠시 뒤 숨깁니다.
+  setTimeout(() => {
+    document.getElementById("hint").style.transition = "opacity 1s";
+    document.getElementById("hint").style.opacity = "0";
+  }, 8000);
+</script>
+</body>
+</html>
