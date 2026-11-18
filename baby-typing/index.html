@@ -46,7 +46,7 @@
 </head>
 <body>
 <div id="stage"></div>
-<div id="hint">아무 키나 눌러 보세요 ⌨️</div>
+<div id="hint">키를 누르거나 화면을 눌러 보세요 ⌨️</div>
 <button id="sound" title="소리 켜기/끄기">🔊</button>
 
 <script>
@@ -101,6 +101,21 @@
     el.addEventListener("animationend", () => el.remove());
     stage.appendChild(el);
   }
+
+  // 마우스 클릭이나 터치를 하면 누른 자리에 그림이 나타납니다.
+  const TAP_PICS = ["🐶", "🐱", "🐥", "🚗", "🍎", "🎈", "🌈", "⭐", "🌸", "🐟"];
+  document.addEventListener("pointerdown", (e) => {
+    if (e.target === soundBtn) return;
+    const el = document.createElement("div");
+    el.className = "pop emoji";
+    el.textContent = TAP_PICS[Math.floor(Math.random() * TAP_PICS.length)];
+    el.style.left = e.clientX + "px";
+    el.style.top = e.clientY + "px";
+    el.style.color = randomColor();
+    el.addEventListener("animationend", () => el.remove());
+    while (stage.children.length >= MAX_ITEMS) stage.firstChild.remove();
+    stage.appendChild(el);
+  });
 
   document.addEventListener("keydown", (e) => {
     // 브라우저 단축키(예: Ctrl+R 새로고침)는 건드리지 않습니다.
